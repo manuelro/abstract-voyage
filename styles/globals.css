@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1 {
+    @apply text-2xl font-semibold mt-10 mb-3 dark:text-slate-50;
+  }
+  h2 {
+    @apply text-xl font-semibold mt-10 mb-3 dark:text-slate-50;
+  }
+  h3 {
+    @apply text-lg font-semibold mt-10 mb-3 dark:text-slate-50;
+  }
+  a {
+    @apply  text-blue-800 border-b border-b-blue-200 border-dashed dark:text-blue-100 dark:border-b-blue-900;
+  }
+  a:hover {
+    @apply  text-blue-700 border-b-blue-400 dark:text-blue-200 dark:border-b-blue-800;
+  }
+  code {
+    @apply py-4 pr-4 border block text-xs mt-5 overflow-x-auto dark:border-slate-800 dark:bg-slate-950;
+  }
+  blockquote {
+    @apply py-4 pl-4 pr-4 border-l-2 border-l-yellow-500 dark:border-l-yellow-200 text-slate-500 dark:text-slate-300;
+  }
+  p {
+    @apply pb-2 mt-2
+  }
+}
+
+@import url('https://fonts.googleapis.com/css?family=Open+Sans:400,600,300');
