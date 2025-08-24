@@ -1,3 +1,4 @@
+// @ts-nocheck
 import fs from 'fs'
 import matter from 'gray-matter'
 import Header from '../components/Header'
@@ -7,6 +8,9 @@ import { formatDate } from 'components/helpers/date'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { PostType } from './posts/[slug]'
+// import SoundWaveVisualizer from 'components/components/SoundWaveVisualizer'
+import dynamic from 'next/dynamic'
+// const SoundWaveVisualizer = dynamic(() => import('../components/SoundWaveVisualizer'), { ssr: false })
 
 type PropsType = {
   posts: PostType[]
@@ -108,6 +112,8 @@ export default function Home({ posts }: PropsType) {
 
   return (
     <main className="flex min-h-screen flex-col p-5 md:p-24 max-w-screen-xl">
+      {/* <SoundWaveVisualizer audioFileUrl="/strings.mp3"></SoundWaveVisualizer> */}
+
       <Head>
         <title>Abstract Voyage | Manuel Cerdas&apos; Journal on Web Technologies, Cloud Computing and Artificial Intelligence</title>
       </Head>
