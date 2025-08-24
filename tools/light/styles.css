@@ -1,0 +1,427 @@
+/* styles.css — modern minimalist refresh
+   - Keeps original class names/structure
+   - Uses your token system (:root / [data-theme="dark"] and accent roles)
+   - Adds smooth transitions & subtle depth
+*/
+
+/* =========================
+   BASE TOKENS & GLOBALS
+   ========================= */
+:root{
+  --phi:1.6180339887;
+
+  /* existing color tokens are set by your runtime (ok to override here if needed) */
+  --bg:#0C1116; --surface:#0F141A; --elevated:#121920; --border:#22303C;
+  --text:#E7EBF0; --muted:#9AA7B0; --ring:#86E3E5;
+
+  /* Design tokens for motion/shape */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 20px;
+  --space-5: 24px;
+
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 360ms;
+  --ease: cubic-bezier(.2,.6,.2,1);
+  --ease-emph: cubic-bezier(.2,.7,0,1);
+
+  --shadow-1: 0 1px 1px rgba(0,0,0,.06), 0 1px 12px rgba(0,0,0,.14);
+  --shadow-2: 0 2px 2px rgba(0,0,0,.06), 0 8px 28px rgba(0,0,0,.18);
+
+  color-scheme: light dark;
+}
+
+.sim-light{
+  --bg:#F7F9FC; --surface:#FFFFFF; --elevated:#F3F6FA; --border:#D6DEE6;
+  --text:#0A0B0D; --muted:#5B6672;
+}
+.sim-dark{
+  --bg:#0C1116; --surface:#0F141A; --elevated:#121920; --border:#22303C;
+  --text:#E7EBF0; --muted:#9AA7B0;
+}
+
+/* =========================
+   RESETS & TYPOGRAPHY
+   ========================= */
+*{ box-sizing:border-box }
+html,body{ height:100% }
+html{ -webkit-text-size-adjust:100% }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font: 400 15.5px/1.6 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+@media (min-width:720px){
+  body{ font-size:16px }
+}
+
+h1{ font-size:18px; margin:0 0 8px }
+h2{ font-size:16px; margin:0 0 8px }
+p{ margin:0 0 10px }
+.muted{ color:var(--muted) }
+
+/* Prefer reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:1ms !important; transition-duration:1ms !important }
+}
+
+/* =========================
+   LAYOUT
+   ========================= */
+#shell{
+  position:fixed; inset:0; width:100vw; height:100svh;
+  display:grid; background:var(--surface);
+}
+@media (min-width:641px){
+  #shell{
+    grid-template-columns: calc(100vw / var(--phi)) calc(100vw - (100vw / var(--phi)));
+    grid-template-rows: 100%;
+  }
+}
+@media (max-width:640px){
+  #shell{ grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
+}
+
+#leftPane, #rightPane{
+  min-width:0; min-height:0; display:flex; flex-direction:column;
+}
+
+#leftPane{ background:var(--surface) }
+#rightPane{
+  background:var(--elevated);
+  border-left:1px solid var(--border);
+}
+
+.left-stack, .right-stack{
+  display:flex; flex-direction:column; gap:10px;
+  padding:2rem; height:100%;
+}
+
+.left-stack > section{
+  flex:1 1 0; min-height:0; display:flex; flex-direction:column;
+}
+
+/* =========================
+   PANELS / CARDS
+   ========================= */
+section{
+  background:var(--surface);
+  /* border:1px solid color-mix(in oklab, var(--border) 80%, transparent); */
+  border-radius:var(--radius-md);
+  padding:var(--space-3);
+  box-shadow: var(--shadow-1);
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+section:hover{
+  box-shadow: var(--shadow-2);
+}
+
+/* Tiny UI preview cards */
+.preview{ display:grid; gap:10px }
+.card{
+  border:1px solid color-mix(in oklab, var(--border) 75%, transparent);
+  border-radius:var(--radius-lg);
+  padding:14px;
+  background:var(--surface);
+  color:var(--text);
+  box-shadow: var(--shadow-1);
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.preview .card a{
+  color:var(--accent-shade-1, var(--accent-1, #1974FF));
+  text-decoration:none;
+}
+.preview .card a:hover{ text-decoration:underline }
+
+/* =========================
+   FORM ELEMENTS & BUTTONS
+   ========================= */
+.row{ display:flex; align-items:end; gap:12px; flex-wrap:wrap }
+label{ font-size:12.5px; color:var(--muted); display:block; letter-spacing:.2px }
+
+input[type="text"], select, button.copy{
+  height:40px; border-radius:var(--radius-sm);
+  border:1px solid var(--border);
+  background:color-mix(in oklab, var(--surface) 92%, transparent);
+  color:var(--text); padding:8px 12px; font:inherit;
+  transition: border-color var(--dur-fast) var(--ease), background-color var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+input[type="text"]:focus, select:focus{
+  outline:none;
+  border-color: color-mix(in oklab, var(--ring) 70%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 18%, transparent);
+}
+
+input[type="color"]{
+  width:48px; height:40px; padding:0;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--border);
+  background:transparent;
+}
+
+.hint{ font-size:12px; color:#E25858; display:none }
+input[aria-invalid="true"] + .hint{ display:block }
+
+/* Buttons — unify .cta and .copy */
+.btn, .cta, button.copy{
+  display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+  height:40px; padding:0 16px; border-radius:var(--radius-sm);
+  border:1px solid transparent; font-weight:600; cursor:pointer;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease), transform var(--dur-fast) var(--ease-emph), box-shadow var(--dur) var(--ease);
+  will-change: transform;
+}
+
+/* Primary (accent-driven) */
+.cta{
+  background:var(--cta-bg, var(--accent-shade-1, #1974FF));
+  color:var(--cta-fg, var(--on-accent-shade-1, #0A0B0D));
+}
+.cta:hover{
+  background:var(--cta-bg-hover, var(--accent-shade-2, #1253D6));
+  color:var(--cta-fg-hover, var(--on-accent-shade-2, #FFFFFF));
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px color-mix(in oklab, var(--cta-bg-hover) 18%, transparent);
+}
+.cta:active{ transform: translateY(0) }
+.cta[disabled]{ cursor:not-allowed; filter:grayscale(.15); opacity:.7 }
+
+/* Ghost / neutral buttons */
+button.copy{
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  color:var(--text);
+  border-color: var(--border);
+}
+button.copy:hover{
+  background: color-mix(in oklab, var(--surface) 86%, transparent);
+}
+
+/* Accessible focus */
+:focus-visible{
+  outline:2px solid var(--ring);
+  outline-offset:2px;
+  border-radius: calc(var(--radius-sm) + 2px);
+}
+
+/* =========================
+   TABS
+   ========================= */
+.tabs{ display:flex; gap:8px; margin:6px 0; padding:3px; border-radius:999px; background: color-mix(in oklab, var(--surface) 85%, transparent); border:1px solid var(--border) }
+.tab{
+  padding:6px 12px; border-radius:999px; border:1px solid transparent;
+  background:transparent; color:var(--muted); cursor:pointer; font-size:13px;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.tab[aria-pressed="true"]{
+  background:var(--accent-tint-2, var(--accent-1, #1974FF));
+  color:var(--on-accent-tint-2, var(--on-accent-1, #0A0B0D));
+}
+.tab:hover{ color:var(--text) }
+
+/* =========================
+   LADDER GRID / TILES
+   ========================= */
+.ladder{
+    display:grid; grid-template-columns:repeat(var(--cols,5),minmax(0,1fr));gap:10px
+}
+@media (max-width:640px){ .ladder{ grid-template-columns:1fr } }
+
+.tile{
+  border-radius:var(--radius-sm);
+  min-height:104px;
+  border:1px solid rgba(0,0,0,.22);
+  display:flex; flex-direction:column; justify-content:space-between;
+  cursor:copy; transition: filter var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  box-shadow: inset 0 -12px 24px rgba(0,0,0,.05);
+}
+.sim-dark .tile{ border-color: rgba(255,255,255,.22) }
+.tile:hover{ filter: brightness(.98); transform: translateY(-1px) }
+.tile .top{ display:flex; align-items:center; justify-content:space-between; padding:8px 10px; font-weight:600; text-shadow: 0 1px 0 rgba(0,0,0,.06) }
+.tile .meta{ font-size:12px; padding:6px 8px; opacity:.92 }
+.tile .meter{
+  display:grid; grid-template-columns:repeat(var(--cols,5),1fr); gap:6px; align-items:center; padding:6px 8px 10px; position:relative
+}
+.tile .baseline{ position:absolute; left:8px; right:8px; top:50%; height:2px; background:rgba(0,0,0,.22); transform:translateY(-50%) }
+.sim-dark .tile .baseline{ background:rgba(255,255,255,.25) }
+.tick{ height:8px; border-radius:2px; background:rgba(0,0,0,.22) }
+.sim-dark .tick{ background:rgba(255,255,255,.25) }
+.dot{ width:10px; height:10px; border-radius:50%; border:1px solid rgba(0,0,0,.35); background:rgba(255,255,255,.9); justify-self:center }
+.legend{ display:flex; justify-content:space-between; padding:0 8px 8px; font-size:11px; opacity:.8; gap:4px; flex-wrap:wrap }
+
+/* =========================
+   TOKENS OUTPUT / CODE
+   ========================= */
+.tokens{
+  background: color-mix(in oklab, #0b0f14 88%, transparent);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:12px;
+  font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:13px; overflow:auto; color:#E7EBF0;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+/* =========================
+   ACCESSIBILITY TABLE
+   ========================= */
+.a11y-wrap{
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  overflow:auto;
+  background:var(--surface);
+  max-height:42vh;
+  box-shadow: var(--shadow-1);
+}
+
+table.a11y{ width:100%; border-collapse:separate; border-spacing:0; font-size:13px }
+table.a11y th, table.a11y td{ padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle }
+table.a11y thead th{
+  position:sticky; top:0; z-index:1; text-align:left;
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  backdrop-filter: saturate(1.2) blur(4px);
+}
+table.a11y tbody tr:hover{
+  background: color-mix(in oklab, var(--surface) 86%, transparent);
+}
+
+.swatch{ width:18px; height:18px; border-radius:4px; border:1px solid rgba(0,0,0,.25); display:inline-block; margin-right:8px; vertical-align:middle }
+.sim-dark .swatch{ border-color:rgba(255,255,255,.25) }
+
+.badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; line-height:1.4; border:1px solid transparent }
+.badge.aaa{ background:rgba(34,197,94,.14); border-color:rgba(34,197,94,.35) }
+.badge.aa { background:rgba(59,130,246,.14); border-color:rgba(59,130,246,.35) }
+.badge.large{ background:rgba(245,158,11,.16); border-color:rgba(245,158,11,.40) }
+.badge.ui { background:rgba(20,184,166,.14); border-color:rgba(20,184,166,.40) }
+.badge.fail{ background:rgba(239,68,68,.16); border-color:rgba(239,68,68,.40) }
+
+.a11y-chip{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; opacity:.9 }
+.a11y-use{ white-space:nowrap }
+
+/* =========================
+   TOAST
+   ========================= */
+.toast{
+  position:fixed; left:50%; transform:translateX(-50%); bottom:18px;
+  background: color-mix(in oklab, #10151c 92%, transparent);
+  border:1px solid var(--border); color:#E7EBF0;
+  border-radius:var(--radius-sm); padding:10px 12px;
+  opacity:0; transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+  box-shadow: var(--shadow-2);
+  will-change: transform, opacity;
+}
+.toast.show{ opacity:1; transform: translateX(-50%) translateY(-2px) }
+
+/* =========================
+   SCROLLBARS (subtle)
+   ========================= */
+*::-webkit-scrollbar{ width:10px; height:10px }
+*::-webkit-scrollbar-thumb{
+  background: color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius:999px; border:2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-track{ background: transparent }
+
+/* =========================
+   SMALL REFINEMENTS
+   ========================= */
+header{ display:none } /* keep panes full-viewport */
+
+/* Soften borders when inside themed scopes */
+.sim-light section, .sim-dark section{
+  border-color: color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+/* Extra transitions on elements that react to CSS vars */
+.preview .card, .cta, .tile, .tokens{
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), filter var(--dur-fast) var(--ease);
+}
+
+.sim-light,
+.sim-dark {
+  color: var(--text);
+}
+
+/* ===== Mobile & Tablet: allow page scrolling and natural flow ===== */
+@media (max-width: 1024px){
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-y: auto !important;   /* allow page scroll */
+  }
+
+  /* Kill the fixed, full-viewport container on small screens */
+  #shell{
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    background: var(--bg) !important; /* use page bg when not fixed */
+    overflow: visible !important;
+  }
+
+  /* Remove pane/stack height constraints */
+  #leftPane, #rightPane {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    border-left: 0 !important;
+  }
+  #rightPane { border-top: 1px solid var(--border) !important; }
+
+  .left-stack, .right-stack {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 10px 10px 80px !important;
+    gap: 10px !important;
+  }
+
+  /* Panels size to content (avoid flex stretching to viewport) */
+  .left-stack > section,
+  .right-stack > section {
+    flex: initial !important;
+    min-height: auto !important;
+  }
+
+  /* Controls stack full width on mobile/tablet */
+  .controls .row > * { flex: 1 1 100% !important; min-width: 0 !important; }
+  .controls input[type="text"],
+  .controls select,
+  .controls input[type="color"],
+  .controls button.copy { width: 100% !important; }
+
+  /* Single-column ladder on small screens */
+  .ladder { grid-template-columns: 1fr !important; }
+
+  /* Constrain big internals to scroll inside themselves (not the page) */
+  .a11y-wrap { max-height: 56vh; overflow: auto; }
+  .tokens    { white-space: pre; overflow-x: auto; }
+}
+
+/* ===== Desktop keeps the two-pane golden-ratio layout ===== */
+@media (min-width: 1025px){
+  #shell{
+    position: fixed; inset: 0;
+    width: 100vw; height: 100svh;
+    display: grid; gap: 0;
+    background: var(--surface);
+    grid-template-columns: calc(100vw / var(--phi)) calc(100vw - (100vw / var(--phi)));
+    grid-template-rows: 100%;
+  }
+  #rightPane{ border-left: 1px solid var(--border); border-top: 0; }
+}

@@ -11,6 +11,12 @@ export default function Document() {
           src="https://www.googletagmanager.com/gtag/js?id=G-83H6JXQD4R"
           strategy="afterInteractive"
         />
+
+        <Script
+          src="https://cdn.jsdelivr.net/npm/p5@1.4.2/lib/p5.min.js"
+          strategy="afterInteractive"
+        />
+        
         <Script id="google-analytics" strategy="afterInteractive">
           {`
             window.dataLayer = window.dataLayer || [];
