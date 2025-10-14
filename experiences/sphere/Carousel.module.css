@@ -1,0 +1,28 @@
+/* MyClass: attach directly to the slide's <blockquote> to neutralize any global quote chrome.
+   Single-level selectors only (no descendants). */
+
+.root {
+  /* Kill common quote chrome */
+  border: none !important;
+  border-left: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+
+  /* Avoid text selection interfering with drag (defensive; also set inline on container) */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Nuke pseudo-element decorations some themes add (e.g., a vertical rule) */
+.root::before,
+.root::after {
+  content: none !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}

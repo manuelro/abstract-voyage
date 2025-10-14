@@ -1,0 +1,8 @@
+.root {}
+
+.footer {
+  font-size: 0.8rem;
+  opacity: 0.62;
+  color: var(--color-text-secondary, inherit);
+}
+
