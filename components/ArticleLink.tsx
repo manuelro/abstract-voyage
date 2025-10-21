@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import Chip from './Chip'
+import styles from './ArticleLink.module.css'
 
 type PropsType = {
     title: string
@@ -11,28 +11,35 @@ type PropsType = {
 }
 
 const ArticleLink = ({ title, tags, url, slug, formattedDate }: PropsType) => {
-    const link = url ? <a href={url} className='text-xl' target='_blank'>{title}</a> : <Link href={slug} className='text-xl'>{title}</Link>
+    const link = url ? <a href={url} className={`${styles.link} text-xl`} target='_blank'>{title}</a> : <Link href={slug} className={`${styles.link} text-xl`}>{title}</Link>
 
     return (
-        <li className='font-serif italic mt-5 dark:text-gray-300 whitespace-break-spaces'>
-            <div>
-                {link} <span className='dark:text-yellow-100 pl-2 transition-opacity date'>{formattedDate}</span>
+        <li className={`${styles.root} font-serif italic mt-5 dark:text-gray-300 whitespace-break-spaces`}>
+            <div className='flex flex-col'>
+                {link} <div className={`${styles.date} dark:text-yellow-100 transition-opacity transition-delay-1 date flex gap-2 text-sm inline-block`}>
+                    {formattedDate}
+                    {/* < >
+                        {tags.map((tag) => {
+                            return <span key={tag}>{tag}</span> 
+                        })}
+                    </> */}
+                </div>
             </div>
 
-            <div className='pt-2 pb-4 flex'>
+            {/* <div className='pt-2 pb-4 flex'>
                 {tags.map((tag) => {
                     return <Chip key={tag}>{tag}</Chip> 
                 })}
-            </div>
+            </div> */}
 
-            <style jsx>{`
+            {/* <style jsx>{`
                 .date {
                     opacity: 0;
                 }
                 li:hover .date{
                     opacity: 1;
                 }
-            `}</style>
+            `}</style> */}
         </li>
     )
 }

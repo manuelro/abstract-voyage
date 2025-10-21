@@ -1,0 +1,93 @@
+.root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20; /* above Sphere overlays */
+  pointer-events: auto;
+
+  /* IMPORTANT: keep sphere rim crisp — remove backdrop blur.
+     Provide a very subtle gradient instead for readability. */
+  /* backdrop-filter: blur(1rem); */
+  /* background: rgba(0, 0, 0, 0.09); */
+
+  /* padding: 2rem 2rem 2rem 2rem; */
+  /* background-color: rgba(0, 0, 0, 0.18); */
+  max-height: 4rem;
+  padding: 2rem 1.2rem;
+}
+
+.root a {
+  text-decoration: none !important;
+  color: inherit;
+  border-bottom: none;
+}
+
+.logo {
+  opacity: 0.5;
+  /* transform: scale(0.8); */
+  transition: opacity 500ms ease-out 100ms, color 500ms ease-out 100ms;
+}
+
+.logo:hover {
+  opacity: 0.9;
+}
+
+.inner {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  /* padding: 0 16px; */
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: rgba(255,255,255,0.92);
+}
+
+.name {
+  font-size: 14px;
+  letter-spacing: .2px;
+}
+
+.nav {
+  margin-left: auto;
+  display: flex;
+  gap: 14px;
+}
+
+.link {
+  text-decoration: none;
+  color: rgba(255,255,255,0.50) !important;
+  font-size: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  /* allow JS-driven transforms */
+  will-change: opacity, transform;
+  letter-spacing: .05rem;
+  transition: opacity 900ms ease-out 900ms, color 620ms ease-out 100ms;
+  max-width: 80px;
+  min-width: 77px;
+  display: flex;
+  justify-content: end;
+}
+
+.link:hover,
+.link:focus-visible {
+  color: rgba(255,255,255,1) !important;
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* was: blur(2px); keep off for crisp rim */
+}
+
+@media (min-width: 768px) {
+  .root {
+    padding: 6rem 6em;
+  }
+}

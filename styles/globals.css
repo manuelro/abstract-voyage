@@ -14,10 +14,10 @@
     @apply text-lg font-semibold mt-10 mb-3 dark:text-slate-50;
   }
   a {
-    @apply  text-blue-800 border-b border-b-blue-200 border-dashed dark:text-blue-100 dark:border-b-blue-900;
+    @apply  text-blue-800 dark:text-blue-100;
   }
   a:hover {
-    @apply  text-blue-700 border-b-blue-400 dark:text-blue-200 dark:border-b-blue-800;
+    @apply  text-blue-700 dark:text-blue-200;
   }
   code {
     @apply py-4 pr-4 border block text-xs mt-5 overflow-x-auto dark:border-slate-800 dark:bg-slate-950;
@@ -31,3 +31,83 @@
 }
 
 @import url('https://fonts.googleapis.com/css?family=Open+Sans:400,600,300');
+
+/* --- Global route fade overlay + header fade -------------------------------- */
+
+:root {
+  --route-fade-ease: cubic-bezier(0.22, 1, 0.36, 1); /* smooth ease-out */
+  --route-fade-ms: 700ms; /* ← 700ms for both fade-out and fade-in */
+  --route-fade-bg: #171C2A;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --route-fade-bg: #171C2A;
+  }
+}
+
+#route-fader {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: var(--route-fade-bg);
+  opacity: 0;
+  transition: opacity var(--route-fade-ms) var(--route-fade-ease);
+  will-change: opacity;
+  z-index: 100; /* above everything */
+}
+
+body {
+  opacity: 0;
+  /* use an animation instead of a transition */
+  animation: none;
+}
+
+/* keyframes for fading the body in */
+@keyframes body-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* show (and animate) to full opacity when not in a transition state */
+body:not(.route-transitioning) {
+  animation: body-fade-in var(--route-fade-ms) var(--route-fade-ease) forwards;
+}
+
+/* respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  body {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
+body.route-transitioning #route-fader {
+  opacity: 1;
+}
+
+/* Fade the shared header during transitions (match 700ms) */
+body.route-transitioning header[data-nav-lite] {
+  opacity: 0 !important;
+  transition: opacity var(--route-fade-ms) var(--route-fade-ease) !important;
+}
+
+/* Optional: subtle emphasis for the last nav item (the switch) if you have .linkSwitch */
+header[data-nav-lite] .linkSwitch {
+  /* no hard styles here to respect your module CSS; add if desired */
+}
+
+/* PRM: disable motion */
+@media (prefers-reduced-motion: reduce) {
+  #route-fader {
+    transition: none;
+    opacity: 0 !important;
+  }
+  body.route-transitioning #route-fader {
+    opacity: 0 !important;
+  }
+  body.route-transitioning header[data-nav-lite] {
+    transition: none !important;
+    opacity: 1 !important;
+  }
+}

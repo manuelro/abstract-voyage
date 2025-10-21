@@ -1,6 +1,7 @@
 ---
 title: 'Introducing Infinity Labs: The Open Education Initiative'
 author: "Manu"
+description: "Discover Infinity Labs, an open education initiative on YouTube offering free, high quality learning for software engineers from junior to senior. Learn software architecture, design patterns, programming languages, and frameworks, plus courses and workshops. Join the community and subscribe for career-ready growth."
 tags:
     - Open Education
     - YouTube

@@ -13,7 +13,7 @@ type PostType = {
     date: string
 }
 
-const Header = (props: { className: string, posts: PostType[] }) => (<ol className={props.className}>
+const Header = (props: { className: string, posts: PostType[] }) => (<ol className={[props.className, 'pt-10'].join(' ')}>
     {props.posts.map((post: any) => {
         const { slug, frontmatter, formattedDate, date } = post
         const { title, tags, url } = frontmatter

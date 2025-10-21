@@ -1,0 +1,75 @@
+.wrap {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* never blocks dragging */
+  z-index: var(--z, 20);
+}
+
+/* Precompute dependent delays using calc over time vars */
+.wrap {
+  --right-in-delay:  var(--arw-start, 0ms);
+  --right-out-delay: calc(var(--arw-start, 0ms) + var(--arw-enter, 0ms) + var(--arw-hold, 0ms));
+
+  --left-in-delay:   calc(var(--right-out-delay, 0ms) + var(--arw-fade, 0ms) + var(--arw-gap, 0ms));
+  --left-out-delay:  calc(var(--left-in-delay, 0ms) + var(--arw-enter, 0ms) + var(--arw-hold, 0ms));
+}
+
+.arrow {
+  position: absolute;
+  top: 50%;
+  width: var(--arrow-size, 28px);
+  height: var(--arrow-size, 28px);
+  /* vertical centering via transform only; remove margin-top double-centering */
+  opacity: 0;
+  background: none;
+  border: 2px solid rgba(255,255,255,var(--arrow-alpha, 0.88));
+  border-left: 0;
+  border-bottom: 0;
+  border-radius: 3px;
+  box-sizing: border-box;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35));
+}
+
+/* Draw chevrons using rotation; horizontal placement around sphere center */
+.left {
+  left: 50%;
+  transform: translate3d(calc(-1 * var(--arrow-offset, 0px)), -50%, 0) rotate(-135deg);
+}
+
+.right {
+  left: 50%;
+  transform: translate3d(var(--arrow-offset, 0px), -50%, 0) rotate(45deg);
+}
+
+/* Sequence: Right enter → Right fade → Left enter → Left fade */
+.visible .right {
+  animation:
+    hintFadeIn  var(--arw-enter, 0ms) var(--right-in-delay, 0ms)  var(--ease-out-exp, ease-out) forwards,
+    hintFadeOut var(--arw-fade, 0ms)  var(--right-out-delay, 0ms) var(--ease-in-exp, ease-in)   forwards;
+}
+
+.visible .left {
+  animation:
+    hintFadeIn  var(--arw-enter, 0ms) var(--left-in-delay, 0ms)   var(--ease-out-exp, ease-out) forwards,
+    hintFadeOut var(--arw-fade, 0ms)  var(--left-out-delay, 0ms)  var(--ease-in-exp, ease-in)   forwards;
+}
+
+.hidden .arrow {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes hintFadeIn {
+  from { opacity: 0; }
+  to   { opacity: var(--arrow-alpha, 0.88); }
+}
+
+@keyframes hintFadeOut {
+  from { opacity: var(--arrow-alpha, 0.88); }
+  to   { opacity: 0; }
+}
+
+/* PRM keeps the same sequencing, variables are reduced by JS; no transform jiggles */
+@media (prefers-reduced-motion: reduce) {
+  .arrow { filter: none; }
+}

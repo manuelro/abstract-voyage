@@ -1,0 +1,100 @@
+.root {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 20; /* above Sphere overlays */
+  display: grid;
+  place-items: center;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.footerBottom {
+  background: linear-gradient(180deg, rgba(0,0,0,0.00), rgba(0,0,0,0.20));
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.footerMid {
+  /* Top is provided via CSS var from the page */
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  min-width: min(92vw, 92ch);
+  /* border: 1px solid rgba(255,255,255,0.06); */
+  border-radius: 8px;
+  backdrop-filter: blur(2px);
+}
+
+.lines {
+  display: grid; gap: 4px;
+  position: relative;
+  font-size: 10px;
+}
+
+.lines:hover .line1, .lines:active .line1{
+  /* transition: opacity 500ms ease-out 250ms; */
+  opacity: 0;
+}
+.lines:hover .line2, .lines:active .line2 {
+  /* transition: opacity 900ms ease-out 500ms; */
+  opacity: .5;
+}
+
+.line {
+  line-height: 1.5rem;
+}
+
+.line a {
+  text-decoration: none !important;
+  color: inherit;
+  border-bottom: none;
+  cursor: pointer;
+}
+
+.line1 {
+  /* color: rgba(255,255,255,0.88); */
+  /* letter-spacing: .05rem; */
+  position: absolute;
+  transform: translateX(-50%);
+  left: 50%;
+  /* top: 0; */
+  bottom: 0;
+  user-select: none;
+  pointer-events: var(--links-pe, none);
+  line-height: 1rem;
+
+  text-decoration: none;
+  color: rgba(255,255,255,0.50);
+  /* allow JS-driven transforms */
+  will-change: opacity, transform;
+  letter-spacing: .05rem;
+  transition: opacity 900ms ease-out 100ms, color 620ms ease-out 100ms;
+}
+
+.line1:hover{ 
+  color: rgba(255,255,255,0.90);
+}
+
+.line2 {
+  max-width: min(92ch, 92vw);
+  color: rgba(255,255,255,0.5);
+  opacity: 0;
+  line-height: 1rem;
+  user-select: none;
+  pointer-events: var(--links-pe, none);
+  transition: opacity 900ms ease-out 100ms, color 620ms ease-out 100ms;
+}
+
+.root.isAbout .line1 {
+  opacity: 0;
+}
+
+.root.isAbout .line2 {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footerMid { backdrop-filter: none; }
+}
