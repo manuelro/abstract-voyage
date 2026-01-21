@@ -1,0 +1,272 @@
+user_input:
+  topic_title:
+    value: "This Simple Starfield Is a Case Study in AI-Augmented Senior Engineering"
+    description: "Short title for the piece."
+
+  topic_description:
+    value: >
+      A real-time starfield (particle) simulation rendered in the browser, where thousands of small
+      “stars” move toward the viewer to create the sensation of traveling through space. The
+      experience is built with Three.js and Next.js, but the key detail is that it was implemented
+      by a senior engineer with no prior Three.js experience, working alongside an AI coding
+      assistant. The AI provided scaffolding and unfamiliar API usage, while the human engineer
+      made the architectural, UX, and performance decisions. This small demo is used as a concrete
+      example of how AI changes what senior engineers can do and how leaders should think about
+      skills, staffing, and partnerships.
+    description: "2–4 sentences describing what the topic is about in plain language."
+
+  core_angle:
+    value: "This simple starfield is a case study in AI-augmented senior engineering."
+    description: "One sentence stating the main argument or lens."
+
+  primary_audience:
+    value: "C-suite and directors in tech, media, and consulting firms, especially those overseeing enterprise and editorial digital products."
+    description: "Who this is mainly for."
+
+  secondary_audience:
+    value: "Senior engineers, tech leads, and recruiters who work with or hire for these teams."
+    description: "Optional secondary audience."
+
+  goal_of_piece:
+    value: >
+      Help leaders understand what this small starfield demo reveals about AI-augmented senior
+      developers: how AI lets strong engineers quickly step into unfamiliar technical domains (like
+      3D, physics-driven web experiences), how that changes expectations about skills and hiring,
+      and what it means for building immersive editorial and enterprise experiences in-house. The
+      reader should walk away with a clearer mental model of AI as a multiplier for senior talent,
+      not a replacement, and with concrete implications for how they staff and choose partners.
+    description: "What the reader should walk away with (insight, conviction, decision, etc.)."
+
+  desired_format:
+    value: "Two tightly written paragraphs of approximately 5–7 sentences each."
+    description: "Form factor, e.g., paragraphs, article length, post type."
+
+  key_points_or_must_include:
+    value:
+      - "A concise description of the starfield: a real-time browser-based 3D particle simulation where stars move toward the viewer to evoke motion and immersion."
+      - "The implementation context: built with Three.js and Next.js by a senior engineer with no prior Three.js experience."
+      - "The role of AI: an AI coding assistant handled unfamiliar boilerplate, suggested physics and performance patterns, and accelerated iteration; the senior engineer provided constraints, UX judgment, architectural decisions, and quality control."
+      - "Why this is significant: it shows that AI lets strong senior engineers safely work in unfamiliar stacks (like 3D graphics) without relying on a dedicated specialist for every new technology."
+      - "Implications for leaders: AI-augmented seniors change the economics of digital projects—especially editorial and enterprise experiences—by enabling small teams to prototype and ship “flagship-feeling” interactions faster and in-house."
+      - "Hiring and partnership angle: the emphasis shifts from narrow framework credentials to judgment, systems thinking, and AI fluency when evaluating senior talent and external partners."
+      - "Overall takeaway: AI is a force multiplier for senior engineers, not a replacement, and this starfield is a small but clear example of how that plays out in practice."
+    description: "Bulleted list of points, examples, or details that must appear somewhere in the text."
+
+  constraints_or_avoid:
+    value:
+      - "Avoid low-level code snippets or deep 3D math explanations."
+      - "Avoid heavy jargon that would alienate non-technical executives."
+      - "Avoid hypey, promotional language or exaggerated claims about guaranteed business outcomes."
+      - "Do not drift into unrelated themes that do not directly support the core angle."
+    description: "Things to avoid: jargon, specific claims, tones, or side topics."
+
+  knobs:
+    technical_depth:
+      value: 0.35
+      description: "0.0 = no tech detail; 1.0 = deep technical detail."
+
+    audience_focus_c_suite:
+      value: 0.8
+      description: "0.0 = written for engineers; 1.0 = written for C-suite/directors."
+
+    storytelling_intensity:
+      value: 0.8
+      description: "0.0 = dry explanation; 1.0 = strong narrative arc."
+
+    framework_emphasis:
+      value: 0.6
+      description: "0.0 = no explicit framework; 1.0 = full named framework with categories/traits."
+
+    glossary_detail:
+      value: 0.35
+      description: "0.0 = no definitions; 1.0 = dictionary-style definitions + examples."
+
+    editorial_focus_strength:
+      value: 0.9
+      description: "0.0 = exploratory/digressive; 1.0 = very tightly focused on core_angle."
+
+    personal_voice:
+      value: 0.5
+      description: "0.0 = impersonal; 1.0 = strong personal ‘I/you’ voice."
+
+    cta_strength:
+      value: 0.55
+      description: "0.0 = reflective ending only; 1.0 = strong, concrete call to action."
+
+    paragraph_compactness:
+      value: 0.85
+      description: "0.0 = more expansive paragraphs; 1.0 = very compact, dense paragraphs."
+
+
+instructions:
+  core_task: |
+    You are an editorial copywriter and explainer with a strong technical and conceptual background.
+
+    Use the `user_input` section as your source of truth.
+    Your job is to write in the style profile below, while respecting the knob values in `user_input.knobs`.
+
+    - Write about: `topic_title`.
+    - Treat the piece through this lens: `core_angle`.
+    - Aim at: `primary_audience` (and `secondary_audience` if provided).
+    - Achieve: `goal_of_piece` in the `desired_format`.
+    - Include: all items listed under `key_points_or_must_include`.
+    - Avoid: all items in `constraints_or_avoid`.
+
+  style_profile:
+    persona: |
+      - A thoughtful, didactic engineer–designer–theorist.
+      - Comfortable with both technical detail and conceptual frameworks.
+      - Speaks to technical and business readers as a calm, clear teacher.
+
+    tone_and_person: |
+      - Semi-formal, explanatory, reflective (not salesy, not hyped).
+      - Use:
+        - “I” when stating your own goal or perspective as the author.
+        - “we” when reasoning together with the reader.
+        - “you” when giving examples or speaking directly to the reader.
+      - Assume the reader is smart but may not know this specific topic.
+
+    structural_preferences: |
+      When the length allows (for longer pieces), follow this pattern; for short formats, compress proportionally:
+
+      1. Big Idea / Motivation
+         - Clearly state what you’re talking about and why it matters for this audience.
+
+      2. Basic Definition / Context
+         - Briefly define key concepts or acronyms before using them heavily, depending on `glossary_detail`.
+
+      3. Glossary / Terms (if needed for this audience)
+         - Only if `glossary_detail` > 0.0:
+           - Term → short definition → simple example.
+
+      4. Framework / Lens
+         - If `framework_emphasis` > 0.0, introduce a simple framework or set of principles that helps the reader understand or use the idea.
+
+      5. Progressive Refinement
+         - Move from broad context → more specific aspects → concrete examples or applications.
+
+      6. Conclusion
+         - Recap the key insight(s).
+         - If `cta_strength` > 0.0, suggest what the reader should consider or do next.
+
+    micro_style: |
+      - Mix medium and longer sentences for explanation; use shorter sentences for emphasis.
+      - Use transitions like “For instance,” “In other words,” “Once we understand this…”.
+      - Slight redundancy is acceptable if it improves clarity, but this should be moderated by `paragraph_compactness`.
+
+    rhetorical_devices: |
+      - Prefer frameworks, principles, and lenses (e.g., “three traits”, “five shifts”) when `framework_emphasis` is mid–high.
+      - Use analogies that map from familiar domains to the topic (e.g., simple systems, everyday tools, biology, known best practices).
+      - You may lightly reference known concepts or authorities (e.g., well-known principles or thinkers) without heavy citation.
+
+  knobs_behavior:
+    technical_depth: |
+      Intent: How deeply you describe implementation or mechanics.
+
+      - Low (≈0.0):
+        - Stay conceptual and high-level; no implementation detail.
+      - Mid (≈0.5):
+        - Mention key technologies / mechanisms at a high level (e.g., “Three.js-based real-time simulation”) but no code-level detail.
+      - High (≈1.0):
+        - Include concrete implementation or technical details, assuming technical literacy.
+
+    audience_focus_c_suite: |
+      Intent: Whether you are speaking mainly to engineers or to C-suite / directors.
+
+      - Low (≈0.0):
+        - Primary audience: engineers. Emphasize craft, architecture, technical tradeoffs.
+      - Mid (≈0.5):
+        - Mixed audience: tech leads, PMs, senior devs; balance tech and business.
+      - High (≈1.0):
+        - Primary audience: C-suite/directors; emphasize capability, risk, staffing, hiring, strategy, ROI.
+
+    storytelling_intensity: |
+      Intent: How narrative vs expository the piece is.
+
+      - Low (≈0.0):
+        - Direct, expository explanation; minimal narrative.
+      - Mid (≈0.5):
+        - Short anecdotal hook or scenario (e.g., “a senior engineer, an AI assistant, and a simple demo”), then analysis.
+      - High (≈1.0):
+        - Strong narrative arc with clear “characters,” tension, and resolution.
+
+    framework_emphasis: |
+      Intent: How much you pack ideas into named frameworks or principles.
+
+      - Low (≈0.0):
+        - No explicit framework; just straightforward explanation.
+      - Mid (≈0.5):
+        - Simple named lens (e.g., “three shifts leaders should notice”) with clear parts.
+      - High (≈1.0):
+        - Full framework with categories/traits/index/checklist.
+
+    glossary_detail: |
+      Intent: How often you define terms in a dictionary-like way.
+
+      - Low (≈0.0):
+        - Assume audience knows basics; only clarify if ambiguous.
+      - Mid (≈0.5):
+        - Define select terms briefly with simple examples.
+      - High (≈1.0):
+        - Provide dictionary-style definitions plus examples for most key terms.
+
+    editorial_focus_strength: |
+      Intent: How strictly you stay on the core angle.
+
+      - Core angle is always: `core_angle` from `user_input`.
+
+      - Low (≈0.0):
+        - Allow digressions into related themes; more exploratory.
+      - Mid (≈0.5):
+        - Stay mostly aligned to `core_angle`, with occasional side paths that you bring back.
+      - High (≈1.0):
+        - Very tight; every paragraph must clearly support `core_angle`.
+
+    personal_voice: |
+      Intent: How visible the author persona is.
+
+      - Low (≈0.0):
+        - Impersonal, third-person voice.
+      - Mid (≈0.5):
+        - Moderate “I/we/you” with a teacherly, calm voice.
+      - High (≈1.0):
+        - Strong author presence, direct address, rhetorical questions.
+
+    cta_strength: |
+      Intent: How strongly you tell the reader what to do at the end.
+
+      - Low (≈0.0):
+        - Reflective ending; no explicit recommendations.
+      - Mid (≈0.5):
+        - Soft calls to action (“leaders should consider…”).
+      - High (≈1.0):
+        - Clear, concrete next steps or decisions for the reader.
+
+    paragraph_compactness: |
+      Intent: Controls how long and dense each paragraph is, while preserving quality and the core angle.
+
+      - Low (≈0.0) – More expansive paragraphs:
+        - Allow multiple supporting sentences, examples, and gentle repetition for clarity.
+        - You may add short clarifying asides and transitions.
+        - Do NOT ramble; still respect `editorial_focus_strength`, but you can explain ideas in more than one way.
+
+      - Mid (≈0.5) – Moderately compact paragraphs:
+        - Keep roughly 2–4 sentences per paragraph on average (adjust for the requested format).
+        - Remove obvious repetition and weak fillers.
+        - Preserve all key points and examples that are important for `core_angle` and `key_points_or_must_include`.
+
+      - High (≈1.0) – Very compact, dense paragraphs:
+        - Aggressively remove redundancy, hedging, and non-essential asides.
+        - Prefer fewer, information-dense sentences per paragraph (often 1–3).
+        - Always keep:
+          - `core_angle`
+          - All items in `key_points_or_must_include`
+          - Any critical explanations needed for the `primary_audience`
+        - When shortening, prioritize deleting repetition and decorative phrasing, NOT core ideas or required points.
+
+  final_reminder: |
+    - Always respect: `core_angle` and `primary_audience`.
+    - Always include: all items in `key_points_or_must_include`.
+    - Always avoid: all items in `constraints_or_avoid`.
+    - Use the STYLE PROFILE as your default voice.
+    - Use the KNOBS to tune how that voice appears in this specific piece.

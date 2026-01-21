@@ -1,0 +1,447 @@
+layout:
+  display:
+    "block": "display: block; element starts on a new line and takes full width."
+    "inline-block": "display: inline-block; flow inline but allow width and height."
+    "inline": "display: inline; flow inline without block box."
+    "inline-flex": "display: inline-flex; inline element that is a flex container."
+    "flex": "display: flex; flex container for row or column layouts."
+    "grid": "display: grid; grid container for two-dimensional layouts."
+    "inline-grid": "display: inline-grid; inline-level grid container."
+    "hidden": "display: none; remove element from layout."
+    "contents": "display: contents; render children as if this wrapper did not exist."
+    "table": "display: table; table-style block element."
+
+  flex-direction:
+    "flex-row": "flex-direction: row; lay out flex items horizontally left to right."
+    "flex-row-reverse": "flex-direction: row-reverse; items in reverse horizontal order."
+    "flex-col": "flex-direction: column; lay out flex items vertically top to bottom."
+    "flex-col-reverse": "flex-direction: column-reverse; items in reverse vertical order."
+
+  flex-wrap:
+    "flex-nowrap": "flex-wrap: nowrap; keep all flex items on a single line."
+    "flex-wrap": "flex-wrap: wrap; allow flex items to wrap onto multiple lines."
+    "flex-wrap-reverse": "flex-wrap: wrap-reverse; wrap items in reverse cross-axis order."
+
+  flex-align:
+    "items-start": "align-items: flex-start; align children at start of cross axis."
+    "items-center": "align-items: center; vertically center children on cross axis."
+    "items-end": "align-items: flex-end; align children at end of cross axis."
+    "items-stretch": "align-items: stretch; stretch children to fill cross axis."
+    "content-start": "align-content: flex-start; pack flex lines at cross-axis start."
+    "content-center": "align-content: center; center multiple lines on cross axis."
+    "content-between": "align-content: space-between; distribute lines with gaps between."
+    "content-around": "align-content: space-around; equal space around each line."
+    "content-evenly": "align-content: space-evenly; equal space between all lines and edges."
+
+  flex-justify:
+    "justify-start": "justify-content: flex-start; pack items at start of main axis."
+    "justify-center": "justify-content: center; center items along main axis."
+    "justify-end": "justify-content: flex-end; pack items at end of main axis."
+    "justify-between": "justify-content: space-between; space items with gaps between."
+    "justify-around": "justify-content: space-around; equal space around each item."
+    "justify-evenly": "justify-content: space-evenly; equal space between items and edges."
+
+  self-alignment:
+    "self-auto": "align-self: auto; use container's align-items value for this item."
+    "self-start": "align-self: flex-start; align this item to start of cross axis."
+    "self-center": "align-self: center; center this item on cross axis."
+    "self-end": "align-self: flex-end; align this item to end of cross axis."
+    "self-stretch": "align-self: stretch; stretch this item to fill cross axis."
+    "self-baseline": "align-self: baseline; align this item on baseline with siblings."
+
+  grid:
+    "grid-cols-#": "grid-template-columns; set number or pattern of grid columns (e.g. grid-cols-1, grid-cols-12)."
+    "grid-rows-#": "grid-template-rows; set number or pattern of grid rows."
+    "col-span-#": "grid-column: span n; make an item span multiple columns."
+    "row-span-#": "grid-row: span n; make an item span multiple rows."
+    "grid-flow-row": "grid-auto-flow: row; place auto items by rows."
+    "grid-flow-col": "grid-auto-flow: column; place auto items by columns."
+    "grid-flow-row-dense": "grid-auto-flow: row dense; backfill gaps by rows."
+    "grid-flow-col-dense": "grid-auto-flow: column dense; backfill gaps by columns."
+    "auto-rows-min": "grid-auto-rows: min-content; implicit rows sized to their content."
+    "auto-cols-fr": "grid-auto-columns: minmax(0, 1fr); implicit columns share remaining space."
+
+spacing:
+  padding:
+    "p-#": "padding; uniform padding on all sides using spacing scale (e.g. p-0, p-4)."
+    "px-#": "padding-left/right; horizontal padding using spacing scale."
+    "py-#": "padding-top/bottom; vertical padding using spacing scale."
+    "pt-#": "padding-top; top padding using spacing scale."
+    "pr-#": "padding-right; right padding using spacing scale."
+    "pb-#": "padding-bottom; bottom padding using spacing scale."
+    "pl-#": "padding-left; left padding using spacing scale."
+
+  margin:
+    "m-#": "margin; uniform margin on all sides using spacing scale."
+    "mx-#": "margin-left/right; horizontal margin using spacing scale."
+    "my-#": "margin-top/bottom; vertical margin using spacing scale."
+    "mt-#": "margin-top; top margin using spacing scale."
+    "mr-#": "margin-right; right margin using spacing scale."
+    "mb-#": "margin-bottom; bottom margin using spacing scale."
+    "ml-#": "margin-left; left margin using spacing scale."
+    "mx-auto": "margin-left/right: auto; center block element horizontally."
+    "my-auto": "margin-top/bottom: auto; auto vertical margins in flex or grid."
+
+  gap:
+    "gap-#": "gap; set row and column gap between flex or grid items using spacing scale."
+    "gap-x-#": "column-gap; control horizontal gap between items using spacing scale."
+    "gap-y-#": "row-gap; control vertical gap between items using spacing scale."
+    "space-x-#": "column-gap via margins; horizontal space between inline or flex children."
+    "space-y-#": "row-gap via margins; vertical space between stacked children."
+
+sizing:
+  width:
+    "w-full": "width: 100%; element fills available inline width."
+    "w-screen": "width: 100vw; element spans full viewport width."
+    "w-auto": "width: auto; natural content-based width."
+    "w-fit": "width: fit-content; shrink-wrap to content."
+    "w-min": "width: min-content; smallest content width."
+    "w-max": "width: max-content; width based on longest content."
+    "max-w-xs": "max-width; extra-small content width container."
+    "max-w-md": "max-width; medium content width container."
+    "max-w-lg": "max-width; large content width container."
+    "max-w-screen-xl": "max-width; constrain content to extra-large breakpoint width."
+
+  height:
+    "h-full": "height: 100%; element fills available block height."
+    "h-screen": "height: 100vh; element spans viewport height."
+    "h-auto": "height: auto; natural content-based height."
+    "min-h-full": "min-height: 100%; minimum full height of parent."
+    "min-h-screen": "min-height: 100vh; section at least full viewport height."
+    "max-h-full": "max-height: 100%; clamp height to parent."
+    "max-h-screen": "max-height: 100vh; clamp height to viewport."
+
+  fraction:
+    "w-1/2": "width: 50%; half the available width."
+    "w-1/3": "width: 33.333%; one third of available width."
+    "w-2/3": "width: 66.667%; two thirds of available width."
+    "w-1/4": "width: 25%; quarter width."
+    "w-3/4": "width: 75%; three quarters width."
+    "h-1/2": "height: 50%; half the available height."
+    "h-1/3": "height: 33.333%; one third of available height."
+    "h-2/3": "height: 66.667%; two thirds of available height."
+
+  aspect:
+    "aspect-square": "aspect-ratio: 1 / 1; force element to be a square."
+    "aspect-video": "aspect-ratio: 16 / 9; typical video ratio."
+    "aspect-auto": "aspect-ratio: auto; use intrinsic media ratio."
+
+positioning:
+  position:
+    "static": "position: static; default positioning with no offsets."
+    "relative": "position: relative; allow child absolute positioning relative to this element."
+    "absolute": "position: absolute; position element relative to nearest positioned ancestor."
+    "fixed": "position: fixed; lock element relative to viewport."
+    "sticky": "position: sticky; stick element within scroll container after threshold."
+
+  inset:
+    "inset-#": "top/right/bottom/left; set all offsets using spacing scale (e.g. inset-0)."
+    "inset-x-#": "left/right; horizontal offsets using spacing scale."
+    "inset-y-#": "top/bottom; vertical offsets using spacing scale."
+    "top-0": "top: 0; pin element to top edge of containing block."
+    "right-0": "right: 0; pin element to right edge."
+    "bottom-0": "bottom: 0; pin element to bottom edge."
+    "left-0": "left: 0; pin element to left edge."
+
+  z-index:
+    "z-#": "z-index; stacking order value from scale (e.g. z-0, z-10, z-50)."
+    "z-auto": "z-index: auto; use natural stacking context order."
+
+typography:
+  font-family:
+    "font-sans": "font-family; use sans-serif system font stack."
+    "font-serif": "font-family; use serif font stack."
+    "font-mono": "font-family; use monospace font stack."
+
+  font-size:
+    "text-xs": "font-size; extra small text for meta labels."
+    "text-sm": "font-size; small text slightly below base."
+    "text-base": "font-size; default body text size."
+    "text-lg": "font-size; slightly larger text for emphasis."
+    "text-xl": "font-size; large text for section titles."
+    "text-2xl": "font-size; extra large heading text."
+    "text-3xl": "font-size; very large heading text."
+    "text-4xl": "font-size; display-level heading."
+    "text-5xl": "font-size; extra large display text."
+    "text-6xl": "font-size; very large hero display text."
+
+  font-weight:
+    "font-thin": "font-weight: 100; thinnest text weight."
+    "font-light": "font-weight: 300; light text weight."
+    "font-normal": "font-weight: 400; normal text weight."
+    "font-medium": "font-weight: 500; medium text weight."
+    "font-semibold": "font-weight: 600; semibold text weight."
+    "font-bold": "font-weight: 700; bold text weight."
+    "font-extrabold": "font-weight: 800; extra bold text weight."
+    "font-black": "font-weight: 900; heaviest text weight."
+
+  line-height:
+    "leading-none": "line-height: 1; lines sit directly on top of each other."
+    "leading-tight": "line-height; tight spacing for headings."
+    "leading-snug": "line-height; slightly tight but readable spacing."
+    "leading-normal": "line-height; comfortable default for body text."
+    "leading-relaxed": "line-height; a bit more line spacing for text blocks."
+    "leading-loose": "line-height; generous spacing for airy layouts."
+
+  letter-spacing:
+    "tracking-tighter": "letter-spacing; strongly condensed tracking."
+    "tracking-tight": "letter-spacing; slightly tighter tracking."
+    "tracking-normal": "letter-spacing; normal tracking."
+    "tracking-wide": "letter-spacing; slightly wider tracking."
+    "tracking-wider": "letter-spacing; more open tracking for headings."
+
+  text-align:
+    "text-left": "text-align: left; left-align inline content."
+    "text-center": "text-align: center; center-align inline content."
+    "text-right": "text-align: right; right-align inline content."
+    "text-justify": "text-align: justify; align text to both edges."
+    "text-start": "text-align: start; align with writing direction start."
+    "text-end": "text-align: end; align with writing direction end."
+
+  text-transform:
+    "uppercase": "text-transform: uppercase; convert all letters to uppercase."
+    "lowercase": "text-transform: lowercase; convert all letters to lowercase."
+    "capitalize": "text-transform: capitalize; capitalize first letter of each word."
+    "normal-case": "text-transform: none; preserve original casing."
+
+  text-decoration:
+    "underline": "text-decoration-line: underline; underline text."
+    "line-through": "text-decoration-line: line-through; draw line through text."
+    "no-underline": "text-decoration-line: none; remove underlines."
+    "decoration-#": "text-decoration-thickness; control underline or line thickness using scale."
+
+colors:
+  text:
+    "text-black": "color: #000; pure black text for maximum contrast."
+    "text-white": "color: #fff; white text for dark backgrounds."
+    "text-slate-#": "color; slate palette text color at shade from scale (e.g. text-slate-500)."
+    "text-gray-#": "color; gray palette text color at shade from scale."
+    "text-neutral-#": "color; neutral palette text color at shade from scale."
+    "text-red-#": "color; red palette text color for errors or destructive actions."
+    "text-green-#": "color; green palette text color for success messages."
+    "text-blue-#": "color; blue palette text color for links and primary actions."
+    "text-indigo-#": "color; indigo palette text color for brand accents."
+    "text-emerald-#": "color; emerald palette text color for success highlights."
+
+  background:
+    "bg-white": "background-color: #fff; white background for cards and pages."
+    "bg-black": "background-color: #000; black background for high-contrast areas."
+    "bg-slate-#": "background-color; slate palette background shade from scale."
+    "bg-gray-#": "background-color; gray palette background shade from scale."
+    "bg-neutral-#": "background-color; neutral palette background shade from scale."
+    "bg-red-#": "background-color; red palette background for error states."
+    "bg-green-#": "background-color; green palette background for success states."
+    "bg-blue-#": "background-color; blue palette background for primary sections."
+    "bg-indigo-#": "background-color; indigo palette background for brand sections."
+    "bg-gradient-to-r": "background-image: linear-gradient(to right); gradient background from left to right."
+
+  border:
+    "border-transparent": "border-color: transparent; keep layout without visible border."
+    "border-black": "border-color: #000; strong black border."
+    "border-white": "border-color: #fff; white border for dark backgrounds."
+    "border-slate-#": "border-color; slate palette border shade from scale."
+    "border-gray-#": "border-color; gray palette border shade from scale."
+    "border-neutral-#": "border-color; neutral palette border shade from scale."
+    "border-red-#": "border-color; red palette border for errors."
+    "border-green-#": "border-color; green palette border for success."
+    "border-blue-#": "border-color; blue palette border for primary actions."
+    "border-indigo-#": "border-color; indigo palette border for brand accents."
+
+  ring:
+    "ring-#": "box-shadow ring; outline element with ring width from scale (e.g. ring-2)."
+    "ring-offset-#": "ring-offset-width; add transparent space between element and ring."
+    "ring-slate-#": "ring-color; slate palette focus ring shade from scale."
+    "ring-gray-#": "ring-color; gray palette focus ring shade from scale."
+    "ring-red-#": "ring-color; red focus ring for error or destructive actions."
+    "ring-green-#": "ring-color; green focus ring for success actions."
+    "ring-blue-#": "ring-color; blue focus ring for primary actions."
+    "ring-indigo-#": "ring-color; indigo focus ring matching brand."
+    "ring-offset-white": "ring-offset-color: #fff; white ring offset for light backgrounds."
+    "ring-offset-black": "ring-offset-color: #000; black ring offset for dark backgrounds."
+
+border:
+  width:
+    "border": "border-width: 1px; default solid border around all sides."
+    "border-#": "border-width; control thickness using scale (e.g. border-0, border-2)."
+    "border-x": "border-left/right-width: 1px; borders on left and right edges."
+    "border-y": "border-top/bottom-width: 1px; borders on top and bottom edges."
+    "border-t": "border-top-width: 1px; border on top edge only."
+    "border-r": "border-right-width: 1px; border on right edge only."
+    "border-b": "border-bottom-width: 1px; border on bottom edge only."
+    "border-l": "border-left-width: 1px; border on left edge only."
+    "divide-x": "border-left-width on children; vertical dividers between columns."
+    "divide-y": "border-top-width on children; horizontal dividers between rows."
+
+  style:
+    "border-solid": "border-style: solid; solid border lines."
+    "border-dashed": "border-style: dashed; dashed border lines."
+    "border-dotted": "border-style: dotted; dotted border lines."
+    "border-double": "border-style: double; double-line borders."
+    "border-none": "border-style: none; remove visible border while preserving layout."
+
+  radius:
+    "rounded-none": "border-radius: 0; sharp square corners."
+    "rounded-sm": "border-radius; small corner radius."
+    "rounded": "border-radius; default medium corner radius."
+    "rounded-md": "border-radius; medium radius for cards."
+    "rounded-lg": "border-radius; large radius for surfaces."
+    "rounded-xl": "border-radius; extra large radius."
+    "rounded-2xl": "border-radius; very large radius."
+    "rounded-full": "border-radius: 9999px; fully pill or circular shapes."
+    "rounded-t-lg": "border-radius (top); large radius on top corners only."
+    "rounded-b-lg": "border-radius (bottom); large radius on bottom corners only."
+
+effects:
+  shadow:
+    "shadow-sm": "box-shadow; subtle elevation for small surfaces."
+    "shadow": "box-shadow; default card-like elevation."
+    "shadow-md": "box-shadow; medium elevation for modals or sticky headers."
+    "shadow-lg": "box-shadow; strong elevation to float above content."
+    "shadow-xl": "box-shadow; very strong elevation for overlays."
+    "shadow-2xl": "box-shadow; maximum default elevation."
+    "shadow-inner": "box-shadow: inset; inner shadow for sunken surfaces."
+    "shadow-none": "box-shadow: none; remove elevation."
+
+  opacity:
+    "opacity-#": "opacity; overall element transparency using scale (e.g. opacity-0, opacity-50)."
+    "bg-opacity-#": "background-color opacity; adjust background alpha using scale."
+    "text-opacity-#": "color opacity; adjust text alpha using scale."
+
+  blend:
+    "mix-blend-normal": "mix-blend-mode: normal; default blending with background."
+    "mix-blend-multiply": "mix-blend-mode: multiply; darken blend."
+    "mix-blend-screen": "mix-blend-mode: screen; lighten blend."
+    "mix-blend-overlay": "mix-blend-mode: overlay; contrast increasing blend."
+    "mix-blend-darken": "mix-blend-mode: darken; keep darker pixels."
+    "mix-blend-lighten": "mix-blend-mode: lighten; keep lighter pixels."
+    "bg-blend-normal": "background-blend-mode: normal; default background layer blending."
+    "bg-blend-multiply": "background-blend-mode: multiply; darken overlapping backgrounds."
+    "bg-blend-screen": "background-blend-mode: screen; lighten overlapping backgrounds."
+    "bg-blend-overlay": "background-blend-mode: overlay; mix overlapping backgrounds for contrast."
+
+overflow:
+  box:
+    "overflow-hidden": "overflow: hidden; clip any overflowing content."
+    "overflow-auto": "overflow: auto; scrollbars appear when content overflows."
+    "overflow-scroll": "overflow: scroll; always show scrollbars."
+    "overflow-x-auto": "overflow-x: auto; horizontal scroll when needed."
+    "overflow-y-auto": "overflow-y: auto; vertical scroll when needed."
+    "overflow-x-scroll": "overflow-x: scroll; always show horizontal scrollbar."
+    "overflow-y-scroll": "overflow-y: scroll; always show vertical scrollbar."
+    "overflow-visible": "overflow: visible; allow content to overflow container."
+
+  text:
+    "truncate": "overflow: hidden + text-overflow: ellipsis + white-space: nowrap; single-line truncation."
+    "text-ellipsis": "text-overflow: ellipsis; show '...' when text overflows."
+    "text-clip": "text-overflow: clip; hard clip overflowing text."
+    "whitespace-normal": "white-space: normal; allow wrapping at spaces."
+    "whitespace-nowrap": "white-space: nowrap; prevent wrapping of text."
+    "whitespace-pre": "white-space: pre; preserve whitespace and line breaks."
+    "whitespace-pre-line": "white-space: pre-line; collapse spaces but keep line breaks."
+    "whitespace-pre-wrap": "white-space: pre-wrap; preserve whitespace and wrap when needed."
+
+  scrolling:
+    "scroll-smooth": "scroll-behavior: smooth; smooth scrolling for in-page links."
+    "scroll-auto": "scroll-behavior: auto; instant scrolling behavior."
+    "scroll-m-#": "scroll-margin; margin around scroll snap targets using scale."
+    "scroll-mx-#": "scroll-margin-inline; horizontal scroll margin using scale."
+    "scroll-my-#": "scroll-margin-block; vertical scroll margin using scale."
+    "scroll-p-#": "scroll-padding; padding around scroll snap container using scale."
+    "scroll-px-#": "scroll-padding-inline; horizontal scroll padding using scale."
+    "scroll-py-#": "scroll-padding-block; vertical scroll padding using scale."
+
+transitions:
+  base:
+    "transition": "transition-property: all; animate all animatable properties."
+    "transition-none": "transition-property: none; disable transitions."
+    "transition-colors": "transition-property: color, background-color, border-color, fill, stroke."
+    "transition-opacity": "transition-property: opacity; animate fades."
+    "transition-transform": "transition-property: transform; animate movement, rotation, scale."
+    "transition-shadow": "transition-property: box-shadow; animate elevation changes."
+    "duration-#": "transition-duration; time a transition takes using scale (e.g. duration-150)."
+    "delay-#": "transition-delay; wait time before transition starts using scale."
+
+  timing:
+    "ease-linear": "transition-timing-function: linear; constant speed transitions."
+    "ease-in": "transition-timing-function: ease-in; slow start, faster end."
+    "ease-out": "transition-timing-function: ease-out; fast start, slow end."
+    "ease-in-out": "transition-timing-function: ease-in-out; smooth start and end."
+
+transform:
+  base:
+    "transform": "transform; enable transform utilities on this element."
+    "transform-gpu": "transform: translate3d(...); use GPU-accelerated transforms."
+    "transform-none": "transform: none; disable transforms."
+
+  transforms2d:
+    "scale-#": "transform: scale(); uniformly scale element using scale values (e.g. scale-95)."
+    "scale-x-#": "transform: scaleX(); scale width along x-axis using scale values."
+    "scale-y-#": "transform: scaleY(); scale height along y-axis using scale values."
+    "translate-x-#": "transform: translateX(); move element horizontally using spacing scale."
+    "translate-y-#": "transform: translateY(); move element vertically using spacing scale."
+    "rotate-#": "transform: rotate(); rotate element by degrees using scale (e.g. rotate-45)."
+    "skew-x-#": "transform: skewX(); skew element along x-axis using degree scale."
+    "skew-y-#": "transform: skewY(); skew element along y-axis using degree scale."
+    "origin-center": "transform-origin: center; transform around element center."
+    "origin-top": "transform-origin: top; transform around top edge."
+
+accessibility:
+  focus-ring:
+    "focus:outline-none": "outline: none on :focus; remove default outline to use custom ring."
+    "focus-visible:outline-none": "outline: none on :focus-visible; rely on custom focus ring for keyboard users."
+    "focus:ring-#": "box-shadow ring on :focus; focus ring with width from scale (e.g. focus:ring-2)."
+    "focus:ring-offset-#": "ring-offset-width on :focus; spacing between element and ring."
+    "focus:ring-blue-#": "ring-color on :focus; blue focus ring for interactive elements."
+    "focus:ring-indigo-#": "ring-color on :focus; indigo focus ring matching brand."
+    "focus-visible:ring-#": "box-shadow ring on :focus-visible; strong ring only for keyboard focus."
+    "focus-visible:ring-offset-#": "ring-offset-width on :focus-visible; offset ring for keyboard users."
+
+  screen-reader:
+    "sr-only": "accessibility; visually hide content but keep it for screen readers."
+    "not-sr-only": "accessibility; undo sr-only and show content visually."
+
+interaction:
+  cursor:
+    "cursor-pointer": "cursor: pointer; indicate clickable element."
+    "cursor-not-allowed": "cursor: not-allowed; indicate disabled or forbidden action."
+    "cursor-default": "cursor: default; reset to default arrow cursor."
+    "cursor-move": "cursor: move; indicate draggable element."
+    "cursor-text": "cursor: text; indicate selectable or editable text."
+    "cursor-wait": "cursor: wait; indicate loading or busy state."
+
+  pointer:
+    "pointer-events-none": "pointer-events: none; ignore mouse and touch events."
+    "pointer-events-auto": "pointer-events: auto; restore normal pointer behavior."
+
+  selection:
+    "select-none": "user-select: none; prevent text selection."
+    "select-text": "user-select: text; allow text selection."
+    "select-all": "user-select: all; select all text when clicked."
+    "select-auto": "user-select: auto; browser default selection behavior."
+
+  state:
+    "hover:bg-gray-#": "background-color on :hover; gray palette hover background using shade scale."
+    "hover:bg-blue-#": "background-color on :hover; blue palette hover background using shade scale."
+    "active:opacity-#": "opacity on :active; reduce opacity while element is pressed."
+    "disabled:opacity-#": "opacity when :disabled; visually dim disabled control."
+    "disabled:cursor-not-allowed": "cursor when :disabled; show not-allowed pointer."
+    "focus-visible:bg-#": "background-color on :focus-visible; highlight element when keyboard focused."
+    "aria-pressed:scale-#": "transform when aria-pressed='true'; scale element to indicate pressed state."
+    "aria-expanded:rotate-#": "transform when aria-expanded='true'; rotate icons like chevrons."
+    "group-hover:opacity-#": "opacity when parent group is hovered; coordinated hover states."
+    "peer-invalid:border-red-#": "border-color when peer is invalid; red border on validation error."
+
+responsive:
+  breakpoints:
+    "sm:": "prefix; apply following utility at small breakpoint and up."
+    "md:": "prefix; apply following utility at medium breakpoint and up."
+    "lg:": "prefix; apply following utility at large breakpoint and up."
+    "xl:": "prefix; apply following utility at extra-large breakpoint and up."
+    "2xl:": "prefix; apply following utility at 2× extra-large breakpoint and up."
+    "max-sm:": "prefix; apply following utility only below small breakpoint."
+    "max-md:": "prefix; apply following utility only below medium breakpoint."
+    "max-lg:": "prefix; apply following utility only below large breakpoint."
+
+  motion:
+    "motion-safe:": "prefix; apply following utility only when user has no reduced-motion preference."
+    "motion-reduce:": "prefix; apply following utility when user prefers reduced motion."
