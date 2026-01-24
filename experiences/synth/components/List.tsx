@@ -1,32 +1,30 @@
 import ArticleLink from './ArticleLink'
 
-type FrontmatterType = {
-    title: string
-    tags: string[]
-    url: string
-}
-
 type PostType = {
     slug: string
-    frontmatter: FrontmatterType
+    title: string
+    tags: string[]
+    canonicalPath: string
+    externalUrl: string | null
+    forceExternalNavigation: boolean
     formattedDate: string
     date: string
 }
 
 const List = (props: { className: string, posts: PostType[] }) => (
-    <ol className={props.className}>
-        {props.posts.map((post: any) => {
-            const { slug, frontmatter, formattedDate, date } = post
-            const { title, tags, url } = frontmatter
+    <ol className={`group ${props.className}`}>
+        {props.posts.filter(Boolean).map((post: PostType) => {
+            const { formattedDate, date, title, tags, canonicalPath, externalUrl, forceExternalNavigation } = post
 
             return (
                 <ArticleLink
                     title={title}
-                    tags={tags}
-                    url={url}
+                    tags={tags ?? []}
                     date={date}
                     formattedDate={formattedDate}
-                    slug={`/posts/${slug}`}
+                    canonicalPath={canonicalPath}
+                    externalUrl={externalUrl}
+                    forceExternalNavigation={forceExternalNavigation}
                     key={title}
                 />
             )

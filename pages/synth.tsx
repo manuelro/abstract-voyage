@@ -14,26 +14,28 @@ type PropsType = {
 export default function SynthPage({ posts }: PropsType) {
     const [selectedTag, setSelectedTag] = useState<string | null>(null)
     const articles = useMemo(() => {
-        return posts.map((post) => ({
-            id: post.slug,
-            title: post.frontmatter?.title ?? post.slug,
-            tags: post.frontmatter?.tags ?? [],
-        }))
+        return posts
+            .filter(Boolean)
+            .map((post) => ({
+                id: post.slug,
+                title: post.title,
+                tags: post.tags ?? [],
+            }))
     }, [posts])
 
     const filteredPosts = useMemo(() => {
         if (!selectedTag) return posts
-        return posts.filter((post) => (post.frontmatter?.tags ?? []).includes(selectedTag))
+        return posts.filter((post) => (post?.tags ?? []).includes(selectedTag))
     }, [posts, selectedTag])
 
-    const featuredTagsOverride = ['AI', 'Consulting', 'Web Development', 'Design', 'Cloud']
+    const featuredTagsOverride = []
 
     return (
         <SynthExperience posts={filteredPosts}>
             <TagChips
                 articles={articles}
                 featuredTagsOverride={featuredTagsOverride}
-                maxFeatured={5}
+                maxFeatured={3}
                 selectedTag={selectedTag}
                 onSelectTag={setSelectedTag}
             />
@@ -49,14 +51,20 @@ export async function getStaticProps(){
         const date = fileName.split('_')[0]
         const readFile = fs.readFileSync(`posts/${fileName}`, 'utf-8')
         const { data: frontmatter } = matter(readFile)
+        const title = String(frontmatter?.title ?? slug)
+        const tags = (frontmatter?.tags ?? []).map((tag: string) => tag.trim()).filter(Boolean)
 
         return {
             slug,
             date,
             formattedDate: formatDate(date),
-            frontmatter,
+            title,
+            tags,
+            canonicalPath: `/posts/${slug}`,
+            externalUrl: frontmatter?.externalUrl ? String(frontmatter.externalUrl) : null,
+            forceExternalNavigation: Boolean(frontmatter?.forceExternalNavigation),
         }
-    }).sort((a, b) => {
+    }).filter((post) => Boolean(post && post.title)).sort((a, b) => {
         if ( a.date < b.date ){
             return -1
         }

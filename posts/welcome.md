@@ -1,10 +1,7 @@
 ---
 title: "Welcome"
+excerpt: "Welcome to Abstract Voyage, a journal on software engineering with a focus on cloud computing, artificial intelligence, and web development."
 author: "Manu"
-tags:
-    - Cloud Computing
-    - Artificial Intelligence
-    - Web Development
 ---
 
 # Abstractions over concretions

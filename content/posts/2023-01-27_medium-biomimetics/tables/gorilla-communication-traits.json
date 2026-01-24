@@ -1,0 +1,14 @@
+{
+  "headers": [
+    "Gorilla’s communication trait category",
+    "Rank 1-10"
+  ],
+  "rows": [
+    ["Eye contact", "5"],
+    ["Voice tone", "3"],
+    ["Message clarity", "6"],
+    ["Presentation", "3"],
+    ["Approachability", "5"]
+  ],
+  "footer": ["Average", "4,4"]
+}

@@ -1,11 +1,10 @@
 // @ts-nocheck
 import Head from 'next/head'
 import Image from 'next/image'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import Header from './components/Header'
+import { useEffect, useState, type ReactNode } from 'react'
 import List from './components/List'
 import { PostType } from '../../pages/posts/[slug]'
-import { generateHarmonicGradient } from '../../helpers/harmonicGradient'
+import SynthLayout from './components/SynthLayout'
 
 type PropsType = {
     posts: PostType[]
@@ -39,25 +38,6 @@ export default function SynthExperience({ posts, children }: PropsType) {
     const aStyle = 'px-3 py-1 dark:border-transparent dark:hover:border-transparent dark:bg-slate-950 inline-block rounded text-slate-500 cursor-pointer dark:hover:bg-slate-800 transition-colors cursor-pointer bg-slate-50 hover:border-slate-300 hover:border border-solid border border-transparent hover:text-slate-800'
     const liStyle = 'pl-2 py-1'
     const [borderColor, setBorderColor] = useState('#020617')
-    const backgroundGradient = useMemo(() => {
-        const stops = generateHarmonicGradient({
-            baseHue: 232,
-
-            hueScheme: 'mono',
-            lightnessRange: { max: 65 }, // NOTE: for a closer match to DEFAULT_STOPS, use { min: 70 }
-            chromaRange: { min: 80 },
-            mode: 'side-bright',
-            stops: 22,
-            variance: 100,
-            centerStretch: 0.3,
-            seed: 50,
-
-            // perStopLightness: [100, 100, 100, 100, 100, 100, 100]
-            })
-        return `radial-gradient(circle at 0% 0%, ${stops
-            .map((stop) => `${stop.color} ${Math.round(stop.at * 600)}%`)
-            .join(', ')})`
-    }, [])
 
     useEffect(() => {
         const mql = window.matchMedia('(prefers-color-scheme: dark)')
@@ -144,69 +124,58 @@ export default function SynthExperience({ posts, children }: PropsType) {
     )
 
     return (
-        <div className="relative min-h-screen w-full">
-            <div
-                className="block fixed inset-0 z-0 pointer-events-none"
-                style={{ backgroundImage: backgroundGradient, width: '100%', height: '100vh' }}
-            />
-            <main className="relative z-10 min-h-screen w-full">
-                <Head>
-                    <title>Abstract Voyage | Manuel Cerdas&apos; Journal on Web Technologies, Cloud Computing and Artificial Intelligence</title>
-                </Head>
+        <SynthLayout controls={children}>
+            <Head>
+                <title>Abstract Voyage | Manuel Cerdas&apos; Journal on Web Technologies, Cloud Computing and Artificial Intelligence</title>
+            </Head>
 
-                <div className="flex w-full max-w-screen-xl flex-col p-5 md:p-24 mx-auto">
-                    <Header />
-                    {children}
+            <div className='hidden flex-col border-y dark:border-y-slate-950 mt-12 pb-12'>
+                <Image
+                    className="relative mt-8 mb-12 hidden dark:block"
+                    src="/sota-dark.svg"
+                    alt="Abstract Voyage Logo"
+                    height={31}
+                    width={221}
+                    priority
+                    quality={100}
+                />
 
-                <div className='hidden lg:flex flex-col border-y dark:border-y-slate-950 mt-12 pb-12'>
-                    <Image
-                        className="relative mt-8 mb-12 hidden dark:block"
-                        src="/sota-dark.svg"
-                        alt="Abstract Voyage Logo"
-                        height={31}
-                        width={221}
-                        priority
-                        quality={100}
+                <Image
+                    className="relative mt-8 mb-12 dark:hidden"
+                    src="/sota-light.svg"
+                    alt="Abstract Voyage Logo"
+                    height={31}
+                    width={221}
+                    priority
+                    quality={100}
+                />
+
+                <div className='flex flex-col lg:flex-row justify-between'>
+                    <Tree title='React' version='18'
+                        items={[
+                            { label: 'Server Components', link: 'https://react.dev/blog/2020/12/21/data-fetching-with-react-server-components' },
+                            { label: 'Automatic Batching', link: 'https://react.dev/blog/2022/03/29/react-v18#new-feature-automatic-batching' },
+                            { label: 'New Suspense Feature', link: 'https://github.com/reactjs/rfcs/blob/main/text/0213-suspense-in-react-18.md' }
+                        ]}
                     />
-
-                    <Image
-                        className="relative mt-8 mb-12 dark:hidden"
-                        src="/sota-light.svg"
-                        alt="Abstract Voyage Logo"
-                        height={31}
-                        width={221}
-                        priority
-                        quality={100}
+                    <Tree title='Vue' version='3'
+                        items={[
+                            { label: 'Composition API', link: 'https://vuejs.org/guide/extras/composition-api-faq.html#what-is-composition-api' },
+                            { label: 'Teleport', link: 'https://vuejs.org/guide/built-ins/teleport.html' },
+                            { label: 'Fragments', link: 'https://v3-migration.vuejs.org/new/fragments.html' },
+                        ]}
                     />
-
-                    <div className='flex flex-col lg:flex-row justify-between'>
-                        <Tree title='React' version='18'
-                            items={[
-                                { label: 'Server Components', link: 'https://react.dev/blog/2020/12/21/data-fetching-with-react-server-components' },
-                                { label: 'Automatic Batching', link: 'https://react.dev/blog/2022/03/29/react-v18#new-feature-automatic-batching' },
-                                { label: 'New Suspense Feature', link: 'https://github.com/reactjs/rfcs/blob/main/text/0213-suspense-in-react-18.md' }
-                            ]}
-                        />
-                        <Tree title='Vue' version='3'
-                            items={[
-                                { label: 'Composition API', link: 'https://vuejs.org/guide/extras/composition-api-faq.html#what-is-composition-api' },
-                                { label: 'Teleport', link: 'https://vuejs.org/guide/built-ins/teleport.html' },
-                                { label: 'Fragments', link: 'https://v3-migration.vuejs.org/new/fragments.html' },
-                            ]}
-                        />
-                        <Tree title='Angular' version='16'
-                            items={[
-                                { label: 'Angular Signals', link: 'https://angular.io/guide/signals' },
-                                { label: 'Server Side Rendering', link: 'https://blog.angular.io/whats-next-for-server-side-rendering-in-angular-2a6f27662b67' },
-                                { label: 'Experimental Jest Support', link: 'https://blog.angular.io/moving-angular-cli-to-jest-and-web-test-runner-ef85ef69ceca' },
-                            ]}
-                        />
-                    </div>
+                    <Tree title='Angular' version='16'
+                        items={[
+                            { label: 'Angular Signals', link: 'https://angular.io/guide/signals' },
+                            { label: 'Server Side Rendering', link: 'https://blog.angular.io/whats-next-for-server-side-rendering-in-angular-2a6f27662b67' },
+                            { label: 'Experimental Jest Support', link: 'https://blog.angular.io/moving-angular-cli-to-jest-and-web-test-runner-ef85ef69ceca' },
+                        ]}
+                    />
                 </div>
+            </div>
 
-                    <List className='mt-5' posts={posts} />
-                </div>
-            </main>
-        </div>
+            <List className='mt-5' posts={posts} />
+        </SynthLayout>
     )
 }

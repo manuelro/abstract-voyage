@@ -1,0 +1,87 @@
+.group {
+  /* Container for staggered SVG children.
+     No visual styles by default; acts as a hook for custom properties. */
+}
+
+.item {
+  opacity: 0;
+
+  /* Slightly smaller start; tweakable via custom prop if needed. */
+  transform: scale(var(--svg-stagger-scale-from, 0.94));
+
+  /* Important for SVG so scaling uses each glyph's own box, not the whole SVG. */
+  transform-box: fill-box;
+  transform-origin: var(--svg-stagger-origin-x, 50%)
+                    var(--svg-stagger-origin-y, 50%);
+
+  /* Base brightness; animated via a separate bloom animation. */
+  filter: brightness(var(--svg-stagger-bloom-base, 1));
+
+  /* Two animations:
+     1) fade+scale (staggered by initialDelay/stepDelay)
+     2) brightness bloom (staggered by bloomInitialDelay/bloomStepDelay)
+     Both share the same easing. */
+  animation-name: svg-stagger-fade-scale, svg-stagger-bloom;
+  animation-fill-mode: forwards, forwards;
+  animation-timing-function:
+    var(--svg-stagger-easing, ease-in-out),
+    var(--svg-stagger-easing, ease-in-out);
+  animation-duration:
+    calc(var(--svg-stagger-duration, 0.45) * 1s),
+    calc(var(--svg-stagger-bloom-duration, var(--svg-stagger-duration, 0.45)) * 1s);
+  animation-delay:
+    /* Fade/scale stagger */
+    calc(
+      var(--svg-stagger-initial-delay, 0) * 1s +
+        var(--svg-stagger-index, 0) * var(--svg-stagger-step-delay, 0.05) * 1s
+    ),
+    /* Bloom stagger; defaults to same timing unless overridden via props */
+    calc(
+      var(--svg-stagger-bloom-initial-delay, var(--svg-stagger-initial-delay, 0)) * 1s +
+        var(--svg-stagger-index, 0) *
+          var(
+            --svg-stagger-bloom-step-delay,
+            var(--svg-stagger-step-delay, 0.05)
+          ) * 1s
+    );
+}
+
+/* 1) Fade + scale: just opacity/transform. */
+@keyframes svg-stagger-fade-scale {
+  0% {
+    opacity: 0;
+    transform: scale(var(--svg-stagger-scale-from, 0.94));
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 2) Brightness bloom:
+   - Starts at bloom-base
+   - Peaks at bloom-peak
+   - Returns to bloom-base (bounce-back) */
+@keyframes svg-stagger-bloom {
+  0% {
+    filter: brightness(var(--svg-stagger-bloom-base, 1));
+  }
+
+  60% {
+    filter: brightness(var(--svg-stagger-bloom-peak, 1.08));
+  }
+
+  100% {
+    filter: brightness(var(--svg-stagger-bloom-base, 1));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}

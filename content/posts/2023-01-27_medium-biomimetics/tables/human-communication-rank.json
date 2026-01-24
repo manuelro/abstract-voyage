@@ -1,0 +1,14 @@
+{
+  "headers": [
+    "Humans’s communication trait category",
+    "Rank 1-10"
+  ],
+  "rows": [
+    ["Eye contact", "9"],
+    ["Voice tone", "9"],
+    ["Message clarity", "7"],
+    ["Presentation", "9"],
+    ["Approachability", "7"]
+  ],
+  "footer": ["Average", "8,2"]
+}

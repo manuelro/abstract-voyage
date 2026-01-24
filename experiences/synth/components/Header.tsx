@@ -1,20 +1,42 @@
 import { useEffect } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
-
-const DecoratedImage = ({ variation, className } : { variation: string, className: string }) => (
-    <Image
-        className={`relative ${className}`}
-        src={`/logo-${variation}.svg`}
-        alt="Abstract Voyage Logo"
-        height={44}
-        width={191}
-        priority
-        quality={100}
-    />
-)
+import Logo from './Logo'
+import { generateHarmonicGradient } from 'components/helpers/harmonicGradient';
+import type { GradientConfig } from 'components/helpers/harmonicGradient';
+import { BASE_SYNTH_GRADIENT_CONFIG, buildSynthBackgroundGradient } from './synthGradient';
 
 const Header = () => {
+    const colorGradientConfig: GradientConfig = {
+        baseHue: 40,
+
+        hueScheme: 'dual-complementary',
+        lightnessRange: { max: 40 }, // 50% darker than previous (80 -> 40)
+        chromaRange: { min: 100 },
+        mode: 'center-bright',
+        stops: 22,
+        variance: 100,
+        centerStretch: 0,
+        seed: 50,
+        hueSpread: 100,
+
+        // perStopLightness: [100, 100, 100, 100, 100, 100, 100]
+    }
+
+    const logoGradientStops = generateHarmonicGradient({
+        ...BASE_SYNTH_GRADIENT_CONFIG,
+        baseHue: 200,
+        lightnessRange: { min: 70 },
+        chromaRange: { min: 22 },
+    }).map((stop) => ({
+      color: stop.color,
+      at: stop.at * 100, // convert 0–1 → 0–100 for SvgStop
+    }));
+
+    const headerBackgroundGradient = buildSynthBackgroundGradient({
+        lightnessRange: { max: 28 },
+        chromaRange: { min: 22 },
+    })
+
     useEffect(() => {
         const mql = window.matchMedia('(prefers-color-scheme: dark)')
 
@@ -34,10 +56,17 @@ const Header = () => {
     }, [])
 
     return (
-        <div>
+        <div
+          className='bg-slate-900 pl-5 md:pl-24 flex pt-16 pb-10 bg-transparent'
+        //   style={{ backgroundImage: headerBackgroundGradient }}
+        >
             <Link href="/">
-                <DecoratedImage variation='black' className='dark:hidden' />
-                <DecoratedImage variation='white' className='hidden dark:block' />
+                <Logo
+                  ariaLabel="Abstract Voyage Logo"
+                  stops={logoGradientStops}
+                  className="w-[300px] md:w-[370px]"
+                />
+                {/* <Logo className="hidden dark:block" ariaLabel="Abstract Voyage Logo" /> */}
             </Link>
         </div>
     )

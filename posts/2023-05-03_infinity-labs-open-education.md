@@ -1,9 +1,11 @@
 ---
 title: 'Introducing Infinity Labs: The Open Education Initiative'
+excerpt: "Announces Infinity Labs, a free open education initiative offering software engineering learning resources and videos."
 author: "Manu"
 tags:
     - Open Education
-    - YouTube
+    - Software Engineering
+    - Learning
 ---
 I am excited to announce the launch of [Infinity Labs](https://www.youtube.com/@infinity-labs-edu/videos), an **open education initiative** that aims to provide **high-quality educational resources** for software engineering professionals, from junior to senior developers.  
 

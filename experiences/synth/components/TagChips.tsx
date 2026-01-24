@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import Chip from './Chip'
 
 type Article = {
   id: string
@@ -46,24 +47,14 @@ export default function TagChips({
       .map(([tag]) => tag)
   }, [tagCounts])
 
-  const featuredTags = useMemo(() => {
-    if (featuredTagsOverride && featuredTagsOverride.length > 0) {
-      const available = new Set(tagCounts.keys())
-      const deduped = Array.from(
-        new Set(featuredTagsOverride.map(tag => tag.trim()).filter(Boolean).filter(tag => available.has(tag))),
-      )
-      return deduped.slice(0, maxFeatured)
-    }
-    return allTags.slice(0, maxFeatured)
-  }, [allTags, featuredTagsOverride, maxFeatured])
-
-  const chipBase =
-    'border-2 px-5 py-1.5 rounded-full text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/70 dark:focus-visible:ring-slate-200 whitespace-nowrap w-auto min-w-0'
-
-  const chipSelected = 'bg-white/20 text-slate-900 border-white/70 dark:bg-slate-800/60 dark:text-white dark:border-slate-200/80'
-  const chipIdle = 'border-white/70 text-slate-900 hover:border-white dark:border-slate-200/70 dark:text-slate-100 dark:hover:border-slate-100'
+  const normalizedSelected = selectedTag?.trim() ?? null
+  const visibleAllTags = useMemo(() => {
+    if (!normalizedSelected) return allTags
+    return allTags.filter(tag => tag !== normalizedSelected)
+  }, [allTags, normalizedSelected])
 
   const handleSelect = (tag: string | null) => {
+    setShowAllTags(false)
     if (!onSelectTag) return
     if (selectedTag === tag) {
       onSelectTag(null)
@@ -73,57 +64,53 @@ export default function TagChips({
   }
 
   return (
-    <div className="mt-8">
-      <div className="flex flex-wrap justify-start gap-3">
-        <button
-          type="button"
-          className={`${chipBase} ${selectedTag === null ? chipSelected : chipIdle}`}
-          aria-pressed={selectedTag === null}
+    <div className="mb-7">
+      <div className="flex flex-wrap items-center justify-start gap-2">
+        <Chip
+          selected={normalizedSelected === null}
+          faded={normalizedSelected !== null}
           onClick={() => handleSelect(null)}
+          pressed={normalizedSelected === null}
         >
-          All
-        </button>
+          All Articles
+        </Chip>
 
-        {featuredTags.map(tag => (
-          <button
-            key={tag}
-            type="button"
-            className={`${chipBase} ${selectedTag === tag ? chipSelected : chipIdle}`}
-            aria-pressed={selectedTag === tag}
-            onClick={() => handleSelect(tag)}
+        {normalizedSelected && (
+          <Chip
+            selected
+            onClick={() => handleSelect(normalizedSelected)}
+            pressed
           >
-            {tag}
-          </button>
-        ))}
-
-        <button
-          type="button"
-          className="text-sm text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/70 dark:focus-visible:ring-slate-200"
-          aria-expanded={showAllTags}
-          aria-controls="synth-all-tags"
-          onClick={() => setShowAllTags(prev => !prev)}
-        >
-          {showAllTags ? 'Hide tags' : 'See all tags'}
-        </button>
+            {normalizedSelected}
+          </Chip>
+        )}
       </div>
+
+      <button
+        type="button"
+        className="text-xs pt-4 text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/70 dark:focus-visible:ring-slate-200"
+        aria-expanded={showAllTags}
+        aria-controls="synth-all-tags"
+        onClick={() => setShowAllTags(prev => !prev)}
+      >
+        {showAllTags ? 'Hide tags' : 'See all tags'}
+      </button>
 
       <div
         id="synth-all-tags"
-        className={`mt-4 text-sm flex-wrap text-slate-200 w-full bg-blue-500 ${showAllTags ? 'block' : 'hidden'}`}
+        className={`mt-4 text-sm text-slate-700 dark:text-slate-200 ${showAllTags ? 'block' : 'hidden'}`}
         aria-hidden={!showAllTags}
       >
         <div className="flex flex-wrap justify-start gap-2">
-          {allTags.map(tag => (
-            <button
+          {visibleAllTags.map(tag => (
+            <Chip
               key={tag}
-              type="button"
-              className={`${chipBase} ${selectedTag === tag ? chipSelected : chipIdle}`}
-              aria-pressed={selectedTag === tag}
+              selected={selectedTag === tag}
               onClick={() => handleSelect(tag)}
+              pressed={selectedTag === tag}
             >
               <span>{tag}</span>
-              <span className="ml-2 text-xs text-slate-500/80 dark:text-slate-400/80">({tagCounts.get(tag) ?? 0})</span>
-            </button>
+            </Chip>
           ))}
         </div>
       </div>
