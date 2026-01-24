@@ -24,6 +24,7 @@ export type PostType = {
     primaryTopic?: string
     tags: string[]
     source?: {
+      name?: string
       platform?: string
       url?: string
       originallyPublished?: string
@@ -288,7 +289,7 @@ export async function getStaticProps({ params: { slug } } : { params: { slug: st
   const date = fileName.split('_')[0]
   const { data: frontmatter, content } = matter(fileName)
   const processedContent = applySnippetIncludes(content, slug)
-  const highlighter = await getHighlighter({ themes: ['dracula-soft'] })
+  const highlighter = await getHighlighter({ themes: ['dracula-soft'], langs: [] })
   const languageAliases: Record<string, string> = {
     bash: 'shellscript',
     sh: 'shellscript',
@@ -316,7 +317,7 @@ export async function getStaticProps({ params: { slug } } : { params: { slug: st
       .filter((lang) => !loadedLangs.has(lang))
       .map(async (lang) => {
         try {
-          await highlighter.loadLanguage(lang)
+          await highlighter.loadLanguage(lang as any)
         } catch {
           // ignore missing grammar
         }

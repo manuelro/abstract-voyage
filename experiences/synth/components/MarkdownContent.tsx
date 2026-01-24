@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it'
+import type Token from 'markdown-it/lib/token'
 import { ReactNode } from 'react'
 import Figure from './Figure'
 import CodeBlock from './CodeBlock'
@@ -6,7 +7,7 @@ import TableBlock from './TableBlock'
 
 type FigureMeta = {
   id: string
-  src: string
+  src?: string
   alt: string
   caption?: string | null
 }
@@ -51,7 +52,7 @@ const extractTableKey = (value: string) => {
 }
 
 const buildNodes = (
-  tokens: MarkdownIt.Token[],
+  tokens: Token[],
   figures: FigureMeta[],
   codeBlocks: CodeBlockMeta[],
   tables: Record<string, TableData>
@@ -128,7 +129,7 @@ const buildNodes = (
           <Figure
             key={`${src}-${i}`}
             id={figureId}
-            src={src}
+            src={src || figure?.src || ''}
             alt={figureAlt}
             caption={figureCaption}
           />

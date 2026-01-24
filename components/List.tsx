@@ -16,7 +16,7 @@ type PostType = {
 const Header = (props: { className: string, posts: PostType[] }) => (<ol className={props.className}>
     {props.posts.map((post: any) => {
         const { slug, frontmatter, formattedDate, date } = post
-        const { title, tags, url } = frontmatter
+        const { title = slug, tags = [], url } = frontmatter ?? {}
 
         return (
             <ArticleLink

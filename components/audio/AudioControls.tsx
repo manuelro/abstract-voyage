@@ -1,5 +1,23 @@
 import React from "react";
-import { useAudioReactive } from "./AudioReactiveProvider";
+
+const noop = () => {};
+const useAudioReactive = () => ({
+  enabled: false,
+  setEnabled: noop as (value: boolean) => void,
+  isReady: false,
+  isPlaying: false,
+  volume: 0.5,
+  setVolume: noop as (value: number) => void,
+  toggle: noop as () => void,
+  features: {
+    rms: 0,
+    onset: false,
+    low: 0,
+    mid: 0,
+    high: 0,
+    centroid: 0,
+  },
+});
 
 export default function AudioControls() {
   const {

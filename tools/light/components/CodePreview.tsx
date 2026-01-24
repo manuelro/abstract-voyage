@@ -1,13 +1,13 @@
 // @ts-nocheck
 import React from 'react';
-import * as PRR from 'prism-react-renderer';
+import { Highlight } from 'prism-react-renderer';
 
 /**
  * Handle both v1 and v2 import shapes of prism-react-renderer.
  * - v1: default export is the <Highlight> component (+ defaultProps)
  * - v2: named export { Highlight } (+ themes)
  */
-const HighlightComp = (PRR as any).default ?? (PRR as any).Highlight;
+const HighlightComp = Highlight as any;
 // defaultProps is optional; we don't rely on it to avoid undefined errors.
 
 /**

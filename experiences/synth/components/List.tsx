@@ -23,7 +23,7 @@ const List = (props: { className: string, posts: PostType[] }) => (
                     date={date}
                     formattedDate={formattedDate}
                     canonicalPath={canonicalPath}
-                    externalUrl={externalUrl}
+                    externalUrl={externalUrl ?? undefined}
                     forceExternalNavigation={forceExternalNavigation}
                     key={title}
                 />

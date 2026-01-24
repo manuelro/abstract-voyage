@@ -6,6 +6,7 @@ export type HeadingItem = {
 
 export type FigureItem = {
   id: string
+  src?: string
   caption?: string | null
   alt: string
 }

@@ -204,7 +204,7 @@ const SvgStaggerGroup: React.FC<SvgStaggerGroupProps> = ({
           '--svg-stagger-index': effectiveIndex,
         } as React.CSSProperties;
 
-        return React.cloneElement(child, {
+        return React.cloneElement(child as React.ReactElement<any>, {
           className: mergedClassName,
           style: mergedStyle,
         });
