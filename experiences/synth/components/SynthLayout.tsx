@@ -1,13 +1,20 @@
 import { ReactNode, useEffect, useMemo, useRef } from 'react'
 import Header from './Header'
-import { buildSynthBackgroundGradient } from './synthGradient'
+import { buildSynthBackgroundGradient } from '../gradients/synthGradient'
 
 type SynthLayoutProps = {
   controls?: ReactNode
   children: ReactNode
+  hideHeader?: boolean
+  fullBleed?: boolean
 }
 
-export default function SynthLayout({ controls, children }: SynthLayoutProps) {
+export default function SynthLayout({
+  controls,
+  children,
+  hideHeader = false,
+  fullBleed = false,
+}: SynthLayoutProps) {
   const SCROLL_BG_CONFIG = {
     enabled: true,
     viewportRangeVh: 1.25,
@@ -135,18 +142,20 @@ export default function SynthLayout({ controls, children }: SynthLayoutProps) {
       />
       <main className="relative z-10 min-h-screen w-full">
 
-        <Header />
+        {hideHeader ? null : <Header />}
 
-        <div className="flex w-full max-w-screen-xl flex-col px-5 pb-7 md:px-24 md:pb-24">
-          {controls ? (
-            <div>
-              {controls}
-            </div>
-          ) : null}
-          <div className={[controls ? 'mt-0' : 'mt-0'].join(' ')}>
+        {fullBleed ? (
+          <div className="w-full">
             {children}
           </div>
-        </div>
+        ) : (
+          <div className="flex w-full max-w-screen-xl flex-col px-5 pb-7 md:px-24 md:pb-24">
+            {controls ? <div>{controls}</div> : null}
+            <div className={[controls ? 'mt-0' : 'mt-0'].join(' ')}>
+              {children}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

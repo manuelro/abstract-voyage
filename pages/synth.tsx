@@ -50,19 +50,25 @@ export async function getStaticProps(){
         const slug = fileName.replace('.md', '')
         const date = fileName.split('_')[0]
         const readFile = fs.readFileSync(`posts/${fileName}`, 'utf-8')
-        const { data: frontmatter } = matter(readFile)
+        const { data: frontmatter, content } = matter(readFile)
         const title = String(frontmatter?.title ?? slug)
         const tags = (frontmatter?.tags ?? []).map((tag: string) => tag.trim()).filter(Boolean)
+        const excerpt = frontmatter?.excerpt ? String(frontmatter.excerpt) : ''
+
+        const wordCount = content.replace(/[#_*`>\\-]/g, ' ').split(/\s+/).filter(Boolean).length
+        const readingTimeMinutes = wordCount ? Math.max(1, Math.round(wordCount / 200)) : null
 
         return {
             slug,
             date,
             formattedDate: formatDate(date),
             title,
+            excerpt,
             tags,
             canonicalPath: `/posts/${slug}`,
             externalUrl: frontmatter?.externalUrl ? String(frontmatter.externalUrl) : null,
             forceExternalNavigation: Boolean(frontmatter?.forceExternalNavigation),
+            readingTimeMinutes,
         }
     }).filter((post) => Boolean(post && post.title)).sort((a, b) => {
         if ( a.date < b.date ){

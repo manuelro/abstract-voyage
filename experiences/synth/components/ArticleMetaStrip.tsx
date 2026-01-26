@@ -1,3 +1,5 @@
+import PostMetaRow from './PostMetaRow'
+
 type SourceMeta = {
   name?: string
   platform?: string
@@ -28,17 +30,18 @@ export default function ArticleMetaStrip({
   source,
 }: ArticleMetaStripProps) {
   const sourceName = source?.name ?? source?.platform
+  const readingTime =
+    readingTimeMinutes != null ? `${readingTimeMinutes} min read` : null
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/60">
-      {primaryTopic ? (
-        <span className="rounded-full border-2 dark:border-slate-200/40 px-3 py-1 text-[11px] uppercase tracking-wide dark:text-slate-100">
-          {primaryTopic}
-        </span>
-      ) : null}
-      <span>{date}</span>
-      {readingTimeMinutes ? (
-        <span className="text-white/60">· {readingTimeMinutes} min read</span>
-      ) : null}
+      <PostMetaRow
+        topic={primaryTopic}
+        date={date}
+        readingTime={readingTime}
+        className="contents"
+        topicClassName="rounded-full border-2 dark:border-slate-200/40 px-3 py-1 text-[11px] uppercase tracking-wide dark:text-slate-100"
+        dotClassName="opacity-50"
+      />
       {sourceName && source?.url ? (
         <a
           href={source.url}

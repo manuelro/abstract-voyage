@@ -19,6 +19,7 @@ type TableOfContentsProps = {
   tocFiguresEnabled?: boolean
   tocMinHeadings?: number
   tocMinFigures?: number
+  showTitle?: boolean
   onNavigate?: () => void
 }
 
@@ -98,6 +99,7 @@ export default function TableOfContents({
   tocFiguresEnabled = true,
   tocMinHeadings = 2,
   tocMinFigures = 1,
+  showTitle = true,
   onNavigate,
 }: TableOfContentsProps) {
   const showHeadings = tocEnabled && tocHeadingsEnabled && headings.length >= tocMinHeadings
@@ -110,7 +112,9 @@ export default function TableOfContents({
     <nav className="text-sm text-white/60">
       {showHeadings ? (
         <>
-          <div className="text-xs uppercase tracking-wide text-white/80 pl-2">On this page</div>
+          {showTitle ? (
+            <div className="text-xs uppercase tracking-wide text-white/80 pl-2">On this page</div>
+          ) : null}
           <ul className="mt-3 space-y-1">
             {headings.map((item) => (
               <TocRow

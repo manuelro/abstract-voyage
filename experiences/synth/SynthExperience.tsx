@@ -1,10 +1,14 @@
 // @ts-nocheck
 import Head from 'next/head'
 import Image from 'next/image'
-import { useEffect, useState, type ReactNode } from 'react'
-import List from './components/List'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import ListLegacy from './components/ListLegacy'
+import PostCardDock from './dock/PostCardDock'
+import Home from './components/Home'
+import { BASE_SYNTH_GRADIENT_CONFIG, buildSynthLogoStops } from './gradients/synthGradient'
 import { PostType } from '../../pages/posts/[slug]'
 import SynthLayout from './components/SynthLayout'
+import { easeInOutCubic } from 'components/tools/light/utils/animate'
 
 type PropsType = {
     posts: PostType[]
@@ -123,10 +127,40 @@ export default function SynthExperience({ posts, children }: PropsType) {
         </div>
     )
 
+    const dockItems = useMemo(() => {
+        const normalized = posts.filter(Boolean)
+        const welcomeIndex = normalized.findIndex((post) => post.slug === 'welcome')
+        const welcomePost = welcomeIndex >= 0 ? normalized[welcomeIndex] : null
+        const rest = welcomeIndex >= 0
+            ? normalized.filter((_, index) => index !== welcomeIndex)
+            : normalized
+        const ordered = welcomePost ? [welcomePost, ...rest] : rest
+
+        return ordered.map((post) => ({
+            title: post.title,
+            excerpt: post.excerpt ?? '',
+            topic: post.tags?.[0] ?? '',
+            readingTime:
+                post.readingTime ??
+                (post.readingTimeMinutes != null
+                    ? `${post.readingTimeMinutes} min read`
+                    : ''),
+            date: post.formattedDate ?? post.date,
+            href: post.canonicalPath ?? '',
+        }))
+    }, [posts])
+
+    const logoStops = useMemo(() => buildSynthLogoStops(), [])
+
+    const homeTitle = dockItems[0]?.title ?? 'Home'
+    const homeExcerpt = dockItems[0]?.excerpt
+
+    const USE_DOCK = true
+
     return (
-        <SynthLayout controls={children}>
+        <SynthLayout hideHeader fullBleed>
             <Head>
-                <title>Abstract Voyage | Manuel Cerdas&apos; Journal on Web Technologies, Cloud Computing and Artificial Intelligence</title>
+                <title>Manuel Cerdas — Systems & Craft | Abstract Voyage</title>
             </Head>
 
             <div className='hidden flex-col border-y dark:border-y-slate-950 mt-12 pb-12'>
@@ -175,7 +209,37 @@ export default function SynthExperience({ posts, children }: PropsType) {
                 </div>
             </div>
 
-            <List className='mt-5' posts={posts} />
+            {USE_DOCK ? (
+                <PostCardDock
+                    items={dockItems}
+                    minHeight="0px"
+                    firstItemChildren={
+                        <Home
+                            logoStops={logoStops}
+                            title={homeTitle}
+                            excerpt={homeExcerpt}
+                        />
+                    }
+                    baseHue={575}
+                    gradientType='radial'
+                    angleDeg={9}
+                    lightnessRange={22}
+                    chromaRange={50}
+                    hueScheme='dual-complementary'
+                    radialExtent='farthest-corner'
+                    mode='center-bright'
+                    stops={22}
+                    centerStretch={1}
+                    backgroundTransitionMs={700}
+                    peakTravel={40}
+                    arcLift={100}
+                    variance={100}
+                    seed={100}
+                    scaleX={40}
+                    scaleY={72}
+
+                />
+            ) : null}
         </SynthLayout>
     )
 }

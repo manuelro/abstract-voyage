@@ -1,6 +1,6 @@
 ---
-title: "Welcome"
-excerpt: "Welcome to Abstract Voyage, a journal on software engineering with a focus on cloud computing, artificial intelligence, and web development."
+title: "Thinking in Systems."
+excerpt: "A journal by Manuel Cerdas — engineer & consultant, formerly at McKinsey. Ideas on systems and craft."
 author: "Manu"
 ---
 

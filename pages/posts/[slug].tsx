@@ -156,8 +156,12 @@ export default function Post({
               <div
                 id="article-toc-panel"
                 className={`fixed inset-0 z-40 bg-slate-950/90 p-6 lg:hidden ${tocOpen ? 'block' : 'hidden'}`}
+                onClick={() => setTocOpen(false)}
               >
-                <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-wide text-white/60">
+                <div
+                  className="mb-4 flex items-center justify-between text-xs uppercase tracking-wide text-white/60"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <span>On this page</span>
                   <button
                     type="button"
@@ -167,28 +171,31 @@ export default function Post({
                     Close
                   </button>
                 </div>
-                <TableOfContents
-                  headings={headings}
-                  figures={figures}
-                  tocEnabled={tocConfig.tocEnabled}
-                  tocHeadingsEnabled={tocConfig.tocHeadingsEnabled}
-                  tocFiguresEnabled={tocConfig.tocFiguresEnabled}
-                  tocMinHeadings={tocConfig.tocMinHeadings}
-                  tocMinFigures={tocConfig.tocMinFigures}
-                  onNavigate={() => {
-                    setTocOpen(false)
-                    if (typeof window !== 'undefined') {
-                      window.requestAnimationFrame(() => {
-                        const hash = window.location.hash
-                        if (!hash) return
-                        const target = document.querySelector(hash)
-                        if (target instanceof HTMLElement) {
-                          target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                        }
-                      })
-                    }
-                  }}
-                />
+                <div onClick={(event) => event.stopPropagation()}>
+                  <TableOfContents
+                    headings={headings}
+                    figures={figures}
+                    tocEnabled={tocConfig.tocEnabled}
+                    tocHeadingsEnabled={tocConfig.tocHeadingsEnabled}
+                    tocFiguresEnabled={tocConfig.tocFiguresEnabled}
+                    tocMinHeadings={tocConfig.tocMinHeadings}
+                    tocMinFigures={tocConfig.tocMinFigures}
+                    showTitle={false}
+                    onNavigate={() => {
+                      setTocOpen(false)
+                      if (typeof window !== 'undefined') {
+                        window.requestAnimationFrame(() => {
+                          const hash = window.location.hash
+                          if (!hash) return
+                          const target = document.querySelector(hash)
+                          if (target instanceof HTMLElement) {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }
+                        })
+                      }
+                    }}
+                  />
+                </div>
               </div>
 
               <TypographyProse>
