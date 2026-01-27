@@ -5,8 +5,8 @@ import type { SvgStop } from '../../../helpers/gradientMath'
 export const BASE_SYNTH_GRADIENT_CONFIG: GradientConfig = {
   baseHue: 575,
   hueScheme: 'dual-complementary',
-  lightnessRange: { max: 22 },
-  chromaRange: { min: 80 },
+  lightnessRange: { min: 10 },
+  chromaRange: { min: 45 },
   mode: 'side-bright',
   stops: 22,
   variance: 100,

@@ -224,7 +224,7 @@ export default function SynthExperience({ posts, children }: PropsType) {
                     gradientType='radial'
                     angleDeg={9}
                     lightnessRange={22}
-                    chromaRange={50}
+                    chromaRange={40}
                     hueScheme='dual-complementary'
                     radialExtent='farthest-corner'
                     mode='center-bright'
@@ -237,7 +237,6 @@ export default function SynthExperience({ posts, children }: PropsType) {
                     seed={100}
                     scaleX={40}
                     scaleY={72}
-
                 />
             ) : null}
         </SynthLayout>
