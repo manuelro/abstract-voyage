@@ -1,4 +1,12 @@
-import { useMemo, useRef, type CSSProperties } from 'react'
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import PostCard, { type PostCardProps } from '../components/PostCard'
 import { BASE_SYNTH_GRADIENT_CONFIG } from '../gradients/synthGradient'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion'
@@ -52,6 +60,12 @@ const CARD_FILL_STYLE: CSSProperties = { height: '100%' }
 const DOCK_CONTAINER_STYLE: CSSProperties = { touchAction: 'none' }
 const NAV_BAR_HEIGHT_PX = 72
 const ACTIVE_TITLE_SCALE = 1.2
+const REVEAL_CONFIG = {
+  firstCardDelayMs: 80,
+  staggerMs: 90,
+  durationMs: 480,
+  easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+} as const
 
 type PostCardDockProps = Omit<
   PostCardProps,
@@ -116,6 +130,8 @@ export default function PostCardDock({
 }: PostCardDockProps) {
   const prefersReducedMotion = usePrefersReducedMotion()
   const cancelPendingRef = useRef<() => void>(() => {})
+  const [activeRevealIndex, setActiveRevealIndex] = useState(-1)
+  const [dockVisible, setDockVisible] = useState(false)
   const {
     hoverIndex,
     lockedIndex,
@@ -191,10 +207,52 @@ export default function PostCardDock({
     [backgroundTransitionDelayMs, backgroundTransitionEasing, backgroundTransitionMs],
   )
 
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setActiveRevealIndex(items.length - 1)
+      setDockVisible(true)
+      return
+    }
+
+    let isMounted = true
+    const timers: number[] = []
+
+    setActiveRevealIndex(-1)
+    const startDelay = Math.max(0, REVEAL_CONFIG.firstCardDelayMs)
+    timers.push(
+      window.setTimeout(() => {
+        if (!isMounted) return
+        setDockVisible(true)
+        setActiveRevealIndex(0)
+        items.forEach((_, index) => {
+          if (index === 0) return
+          const delay = startDelay + index * REVEAL_CONFIG.staggerMs
+          timers.push(
+            window.setTimeout(() => {
+              if (!isMounted) return
+              setActiveRevealIndex((prev) => Math.max(prev, index))
+            }, delay),
+          )
+        })
+      }, startDelay),
+    )
+
+    return () => {
+      isMounted = false
+      timers.forEach((timer) => window.clearTimeout(timer))
+    }
+  }, [items.length, prefersReducedMotion])
+
   return (
     <div
       className="flex h-[100dvh] flex-col overflow-hidden"
-      style={DOCK_CONTAINER_STYLE}
+      style={{
+        ...DOCK_CONTAINER_STYLE,
+        opacity: dockVisible ? 1 : 0,
+        transitionProperty: 'opacity',
+        transitionTimingFunction: REVEAL_CONFIG.easing,
+        transitionDuration: prefersReducedMotion ? '0ms' : `${REVEAL_CONFIG.durationMs}ms`,
+      }}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
       onPointerCancel={onPointerCancel}
@@ -217,12 +275,18 @@ export default function PostCardDock({
           flexBasis: rowFlexBasis,
           flex: `0 0 ${rowFlexBasis}`,
           height: rowFlexBasis,
-          minHeight: navMode && index === 0 && !isActive ? `${NAV_BAR_HEIGHT_PX}px` : undefined,
+          minHeight: rowFlexBasis,
           zIndex: navMode && index === 0 && !isActive ? 2 : undefined,
-          transitionProperty: 'flex-basis, min-height',
-          transitionTimingFunction: DOCK_CONFIG.transitionEasing,
-          transitionDuration: prefersReducedMotion ? '0ms' : `${DOCK_CONFIG.transitionMs}ms`,
-          transitionDelay: prefersReducedMotion ? '0ms' : `${DOCK_CONFIG.transitionDelayMs}ms`,
+          transitionProperty: 'flex-basis, min-height, height, opacity',
+          transitionTimingFunction: prefersReducedMotion
+            ? 'linear'
+            : `${DOCK_CONFIG.transitionEasing}, ${DOCK_CONFIG.transitionEasing}, ${DOCK_CONFIG.transitionEasing}, ${REVEAL_CONFIG.easing}`,
+          transitionDuration: prefersReducedMotion
+            ? '0ms'
+            : `${DOCK_CONFIG.transitionMs}ms, ${DOCK_CONFIG.transitionMs}ms, ${DOCK_CONFIG.transitionMs}ms, ${REVEAL_CONFIG.durationMs}ms`,
+          transitionDelay: prefersReducedMotion
+            ? '0ms'
+            : `${DOCK_CONFIG.transitionDelayMs}ms, ${DOCK_CONFIG.transitionDelayMs}ms, ${DOCK_CONFIG.transitionDelayMs}ms, 0ms`,
         }
 
         const arc = computeArcRow(index, center, last, resolvedBaseHue, angleDeg, {
@@ -255,12 +319,51 @@ export default function PostCardDock({
           transitionTimingFunction: DOCK_CONFIG.titleScaleEasing,
         }
 
+        const isRevealed = prefersReducedMotion || index <= activeRevealIndex
+        const allRevealed = prefersReducedMotion || activeRevealIndex >= items.length - 1
+        const revealStyle: CSSProperties = {
+          opacity: isRevealed ? 1 : 0,
+        }
+        const firstContentStyle: CSSProperties | undefined =
+          index === 0
+            ? {
+                opacity: allRevealed ? 1 : 0,
+                transitionProperty: 'opacity',
+                transitionTimingFunction: REVEAL_CONFIG.easing,
+                transitionDuration: prefersReducedMotion ? '0ms' : `${REVEAL_CONFIG.durationMs}ms`,
+                transitionDelay: prefersReducedMotion ? '0ms' : '0ms',
+              }
+            : undefined
+        const firstLogoStyle: CSSProperties | undefined =
+          index === 0
+            ? {
+                opacity: allRevealed ? 1 : 0,
+                transitionProperty: 'opacity',
+                transitionTimingFunction: REVEAL_CONFIG.easing,
+                transitionDuration: prefersReducedMotion ? '0ms' : `${REVEAL_CONFIG.durationMs * 2}ms`,
+                transitionDelay: prefersReducedMotion ? '0ms' : `${REVEAL_CONFIG.durationMs}ms`,
+              }
+            : undefined
+        const resolvedFirstChildren =
+          isHome && firstItemChildren && isValidElement(firstItemChildren)
+            ? cloneElement(
+                firstItemChildren as React.ReactElement<{
+                  contentStyle?: CSSProperties
+                  logoStyle?: CSSProperties
+                }>,
+                {
+                  contentStyle: firstContentStyle,
+                  logoStyle: firstLogoStyle,
+                },
+              )
+            : firstItemChildren
+
         return (
           <div
             key={item.title}
             data-postcard-index={index}
             className="shrink-0 min-h-0 overflow-hidden relative"
-            style={heightStyle}
+            style={{ ...heightStyle, ...revealStyle }}
           >
             <PostCard
               title={item.title}
@@ -268,7 +371,7 @@ export default function PostCardDock({
               topic={isHome ? undefined : item.topic}
               date={isHome ? undefined : item.date}
               readingTime={isHome ? undefined : item.readingTime}
-              children={index === 0 ? firstItemChildren : undefined}
+              children={index === 0 ? resolvedFirstChildren : undefined}
               noPadding={index === 0}
               hideCta={index === 0}
               href={isHome ? undefined : href}

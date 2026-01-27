@@ -62,6 +62,7 @@ type PostCardProps = GradientControls &
     titleStyle?: React.CSSProperties
     excerptStyle?: React.CSSProperties
     titleScale?: number
+    contentStyle?: React.CSSProperties
     /**
      * Duration (ms) used for background crossfade + content fade.
      * Avoid Tailwind dynamic duration classes; this stays build-safe.
@@ -177,6 +178,7 @@ export default function PostCard({
   titleStyle,
   excerptStyle,
   titleScale,
+  contentStyle,
   backgroundTransitionMs = 5000,
   backgroundTransitionDelayMs = 1000,
   backgroundTransitionEasing = 'ease-in-out',
@@ -609,7 +611,10 @@ export default function PostCard({
       </div>
 
       {/* Foreground content */}
-      <div className={`relative z-10 flex h-full w-full min-h-0 flex-col gap-3 self-stretch ${contentPaddingClass}`}>
+      <div
+        className={`relative z-10 flex h-full w-full min-h-0 flex-col gap-3 self-stretch ${contentPaddingClass}`}
+        style={contentStyle}
+      >
         {children ? (
           <div className={headerPaddingClass}>{children}</div>
         ) : null}

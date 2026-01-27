@@ -1,5 +1,5 @@
 ---
-title: "Thinking in Systems."
+title: "Thinking in systems."
 excerpt: "A journal by Manuel Cerdas — engineer & consultant, formerly at McKinsey. Ideas on systems and craft."
 author: "Manu"
 ---
