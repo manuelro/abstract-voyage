@@ -99,7 +99,7 @@ export default function Post({
               href="/"
               className="text-xs text-white/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/60"
             >
-              Back to All articles
+              Back to all articles
             </Link>
           )}
         >

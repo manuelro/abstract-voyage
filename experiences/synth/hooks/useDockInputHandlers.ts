@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, type PointerEvent, type WheelEvent } from 'react'
 
+const supportsHover = () => {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(hover: hover)').matches
+}
+
 type DockInputHandlersOptions = {
   itemsLength: number
   markUserInteracted: () => void
@@ -8,6 +13,7 @@ type DockInputHandlersOptions = {
   lastActiveIndexRef: React.MutableRefObject<number | null>
   setHoverIndex: (index: number | null) => void
   setLockedIndex: (index: number | null) => void
+  invertTouchSwipe?: boolean
   cancelPendingRef?: React.MutableRefObject<() => void>
 }
 
@@ -19,6 +25,7 @@ export const useDockInputHandlers = ({
   lastActiveIndexRef,
   setHoverIndex,
   setLockedIndex,
+  invertTouchSwipe = false,
   cancelPendingRef,
 }: DockInputHandlersOptions) => {
   const rafRef = useRef<number | null>(null)
@@ -107,8 +114,16 @@ export const useDockInputHandlers = ({
         while (Math.abs(touchAccumRef.current) >= STEP_PX) {
           const step = touchAccumRef.current > 0 ? 1 : -1
           touchAccumRef.current -= step * STEP_PX
-          stepActiveIndex(step)
+          stepActiveIndex(invertTouchSwipe ? -step : step)
         }
+        return
+      }
+
+      if (event.pointerType === 'touch') {
+        return
+      }
+
+      if ((event.pointerType === 'mouse' || event.pointerType === 'pen') && !supportsHover()) {
         return
       }
 
@@ -149,7 +164,7 @@ export const useDockInputHandlers = ({
   const onWheel = useCallback(
     (event: WheelEvent<HTMLDivElement>) => {
       markUserInteracted()
-      const delta = event.deltaY
+      const delta = invertTouchSwipe ? -event.deltaY : event.deltaY
       if (!Number.isFinite(delta) || delta === 0) return
       event.preventDefault()
       const STEP_PX = 60
@@ -160,7 +175,7 @@ export const useDockInputHandlers = ({
         stepActiveIndex(step)
       }
     },
-    [markUserInteracted, stepActiveIndex],
+    [invertTouchSwipe, markUserInteracted, stepActiveIndex],
   )
 
   const onPointerDown = useCallback(

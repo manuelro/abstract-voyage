@@ -231,7 +231,7 @@ export default function SynthExperience({ posts, children }: PropsType) {
                     stops={22}
                     centerStretch={1}
                     backgroundTransitionMs={700}
-                    peakTravel={40}
+                    peakTravel={22}
                     arcLift={100}
                     variance={100}
                     seed={100}

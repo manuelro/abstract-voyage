@@ -567,6 +567,7 @@ export default function PostCard({
         if (isExpanded) {
           onActiveCardClick?.()
           console.log('PostCard active card click')
+          if (onActiveCardClick) return
         }
         setExpanded(!isExpanded)
       }}
