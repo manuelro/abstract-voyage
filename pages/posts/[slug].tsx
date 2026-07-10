@@ -1,9 +1,17 @@
 import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
-import Head from 'next/head'
 import Link from 'next/link'
 import { formatDate } from 'components/helpers/date'
+import SeoHead from '../../components/SeoHead'
+import {
+  SITE_METADATA,
+  getAbsoluteUrl,
+  getPostCanonicalPath,
+  getPostCanonicalUrl,
+  getPostOgImagePath,
+  getPublishedDate,
+} from '../../helpers/siteMetadata'
 import Article from '../../experiences/synth/components/Article'
 import SynthLayout from '../../experiences/synth/components/SynthLayout'
 import ArticleLayout from '../../experiences/synth/components/ArticleLayout'
@@ -18,6 +26,11 @@ import { getHighlighter } from 'shiki'
 import { useState } from 'react'
 
 export type PostType = {
+  slug: string
+  date: string | null
+  publishedDate?: string | null
+  canonicalPath?: string
+  canonicalUrl?: string
   frontmatter: {
     title: string
     excerpt?: string
@@ -41,7 +54,7 @@ export type PostType = {
     tocExclude?: string[]
   }
   content: string
-  formattedDate: string
+  formattedDate: string | null
   headings: HeadingItem[]
   figures: FigureItem[]
   codeBlocks: {
@@ -67,6 +80,9 @@ export type PostType = {
 }
 
 export default function Post({
+  slug,
+  publishedDate,
+  canonicalPath,
   frontmatter,
   content,
   formattedDate,
@@ -91,6 +107,40 @@ export default function Post({
     const topic = primaryTopic ?? tags?.[0] ?? null
     const hasBody = content.trim().length > 0
     const [tocOpen, setTocOpen] = useState(false)
+    const resolvedCanonicalPath = canonicalPath ?? getPostCanonicalPath(slug)
+    const resolvedPublishedDate =
+      publishedDate ??
+      getPublishedDate({
+        slug,
+        frontmatterDate: (frontmatter as any)?.date,
+        sourceDate: source?.originallyPublished,
+      })
+    const ogImagePath = heroImage ?? getPostOgImagePath(slug)
+    const postUrl = getAbsoluteUrl(resolvedCanonicalPath)
+    const postJsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: title,
+      description: excerpt ?? SITE_METADATA.defaultDescription,
+      url: postUrl,
+      mainEntityOfPage: {
+        '@type': 'WebPage',
+        '@id': postUrl,
+      },
+      author: {
+        '@type': 'Person',
+        name: SITE_METADATA.authorName,
+        url: SITE_METADATA.siteUrl,
+      },
+      publisher: {
+        '@type': 'Person',
+        name: SITE_METADATA.authorName,
+      },
+      image: getAbsoluteUrl(ogImagePath),
+      datePublished: resolvedPublishedDate ?? undefined,
+      dateModified: resolvedPublishedDate ?? undefined,
+      keywords: tags?.length ? tags.join(', ') : undefined,
+    }
 
     return (
         <SynthLayout
@@ -103,9 +153,17 @@ export default function Post({
             </Link>
           )}
         >
-            <Head>
-                <title>{title}</title>
-            </Head>
+            <SeoHead
+              title={`${title} | ${SITE_METADATA.siteName}`}
+              description={excerpt ?? SITE_METADATA.defaultDescription}
+              canonicalPath={resolvedCanonicalPath}
+              ogType="article"
+              ogImagePath={ogImagePath}
+              publishedTime={resolvedPublishedDate}
+              modifiedTime={resolvedPublishedDate}
+              tags={tags ?? []}
+              jsonLd={postJsonLd}
+            />
 
             <ArticleLayout
               header={(
@@ -292,9 +350,13 @@ const applySnippetIncludes = (source: string, postId: string) => {
 }
 
 export async function getStaticProps({ params: { slug } } : { params: { slug: string } }) {
-  const fileName = fs.readFileSync(`posts/${slug}.md`, 'utf-8')
-  const date = fileName.split('_')[0]
-  const { data: frontmatter, content } = matter(fileName)
+  const fileContent = fs.readFileSync(`posts/${slug}.md`, 'utf-8')
+  const { data: frontmatter, content } = matter(fileContent)
+  const publishedDate = getPublishedDate({
+    slug,
+    frontmatterDate: frontmatter?.date,
+    sourceDate: frontmatter?.source?.originallyPublished,
+  })
   const processedContent = applySnippetIncludes(content, slug)
   const highlighter = await getHighlighter({ themes: ['dracula-soft'], langs: [] })
   const languageAliases: Record<string, string> = {
@@ -457,9 +519,14 @@ export async function getStaticProps({ params: { slug } } : { params: { slug: st
   const allPosts = files.map((file) => {
     const fileContent = fs.readFileSync(`posts/${file}`, 'utf-8')
     const { data } = matter(fileContent)
+    const postSlug = file.replace('.md', '')
     return {
-      slug: file.replace('.md', ''),
-      date: file.split('_')[0],
+      slug: postSlug,
+      date: getPublishedDate({
+        slug: postSlug,
+        frontmatterDate: data?.date,
+        sourceDate: data?.source?.originallyPublished,
+      }) ?? '',
       title: data?.title ?? file.replace('.md', ''),
     }
   }).sort((a, b) => {
@@ -472,6 +539,11 @@ export async function getStaticProps({ params: { slug } } : { params: { slug: st
   const nextPost = currentIndex >= 0 && currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null
   return {
     props: {
+      slug,
+      date: publishedDate,
+      publishedDate,
+      canonicalPath: getPostCanonicalPath(slug),
+      canonicalUrl: getPostCanonicalUrl(slug),
       frontmatter: {
         ...frontmatter,
         excerpt,
@@ -484,7 +556,7 @@ export async function getStaticProps({ params: { slug } } : { params: { slug: st
         tocExclude: Array.isArray(frontmatter.tocExclude) ? frontmatter.tocExclude : null,
       },
       content: processedContent,
-      formattedDate: formatDate(date),
+      formattedDate: publishedDate ? formatDate(publishedDate) : null,
       readingTimeMinutes,
       previousPost,
       nextPost,

@@ -1,0 +1,25 @@
+# Abstract Voyage
+
+Manuel Cerdas is a creative engineer and consultant working across AI engineering, product strategy, systems thinking, and expressive web interfaces.
+
+## Canonical Resources
+
+- Home: https://abstract.voyage/
+- Sitemap: https://abstract.voyage/sitemap.xml
+- RSS feed: https://abstract.voyage/feed.xml
+- Contact: https://abstract.voyage/contact
+- Lab: https://abstract.voyage/lab/sota
+
+## Articles
+
+- [Introducing Infinity Labs: The Open Education Initiative](https://abstract.voyage/posts/2023-05-03_infinity-labs-open-education) - Announces Infinity Labs, a free open education initiative offering software engineering learning resources and videos.
+- [The implementation of biomimetics in the design and development of highly efficient user interfaces](https://abstract.voyage/posts/2023-01-27_medium-biomimetics) - Looks at biomimetics in UI design and how nature-inspired patterns can improve interface efficiency and usability.
+- [The resilient team, the Tech Lead role and the coordination function in Scrum](https://abstract.voyage/posts/2020-12-08_medium-resilient-team) - Explores how tech leads build resilient teams in Scrum and coordinate effectively across roles and responsibilities.
+- [A retrospective to my first 5 years leading people](https://abstract.voyage/posts/2020-12-01_medium-tech-leading) - A retrospective on five years of technical leadership, covering people management, decision-making, and career growth.
+- [The taxonomy of dependencies in software and their associated risk](https://abstract.voyage/posts/2020-11-05_medium-taxonomy-dependencies) - Analyzes dependency types in software engineering and the risk tradeoffs they introduce across systems and teams.
+- [Real-Time Feature Toggles with React and LaunchDarkly](https://abstract.voyage/posts/2019-09-15_medium-feature-toggles-react) - Walkthrough of real-time feature flags in React using LaunchDarkly to manage releases safely and continuously.
+- [The importance of tackling technical debt](https://abstract.voyage/posts/2017-11-03_medium-tech-debt) - Explains what technical debt is, why it accumulates, and how teams can manage it to keep software maintainable.
+- [Understanding the Document Object Model (DOM)](https://abstract.voyage/posts/2017-02-11_medium-dom-basics) - Introduces the Document Object Model (DOM), explaining how web pages are structured and how JavaScript interacts with nodes and events.
+- [Gzipping vs minification](https://abstract.voyage/posts/2017-01-15_medium-gzipping) - Explains the difference between gzip compression and minification and how both improve web performance and bandwidth usage.
+- [Mastering the SOLID principles](https://abstract.voyage/posts/2016-12-24_medium-mastering-solid) - A practical guide to the SOLID principles in object-oriented programming and how they improve maintainable software architecture.
+- [Thinking in systems.](https://abstract.voyage/posts/welcome) - A journal by Manuel Cerdas. Engineer & consultant. Formerly McKinsey. On systems and craft.

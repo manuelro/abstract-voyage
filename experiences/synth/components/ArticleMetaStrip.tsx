@@ -8,7 +8,7 @@ type SourceMeta = {
 }
 
 type ArticleMetaStripProps = {
-  date: string
+  date?: string | null
   primaryTopic?: string | null
   readingTimeMinutes?: number | null
   source?: SourceMeta | null

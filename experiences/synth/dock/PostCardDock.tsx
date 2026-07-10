@@ -85,8 +85,6 @@ type PostCardDockProps = Omit<
   | 'noPadding'
   | 'titleStyle'
   | 'excerptStyle'
-  | 'onReadClick'
-  | 'onActiveCardClick'
   | 'lightnessRange'
   | 'chromaRange'
 > & {
@@ -139,6 +137,7 @@ export default function PostCardDock({
     setHoverIndex,
     setLockedIndex,
     markUserInteracted,
+    resetActiveIndex,
     hoverIndexRef,
     lockedIndexRef,
     lastActiveIndexRef,
@@ -242,6 +241,24 @@ export default function PostCardDock({
       timers.forEach((timer) => window.clearTimeout(timer))
     }
   }, [items.length, prefersReducedMotion])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+
+      resetActiveIndex(0)
+      setActiveRevealIndex(items.length - 1)
+      setDockVisible(true)
+    }
+
+    window.addEventListener('pageshow', handlePageShow)
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [items.length, resetActiveIndex])
 
   return (
     <div
@@ -408,22 +425,6 @@ export default function PostCardDock({
               backgroundTransitionDelayMs={backgroundTransition.delayMs}
               backgroundTransitionEasing={backgroundTransition.easing}
               onCollapseComplete={onCollapseComplete}
-              onReadClick={
-                !isHome && href
-                  ? () => {
-                      console.log('PostCard read navigate', href)
-                      window.location.assign(href)
-                    }
-                  : undefined
-              }
-              onActiveCardClick={
-                !isHome && href
-                  ? () => {
-                      console.log('PostCard active navigate', href)
-                      window.location.assign(href)
-                    }
-                  : undefined
-              }
               onExpandedChange={(expanded) => {
                 onExpandedChange?.(expanded)
                 markUserInteracted()

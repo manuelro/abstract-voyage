@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "seo:generate": "node scripts/generate-seo-assets.mjs",
+    "build": "npm run seo:generate && next build",
+    "build:static": "npm run build && npm run export",
     "start": "next start",
     "lint": "next lint",
-    "export": "next export",
+    "export": "npm run seo:generate && next export",
     "storybook": "cross-env __NEXT_PRIVATE_RENDER_WORKER=defined storybook dev -p 6006",
     "build-storybook": "cross-env __NEXT_PRIVATE_RENDER_WORKER=defined storybook build"
   },

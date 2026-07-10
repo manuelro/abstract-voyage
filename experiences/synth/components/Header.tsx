@@ -30,11 +30,14 @@ const Header = () => {
     }, [])
 
     return (
-        <div
-          className='bg-slate-900 px-5 md:px-24 flex items-start justify-between pt-16 pb-10 bg-transparent'
+        <header
+          className='relative z-10 bg-slate-900 px-5 md:px-24 flex items-start justify-between pt-16 pb-10 bg-transparent'
         //   style={{ backgroundImage: headerBackgroundGradient }}
         >
-            <Link href="/">
+            <Link
+              href="/"
+              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            >
                 <Logo
                   ariaLabel="Abstract Voyage Logo"
                   stops={logoGradientStops}
@@ -43,13 +46,15 @@ const Header = () => {
                 />
                 {/* <Logo className="hidden dark:block" ariaLabel="Abstract Voyage Logo" /> */}
             </Link>
-            <Link
-              href="/contact"
-              className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-200/55 transition-colors hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-            >
-              Contact
-            </Link>
-        </div>
+            <nav aria-label="Primary">
+                <Link
+                  href="/contact"
+                  className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-200/55 transition-colors hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                >
+                  Contact
+                </Link>
+            </nav>
+        </header>
     )
 }
 

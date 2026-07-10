@@ -140,10 +140,8 @@ export default function SynthLayout({
           opacity: 'var(--synth-bg-darken, 0)',
         }}
       />
+      {hideHeader ? null : <Header />}
       <main className="relative z-10 min-h-screen w-full">
-
-        {hideHeader ? null : <Header />}
-
         {fullBleed ? (
           <div className="w-full">
             {children}

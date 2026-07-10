@@ -3,6 +3,11 @@ import fs from 'fs'
 import matter from 'gray-matter'
 import { formatDate } from 'components/helpers/date'
 import { PostType } from './posts/[slug]'
+import {
+    getPostCanonicalPath,
+    getPostCanonicalUrl,
+    getPublishedDate,
+} from '../helpers/siteMetadata'
 import { useMemo, useState } from 'react'
 import SynthExperience from '../experiences/synth/SynthExperience'
 import TagChips from '../experiences/synth/components/TagChips'
@@ -48,9 +53,13 @@ export async function getStaticProps(){
 
     const posts = files.map((fileName) => {
         const slug = fileName.replace('.md', '')
-        const date = fileName.split('_')[0]
         const readFile = fs.readFileSync(`posts/${fileName}`, 'utf-8')
         const { data: frontmatter, content } = matter(readFile)
+        const date = getPublishedDate({
+            slug,
+            frontmatterDate: frontmatter?.date,
+            sourceDate: frontmatter?.source?.originallyPublished,
+        })
         const title = String(frontmatter?.title ?? slug)
         const tags = (frontmatter?.tags ?? []).map((tag: string) => tag.trim()).filter(Boolean)
         const excerpt = frontmatter?.excerpt ? String(frontmatter.excerpt) : ''
@@ -61,20 +70,23 @@ export async function getStaticProps(){
         return {
             slug,
             date,
-            formattedDate: formatDate(date),
+            formattedDate: date ? formatDate(date) : null,
             title,
             excerpt,
             tags,
-            canonicalPath: `/posts/${slug}`,
+            canonicalPath: getPostCanonicalPath(slug),
+            canonicalUrl: getPostCanonicalUrl(slug),
             externalUrl: frontmatter?.externalUrl ? String(frontmatter.externalUrl) : null,
             forceExternalNavigation: Boolean(frontmatter?.forceExternalNavigation),
             readingTimeMinutes,
         }
     }).filter((post) => Boolean(post && post.title)).sort((a, b) => {
-        if ( a.date < b.date ){
+        const aDate = a.date ?? ''
+        const bDate = b.date ?? ''
+        if ( aDate < bDate ){
             return -1
         }
-        if ( a.date > b.date ){
+        if ( aDate > bDate ){
             return 1
         }
         return 0

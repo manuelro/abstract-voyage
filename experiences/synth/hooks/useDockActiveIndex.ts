@@ -90,6 +90,16 @@ export const useDockActiveIndex = ({
     }
   }, [])
 
+  const resetActiveIndex = useCallback((nextIndex: number | null = 0) => {
+    cancelPendingRef?.current?.()
+    hasUserInteractedRef.current = false
+    lastActiveIndexRef.current = nextIndex
+    hoverIndexRef.current = nextIndex
+    lockedIndexRef.current = null
+    setLockedIndex(null)
+    setHoverIndex(nextIndex)
+  }, [cancelPendingRef])
+
   return {
     hoverIndex,
     lockedIndex,
@@ -97,6 +107,7 @@ export const useDockActiveIndex = ({
     setHoverIndex,
     setLockedIndex,
     markUserInteracted,
+    resetActiveIndex,
     hoverIndexRef,
     lockedIndexRef,
     lastActiveIndexRef,

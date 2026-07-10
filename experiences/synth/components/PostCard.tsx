@@ -73,8 +73,6 @@ type PostCardProps = GradientControls &
     onMouseEnter?: React.MouseEventHandler<HTMLElement>
     onMouseLeave?: React.MouseEventHandler<HTMLElement>
     hideCta?: boolean
-    onReadClick?: () => void
-    onActiveCardClick?: () => void
   }
 
 const DEFAULT_HEIGHT = 'calc(100dvh / 10)'
@@ -99,6 +97,7 @@ const POSTCARD_MOTION = {
     delayMs: 250,
   },
 } as const
+const FULL_CARD_LINK_DRAG_THRESHOLD_PX = 8
 
 const TITLE_TRANSITION_CLASS =
   'transform-gpu transition-[padding,opacity,transform,font-size] motion-reduce:transition-none'
@@ -185,8 +184,6 @@ export default function PostCard({
   onMouseEnter,
   onMouseLeave,
   hideCta = false,
-  onReadClick,
-  onActiveCardClick,
   gradientType = 'linear',
   angleDeg = 9,
   anchorXPercent = 0,
@@ -209,6 +206,12 @@ export default function PostCard({
   const [isExpandedInternal, setIsExpandedInternal] = useState(false)
   const [isContentVisible, setIsContentVisible] = useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const fullCardLinkGestureRef = useRef({
+    pointerId: null as number | null,
+    startX: 0,
+    startY: 0,
+    suppressClick: false,
+  })
 
   const isControlled = typeof expanded === 'boolean'
   const isExpanded = isControlled ? expanded : isExpandedInternal
@@ -556,27 +559,61 @@ export default function PostCard({
   const contentPaddingClass = noPadding ? 'pb-0' : 'pb-12'
   const headerPaddingClass = noPadding ? 'pt-0 md:pt-0' : 'pt-3 md:pt-4'
   const metaPaddingClass = noPadding ? 'px-0 pb-0' : 'px-6 pb-3'
+  const handleCardClick: React.MouseEventHandler<HTMLElement> = (event) => {
+    const target = event.target as HTMLElement | null
+    if (target?.closest('a, button')) return
+    setExpanded(!isExpanded)
+  }
+  const handleFullCardLinkPointerDown: React.PointerEventHandler<HTMLAnchorElement> = (event) => {
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    fullCardLinkGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      suppressClick: false,
+    }
+  }
+  const handleFullCardLinkPointerMove: React.PointerEventHandler<HTMLAnchorElement> = (event) => {
+    const gesture = fullCardLinkGestureRef.current
+    if (gesture.pointerId !== event.pointerId) return
+
+    const deltaX = event.clientX - gesture.startX
+    const deltaY = event.clientY - gesture.startY
+    if (Math.hypot(deltaX, deltaY) > FULL_CARD_LINK_DRAG_THRESHOLD_PX) {
+      gesture.suppressClick = true
+    }
+  }
+  const handleFullCardLinkPointerUp: React.PointerEventHandler<HTMLAnchorElement> = (event) => {
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    fullCardLinkGestureRef.current.pointerId = null
+  }
+  const handleFullCardLinkPointerCancel: React.PointerEventHandler<HTMLAnchorElement> = (event) => {
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    fullCardLinkGestureRef.current.pointerId = null
+    fullCardLinkGestureRef.current.suppressClick = false
+  }
+  const handleFullCardLinkClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
+    if (!fullCardLinkGestureRef.current.suppressClick) {
+      fullCardLinkGestureRef.current.pointerId = null
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    fullCardLinkGestureRef.current.pointerId = null
+    fullCardLinkGestureRef.current.suppressClick = false
+  }
 
   return (
     <article
-      className={`group relative flex w-full min-h-0 items-center justify-between overflow-hidden text-white ${containerPaddingClass} ${className ?? ''}`}
-      role="button"
-      tabIndex={0}
+      className={`group relative flex w-full min-h-0 items-center justify-between overflow-hidden text-white ${href ? 'cursor-pointer' : ''} ${containerPaddingClass} ${className ?? ''}`}
       aria-expanded={isExpanded}
-      onClick={() => {
-        if (isExpanded) {
-          onActiveCardClick?.()
-          console.log('PostCard active card click')
-          if (onActiveCardClick) return
-        }
-        setExpanded(!isExpanded)
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          setExpanded(!isExpanded)
-        }
-      }}
+      onClick={handleCardClick}
+      onFocusCapture={() => setExpanded(true)}
       onMouseEnter={(event) => {
         if (expandOnHover) setExpanded(true)
         onMouseEnter?.(event)
@@ -611,6 +648,22 @@ export default function PostCard({
         ))}
       </div>
 
+      {href ? (
+        <a
+          href={href}
+          aria-label={`Read: ${title}`}
+          className="absolute inset-0 z-30 block touch-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70"
+          draggable={false}
+          onPointerDown={handleFullCardLinkPointerDown}
+          onPointerMove={handleFullCardLinkPointerMove}
+          onPointerUp={handleFullCardLinkPointerUp}
+          onPointerCancel={handleFullCardLinkPointerCancel}
+          onClick={handleFullCardLinkClick}
+        >
+          <span className="sr-only">{title}</span>
+        </a>
+      ) : null}
+
       {/* Foreground content */}
       <div
         className={`relative z-10 flex h-full w-full min-h-0 flex-col gap-3 self-stretch ${contentPaddingClass}`}
@@ -620,7 +673,7 @@ export default function PostCard({
           <div className={headerPaddingClass}>{children}</div>
         ) : null}
         <div className={`${headerPaddingClass} min-w-0 max-w-[67ch]`}>
-          <h3
+          <h2
             className={`mt-0 mb-0 pt-[1px] text-xs sm:text-md  md:text-lg font-semibold tracking-tight ${textOpacityClass} ${TITLE_TRANSITION_CLASS} ${activeTitlePaddingClass} origin-top-left pr-12`}
             style={{ ...textTransitionStyle, ...titleStyle }}
           >
@@ -638,7 +691,7 @@ export default function PostCard({
                 </span>
               ) : null}
             </span>
-          </h3>
+          </h2>
         </div>
 
         <PostMetaRow
@@ -684,17 +737,25 @@ export default function PostCard({
         style={transitionStyle}
       >
         <div className={`flex items-center justify-start gap-4 ${metaPaddingClass}`}>
-          {hideCta ? null : (
+          {hideCta ? null : href ? (
+            <span
+              aria-hidden="true"
+              className={`shrink-0 rounded-full border-2 border-white/30 px-4 py-1 text-xs md:text-lg uppercase tracking-wide text-white/80 transition group-hover:border-white/60 group-hover:text-white ${
+                isContentVisible ? 'opacity-100' : 'opacity-0'
+              }`}
+              style={ctaTransitionStyle}
+            >
+              Read
+            </span>
+          ) : (
             <button
               type="button"
-              className={`pointer-events-auto shrink-0 rounded-full border-2 border-white/30 px-4 py-1 text-xs md:text-lg uppercase tracking-wide text-white/80 transition hover:border-white/60 hover:text-white ${
+              className={`pointer-events-auto shrink-0 rounded-full border-2 border-white/30 px-4 py-1 text-xs md:text-lg uppercase tracking-wide text-white/80 transition hover:border-white/60 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
                 isContentVisible ? 'opacity-100' : 'opacity-0'
               }`}
               style={ctaTransitionStyle}
               onClick={(event) => {
                 event.stopPropagation()
-                onReadClick?.()
-                console.log('PostCard read click')
                 setExpanded(true)
               }}
             >
