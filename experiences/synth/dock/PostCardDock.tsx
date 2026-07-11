@@ -1,25 +1,22 @@
 import {
   cloneElement,
   isValidElement,
-  useEffect,
   useMemo,
-  useRef,
-  useState,
   type CSSProperties,
 } from 'react'
+import MagnificationDock, {
+  type MagnificationDockOrientation,
+} from '../../../components/MagnificationDock'
 import PostCard, { type PostCardProps } from '../components/PostCard'
 import { BASE_SYNTH_GRADIENT_CONFIG } from '../gradients/synthGradient'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion'
 import { computeArcRow } from '../math/dockArcMath'
 import {
   clamp01,
-  computeHeights,
   computeTitleOpacity,
   computeTitleScale,
   type DockMathConfig,
 } from '../math/dockMath'
-import { useDockActiveIndex } from '../hooks/useDockActiveIndex'
-import { useDockInputHandlers } from '../hooks/useDockInputHandlers'
 import type { Item } from '../data/postCardFixtures'
 
 const DOCK_CONFIG: DockMathConfig & {
@@ -56,8 +53,7 @@ const DOCK_CONFIG: DockMathConfig & {
   angleAmplitude: 40,
 }
 
-const CARD_FILL_STYLE: CSSProperties = { height: '100%' }
-const DOCK_CONTAINER_STYLE: CSSProperties = { touchAction: 'none' }
+const CARD_FILL_STYLE: CSSProperties = { height: '100%', width: '100%' }
 const NAV_BAR_HEIGHT_PX = 72
 const ACTIVE_TITLE_SCALE = 1.2
 const REVEAL_CONFIG = {
@@ -94,6 +90,7 @@ type PostCardDockProps = Omit<
   firstItemChildren?: React.ReactNode
   peakTravel?: number
   arcLift?: number
+  orientation?: MagnificationDockOrientation
 }
 
 export default function PostCardDock({
@@ -125,41 +122,9 @@ export default function PostCardDock({
   minHeight,
   onExpandedChange,
   onCollapseComplete,
+  orientation = 'vertical',
 }: PostCardDockProps) {
   const prefersReducedMotion = usePrefersReducedMotion()
-  const cancelPendingRef = useRef<() => void>(() => {})
-  const [activeRevealIndex, setActiveRevealIndex] = useState(-1)
-  const [dockVisible, setDockVisible] = useState(false)
-  const {
-    hoverIndex,
-    lockedIndex,
-    activeIndex,
-    setHoverIndex,
-    setLockedIndex,
-    markUserInteracted,
-    resetActiveIndex,
-    hoverIndexRef,
-    lockedIndexRef,
-    lastActiveIndexRef,
-  } = useDockActiveIndex({ cancelPendingRef })
-
-  const {
-    onPointerMove,
-    onPointerLeave,
-    onPointerCancel,
-    onPointerDown,
-    onPointerUp,
-    onWheel,
-  } = useDockInputHandlers({
-    itemsLength: items.length,
-    markUserInteracted,
-    hoverIndexRef,
-    lockedIndexRef,
-    lastActiveIndexRef,
-    setHoverIndex,
-    setLockedIndex,
-    cancelPendingRef,
-  })
 
   const resolvedBaseHue =
     typeof baseHue === 'number'
@@ -180,13 +145,6 @@ export default function PostCardDock({
         : DOCK_CONFIG.yArcAmplitude
   const anchorBaseY = 50
 
-  const navMode = activeIndex !== 0
-  const heights = computeHeights(items.length, activeIndex, navMode, DOCK_CONFIG.activePct)
-  const remainingHeight = `calc(100% - ${NAV_BAR_HEIGHT_PX}px)`
-
-  const center = activeIndex ?? lastActiveIndexRef.current ?? (items.length - 1) / 2
-  const last = Math.max(1, items.length - 1)
-
   const backgroundTransition = useMemo(
     () => ({
       durationMs:
@@ -206,105 +164,39 @@ export default function PostCardDock({
     [backgroundTransitionDelayMs, backgroundTransitionEasing, backgroundTransitionMs],
   )
 
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      setActiveRevealIndex(items.length - 1)
-      setDockVisible(true)
-      return
-    }
-
-    let isMounted = true
-    const timers: number[] = []
-
-    setActiveRevealIndex(-1)
-    const startDelay = Math.max(0, REVEAL_CONFIG.firstCardDelayMs)
-    timers.push(
-      window.setTimeout(() => {
-        if (!isMounted) return
-        setDockVisible(true)
-        setActiveRevealIndex(0)
-        items.forEach((_, index) => {
-          if (index === 0) return
-          const delay = startDelay + index * REVEAL_CONFIG.staggerMs
-          timers.push(
-            window.setTimeout(() => {
-              if (!isMounted) return
-              setActiveRevealIndex((prev) => Math.max(prev, index))
-            }, delay),
-          )
-        })
-      }, startDelay),
-    )
-
-    return () => {
-      isMounted = false
-      timers.forEach((timer) => window.clearTimeout(timer))
-    }
-  }, [items.length, prefersReducedMotion])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (!event.persisted) return
-
-      resetActiveIndex(0)
-      setActiveRevealIndex(items.length - 1)
-      setDockVisible(true)
-    }
-
-    window.addEventListener('pageshow', handlePageShow)
-
-    return () => {
-      window.removeEventListener('pageshow', handlePageShow)
-    }
-  }, [items.length, resetActiveIndex])
-
   return (
-    <div
-      className="flex h-[100dvh] flex-col overflow-hidden"
-      style={{
-        ...DOCK_CONTAINER_STYLE,
-        opacity: dockVisible ? 1 : 0,
-        transitionProperty: 'opacity',
-        transitionTimingFunction: REVEAL_CONFIG.easing,
-        transitionDuration: prefersReducedMotion ? '0ms' : `${REVEAL_CONFIG.durationMs}ms`,
-      }}
-      onPointerMove={onPointerMove}
-      onPointerLeave={onPointerLeave}
-      onPointerCancel={onPointerCancel}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onWheel={onWheel}
-    >
-      {items.map((item, index) => {
-        const isActive = activeIndex === index
+    <div className="h-[100dvh] w-full">
+      <MagnificationDock
+        items={items}
+        getItemKey={(item) => item.title}
+        orientation={orientation}
+        activePct={DOCK_CONFIG.activePct}
+        initialActiveIndex={null}
+        restoreActiveIndex={0}
+        excludeLeadItemWhenActive
+        leadItemCollapseSizePx={NAV_BAR_HEIGHT_PX}
+        transitionMs={DOCK_CONFIG.transitionMs}
+        transitionDelayMs={DOCK_CONFIG.transitionDelayMs}
+        transitionEasing={DOCK_CONFIG.transitionEasing}
+        revealFirstDelayMs={REVEAL_CONFIG.firstCardDelayMs}
+        revealStaggerMs={REVEAL_CONFIG.staggerMs}
+        revealDurationMs={REVEAL_CONFIG.durationMs}
+        revealEasing={REVEAL_CONFIG.easing}
+        prefersReducedMotion={prefersReducedMotion}
+        renderItem={({
+          item,
+          index,
+          isActive,
+          activeIndex,
+          lockedIndex,
+          center,
+          last,
+          allRevealed,
+          setLockedIndex,
+          markUserInteracted,
+        }) => {
         const isHome = index === 0 && Boolean(firstItemChildren)
         const href = item.href
-
-        const rowFlexBasis = navMode
-          ? index === 0 && !isActive
-            ? `${NAV_BAR_HEIGHT_PX}px`
-            : `calc(${remainingHeight} * ${heights[index] / 100})`
-          : `${heights[index]}%`
-
-        const heightStyle: CSSProperties = {
-          flexBasis: rowFlexBasis,
-          flex: `0 0 ${rowFlexBasis}`,
-          height: rowFlexBasis,
-          minHeight: rowFlexBasis,
-          zIndex: navMode && index === 0 && !isActive ? 2 : undefined,
-          transitionProperty: 'flex-basis, min-height, height, opacity',
-          transitionTimingFunction: prefersReducedMotion
-            ? 'linear'
-            : `${DOCK_CONFIG.transitionEasing}, ${DOCK_CONFIG.transitionEasing}, ${DOCK_CONFIG.transitionEasing}, ${REVEAL_CONFIG.easing}`,
-          transitionDuration: prefersReducedMotion
-            ? '0ms'
-            : `${DOCK_CONFIG.transitionMs}ms, ${DOCK_CONFIG.transitionMs}ms, ${DOCK_CONFIG.transitionMs}ms, ${REVEAL_CONFIG.durationMs}ms`,
-          transitionDelay: prefersReducedMotion
-            ? '0ms'
-            : `${DOCK_CONFIG.transitionDelayMs}ms, ${DOCK_CONFIG.transitionDelayMs}ms, ${DOCK_CONFIG.transitionDelayMs}ms, 0ms`,
-        }
 
         const arc = computeArcRow(index, center, last, resolvedBaseHue, angleDeg, {
           peakX,
@@ -336,11 +228,6 @@ export default function PostCardDock({
           transitionTimingFunction: DOCK_CONFIG.titleScaleEasing,
         }
 
-        const isRevealed = prefersReducedMotion || index <= activeRevealIndex
-        const allRevealed = prefersReducedMotion || activeRevealIndex >= items.length - 1
-        const revealStyle: CSSProperties = {
-          opacity: isRevealed ? 1 : 0,
-        }
         const firstContentStyle: CSSProperties | undefined =
           index === 0
             ? {
@@ -376,68 +263,62 @@ export default function PostCardDock({
             : firstItemChildren
 
         return (
-          <div
-            key={item.title}
-            data-postcard-index={index}
-            className="shrink-0 min-h-0 overflow-hidden relative"
-            style={{ ...heightStyle, ...revealStyle }}
-          >
-            <PostCard
-              title={item.title}
-              excerpt={isHome ? undefined : item.excerpt}
-              topic={isHome ? undefined : item.topic}
-              date={isHome ? undefined : item.date}
-              readingTime={isHome ? undefined : item.readingTime}
-              children={index === 0 ? resolvedFirstChildren : undefined}
-              noPadding={index === 0}
-              hideCta={index === 0}
-              href={isHome ? undefined : href}
-              baseHue={arc.rowHue}
-              gradientType={gradientType}
-              hueScheme={hueScheme}
-              lightnessRange={
-                typeof lightnessRange === 'number' ? { min: lightnessRange } : undefined
+          <PostCard
+            title={item.title}
+            excerpt={isHome ? undefined : item.excerpt}
+            topic={isHome ? undefined : item.topic}
+            date={isHome ? undefined : item.date}
+            readingTime={isHome ? undefined : item.readingTime}
+            children={index === 0 ? resolvedFirstChildren : undefined}
+            noPadding={index === 0}
+            hideCta={index === 0}
+            href={isHome ? undefined : href}
+            baseHue={arc.rowHue}
+            gradientType={gradientType}
+            hueScheme={hueScheme}
+            lightnessRange={
+              typeof lightnessRange === 'number' ? { min: lightnessRange } : undefined
+            }
+            chromaRange={
+              typeof chromaRange === 'number' ? { min: chromaRange } : undefined
+            }
+            mode={mode}
+            stops={stops}
+            variance={variance}
+            centerStretch={centerStretch}
+            seed={seed}
+            radialShape={radialShape}
+            radialExtent={radialExtent}
+            scale={scale}
+            scaleX={scaleX}
+            scaleY={scaleY}
+            angleDeg={arc.rowAngle}
+            anchorXPercent={arc.anchorXPercent}
+            anchorYPercent={arc.anchorYPercent}
+            expanded={isActive}
+            expandOnHover={false}
+            minHeight={minHeight ?? '0px'}
+            style={CARD_FILL_STYLE}
+            titleStyle={isHome ? { display: 'none' } : titleStyle}
+            titleScale={isHome ? undefined : titleScale}
+            excerptStyle={isHome ? { display: 'none' } : undefined}
+            backgroundTransitionMs={backgroundTransition.durationMs}
+            backgroundTransitionDelayMs={backgroundTransition.delayMs}
+            backgroundTransitionEasing={backgroundTransition.easing}
+            onCollapseComplete={onCollapseComplete}
+            onExpandedChange={(expanded) => {
+              onExpandedChange?.(expanded)
+              markUserInteracted()
+              if (expanded) {
+                setLockedIndex(index)
+              } else if (lockedIndex === index) {
+                setLockedIndex(null)
               }
-              chromaRange={
-                typeof chromaRange === 'number' ? { min: chromaRange } : undefined
-              }
-              mode={mode}
-              stops={stops}
-              variance={variance}
-              centerStretch={centerStretch}
-              seed={seed}
-              radialShape={radialShape}
-              radialExtent={radialExtent}
-              scale={scale}
-              scaleX={scaleX}
-              scaleY={scaleY}
-              angleDeg={arc.rowAngle}
-              anchorXPercent={arc.anchorXPercent}
-              anchorYPercent={arc.anchorYPercent}
-              expanded={isActive}
-              expandOnHover={false}
-              minHeight={minHeight ?? '0px'}
-              style={CARD_FILL_STYLE}
-              titleStyle={isHome ? { display: 'none' } : titleStyle}
-              titleScale={isHome ? undefined : titleScale}
-              excerptStyle={isHome ? { display: 'none' } : undefined}
-              backgroundTransitionMs={backgroundTransition.durationMs}
-              backgroundTransitionDelayMs={backgroundTransition.delayMs}
-              backgroundTransitionEasing={backgroundTransition.easing}
-              onCollapseComplete={onCollapseComplete}
-              onExpandedChange={(expanded) => {
-                onExpandedChange?.(expanded)
-                markUserInteracted()
-                if (expanded) {
-                  setLockedIndex(index)
-                } else if (lockedIndexRef.current === index) {
-                  setLockedIndex(null)
-                }
-              }}
-            />
-          </div>
+            }}
+          />
         )
-      })}
+        }}
+      />
     </div>
   )
 }
