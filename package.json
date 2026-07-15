@@ -14,6 +14,7 @@
     "build-storybook": "cross-env __NEXT_PRIVATE_RENDER_WORKER=defined storybook build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
     "@types/node": "18.15.11",
     "@types/react": "18.0.35",
     "@types/react-dom": "18.0.11",
@@ -27,6 +28,7 @@
     "next": "^13.5.11",
     "nodemailer": "^9.0.3",
     "npm": "^9.6.7",
+    "openai": "^6.47.0",
     "p5": "^1.11.3",
     "postcss": "8.4.21",
     "prism-react-renderer": "^2.4.1",

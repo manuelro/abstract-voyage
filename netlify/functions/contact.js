@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer')
+const { normalize, isProduction, parseBoolean, getDeliveryMode, sendMail } = require('./lib/mailer')
 
 const WORK_TYPES = new Set([
   'Technology consulting',
@@ -16,28 +16,7 @@ const json = (statusCode, payload) => ({
   body: JSON.stringify(payload),
 })
 
-const normalize = (value) => (typeof value === 'string' ? value.trim() : '')
-
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-
-const isProduction = () => process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production'
-
-const getDeliveryMode = () => {
-  const configuredMode = normalize(process.env.CONTACT_DELIVERY_MODE).toLowerCase()
-
-  if (configuredMode === 'console' || configuredMode === 'smtp') {
-    return configuredMode
-  }
-
-  return isProduction() ? 'smtp' : 'console'
-}
-
-const parseBoolean = (value, defaultValue = false) => {
-  const normalized = normalize(value).toLowerCase()
-
-  if (!normalized) return defaultValue
-  return ['1', 'true', 'yes', 'on'].includes(normalized)
-}
 
 const getLocalDelayMs = () => {
   const value = Number(process.env.CONTACT_FORCE_DELAY_MS || 0)
@@ -103,40 +82,6 @@ const validatePayload = (payload) => {
   }
 }
 
-const getSmtpConfig = () => {
-  const required = [
-    'CONTACT_SMTP_HOST',
-    'CONTACT_SMTP_PORT',
-    'CONTACT_SMTP_USER',
-    'CONTACT_SMTP_PASS',
-    'CONTACT_TO_EMAIL',
-    'CONTACT_FROM_EMAIL',
-  ]
-  const missing = required.filter((key) => !normalize(process.env[key]))
-
-  if (missing.length > 0) {
-    throw new Error(`Missing SMTP environment variables: ${missing.join(', ')}`)
-  }
-
-  const port = Number(process.env.CONTACT_SMTP_PORT)
-
-  if (!Number.isFinite(port)) {
-    throw new Error('CONTACT_SMTP_PORT must be a number')
-  }
-
-  return {
-    host: normalize(process.env.CONTACT_SMTP_HOST),
-    port,
-    secure: parseBoolean(process.env.CONTACT_SMTP_SECURE, port === 465),
-    auth: {
-      user: normalize(process.env.CONTACT_SMTP_USER),
-      pass: normalize(process.env.CONTACT_SMTP_PASS),
-    },
-    to: normalize(process.env.CONTACT_TO_EMAIL),
-    from: normalize(process.env.CONTACT_FROM_EMAIL),
-  }
-}
-
 const formatSubmission = ({ name, email, organization, workType, message }) => [
   `Name: ${name}`,
   `Email: ${email}`,
@@ -148,20 +93,10 @@ const formatSubmission = ({ name, email, organization, workType, message }) => [
 ].join('\n')
 
 const sendWithSmtp = async (submission) => {
-  const config = getSmtpConfig()
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: config.auth,
-  })
-
-  await transporter.sendMail({
-    to: config.to,
-    from: config.from,
-    replyTo: submission.email,
+  await sendMail({
     subject: `Abstract Voyage inquiry from ${submission.name}`,
     text: formatSubmission(submission),
+    replyTo: submission.email,
   })
 }
 
