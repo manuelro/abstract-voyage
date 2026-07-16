@@ -2,10 +2,24 @@ import { ReactNode, useEffect, useMemo, useRef } from 'react'
 import Header from './Header'
 import { buildSynthBackgroundGradient } from '../gradients/synthGradient'
 
+const SCROLL_BG_CONFIG = {
+  enabled: true,
+  viewportRangeVh: 1.25,
+  maxDarken: 0.65,
+  tauMs: 550,
+  useSecondStage: false,
+  tau2Ms: 900,
+  deadband: 0,
+  clampMin: 0,
+  clampMax: 1,
+  debug: false,
+} as const
+
 type SynthLayoutProps = {
   controls?: ReactNode
   children: ReactNode
   hideHeader?: boolean
+  hidePrimaryNavigation?: boolean
   fullBleed?: boolean
 }
 
@@ -13,21 +27,9 @@ export default function SynthLayout({
   controls,
   children,
   hideHeader = false,
+  hidePrimaryNavigation = false,
   fullBleed = false,
 }: SynthLayoutProps) {
-  const SCROLL_BG_CONFIG = {
-    enabled: true,
-    viewportRangeVh: 1.25,
-    maxDarken: 0.65,
-    tauMs: 550,
-    useSecondStage: false,
-    tau2Ms: 900,
-    deadband: 0,
-    clampMin: 0,
-    clampMax: 1,
-    debug: false,
-  }
-
   const backgroundGradient = useMemo(() => buildSynthBackgroundGradient(), [])
   const overlayRef = useRef<HTMLDivElement | null>(null)
 
@@ -140,7 +142,7 @@ export default function SynthLayout({
           opacity: 'var(--synth-bg-darken, 0)',
         }}
       />
-      {hideHeader ? null : <Header />}
+      {hideHeader ? null : <Header hidePrimaryNavigation={hidePrimaryNavigation} />}
       <main className="relative z-10 min-h-screen w-full">
         {fullBleed ? (
           <div className="w-full">

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Logo from './Logo'
 import { buildSynthBackgroundGradient, buildSynthLogoStops, SYNTH_LOGO_SIZE } from '../gradients/synthGradient'
 
-const Header = () => {
+const Header = ({ hidePrimaryNavigation = false }: { hidePrimaryNavigation?: boolean }) => {
     const logoGradientStops = buildSynthLogoStops()
 
     const headerBackgroundGradient = buildSynthBackgroundGradient({
@@ -46,14 +46,16 @@ const Header = () => {
                 />
                 {/* <Logo className="hidden dark:block" ariaLabel="Abstract Voyage Logo" /> */}
             </Link>
-            <nav aria-label="Primary">
-                <Link
-                  href="/contact"
-                  className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-200/55 transition-colors hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-                >
-                  Contact
-                </Link>
-            </nav>
+            {hidePrimaryNavigation ? null : (
+                <nav aria-label="Primary">
+                    <Link
+                      href="/contact"
+                      className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-200/55 transition-colors hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                    >
+                      Contact
+                    </Link>
+                </nav>
+            )}
         </header>
     )
 }

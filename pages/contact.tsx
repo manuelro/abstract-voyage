@@ -1,6 +1,13 @@
 import Head from 'next/head'
-import Link from 'next/link'
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { createConfigScopeBinding } from '../components/Panel/config'
+import { ContactConfigPanel } from '../experiences/contact/ContactConfigPanel'
+import {
+  DEFAULT_CONTACT_EXPERIENCE_CONFIG,
+  type ContactExperienceConfig,
+} from '../experiences/contact/ContactExperience.config'
+import { CONTACT_EXPERIENCE_PANEL } from '../experiences/contact/ContactExperience.panel'
+import { ConversationPendingFeedback } from '../experiences/contact/ConversationPendingFeedback'
 import SynthLayout from '../experiences/synth/components/SynthLayout'
 
 const workTypes = [
@@ -11,7 +18,7 @@ const workTypes = [
   'Other',
 ]
 
-const controlClassName = 'min-h-11 rounded-none border border-white/12 bg-slate-950 px-3 py-2 text-base text-slate-50 caret-slate-50 outline-none transition-colors placeholder:text-slate-300/28 focus:border-white/42 [color-scheme:dark]'
+const controlClassName = 'min-h-11 rounded-2xl border border-[color:var(--contact-border-subtle)] bg-transparent px-4 py-3 font-sans text-[length:var(--contact-base-size)] text-[color:var(--contact-primary)] caret-white outline-none transition-[border-color,background-color] duration-200 placeholder:text-[color:var(--contact-muted)] placeholder:opacity-45 hover:border-[color:var(--contact-border-hover)] focus:border-[color:var(--contact-border-focus)] focus:bg-white/[0.035] focus-visible:ring-2 focus-visible:ring-white/30 [color-scheme:dark]'
 
 const contactEndpoint = '/.netlify/functions/contact'
 const intakeEndpoint = '/.netlify/functions/intake'
@@ -68,6 +75,11 @@ type IntakeStatus = 'asking' | 'loading' | 'recap' | 'confirmed'
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
+const waitForMinimumFeedback = async (startedAt: number, minimumVisibleMs: number) => {
+  const remaining = Math.max(0, minimumVisibleMs - (Date.now() - startedAt))
+  if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining))
+}
+
 const buildTranscript = (turns: ChatTurn[]) =>
   turns.map((turn) => `${turn.role === 'consultant' ? 'Consultant' : 'Visitor'}: ${turn.text}`).join('\n')
 
@@ -92,16 +104,6 @@ const clientFallbackStep = (askedSoFar: number): IntakeStep => {
   }
 }
 
-function TypingIndicator() {
-  return (
-    <span className="inline-flex items-center gap-1" aria-hidden="true">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#2C6B58] motion-safe:animate-pulse" />
-      <span className="h-1.5 w-1.5 rounded-full bg-[#2C6B58] motion-safe:animate-pulse [animation-delay:120ms]" />
-      <span className="h-1.5 w-1.5 rounded-full bg-[#2C6B58] motion-safe:animate-pulse [animation-delay:240ms]" />
-    </span>
-  )
-}
-
 function ProgressDots({ questionsAsked }: { questionsAsked: number }) {
   const filled = Math.min(questionsAsked, MAX_QUESTIONS)
 
@@ -110,7 +112,7 @@ function ProgressDots({ questionsAsked }: { questionsAsked: number }) {
       {Array.from({ length: MAX_QUESTIONS }).map((_, index) => (
         <span
           key={index}
-          className={`h-1 w-6 transition-colors ${index < filled ? 'bg-[#2C6B58]' : 'bg-[#DAD3C2]'}`}
+          className={`h-1 w-6 rounded-full transition-colors duration-300 ${index < filled ? 'bg-white/70' : 'bg-white/15'}`}
         />
       ))}
     </div>
@@ -126,20 +128,20 @@ function ConsultantDeskCard({ consultant }: { consultant: ConsultantCard }) {
   ]
 
   return (
-    <div className="border border-[#2C6B58] bg-[#18211E] p-4 text-[#F5F6F3] md:p-5">
-      <p className="text-xs uppercase tracking-[0.18em] text-[#F5F6F3]/55">
+    <div className="border-t border-[color:var(--contact-border-subtle)] pt-6 font-sans text-[color:var(--contact-primary)]">
+      <p className="text-xs uppercase tracking-[0.18em] text-[color:var(--contact-muted)] opacity-70">
         Behind the form — what {CONSULTANT_NAME} sees
       </p>
-      <p className="mt-2 text-xs leading-relaxed text-[#F5F6F3]/70">
+      <p className="mt-2 text-xs leading-relaxed text-[color:var(--contact-muted)] opacity-70">
         No bot replies on {CONSULTANT_NAME}&apos;s behalf. This is a private triage note — every reply is written and sent by a human.
       </p>
 
       <div className="mt-4 flex flex-col gap-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex w-fit items-center bg-[#2C6B58] px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#F5F6F3]">
+          <span className="inline-flex w-fit items-center rounded-full border border-[color:var(--contact-border-subtle)] bg-white/[0.07] px-3 py-1 text-xs uppercase tracking-[0.14em] text-[color:var(--contact-primary)]">
             {consultant.fit}
           </span>
-          <p className="text-base font-medium text-[#F5F6F3]" style={{ fontFamily: 'Fraunces, serif' }}>
+          <p className="text-base font-medium text-[color:var(--contact-primary)]">
             {consultant.headline}
           </p>
         </div>
@@ -147,32 +149,47 @@ function ConsultantDeskCard({ consultant }: { consultant: ConsultantCard }) {
         <dl className="grid gap-2.5">
           {rows.map(([label, value]) => (
             <div key={label}>
-              <dt className="text-xs uppercase tracking-[0.14em] text-[#F5F6F3]/50">{label}</dt>
-              <dd className="text-[#F5F6F3]/85">{value}</dd>
+              <dt className="text-xs uppercase tracking-[0.14em] text-[color:var(--contact-muted)] opacity-60">{label}</dt>
+              <dd className="text-[color:var(--contact-primary)] opacity-85">{value}</dd>
             </div>
           ))}
         </dl>
 
-        <p className="border-l-2 border-[#9C7327] pl-3 text-sm leading-relaxed text-[#F5F6F3]/85">
+        <p className="border-l border-[color:var(--contact-border-hover)] pl-3 text-sm leading-relaxed text-[color:var(--contact-primary)] opacity-85">
           {consultant.notes}
         </p>
 
         <div>
-          <p className="text-xs uppercase tracking-[0.14em] text-[#F5F6F3]/50">Draft reply</p>
-          <p className="mt-1 text-sm leading-relaxed text-[#F5F6F3]/85">{consultant.draftReply}</p>
+          <p className="text-xs uppercase tracking-[0.14em] text-[color:var(--contact-muted)] opacity-60">Draft reply</p>
+          <p className="mt-1 text-sm leading-relaxed text-[color:var(--contact-primary)] opacity-85">{consultant.draftReply}</p>
         </div>
       </div>
     </div>
   )
 }
 
-function GuidedIntake({ onEscapeHatch }: { onEscapeHatch: () => void }) {
+function EmailFallback() {
+  return (
+    <p className="text-sm text-[color:var(--contact-muted)] opacity-[var(--contact-muted-opacity)]">
+      Prefer email?{' '}
+      <a
+        href="mailto:reach@abstract.voyage"
+        className="text-[color:var(--contact-primary)] underline decoration-white/35 underline-offset-4 transition-colors hover:decoration-white focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
+      >
+        reach@abstract.voyage
+      </a>
+    </p>
+  )
+}
+
+function GuidedIntake({ config }: { config: ContactExperienceConfig }) {
   const opener = `Hi, I'm ${CONSULTANT_NAME} — ${CONSULTANT_ROLE}. What are you working on, and what brought you here today?`
 
   const [turns, setTurns] = useState<ChatTurn[]>(() => [{ role: 'consultant', text: opener }])
   const [questionsAsked, setQuestionsAsked] = useState(0)
   const [placeholder, setPlaceholder] = useState('Tell me a bit about it')
   const [inputValue, setInputValue] = useState('')
+  const [pendingMessage, setPendingMessage] = useState('')
   const [status, setStatus] = useState<IntakeStatus>('asking')
   const [recap, setRecap] = useState<{ visitorSummary: string; consultant: ConsultantCard } | null>(null)
 
@@ -190,6 +207,7 @@ function GuidedIntake({ onEscapeHatch }: { onEscapeHatch: () => void }) {
   }, [turns.length, status])
 
   const applyStep = (step: IntakeStep, turnsSoFar: ChatTurn[]) => {
+    setPendingMessage('')
     if (step.done) {
       setRecap({ visitorSummary: step.visitorSummary, consultant: step.consultant })
       setStatus('recap')
@@ -207,8 +225,10 @@ function GuidedIntake({ onEscapeHatch }: { onEscapeHatch: () => void }) {
     if (!text || status === 'loading') return
 
     const turnsSoFar: ChatTurn[] = [...turns, { role: 'visitor', text }]
+    const feedbackStartedAt = Date.now()
     setTurns(turnsSoFar)
     setInputValue('')
+    setPendingMessage(text)
     setStatus('loading')
 
     try {
@@ -221,9 +241,17 @@ function GuidedIntake({ onEscapeHatch }: { onEscapeHatch: () => void }) {
       if (!response.ok) throw new Error(`Intake endpoint responded with ${response.status}`)
 
       const step = (await response.json()) as IntakeStep
+      await waitForMinimumFeedback(
+        feedbackStartedAt,
+        config.loadingEffectEnabled ? config.loadingMinimumVisibleMs : 0,
+      )
       applyStep(step, turnsSoFar)
     } catch (error) {
       console.error('[intake] request failed, using local fallback', error)
+      await waitForMinimumFeedback(
+        feedbackStartedAt,
+        config.loadingEffectEnabled ? config.loadingMinimumVisibleMs : 0,
+      )
       applyStep(clientFallbackStep(questionsAsked), turnsSoFar)
     }
   }
@@ -246,24 +274,25 @@ function GuidedIntake({ onEscapeHatch }: { onEscapeHatch: () => void }) {
   }
 
   return (
-    <div
-      className="flex w-full flex-col gap-5 border border-[#DAD3C2] bg-[#F5F6F3] p-5 text-[#18211E] shadow-2xl shadow-black/20 md:p-6"
-      style={{ fontFamily: 'Inter, sans-serif' }}
-    >
-      {status !== 'confirmed' && <ProgressDots questionsAsked={questionsAsked} />}
+    <div className="flex w-full flex-col gap-[var(--contact-message-gap)] bg-transparent font-sans text-[color:var(--contact-primary)]">
+      {config.showProgress && status !== 'confirmed' && <ProgressDots questionsAsked={questionsAsked} />}
 
-      <div ref={scrollRef} aria-live="polite" className="flex max-h-72 flex-col gap-4 overflow-y-auto pr-1">
+      <div
+        ref={scrollRef}
+        aria-live="polite"
+        className="contact-scrollbar flex max-h-[var(--contact-viewport-height)] flex-col gap-[var(--contact-message-gap)] overflow-y-auto pr-2"
+      >
         {turns.map((turn, index) => (
           <div
             key={index}
-            className={`motion-safe:[animation:intake-message-in_260ms_ease-out] ${turn.role === 'visitor' ? 'flex justify-end' : ''}`}
+            className={`contact-message-enter ${turn.role === 'visitor' ? 'flex justify-end' : ''}`}
           >
             {turn.role === 'consultant' ? (
-              <p className="max-w-[46ch] text-lg leading-snug text-[#18211E] md:text-xl" style={{ fontFamily: 'Fraunces, serif' }}>
+              <p className="max-w-[var(--contact-message-measure)] text-[length:var(--contact-conversation-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-primary)]">
                 {turn.text}
               </p>
             ) : (
-              <p className="max-w-[36ch] border border-[#DAD3C2] bg-[#EDE9DE] px-3 py-2 text-sm leading-relaxed text-[#18211E]">
+              <p className="max-w-[min(38ch,88%)] rounded-[22px] bg-white/[0.085] px-4 py-2.5 text-[length:var(--contact-base-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-primary)]">
                 {turn.text}
               </p>
             )}
@@ -271,30 +300,24 @@ function GuidedIntake({ onEscapeHatch }: { onEscapeHatch: () => void }) {
         ))}
 
         {status === 'loading' && (
-          <p className="flex items-center gap-2 text-sm text-[#4A544F]">
-            <TypingIndicator />
-            <span className="sr-only">{CONSULTANT_NAME} is typing…</span>
-          </p>
+          <ConversationPendingFeedback config={config} submittedMessage={pendingMessage} />
         )}
 
         {status === 'recap' && recap && (
-          <p
-            className="max-w-[46ch] text-lg leading-snug text-[#18211E] md:text-xl motion-safe:[animation:intake-message-in_260ms_ease-out]"
-            style={{ fontFamily: 'Fraunces, serif' }}
-          >
+          <p className="contact-message-enter max-w-[var(--contact-message-measure)] text-[length:var(--contact-conversation-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-primary)]">
             {recap.visitorSummary}
           </p>
         )}
 
         {status === 'confirmed' && (
-          <p className="max-w-[46ch] text-lg leading-snug text-[#18211E] md:text-xl" style={{ fontFamily: 'Fraunces, serif' }}>
+          <p className="contact-message-enter max-w-[var(--contact-message-measure)] text-[length:var(--contact-conversation-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-primary)]">
             Thank you — that&apos;s saved. {CONSULTANT_NAME} reads every one of these personally and will reply from reach@abstract.voyage.
           </p>
         )}
       </div>
 
       {(status === 'asking' || status === 'loading') && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-[var(--contact-control-gap)]">
           <label className="sr-only" htmlFor="intake-input">Your answer</label>
           <textarea
             id="intake-input"
@@ -305,48 +328,48 @@ function GuidedIntake({ onEscapeHatch }: { onEscapeHatch: () => void }) {
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={status === 'loading'}
-            className="min-h-11 resize-none border border-[#DAD3C2] bg-white/60 px-3 py-2 text-base text-[#18211E] caret-[#18211E] outline-none transition-colors placeholder:text-[#4A544F]/60 focus:border-[#2C6B58] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C6B58] disabled:opacity-60"
+            className={`${controlClassName} min-h-[84px] resize-none disabled:cursor-wait disabled:opacity-55`}
           />
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col items-start gap-[var(--contact-action-gap)]">
             <button
               type="button"
               onClick={() => submitTurn(inputValue)}
               disabled={status === 'loading' || !inputValue.trim()}
-              className="min-h-11 border border-[#1F4E41] bg-[#2C6B58] px-4 py-2 text-sm font-medium uppercase tracking-[0.16em] text-[#F5F6F3] transition-colors hover:bg-[#1F4E41] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C6B58] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F6F3] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[var(--contact-chip-height)] items-center justify-center rounded-full border border-[color:var(--contact-border-subtle)] bg-white/[0.10] px-[var(--contact-chip-padding-x)] py-2 text-sm font-medium text-[color:var(--contact-primary)] transition-[background-color,border-color,opacity] duration-200 hover:border-[color:var(--contact-border-hover)] hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {status === 'loading' ? 'Sending…' : 'Send'}
+              Send
             </button>
-            <button
-              type="button"
-              onClick={onEscapeHatch}
-              className="text-xs uppercase tracking-[0.16em] text-[#4A544F] underline decoration-[#DAD3C2] underline-offset-4 transition-colors hover:text-[#18211E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C6B58]"
-            >
-              or just email me
-            </button>
+            <EmailFallback />
           </div>
         </div>
       )}
 
       {status === 'recap' && recap && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-[var(--contact-control-gap)]">
           <button
             type="button"
             onClick={confirmRecap}
-            className="min-h-11 border border-[#1F4E41] bg-[#2C6B58] px-4 py-2 text-sm font-medium uppercase tracking-[0.16em] text-[#F5F6F3] transition-colors hover:bg-[#1F4E41] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C6B58] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F6F3]"
+            className="min-h-[var(--contact-chip-height)] rounded-full border border-[color:var(--contact-border-subtle)] bg-white/[0.12] px-[var(--contact-chip-padding-x)] py-2 text-sm font-medium text-[color:var(--contact-primary)] transition-colors hover:bg-white/[0.18] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
           >
             Yes, that&apos;s right
           </button>
           <button
             type="button"
             onClick={reopenForAddendum}
-            className="min-h-11 border border-[#DAD3C2] bg-transparent px-4 py-2 text-sm font-medium uppercase tracking-[0.16em] text-[#18211E] transition-colors hover:border-[#18211E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C6B58]"
+            className="min-h-[var(--contact-chip-height)] rounded-full border border-[color:var(--contact-border-subtle)] bg-transparent px-[var(--contact-chip-padding-x)] py-2 text-sm font-medium text-[color:var(--contact-primary)] transition-colors hover:border-[color:var(--contact-border-hover)] hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
           >
             Not quite, let me add something
           </button>
+          <div className="w-full"><EmailFallback /></div>
         </div>
       )}
 
-      {status === 'confirmed' && recap && <ConsultantDeskCard consultant={recap.consultant} />}
+      {status === 'confirmed' && recap && (
+        <div className="grid gap-[var(--contact-control-gap)]">
+          <ConsultantDeskCard consultant={recap.consultant} />
+          <EmailFallback />
+        </div>
+      )}
     </div>
   )
 }
@@ -355,6 +378,43 @@ export default function ContactPage() {
   const [mode, setMode] = useState<'guided' | 'standard'>('guided')
   const [submitState, setSubmitState] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
   const [submitError, setSubmitError] = useState('Something went wrong while sending. Please try again or email reach@abstract.voyage.')
+  const [standardPendingMessage, setStandardPendingMessage] = useState('')
+  const [contactConfig, setContactConfig] = useState<ContactExperienceConfig>(() => ({
+    ...DEFAULT_CONTACT_EXPERIENCE_CONFIG,
+  }))
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const showAuthoringTools = process.env.NODE_ENV !== 'production'
+  const configBinding = useMemo(() => createConfigScopeBinding({
+    definition: CONTACT_EXPERIENCE_PANEL,
+    value: contactConfig,
+    onChange: setContactConfig,
+  }), [contactConfig])
+  const contactStyle = {
+    '--contact-section-max': `${contactConfig.contentMaxWidthPx}px`,
+    '--contact-conversation-max': `${contactConfig.conversationMaxWidthPx}px`,
+    '--contact-desktop-gap': `${contactConfig.desktopColumnGapPx}px`,
+    '--contact-optical-y': `${contactConfig.opticalOffsetYVh}svh`,
+    '--contact-mobile-inset': `${contactConfig.mobileInsetPx}px`,
+    '--contact-message-measure': `${contactConfig.messageMeasureCh}ch`,
+    '--contact-base-size': `${contactConfig.baseTextSizePx}px`,
+    '--contact-conversation-size': `${contactConfig.conversationTextSizePx}px`,
+    '--contact-line-height': contactConfig.lineHeight,
+    '--contact-muted-opacity': contactConfig.mutedTextOpacity,
+    '--contact-message-gap': `${contactConfig.messageGapPx}px`,
+    '--contact-control-gap': `${contactConfig.controlGapPx}px`,
+    '--contact-action-gap': `${contactConfig.actionGapPx}px`,
+    '--contact-chip-height': `${contactConfig.chipHeightPx}px`,
+    '--contact-chip-padding-x': `${contactConfig.chipPaddingXPx}px`,
+    '--contact-viewport-height': `${contactConfig.conversationViewportHeightPx}px`,
+    '--contact-message-duration': `${contactConfig.messageEntryDurationMs}ms`,
+    '--contact-primary': contactConfig.primaryTextColor,
+    '--contact-muted': contactConfig.mutedTextColor,
+    '--contact-border': contactConfig.borderColor,
+    '--contact-border-subtle': `color-mix(in srgb, ${contactConfig.borderColor} 16%, transparent)`,
+    '--contact-border-hover': `color-mix(in srgb, ${contactConfig.borderColor} 28%, transparent)`,
+    '--contact-border-focus': `color-mix(in srgb, ${contactConfig.borderColor} 44%, transparent)`,
+    '--contact-active-chip': `color-mix(in srgb, ${contactConfig.primaryTextColor} ${contactConfig.activeChipOpacity * 100}%, transparent)`,
+  } as CSSProperties
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -370,6 +430,8 @@ export default function ContactPage() {
       botField: String(formData.get('botField') ?? ''),
     }
 
+    const feedbackStartedAt = Date.now()
+    setStandardPendingMessage(payload.message)
     setSubmitState('sending')
     setSubmitError('Something went wrong while sending. Please try again or email reach@abstract.voyage.')
 
@@ -385,25 +447,24 @@ export default function ContactPage() {
         throw new Error(result?.message || 'Unable to send message right now.')
       }
 
+      await waitForMinimumFeedback(
+        feedbackStartedAt,
+        contactConfig.loadingEffectEnabled ? contactConfig.loadingMinimumVisibleMs : 0,
+      )
       form.reset()
       setSubmitState('success')
     } catch (error) {
+      await waitForMinimumFeedback(
+        feedbackStartedAt,
+        contactConfig.loadingEffectEnabled ? contactConfig.loadingMinimumVisibleMs : 0,
+      )
       setSubmitError(error instanceof Error ? error.message : 'Unable to send message right now.')
       setSubmitState('error')
     }
   }
 
   return (
-    <SynthLayout
-      controls={(
-        <Link
-          href="/"
-          className="text-xs uppercase tracking-[0.18em] text-slate-200/55 transition-colors hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-        >
-          Home
-        </Link>
-      )}
-    >
+    <SynthLayout fullBleed hidePrimaryNavigation>
       <Head>
         <title>Start a conversation | Abstract Voyage</title>
         <meta
@@ -412,57 +473,127 @@ export default function ContactPage() {
         />
       </Head>
       <style jsx global>{`
+        .contact-message-enter {
+          animation: contact-message-in var(--contact-message-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes contact-message-in {
+          from { opacity: 0; transform: translateY(5px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .contact-pending-feedback__text {
+          color: var(--contact-loading-base);
+        }
+
+        .contact-pending-feedback[data-effect='shimmer'] .contact-pending-feedback__text {
+          color: transparent;
+          background-image: linear-gradient(
+            100deg,
+            var(--contact-loading-base) 18%,
+            var(--contact-loading-highlight) 42%,
+            var(--contact-loading-base) 66%
+          );
+          background-position: 180% 50%;
+          background-size: 220% 100%;
+          background-clip: text;
+          -webkit-background-clip: text;
+          animation: contact-pending-shimmer var(--contact-loading-duration) linear infinite;
+        }
+
+        .contact-pending-feedback[data-effect='pulse'] .contact-pending-feedback__text {
+          animation: contact-pending-pulse var(--contact-loading-duration) ease-in-out infinite;
+        }
+
+        @keyframes contact-pending-shimmer {
+          from { background-position: 180% 50%; }
+          to { background-position: -40% 50%; }
+        }
+
+        @keyframes contact-pending-pulse {
+          0%, 100% { opacity: 0.42; }
+          50% { opacity: 1; }
+        }
+
+        .contact-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: var(--contact-border-subtle) transparent;
+        }
+
+        .contact-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+
+        .contact-scrollbar::-webkit-scrollbar-thumb {
+          border-radius: 999px;
+          background: var(--contact-border-subtle);
+        }
+
         .contact-form-control:-webkit-autofill,
         .contact-form-control:-webkit-autofill:hover,
         .contact-form-control:-webkit-autofill:focus {
-          -webkit-text-fill-color: rgb(248 250 252);
-          box-shadow: 0 0 0 1000px rgb(2 6 23) inset;
-          caret-color: rgb(248 250 252);
+          -webkit-text-fill-color: var(--contact-primary);
+          box-shadow: 0 0 0 1000px rgba(2, 6, 23, 0.22) inset;
+          caret-color: var(--contact-primary);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .contact-message-enter {
+            animation: none;
+          }
+
+          .contact-pending-feedback__text {
+            animation: none !important;
+            color: var(--contact-loading-base) !important;
+            background: none !important;
+          }
         }
       `}</style>
 
-      <section className="grid w-full items-start gap-10 py-4 text-slate-50 lg:min-h-[calc(100vh-180px)] lg:grid-cols-[minmax(0,0.85fr)_minmax(360px,520px)] lg:py-10">
-        <div className="max-w-[62ch]">
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-200/45">
+      <section
+        className="mx-auto grid w-full max-w-[var(--contact-section-max)] box-border grid-cols-[minmax(0,1fr)] items-start gap-12 overflow-x-clip px-[var(--contact-mobile-inset)] pb-20 pt-4 font-sans text-[color:var(--contact-primary)] md:px-24 lg:min-h-[calc(100vh-180px)] lg:translate-y-[var(--contact-optical-y)] lg:grid-cols-[minmax(0,1fr)_minmax(420px,var(--contact-conversation-max))] lg:gap-[var(--contact-desktop-gap)] lg:py-10"
+        style={contactStyle}
+      >
+        <div className="min-w-0 max-w-[58ch] lg:pt-14">
+          <p className="text-xs uppercase tracking-[0.24em] text-[color:var(--contact-muted)] opacity-55">
             Abstract Voyage
           </p>
-          <h1 className="mt-5 max-w-[12ch] text-4xl font-semibold tracking-tight text-slate-50 md:text-6xl">
+          <h1 className="mt-5 max-w-[12ch] text-4xl font-medium tracking-[-0.035em] text-[color:var(--contact-primary)] md:text-6xl">
             Start a conversation
           </h1>
-          <p className="mt-6 max-w-[46ch] text-base leading-relaxed text-slate-100/72 md:text-lg">
+          <p className="mt-6 max-w-[46ch] break-words text-[length:var(--contact-base-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-muted)] opacity-[var(--contact-muted-opacity)] md:text-lg">
             Have a systems, product, or creative engineering problem worth exploring? Walk through a short guided conversation, or send a quick note directly.
-          </p>
-          <p className="mt-8 text-sm text-slate-200/62">
-            Prefer email?{' '}
-            <a
-              href="mailto:reach@abstract.voyage"
-              className="text-slate-50 underline decoration-slate-300/50 underline-offset-4 transition-colors hover:decoration-slate-50"
-            >
-              reach@abstract.voyage
-            </a>
           </p>
         </div>
 
-        <div className="w-full">
-          <div className="mb-5 inline-flex w-fit border border-white/12 bg-slate-950" role="tablist" aria-label="Contact method">
+        <div className="min-w-0 w-full max-w-[var(--contact-conversation-max)] lg:justify-self-end">
+          <div
+            className="mb-7 inline-grid w-full max-w-[410px] grid-cols-2 rounded-full border border-[color:var(--contact-border-subtle)] bg-transparent p-1"
+            role="tablist"
+            aria-label="Contact method"
+          >
             <button
+              id="guided-contact-tab"
               type="button"
               role="tab"
               aria-selected={mode === 'guided'}
+              aria-controls="guided-contact-panel"
               onClick={() => setMode('guided')}
-              className={`min-h-11 px-4 py-2 text-xs uppercase tracking-[0.16em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
-                mode === 'guided' ? 'bg-white text-slate-950' : 'text-slate-200/70 hover:text-slate-50'
+              className={`min-h-[var(--contact-chip-height)] rounded-full px-[var(--contact-chip-padding-x)] py-2 text-xs font-medium tracking-[0.04em] transition-[background-color,color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45 ${
+                mode === 'guided' ? 'bg-[var(--contact-active-chip)] text-[color:var(--contact-primary)]' : 'text-[color:var(--contact-muted)] opacity-70 hover:bg-white/[0.05] hover:opacity-100'
               }`}
             >
               Guided conversation
             </button>
             <button
+              id="standard-contact-tab"
               type="button"
               role="tab"
               aria-selected={mode === 'standard'}
+              aria-controls="standard-contact-panel"
               onClick={() => setMode('standard')}
-              className={`min-h-11 px-4 py-2 text-xs uppercase tracking-[0.16em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
-                mode === 'standard' ? 'bg-white text-slate-950' : 'text-slate-200/70 hover:text-slate-50'
+              className={`min-h-[var(--contact-chip-height)] rounded-full px-[var(--contact-chip-padding-x)] py-2 text-xs font-medium tracking-[0.04em] transition-[background-color,color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45 ${
+                mode === 'standard' ? 'bg-[var(--contact-active-chip)] text-[color:var(--contact-primary)]' : 'text-[color:var(--contact-muted)] opacity-70 hover:bg-white/[0.05] hover:opacity-100'
               }`}
             >
               Quick message
@@ -470,14 +601,19 @@ export default function ContactPage() {
           </div>
 
           {mode === 'guided' ? (
-            <GuidedIntake onEscapeHatch={() => setMode('standard')} />
+            <div id="guided-contact-panel" role="tabpanel" aria-labelledby="guided-contact-tab">
+              <GuidedIntake config={contactConfig} />
+            </div>
           ) : (
             <form
+              id="standard-contact-panel"
+              role="tabpanel"
+              aria-labelledby="standard-contact-tab"
               name="contact"
               method="POST"
               action={contactEndpoint}
               onSubmit={handleSubmit}
-              className="w-full border border-white/10 bg-slate-950/34 p-5 shadow-2xl shadow-black/20 backdrop-blur-md md:p-6"
+              className="w-full bg-transparent font-sans text-[color:var(--contact-primary)]"
             >
               <p className="hidden">
                 <label>
@@ -486,8 +622,8 @@ export default function ContactPage() {
                 </label>
               </p>
 
-              <div className="grid gap-5">
-                <label className="grid gap-2 text-sm text-slate-100/82" htmlFor="name">
+              <div className="grid gap-[var(--contact-message-gap)]">
+                <label className="grid gap-2 text-sm text-[color:var(--contact-muted)] opacity-85" htmlFor="name">
                   Name
                   <input
                     id="name"
@@ -499,7 +635,7 @@ export default function ContactPage() {
                   />
                 </label>
 
-                <label className="grid gap-2 text-sm text-slate-100/82" htmlFor="email">
+                <label className="grid gap-2 text-sm text-[color:var(--contact-muted)] opacity-85" htmlFor="email">
                   Email
                   <input
                     id="email"
@@ -511,7 +647,7 @@ export default function ContactPage() {
                   />
                 </label>
 
-                <label className="grid gap-2 text-sm text-slate-100/82" htmlFor="organization">
+                <label className="grid gap-2 text-sm text-[color:var(--contact-muted)] opacity-85" htmlFor="organization">
                   Project / organization
                   <input
                     id="organization"
@@ -522,7 +658,7 @@ export default function ContactPage() {
                   />
                 </label>
 
-                <label className="grid gap-2 text-sm text-slate-100/82" htmlFor="work-type">
+                <label className="grid gap-2 text-sm text-[color:var(--contact-muted)] opacity-85" htmlFor="work-type">
                   Type of work
                   <select
                     id="work-type"
@@ -541,7 +677,7 @@ export default function ContactPage() {
                   </select>
                 </label>
 
-                <label className="grid gap-2 text-sm text-slate-100/82" htmlFor="message">
+                <label className="grid gap-2 text-sm text-[color:var(--contact-muted)] opacity-85" htmlFor="message">
                   Message
                   <textarea
                     id="message"
@@ -552,22 +688,31 @@ export default function ContactPage() {
                   />
                 </label>
 
-                <button
-                  type="submit"
-                  disabled={submitState === 'sending'}
-                  className="mt-1 min-h-11 border border-white/18 bg-slate-50 px-4 py-2 text-sm font-medium uppercase tracking-[0.16em] text-slate-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-wait disabled:opacity-70"
-                >
-                  {submitState === 'sending' ? 'Sending...' : 'Send note'}
-                </button>
+                <div className="grid justify-items-start gap-[var(--contact-action-gap)]">
+                  <button
+                    type="submit"
+                    disabled={submitState === 'sending'}
+                    className="mt-1 min-h-[var(--contact-chip-height)] rounded-full border border-[color:var(--contact-border-subtle)] bg-white/[0.10] px-[var(--contact-chip-padding-x)] py-2 text-sm font-medium text-[color:var(--contact-primary)] transition-[background-color,border-color,opacity] duration-200 hover:border-[color:var(--contact-border-hover)] hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45 disabled:cursor-wait disabled:opacity-50"
+                  >
+                    Send note
+                  </button>
+                  <EmailFallback />
+                </div>
 
                 <div aria-live="polite" className="min-h-6 text-sm leading-relaxed">
+                  {submitState === 'sending' && (
+                    <ConversationPendingFeedback
+                      config={contactConfig}
+                      submittedMessage={standardPendingMessage}
+                    />
+                  )}
                   {submitState === 'success' && (
-                    <p className="text-emerald-200">
+                    <p className="contact-message-enter text-[color:var(--contact-primary)]">
                       Message sent. I&apos;ll review it and respond from reach@abstract.voyage.
                     </p>
                   )}
                   {submitState === 'error' && (
-                    <p className="text-rose-200">
+                    <p className="contact-message-enter text-rose-100">
                       {submitError}
                     </p>
                   )}
@@ -577,6 +722,13 @@ export default function ContactPage() {
           )}
         </div>
       </section>
+      {showAuthoringTools ? (
+        <ContactConfigPanel
+          binding={configBinding}
+          isOpen={isPanelOpen}
+          onToggle={() => setIsPanelOpen(open => !open)}
+        />
+      ) : null}
     </SynthLayout>
   )
 }
