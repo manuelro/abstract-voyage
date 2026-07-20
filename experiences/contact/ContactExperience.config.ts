@@ -54,7 +54,7 @@ export const DEFAULT_CONTACT_EXPERIENCE_CONFIG: ContactExperienceConfig = {
   loadingLabelMode: 'thinking',
   loadingEffectStyle: 'shimmer',
   loadingShimmerDurationMs: 1400,
-  loadingMinimumVisibleMs: 320,
+  loadingMinimumVisibleMs: 350,
   messageEntryDurationMs: 240,
   showProgress: true,
   primaryTextColor: '#f7f7f2',
@@ -64,3 +64,4 @@ export const DEFAULT_CONTACT_EXPERIENCE_CONFIG: ContactExperienceConfig = {
   loadingHighlightColor: '#f7f7f2',
   activeChipOpacity: 0.12,
 };
+

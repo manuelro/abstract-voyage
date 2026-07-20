@@ -1,50 +1,39 @@
 import React, { type CSSProperties } from 'react';
 import type { ContactExperienceConfig } from './ContactExperience.config';
 
-const MAX_VISIBLE_MESSAGE_LENGTH = 72;
-
-export function getPendingFeedbackLabel(
-  mode: ContactExperienceConfig['loadingLabelMode'],
-  submittedMessage: string,
-) {
-  if (mode === 'thinking') return 'Thinking';
-
-  const normalized = submittedMessage.trim().replace(/\s+/g, ' ');
-  if (!normalized) return 'Thinking';
-  if (normalized.length <= MAX_VISIBLE_MESSAGE_LENGTH) return normalized;
-  return `${normalized.slice(0, MAX_VISIBLE_MESSAGE_LENGTH - 1).trimEnd()}…`;
-}
-
-export function ConversationPendingFeedback({
+/**
+ * Neutral pending indicator, rendered where the agent's next reply will
+ * appear — never on the visitor's own message (an earlier version shimmered
+ * the visitor's just-sent text, which read as evaluating what they wrote).
+ * No label variance, no personality ("Thinking…"): three quiet dots, or
+ * nothing at all under reduced motion, just the screen-reader status text.
+ */
+export function AgentPendingIndicator({
   config,
-  submittedMessage,
   className = '',
 }: {
   config: ContactExperienceConfig;
-  submittedMessage: string;
   className?: string;
 }) {
   if (!config.loadingEffectEnabled) {
-    return <span className="sr-only" role="status">Thinking</span>;
+    return <span className="sr-only" role="status">Loading</span>;
   }
 
-  const label = getPendingFeedbackLabel(config.loadingLabelMode, submittedMessage);
   const style = {
     '--contact-loading-base': config.loadingBaseColor,
-    '--contact-loading-highlight': config.loadingHighlightColor,
-    '--contact-loading-duration': `${config.loadingShimmerDurationMs}ms`,
   } as CSSProperties;
 
   return (
-    <p
-      className={`contact-pending-feedback min-h-6 max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-sans text-sm ${className}`}
-      data-effect={config.loadingEffectStyle}
+    <span
+      className={`contact-pending-indicator inline-flex items-center gap-1 py-1 ${className}`}
       role="status"
       aria-live="polite"
       style={style}
     >
-      <span className="contact-pending-feedback__text" aria-hidden="true">{label}</span>
-      <span className="sr-only">Thinking</span>
-    </p>
+      <span aria-hidden="true" className="contact-pending-dot" />
+      <span aria-hidden="true" className="contact-pending-dot" />
+      <span aria-hidden="true" className="contact-pending-dot" />
+      <span className="sr-only">Loading</span>
+    </span>
   );
 }
