@@ -2,13 +2,11 @@ import fs from 'fs'
 import matter from 'gray-matter'
 import { formatDate } from './date'
 import { getSliderVisualParameters } from './sliderVisualParameters'
-import { getArticleHref } from './articleHref'
 
 export {
   getSliderVisualParameters,
   type SliderVisualParameters,
 } from './sliderVisualParameters'
-export { getArticleHref } from './articleHref'
 
 type FrontmatterValue = string | number | boolean | string[] | null | undefined
 
@@ -129,7 +127,7 @@ export function toSliderSlides(posts: PostSummary[]): SliderContentSlide[] {
     const slideNumber = index + 1
     const href = post.forceExternalNavigation && post.externalUrl
       ? post.externalUrl
-      : getArticleHref(post.slug)
+      : `/posts/${post.slug}`
     const displayDate = post.formattedDate ?? (post.date.startsWith('20') ? post.date : '')
     const visualParameters = getSliderVisualParameters(index)
 

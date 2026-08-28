@@ -10,7 +10,8 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "export": "next export"
+    "export": "next export",
+    "verify:release": "node scripts/verify-release.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.103",

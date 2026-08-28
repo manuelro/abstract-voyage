@@ -1,0 +1,13 @@
+{
+  "headers": [
+    "Human communication trait category",
+    "Equates to (abstract meaning)"
+  ],
+  "rows": [
+    ["Eye contact", "Denotes interest"],
+    ["Voice tone", "Denotes respectfulness"],
+    ["Message clarity", "Denotes transparency in ideas"],
+    ["Presentation", "Denotes targeting and quality"],
+    ["Approachability", "Denotes openness to interaction"]
+  ]
+}

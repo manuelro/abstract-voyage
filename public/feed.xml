@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Abstract Voyage</title>
+    <link>https://abstract.voyage</link>
+    <description>Manuel Cerdas is a creative engineer and consultant working across AI engineering, product strategy, systems thinking, and expressive web interfaces.</description>
+    <language>en</language>
+    <atom:link href="https://abstract.voyage/feed.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Introducing Infinity Labs: The Open Education Initiative</title>
+      <link>https://abstract.voyage/posts/2023-05-03_infinity-labs-open-education</link>
+      <guid>https://abstract.voyage/posts/2023-05-03_infinity-labs-open-education</guid>
+      <description>Announces Infinity Labs, a free open education initiative offering software engineering learning resources and videos.</description>
+      <pubDate>Wed, 03 May 2023 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>The implementation of biomimetics in the design and development of highly efficient user interfaces</title>
+      <link>https://abstract.voyage/posts/2023-01-27_medium-biomimetics</link>
+      <guid>https://abstract.voyage/posts/2023-01-27_medium-biomimetics</guid>
+      <description>Looks at biomimetics in UI design and how nature-inspired patterns can improve interface efficiency and usability.</description>
+      <pubDate>Fri, 27 Jan 2023 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>The resilient team, the Tech Lead role and the coordination function in Scrum</title>
+      <link>https://abstract.voyage/posts/2020-12-08_medium-resilient-team</link>
+      <guid>https://abstract.voyage/posts/2020-12-08_medium-resilient-team</guid>
+      <description>Explores how tech leads build resilient teams in Scrum and coordinate effectively across roles and responsibilities.</description>
+      <pubDate>Tue, 08 Dec 2020 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>A retrospective to my first 5 years leading people</title>
+      <link>https://abstract.voyage/posts/2020-12-01_medium-tech-leading</link>
+      <guid>https://abstract.voyage/posts/2020-12-01_medium-tech-leading</guid>
+      <description>A retrospective on five years of technical leadership, covering people management, decision-making, and career growth.</description>
+      <pubDate>Tue, 01 Dec 2020 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>The taxonomy of dependencies in software and their associated risk</title>
+      <link>https://abstract.voyage/posts/2020-11-05_medium-taxonomy-dependencies</link>
+      <guid>https://abstract.voyage/posts/2020-11-05_medium-taxonomy-dependencies</guid>
+      <description>Analyzes dependency types in software engineering and the risk tradeoffs they introduce across systems and teams.</description>
+      <pubDate>Thu, 05 Nov 2020 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Real-Time Feature Toggles with React and LaunchDarkly</title>
+      <link>https://abstract.voyage/posts/2019-09-15_medium-feature-toggles-react</link>
+      <guid>https://abstract.voyage/posts/2019-09-15_medium-feature-toggles-react</guid>
+      <description>Walkthrough of real-time feature flags in React using LaunchDarkly to manage releases safely and continuously.</description>
+      <pubDate>Sun, 15 Sep 2019 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>The importance of tackling technical debt</title>
+      <link>https://abstract.voyage/posts/2017-11-03_medium-tech-debt</link>
+      <guid>https://abstract.voyage/posts/2017-11-03_medium-tech-debt</guid>
+      <description>Explains what technical debt is, why it accumulates, and how teams can manage it to keep software maintainable.</description>
+      <pubDate>Fri, 03 Nov 2017 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Understanding the Document Object Model (DOM)</title>
+      <link>https://abstract.voyage/posts/2017-02-11_medium-dom-basics</link>
+      <guid>https://abstract.voyage/posts/2017-02-11_medium-dom-basics</guid>
+      <description>Introduces the Document Object Model (DOM), explaining how web pages are structured and how JavaScript interacts with nodes and events.</description>
+      <pubDate>Sat, 11 Feb 2017 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Gzipping vs minification</title>
+      <link>https://abstract.voyage/posts/2017-01-15_medium-gzipping</link>
+      <guid>https://abstract.voyage/posts/2017-01-15_medium-gzipping</guid>
+      <description>Explains the difference between gzip compression and minification and how both improve web performance and bandwidth usage.</description>
+      <pubDate>Sun, 15 Jan 2017 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Mastering the SOLID principles</title>
+      <link>https://abstract.voyage/posts/2016-12-24_medium-mastering-solid</link>
+      <guid>https://abstract.voyage/posts/2016-12-24_medium-mastering-solid</guid>
+      <description>A practical guide to the SOLID principles in object-oriented programming and how they improve maintainable software architecture.</description>
+      <pubDate>Sat, 24 Dec 2016 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Thinking in systems.</title>
+      <link>https://abstract.voyage/posts/welcome</link>
+      <guid>https://abstract.voyage/posts/welcome</guid>
+      <description>A journal by Manuel Cerdas. Engineer &amp; consultant. Formerly McKinsey. On systems and craft.</description>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
