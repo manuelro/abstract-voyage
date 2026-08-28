@@ -12,9 +12,9 @@ source:
     url: https://abstractvoyage.medium.com/the-technical-leads-path-a-retrospective-to-my-first-5-years-leading-people-21e44e690aff
     originallyPublished: "2020-12-01"
 tags:
-    - Technical Leadership
-    - Engineering Management
     - Career Growth
+    - Engineering Management
+    - Technical Leadership
 ---
 
 _Figure. Sharing this photo for no reason other than admiring the beautify of Seattle’s port (WA, USA, 2019)._

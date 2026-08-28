@@ -50,6 +50,9 @@ export type SvgGradientDefProps = {
    * Works for both linear and radial gradients.
    */
   pivot?: Pivot;
+
+  /** Optional transition for runtime palette changes. Disabled by default. */
+  stopTransitionMs?: number;
 };
 
 /**
@@ -250,7 +253,12 @@ export const SvgGradientDef: React.FC<SvgGradientDefProps> = ({
   pivot = 'left-center',
   anchorXPercent,
   anchorYPercent,
+  stopTransitionMs = 0,
 }) => {
+  const stopTransitionStyle = stopTransitionMs > 0
+    ? { transition: `stop-color ${stopTransitionMs}ms cubic-bezier(0.22, 1, 0.36, 1)` }
+    : undefined;
+
   if (kind === 'radial') {
     const radialParams = computeRadialGradientParams({
       width,
@@ -274,6 +282,7 @@ export const SvgGradientDef: React.FC<SvgGradientDefProps> = ({
             offset={`${stop.at}%`}
             stopColor={normalizeColor(stop.color)}
             stopOpacity={stop.opacity ?? 1}
+            style={stopTransitionStyle}
           />
         ))}
       </radialGradient>
@@ -304,6 +313,7 @@ export const SvgGradientDef: React.FC<SvgGradientDefProps> = ({
           offset={`${stop.at}%`}
           stopColor={normalizeColor(stop.color)}
           stopOpacity={stop.opacity ?? 1}
+          style={stopTransitionStyle}
         />
       ))}
     </linearGradient>

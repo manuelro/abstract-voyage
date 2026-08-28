@@ -1,4 +1,4 @@
-import SynthPage, { getStaticProps } from './synth'
+import AbstractPage, { getStaticProps } from './abstract'
 
 export { getStaticProps }
-export default SynthPage
+export default AbstractPage

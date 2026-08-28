@@ -7,7 +7,8 @@ import {
 type SeoHeadProps = {
   title?: string
   description?: string
-  canonicalPath?: string
+  canonicalPath?: string | null
+  robots?: 'index,follow' | 'noindex,nofollow'
   ogType?: 'website' | 'article'
   ogImagePath?: string
   publishedTime?: string | null
@@ -20,6 +21,7 @@ export default function SeoHead({
   title = SITE_METADATA.defaultTitle,
   description = SITE_METADATA.defaultDescription,
   canonicalPath = '/',
+  robots = 'index,follow',
   ogType = 'website',
   ogImagePath = SITE_METADATA.defaultOgImagePath,
   publishedTime,
@@ -27,7 +29,7 @@ export default function SeoHead({
   tags = [],
   jsonLd,
 }: SeoHeadProps) {
-  const canonicalUrl = getAbsoluteUrl(canonicalPath)
+  const canonicalUrl = canonicalPath === null ? null : getAbsoluteUrl(canonicalPath)
   const ogImageUrl = getAbsoluteUrl(ogImagePath)
   const jsonLdItems = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : []
 
@@ -35,8 +37,8 @@ export default function SeoHead({
     <Head>
       <title>{title}</title>
       <meta name="description" content={description} />
-      <meta name="robots" content="index,follow" />
-      <link rel="canonical" href={canonicalUrl} />
+      <meta name="robots" content={robots} />
+      {canonicalUrl ? <link rel="canonical" href={canonicalUrl} /> : null}
       <link
         rel="alternate"
         type="application/rss+xml"
@@ -49,7 +51,7 @@ export default function SeoHead({
       <meta property="og:type" content={ogType} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
+      {canonicalUrl ? <meta property="og:url" content={canonicalUrl} /> : null}
       <meta property="og:image" content={ogImageUrl} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />

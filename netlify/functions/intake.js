@@ -1,3 +1,4 @@
+const crypto = require('crypto')
 const Anthropic = require('@anthropic-ai/sdk')
 const OpenAI = require('openai')
 const { normalize, getDeliveryMode, sendMail } = require('./lib/mailer')
@@ -204,7 +205,98 @@ const isRateLimited = (ip) => {
   return hits.length > RATE_LIMIT_MAX
 }
 
+// ── Follow-up ceiling (server-authoritative) ────────────────────────────────
+//
+// clampFollowUpCount used to just clamp whatever integer the client sent —
+// meaning a modified client could always claim followUpCount: 0 and keep
+// triggering paid gap-check model calls past the intended 3-round cap,
+// bounded only by the (lenient, best-effort) IP rate limiter above. Instead
+// the server now mints a signed token each time it asks a follow-up,
+// binding the count to an exact prefix of the transcript at that moment —
+// the client can only ever append to its transcript (see pages/contact.tsx's
+// modelTranscriptRef), so a legitimate next call's transcript always starts
+// with exactly that prefix. A token whose bound prefix no longer matches
+// (tampered, forged, or replayed against a transcript that has since moved
+// on) fails verification.
+
+const MAX_FOLLOW_UPS = 3
+
+const getFollowUpTokenSecret = () => normalize(process.env.INTAKE_FOLLOWUP_TOKEN_SECRET)
+
+// True once at least one prior follow-up round is visible in the transcript
+// itself (the client appends "Agent: <question>" the moment it shows one —
+// see pages/contact.tsx's runGapCheck). Only used to judge a tokenless call:
+// a genuinely fresh conversation's first gap-check has no follow-up token to
+// send yet, and shouldn't need one.
+const hasPriorFollowUpMarkers = (transcript) => /(^|\n)Agent: /.test(transcript)
+
+const digestPrefix = (text) => crypto.createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 32)
+
+const signFollowUpToken = ({ count, transcript }, secret) => {
+  const prefixLength = transcript.length
+  const digest = digestPrefix(transcript)
+  const payload = `${count}.${prefixLength}.${digest}`
+  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${signature}`
+}
+
+// Returns the verified count, or null if the token is missing, malformed,
+// forged, or no longer matches the transcript it was issued against. Callers
+// must treat null as "cannot be trusted" and fail closed (see
+// resolveFollowUpCount) — never as "assume zero", which is exactly the
+// bypass this exists to close.
+const verifyFollowUpToken = (token, transcript, secret) => {
+  const parts = normalize(token).split('.')
+  if (parts.length !== 4) return null
+  const [countStr, prefixLengthStr, digest, signature] = parts
+  const count = Number(countStr)
+  const prefixLength = Number(prefixLengthStr)
+  if (!Number.isInteger(count) || count < 0) return null
+  if (!Number.isInteger(prefixLength) || prefixLength < 0) return null
+  if (transcript.length < prefixLength) return null
+  if (digestPrefix(transcript.slice(0, prefixLength)) !== digest) return null
+
+  const expectedPayload = `${countStr}.${prefixLengthStr}.${digest}`
+  const expectedSignature = crypto.createHmac('sha256', secret).update(expectedPayload).digest('base64url')
+  const provided = Buffer.from(signature)
+  const expected = Buffer.from(expectedSignature)
+  if (provided.length !== expected.length) return null
+  if (!crypto.timingSafeEqual(provided, expected)) return null
+
+  return count
+}
+
+// The single place handleGapCheck asks "how many follow-ups has this
+// conversation really had". Fails closed on anything it can't verify —
+// worst case a legitimate visitor loses one follow-up round early and gets
+// recapped a turn sooner, never a broken flow, never a reopened bypass.
+const resolveFollowUpCount = (payload, transcript) => {
+  const secret = getFollowUpTokenSecret()
+  if (!secret) {
+    console.warn('[intake] INTAKE_FOLLOWUP_TOKEN_SECRET is not set — follow-up ceiling is client-trusted, not server-verified')
+    return clampFollowUpCount(payload.followUpCount)
+  }
+
+  const token = normalize(payload.followUpToken)
+  if (!token) return hasPriorFollowUpMarkers(transcript) ? MAX_FOLLOW_UPS : 0
+
+  const verifiedCount = verifyFollowUpToken(token, transcript, secret)
+  return verifiedCount === null ? MAX_FOLLOW_UPS : verifiedCount
+}
+
 // ── Delivery ─────────────────────────────────────────────────────────────────
+
+// Best-effort, in-memory per-warm-container idempotency guard — the same
+// trade-off already accepted for rateLimitHits above (does not survive a
+// cold start, not shared across concurrent instances; move to Netlify Blobs
+// or a real store if this becomes a real problem). Only successful
+// deliveries are recorded: a retry after a genuine failure should still
+// really retry — this only protects against re-sending a delivery that
+// actually succeeded but whose response the client never saw (dropped
+// connection, timeout, etc — see pages/contact.tsx's handleConfirmed, which
+// reuses one submissionId across every automatic/manual retry of the same
+// logical submission).
+const recentSubmissions = new Map()
 
 const EMAIL_PATTERN = /[^\s<>()]+@[^\s<>()]+\.[^\s<>()]+/
 
@@ -245,15 +337,19 @@ const clampFollowUpCount = (value) => {
 }
 
 // Adaptive 0-3 follow-ups: the client re-calls this stage after each answer,
-// passing the running transcript plus how many follow-ups have already
-// fired. The hard ceiling of 3 is enforced client-side (see pages/contact.tsx
-// runGapCheck) — this handler just answers the same sufficiency question
-// every time, with the count folded into the prompt so the model itself
-// leans toward resolving as it rises.
+// passing the running transcript plus a follow-up token proving how many
+// follow-ups have really fired (see resolveFollowUpCount above — the count
+// itself is server-verified now, not client-trusted). The hard ceiling of 3
+// is enforced here, authoritatively: once the verified count is already at
+// the cap, this returns without even calling the model.
 const handleGapCheck = async (payload) => {
   const transcript = normalize(payload.transcript).slice(0, MAX_TRANSCRIPT_LENGTH)
   if (!transcript) return json(400, { ok: false, message: 'A transcript is required.' })
-  const followUpCount = clampFollowUpCount(payload.followUpCount)
+  const followUpCount = resolveFollowUpCount(payload, transcript)
+
+  if (followUpCount >= MAX_FOLLOW_UPS) {
+    return json(200, { ok: true, needsFollowUp: false })
+  }
 
   const provider = getProvider()
   const apiKey = getApiKey(provider)
@@ -277,9 +373,23 @@ const handleGapCheck = async (payload) => {
     return json(200, { ok: true, needsFollowUp: false })
   }
 
-  return json(200, data.needsFollowUp
-    ? { ok: true, needsFollowUp: true, question: data.question.trim() }
-    : { ok: true, needsFollowUp: false })
+  if (!data.needsFollowUp) return json(200, { ok: true, needsFollowUp: false })
+
+  const question = data.question.trim()
+  const secret = getFollowUpTokenSecret()
+  const followUpToken = secret
+    ? signFollowUpToken({
+      count: followUpCount + 1,
+      transcript: `${transcript}\nAgent: ${question}`,
+    }, secret)
+    : undefined
+
+  return json(200, {
+    ok: true,
+    needsFollowUp: true,
+    question,
+    ...(followUpToken ? { followUpToken } : {}),
+  })
 }
 
 const handleRecap = async (payload) => {
@@ -310,9 +420,16 @@ const handleDeliver = async (payload) => {
   const identity = normalize(payload.identity).slice(0, MAX_IDENTITY_LENGTH)
   const transcript = normalize(payload.transcript).slice(0, MAX_TRANSCRIPT_LENGTH)
   const raw = payload.raw === true
+  const submissionId = normalize(payload.submissionId)
 
   if (!recap) return json(400, { ok: false, message: 'Nothing to send yet.' })
   if (!identity) return json(400, { ok: false, message: 'Somewhere to reply is required.' })
+
+  // A retry (automatic or manual) of a submission that already succeeded —
+  // short-circuit without re-sending mail or re-forwarding the webhook.
+  if (submissionId && recentSubmissions.has(submissionId)) {
+    return json(200, { ok: true })
+  }
 
   const mode = getDeliveryMode()
   const replyTo = extractReplyToEmail(identity)
@@ -335,6 +452,13 @@ const handleDeliver = async (payload) => {
   } catch (error) {
     console.error('[intake:deliver:FAILED]', error)
     return json(502, { ok: false, message: 'Unable to send that right now.' })
+  }
+
+  if (submissionId) {
+    recentSubmissions.set(submissionId, Date.now())
+    // Guard against unbounded growth on a long-lived warm container — same
+    // blunt reset already accepted for rateLimitHits above.
+    if (recentSubmissions.size > 5000) recentSubmissions.clear()
   }
 
   forwardToWebhook({
@@ -385,3 +509,12 @@ exports.handler = async (event) => {
   if (stage === 'recap') return handleRecap(payload)
   return handleDeliver(payload)
 }
+
+// Exported for tests only — exports.handler above is the real entry point.
+exports.MAX_FOLLOW_UPS = MAX_FOLLOW_UPS
+exports.signFollowUpToken = signFollowUpToken
+exports.verifyFollowUpToken = verifyFollowUpToken
+exports.resolveFollowUpCount = resolveFollowUpCount
+exports.recentSubmissions = recentSubmissions
+exports.handleGapCheck = handleGapCheck
+exports.handleDeliver = handleDeliver

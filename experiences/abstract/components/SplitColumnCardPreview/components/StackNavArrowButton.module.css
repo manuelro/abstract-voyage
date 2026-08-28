@@ -1,0 +1,45 @@
+/* Local copy of pages/about.module.css's .navControlButton/.navControlGlyph
+   rules (same asymmetric enter-on-hover / exit-on-base transition trick),
+   renamed to this component's own custom-property namespace so it never
+   shares state with about.tsx's copy. */
+
+.navArrowButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--stack-nav-arrow-idle-color, #1a1a1e);
+  opacity: var(--stack-nav-arrow-idle-opacity, 0.85);
+  transition-property: opacity;
+  transition-duration: var(--stack-nav-arrow-mouseout-ms, 320ms);
+  transition-timing-function: var(--stack-nav-arrow-mouseout-easing, ease);
+}
+
+.navArrowButton:hover:not(:disabled) {
+  opacity: var(--stack-nav-arrow-hover-opacity, 1);
+  transition-duration: var(--stack-nav-arrow-hover-ms, 160ms);
+  transition-timing-function: var(--stack-nav-arrow-hover-easing, ease);
+}
+
+.navArrowButton:disabled {
+  opacity: var(--stack-nav-arrow-disabled-opacity, 0.35);
+  cursor: default;
+}
+
+.navArrowGlyph polygon {
+  fill: var(--stack-nav-arrow-idle-color, #ffffff);
+  stroke: var(--stack-nav-arrow-idle-color, #ffffff);
+  transition-property: fill, stroke;
+  transition-duration: var(--stack-nav-arrow-mouseout-ms, 320ms);
+  transition-timing-function: var(--stack-nav-arrow-mouseout-easing, ease);
+}
+
+.navArrowButton:hover:not(:disabled) .navArrowGlyph polygon {
+  fill: var(--stack-nav-arrow-hover-color, #ffffff);
+  stroke: var(--stack-nav-arrow-hover-color, #ffffff);
+  transition-duration: var(--stack-nav-arrow-hover-ms, 160ms);
+  transition-timing-function: var(--stack-nav-arrow-hover-easing, ease);
+}

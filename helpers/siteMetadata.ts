@@ -28,12 +28,17 @@ export const getAbsoluteUrl = (pathOrUrl = '/') => {
   return `${SITE_METADATA.siteUrl}${path}`
 }
 
+export const buildSiteTitle = (title: string) => `${title} | ${SITE_METADATA.siteName}`
+
 export const getPostCanonicalPath = (slug: string) => `/posts/${slug}`
 
 export const getPostCanonicalUrl = (slug: string) =>
   getAbsoluteUrl(getPostCanonicalPath(slug))
 
 export const getPostOgImagePath = (slug: string) => `/og/posts/${slug}.png`
+
+export const getLabCanonicalPath = (slug: string) => `/labs/${slug}`
+export const getLabOgImagePath = (slug: string) => `/og/labs/${slug}.png`
 
 export const getDateFromPostSlug = (slug: string) => {
   const match = slug.match(/^(\d{4}-\d{2}-\d{2})/)

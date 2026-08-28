@@ -10,6 +10,9 @@
 
 # next.js
 /.next/
+# An agent's own isolated dev-server build dir (CLAUDE_NEXT_DIST_DIR — see
+# AGENTS.md's "Local dev server" section), name varies per session.
+/.next-*/
 /out/
 
 # production
@@ -40,3 +43,11 @@ next-env.d.ts
 storybook-static/
 # Local Netlify folder
 .netlify
+
+# Copy tool (dev-only)
+.copy-tool/generations/
+.copy-tool/.bootstrap-snapshot.yaml
+
+# Accidentally-tracked agent scratchpad (/private/tmp/claude-.../scratchpad) —
+# never belongs in this repo's history going forward.
+/private/

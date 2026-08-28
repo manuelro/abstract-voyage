@@ -1,0 +1,40 @@
+.root {
+  /* Matches how this repo's other multi-paragraph copy (e.g. contact.tsx's
+     own chat turns) already renders a blank-line paragraph break — a plain
+     text node carrying the original "\n\n" between animated units still
+     renders as a break here, no separate paragraph markup needed. */
+  white-space: pre-line;
+}
+
+.unit {
+  opacity: 0;
+  animation-name: split-text-reveal-in;
+  animation-timing-function: var(--split-easing, ease-in-out);
+  animation-fill-mode: both;
+  /* animation-delay/animation-duration are always set inline per unit (see
+     SplitTextReveal.tsx), computed once via
+     helpers/magnificationDockRevealMath.ts's shared reveal-schedule helper
+     — the same one AbstractPostDock's card intro uses — rather than a CSS
+     custom-property multiplication. Inline styles win over this class's
+     own declarations for the same element, so no fallback values are
+     needed here. */
+}
+
+@keyframes split-text-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--split-translate-y, 0px));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unit {
+    animation: none;
+    opacity: 1;
+  }
+}

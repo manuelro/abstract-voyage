@@ -1,0 +1,292 @@
+/*
+ * Card content is sized off the card's own rendered box via CSS container
+ * queries, not the viewport -- the same card renders anywhere from a
+ * full-width dock slide down to a small grid cell, at either a 3:4 or 16:9
+ * ratio, and viewport breakpoints have no way to tell those apart.
+ *
+ * `container-type: size` (not just inline-size) so `cqmin` is available:
+ * typography and spacing scale off whichever dimension is more limiting.
+ * For a 3:4 card that's the width; for a short 16:9 card it's the height --
+ * sizing purely off width (cqi) made a 16:9 card demand more vertical room
+ * than it had, squeezing its own rows. Below width thresholds, the least
+ * essential row also drops out entirely (reading time, then the index
+ * label, then the excerpt) instead of being crushed unreadably small.
+ */
+.card {
+  container-type: size;
+  --article-card-label-color: rgba(255, 255, 255, 0.6);
+  --article-card-meta-color: rgba(255, 255, 255, 0.6);
+  --article-card-topic-color: rgba(255, 255, 255, 0.7);
+  --article-card-title-color: rgba(255, 255, 255, 0.9);
+  --article-card-excerpt-color: rgba(255, 255, 255, 0.7);
+  --article-card-separator-color: rgba(255, 255, 255, 0.4);
+  --article-card-graphic-border-color: rgba(255, 255, 255, 0.25);
+  --article-card-cta-color: rgba(255, 255, 255, 0.8);
+  --article-card-cta-border-color: rgba(255, 255, 255, 0.3);
+  --article-card-cta-hover-color: #fff;
+  --article-card-cta-hover-border-color: rgba(255, 255, 255, 0.7);
+  --article-card-scrim-color: rgba(0, 0, 0, 0.1);
+  --article-card-text-shadow: 0 8px 28px rgba(0, 0, 0, 0.48);
+  --article-card-appearance-duration: 300ms;
+  --article-card-appearance-easing: cubic-bezier(0.2, 0, 0, 1);
+  --article-card-appearance-delay: 0ms;
+}
+
+.card[data-appearance='neutral'] {
+  --article-card-label-color: #48484e;
+  --article-card-meta-color: #48484e;
+  --article-card-topic-color: #48484e;
+  --article-card-title-color: #48484e;
+  --article-card-excerpt-color: #48484e;
+  --article-card-separator-color: #48484e;
+  --article-card-graphic-border-color: #b0b0b4;
+  --article-card-cta-color: #48484e;
+  --article-card-cta-border-color: #b0b0b4;
+  --article-card-cta-hover-color: #48484e;
+  --article-card-cta-hover-border-color: #b0b0b4;
+  --article-card-scrim-color: transparent;
+  --article-card-text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.content {
+  padding: clamp(0.75rem, 6cqmin, 2rem);
+  text-shadow: var(--article-card-text-shadow);
+  transition: text-shadow var(--article-card-appearance-duration)
+    var(--article-card-appearance-easing) var(--article-card-appearance-delay);
+}
+
+.scrim {
+  background-color: var(--article-card-scrim-color);
+  transition: background-color var(--article-card-appearance-duration)
+    var(--article-card-appearance-easing) var(--article-card-appearance-delay);
+}
+
+.stack {
+  gap: clamp(0.4rem, 1.6cqmin, 0.75rem);
+}
+
+.label {
+  color: var(--article-card-label-color);
+  font-size: clamp(0.5rem, 2.4cqmin, 0.625rem);
+  letter-spacing: 0.22em;
+  flex-shrink: 0;
+  transition: color var(--article-card-appearance-duration)
+    var(--article-card-appearance-easing) var(--article-card-appearance-delay);
+}
+
+/*
+ * PostMetaRow renders its own JSX in a separate component, so the class
+ * names handed to it via props land there, outside this module's scope --
+ * these have to be :global() to reach in.
+ */
+.card :global(.articleCardMeta) {
+  color: var(--article-card-meta-color);
+  gap: clamp(0.25rem, 1cqmin, 0.5rem);
+  font-size: clamp(0.5rem, 2.2cqmin, 0.625rem);
+  letter-spacing: 0.16em;
+  flex-shrink: 0;
+  transition: color var(--article-card-appearance-duration)
+    var(--article-card-appearance-easing) var(--article-card-appearance-delay);
+}
+
+.card :global(.articleCardTopic) {
+  color: var(--article-card-topic-color);
+  border-color: var(--article-card-graphic-border-color);
+  padding: 0.125rem clamp(0.4rem, 1.6cqmin, 0.5rem);
+  font-size: clamp(0.5rem, 2.2cqmin, 0.625rem);
+  letter-spacing: 0.16em;
+  transition:
+    color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
+      var(--article-card-appearance-delay),
+    border-color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
+      var(--article-card-appearance-delay);
+}
+
+.card :global(.articleCardDate),
+.card :global(.articleCardReadingTime) {
+  color: var(--article-card-meta-color);
+  transition:
+    color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
+      var(--article-card-appearance-delay),
+    opacity 420ms cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.card :global(.articleCardSeparator) {
+  color: var(--article-card-separator-color);
+  transition: color var(--article-card-appearance-duration)
+    var(--article-card-appearance-easing) var(--article-card-appearance-delay);
+}
+
+/*
+ * Height is clamped with max-height + overflow (not -webkit-line-clamp):
+ * combined with fluid, container-query-derived font sizes, line-clamp's
+ * reported box height was inconsistent between reloads of the *same*
+ * content. max-height in em is plain block layout, so it recomputes
+ * deterministically off whatever font-size the container query lands on.
+ *
+ * flex-shrink: 0 matters here for a different reason -- a flex item with
+ * non-visible overflow gets an automatic minimum size of 0 (not its content
+ * size) per the flexbox spec, so without this the flex algorithm was free
+ * to silently squash the title/excerpt shorter than their own text when the
+ * stack didn't fit the card (a 16:9 card is short), rendering overlapping,
+ * illegible text instead of a clean clip. With shrinking disabled, the
+ * worst case is instead an overflow clipped cleanly at the card's own
+ * rounded edge (its overflow: hidden) -- never overlapping text.
+ */
+.title {
+  font-size: clamp(1.05rem, 7.5cqmin, 3rem);
+  line-height: 1.05;
+  max-height: 3.15em;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.excerpt {
+  font-size: clamp(0.7rem, 2.6cqmin, 1rem);
+  line-height: 1.5;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: none;
+}
+
+/*
+ * 'dock' typography scale -- the abstract page's original dock/deck look
+ * (was AbstractPostDock.module.css's .dockTitleCompact / .dockExcerpt), but
+ * as a continuous cqmin curve rather than that original's hard two-step
+ * jump at a 480px container threshold. The original only ever rendered at
+ * two known widths (a ~350-430px mobile deck card, a ~570-950px desktop
+ * dock card) so a binary step was invisible; scattered mode reuses this
+ * scale down to a 160px card, where the same step lands *every* card at the
+ * 480px-and-up tier's full 36px title regardless of how much text it has to
+ * fit, overflowing long titles into the meta row above and the CTA below.
+ * The clamp() bounds are tuned so the curve still lands on the exact
+ * original pixel sizes at those two reference widths (20px @ ~358px
+ * container, 36px @ ~691px container -- verified against the pre-refactor
+ * render) while scaling down smoothly in between and below.
+ *
+ * Line-height isn't set here -- it's Tailwind's own `leading-tight` /
+ * `leading-normal` utilities on the element in ArticleCard.tsx, not a
+ * custom ratio, so it's a known-good, already-tested value rather than a
+ * hand-picked number.
+ */
+.dockTitle {
+  font-size: clamp(1rem, 5.6cqmin, 2.25rem);
+  flex-shrink: 0;
+}
+
+.dockExcerpt {
+  font-size: clamp(0.875rem, 3.9cqmin, 1rem);
+  flex-shrink: 0;
+}
+
+.titleInk {
+  color: var(--article-card-title-color);
+  transition: color var(--article-card-appearance-duration)
+    var(--article-card-appearance-easing) var(--article-card-appearance-delay);
+}
+
+.excerptInk {
+  color: var(--article-card-excerpt-color);
+  transition: color var(--article-card-appearance-duration)
+    var(--article-card-appearance-easing) var(--article-card-appearance-delay);
+}
+
+.cta {
+  color: var(--article-card-cta-color);
+  border-color: var(--article-card-cta-border-color);
+  margin-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  font-size: clamp(0.5rem, 2.2cqmin, 0.625rem);
+  letter-spacing: 0.18em;
+  flex-shrink: 0;
+  transition:
+    color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
+      var(--article-card-appearance-delay),
+    border-color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
+      var(--article-card-appearance-delay);
+}
+
+.cta:hover {
+  color: var(--article-card-cta-hover-color);
+  border-color: var(--article-card-cta-hover-border-color);
+}
+
+/* Detail reveal — for carousel-style callers (detailsVisible prop) that only
+   want a card's meta/CTA disclosed once it settles as the active slide;
+   invisible no-op (opacity: 1, no transition) for the default always-visible
+   case. */
+.detailFade {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--article-card-detail-fade-duration, 420ms)
+    var(--article-card-detail-fade-easing, cubic-bezier(0.19, 1, 0.22, 1));
+}
+
+.content[data-details-visible='true'] .detailFade {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content,
+  .scrim,
+  .label,
+  .titleInk,
+  .excerptInk,
+  .cta,
+  .card :global(.articleCardMeta),
+  .card :global(.articleCardTopic),
+  .card :global(.articleCardDate),
+  .card :global(.articleCardReadingTime),
+  .card :global(.articleCardSeparator),
+  .detailFade {
+    transition-duration: 0ms;
+    transition-delay: 0ms;
+  }
+}
+
+/* Hover-reveal (ArticleCard's ctaHoverOnly/excerptHoverOnly props) -- same
+   easing/duration as .detailFade above, but driven by the card itself being
+   hovered/focused (Tailwind's `group`, already on the card root) rather than
+   detailsVisible. Shared by the CTA and the excerpt so both fade identically. */
+.hoverReveal {
+  opacity: 0;
+  transition: opacity var(--article-card-detail-fade-duration, 420ms)
+    var(--article-card-detail-fade-easing, cubic-bezier(0.19, 1, 0.22, 1));
+}
+
+:global(.group):hover .hoverReveal,
+:global(.group):focus-within .hoverReveal {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hoverReveal {
+    transition-duration: 0ms;
+  }
+}
+
+/* Below this the reading-time segment (and its separator dot) is the first
+   thing to go -- it's the least essential part of the meta row. */
+@container (max-width: 21rem) {
+  .card :global(.articleCardReadingTime) {
+    display: none;
+  }
+}
+
+/* Below this the numeric index label is dropped -- purely decorative at
+   small sizes, and competes with the topic pill for space. */
+@container (max-width: 15rem) {
+  .label {
+    display: none;
+  }
+}
+
+/* Excerpt only reappears once there's room for it not to crowd the title --
+   matches the dock's own behavior of showing title+CTA only in its narrow
+   states. */
+@container (min-width: 20rem) {
+  .excerpt {
+    display: block;
+  }
+}

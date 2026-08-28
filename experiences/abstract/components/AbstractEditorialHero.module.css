@@ -1,0 +1,215 @@
+.root {
+  --active-copy-color: var(--editorial-copy-color);
+  --active-eyebrow-color: var(--editorial-eyebrow-color);
+  color: var(--active-copy-color);
+  /* Body-copy font only — -apple-system/BlinkMacSystemFont were previously
+     listed ahead of the webfont var, which meant the system font won on
+     every real browser and the webfont never actually rendered here.
+     --active-heading-font (set inline from the resolved fontFamily config,
+     see AbstractEditorialHero.tsx) is consumed by .leadBlock alone below,
+     not here — heading serif/sans must never leak into the paragraph copy
+     that also inherits from this rule. */
+  /* The split-column composition is not mounted beneath .heroZone, which
+     owns --hero-sans in the classic presentation. Fall back directly to the
+     app-wide Instrument Sans variable so body copy never inherits a
+     surrounding display/heading serif context. */
+  font-family: var(--hero-sans, var(--site-font-sans)), -apple-system, BlinkMacSystemFont;
+  line-height: var(--editorial-copy-line-height);
+  letter-spacing: var(--editorial-copy-letter-spacing);
+}
+
+.copyColumn {
+  color: var(--active-copy-color);
+  transition: color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.leadBlock,
+.copyBlock {
+  color: inherit;
+  text-wrap: pretty;
+}
+
+.copyBlock {
+  font-family: inherit;
+}
+
+.supportingCopy {
+  color: var(--editorial-paragraph-color);
+}
+
+.leadBlock {
+  /* Headline-only font — see .root's own comment on why this can't just
+     inherit. var()'s own fallback covers the case where the inline custom
+     property isn't set. */
+  font-family: var(--active-heading-font, var(--hero-sans));
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+/* Default display-headline weight — stripped out entirely (rather than
+   overridden) whenever Headline matches body size is on, so the Tailwind
+   font-bold utility class added in AbstractEditorialHero.tsx is the only
+   rule left setting font-weight and always wins regardless of stylesheet
+   injection order (a same-specificity override here could lose that race). */
+.leadBlock:not([data-headline-match-body-size="true"]) {
+  font-weight: 520;
+}
+
+/* Tight display tracking/line-height read as broken once the headline wraps
+   at body size (colliding lines, over-tightened tracking) — fall back to the
+   same copy line-height/letter-spacing vars the paragraphs already use. */
+.leadBlock[data-headline-match-body-size="true"] {
+  line-height: var(--editorial-copy-line-height);
+  letter-spacing: var(--editorial-copy-letter-spacing);
+}
+
+.headlineText {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+
+.headlineCanvas {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.leadBlock[data-gradient-ready="true"] .headlineText {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Surface-fill mode: the headline is deliberately the same color as its own
+   background — visible only through its elevation shadow (see
+   AbstractEditorialHero.tsx's useElevationShadow wiring). Wins over the
+   gradient-ready rule above regardless of source order (same specificity),
+   so the gradient canvas painting pipeline keeps running untouched; this
+   just visually suppresses its output rather than branching the markup. */
+.leadBlock[data-headline-fill="surface"] {
+  color: var(--editorial-headline-surface-color);
+  -webkit-text-fill-color: var(--editorial-headline-surface-color);
+}
+
+.leadBlock[data-headline-fill="surface"] .headlineText,
+.leadBlock[data-headline-fill="surface"][data-gradient-ready="true"] .headlineText {
+  color: var(--editorial-headline-surface-color) !important;
+  -webkit-text-fill-color: var(--editorial-headline-surface-color) !important;
+}
+
+.leadBlock[data-headline-fill="surface"] .headlineCanvas {
+  opacity: 0 !important;
+}
+
+/* Solid-fill mode: an explicit, conventional flat color (copyColor) that the
+   end user can pick to override the default surface-fill/gradient look —
+   same "win over gradient-ready regardless of source order" treatment as
+   surface-fill above, so choosing it reliably shows a flat, legible color
+   even while a gradient headline is active, instead of the gradient canvas
+   silently taking back over. */
+.leadBlock[data-headline-fill="solid"] {
+  color: var(--editorial-copy-color);
+  -webkit-text-fill-color: var(--editorial-copy-color);
+}
+
+.leadBlock[data-headline-fill="solid"] .headlineText,
+.leadBlock[data-headline-fill="solid"][data-gradient-ready="true"] .headlineText {
+  color: var(--editorial-copy-color) !important;
+  -webkit-text-fill-color: var(--editorial-copy-color) !important;
+}
+
+.leadBlock[data-headline-fill="solid"] .headlineCanvas {
+  opacity: 0 !important;
+}
+
+.leadBlock[data-gradient-ready="true"] .headlineCanvas {
+  opacity: 1;
+}
+
+.gradientDebugPreview {
+  position: fixed;
+  z-index: 9;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 56px);
+  box-sizing: border-box;
+  width: min(var(--editorial-gradient-debug-size), calc(100vw - 24px));
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid rgba(44, 44, 48, 0.28);
+  border-radius: 10px;
+  background: #111216;
+  pointer-events: none;
+}
+
+.gradientDebugCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (min-width: 760px) {
+  .root[data-designer-panel-open="true"] .gradientDebugPreview {
+    right: calc(336px + max(24px, env(safe-area-inset-right)));
+  }
+}
+
+.copyBlock {
+  font-weight: 420;
+  line-height: var(--editorial-copy-line-height);
+}
+
+.root[data-layout-mode="full"][data-copy-ink-tone="light"] {
+  --active-copy-color: #ffffff;
+  --active-eyebrow-color: rgba(255, 255, 255, 0.72);
+}
+
+.root[data-layout-mode="full"][data-copy-ink-tone="dark"] {
+  --active-copy-color: #142329;
+  --active-eyebrow-color: rgba(20, 35, 41, 0.7);
+}
+
+.root[data-content-surface="light"][data-copy-ink-tone="dark"] {
+  --active-copy-color: var(--editorial-copy-color);
+  --active-eyebrow-color: var(--editorial-eyebrow-color);
+}
+
+@media (max-width: 639px) {
+  .gradientDebugPreview {
+    width: min(var(--editorial-gradient-debug-size), calc(100vw - 32px));
+    right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+@media (pointer: coarse) {
+  .root :global(button[aria-label="Send"]) {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copyColumn,
+  .headlineCanvas {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .headlineCanvas {
+    display: none;
+  }
+
+  .leadBlock[data-gradient-ready="true"] .headlineText {
+    color: CanvasText;
+    -webkit-text-fill-color: CanvasText;
+  }
+}

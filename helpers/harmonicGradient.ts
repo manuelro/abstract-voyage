@@ -323,7 +323,7 @@ function lerp(a: number, b: number, t: number): number {
  * Adjusts lightness to meet or approximate a desired contrast ratio while
  * preserving hue and saturation as much as possible.
  */
-function adjustLightnessForContrast(
+export function adjustLightnessForContrast(
   h: number,
   s: number,
   initialL: number,

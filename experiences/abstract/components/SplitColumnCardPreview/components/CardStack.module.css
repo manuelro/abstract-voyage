@@ -1,0 +1,163 @@
+/* Positioned via inline style (position: fixed; top/left/width/height —
+   see CardStack.tsx), not here: it anchors to the real browser viewport,
+   not to any ancestor's box. Only the overflow/pointer-events behavior is
+   a static class rule.
+   The buffer row just past the outermost visible neighbor (see
+   useCardStackLayout's aboveCount/belowCount + 1 range in CardStack.tsx)
+   is clipped here rather than mounted/unmounted on a timer — it animates
+   smoothly into and out of view as a card enters or exits the visible
+   range.
+   Round 9: this box is now sized to the full page width
+   (useCardStackLayout's `pageWidthPx`), not the narrow card column
+   (`fixedWidthPx`) — reported and re-reported across rounds 6/7/8 as
+   "overflow:hidden clipping the tilted card," and correctly so: the card
+   column's own width has zero horizontal margin, so *any* non-zero
+   `rotateY` on a neighbor pushes its projected edge straight past that
+   exact boundary and into this element's clip. Earlier rounds misdiagnosed
+   this (isolation/compositing, nested-perspective theories) by
+   measuring a card at a moment/config that happened not to overshoot, and
+   wrongly treated that as a general disproof. Widening this element is
+   the actual, general fix — it needs to be wide enough that no config
+   value of neighborRotationDeg/neighborScaleDownPercent can push a card's
+   projected edge past it, and "full page width" is the simplest bound
+   that's true regardless of those config values. That does make this
+   element's own hit-test box span the full page width too, which is why
+   it's `pointer-events: none` below — `.column` (sized to the actual card
+   column, not the full page) is what re-enables hit-testing, scoped back
+   down to where the visible card content actually is. */
+.viewport {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The actual card-column box (see CardStack.tsx: `fixedLeftPx`/
+   `fixedWidthPx`, unchanged from before round 9) nested inside the wider,
+   non-interactive `.viewport`. Everything a user can see or touch — tabs,
+   the swipe surface, the cards — lives in here, at the same geometry it
+   always has; only the outer clip boundary moved. */
+.column {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.swipeSurface {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.swipeSurface[data-gesture-dragging='true'] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* Embla is the sole horizontal transform owner on touch-capable Card Stacks
+   below 768px. The viewport owns clipping and the browser keeps vertical
+   page scrolling available; no CSS transition is applied to the container
+   or slides because Embla's attraction engine owns both drag and settle. */
+.emblaViewport {
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+}
+
+.emblaContainer {
+  display: flex;
+  height: 100%;
+  touch-action: pan-y pinch-zoom;
+  will-change: transform;
+}
+
+.emblaSlide {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  height: 100%;
+}
+
+.rows {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* Vertical position (see CardStack.tsx's translateY math). Animates on the
+   same transition-delay as the sibling tiltLayer below — rotate/scale/
+   opacity/translate all start together as one fluid motion per card, only
+   staggered *across* cards by distance from the active slot, never split
+   into visible stages within a single card. */
+.translateLayer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+
+/* 3D rest pose (rotate/scale) + opacity — animates in lockstep with the
+   parent translateLayer's own transform, not before or after it.
+   Opacity reads --stack-slot-opacity (the rest/pose value CardStackSlot.tsx
+   writes as a custom property, not directly) rather than a plain `opacity`
+   declaration, specifically so the more-specific [data-proximity-opacity]
+   rule below can blend it with live cursor proximity — an inline `opacity`
+   would win over any CSS class rule regardless of specificity, which is
+   the whole reason this is a custom property instead. Scale is proximity-
+   reactive too (CardStackSlot.tsx's own scaleProximityActive), but composed
+   entirely inline via a `scale(calc(...))` term in that element's own
+   `transform` — no second CSS rule needed there the way opacity needs one
+   here, since a `calc()` blend can live directly inside `transform`'s own
+   value but not inside a shorthand-adjacent property the way opacity's
+   plain numeric value can be overridden by specificity. */
+.tiltLayer {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  transform-style: preserve-3d;
+  opacity: var(--stack-slot-opacity, 1);
+}
+
+/* Proximity opacity only (CardStackSlot.tsx's opacityProximityActive) —
+   deliberately independent of cursor-intent navigation (PLAN: decouple
+   cursor-intent navigation from proximity visuals) — usePointerProximity
+   (components/proximity/usePointerProximity.ts) writes --pointer-proximity
+   directly onto this same element every frame the pointer is active (0 far/
+   absent -> 1 cursor inside the box), blended here with the slot's own rest
+   opacity so a neighbor ramps from its dimmed rest state up to fully opaque
+   as the cursor approaches and enters it. */
+.tiltLayer[data-proximity-opacity='true'] {
+  opacity: calc(
+    var(--stack-slot-opacity, 1) + (1 - var(--stack-slot-opacity, 1)) * var(--pointer-proximity, 0)
+  );
+}
+
+/* Stable interaction plane for every non-active slot. It remains the same
+   DOM/compositor node while a step changes it from blocked to promotable,
+   preventing a stationary cursor from retaining an obsolete hit-test target
+   across the card's 3D transform. CardStackSlot gates the handlers from the
+   same data state; CSS only communicates affordance. */
+.slotInteractionLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+}
+
+.slotInteractionLayer[data-promotable='true'] {
+  cursor: pointer;
+}
+
+/* Round 6: one grouped pair (up + down side by side) instead of separate
+   top/bottom-pinned controls. Round 8: moved to the open gutter to the
+   left of the card column (top/left set inline in CardStack.tsx, from the
+   same measured geometry the card layer itself uses) instead of
+   overlapping the active card's own content, and out from inside
+   .viewport (a sibling now, own `position: fixed`) so it's never clipped
+   by that container's overflow:hidden. */
+.arrowGroup {
+  position: fixed;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 30;
+}

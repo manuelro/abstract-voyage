@@ -1,0 +1,404 @@
+.heroZone {
+  --hero-ink: #142329;
+  --hero-sky-stops: #b7cee8 0%, #496a9e 48%, #111b3f 100%;
+  --hero-sky-origin-x: 8%;
+  --hero-sky-origin-y: 4%;
+  --hero-sky-radius-x: 110%;
+  --hero-sky-radius-y: 92%;
+  --hero-sans: var(--site-font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--hero-ink);
+  background-color: #111b3f;
+  transition: background-color 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gradientSourceViewport,
+.gradientOutputViewport {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+}
+
+.gradientSourceCanvas,
+.gradientOutputStack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.gradientSourceCanvas {
+  display: block;
+}
+
+.gradientOutputViewport {
+  pointer-events: none;
+  isolation: isolate;
+  contain: layout paint;
+  opacity: 1;
+  transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gradientOutputViewport[data-content-surface="light"] {
+  opacity: 0;
+}
+
+.gradientSnapshotLayer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: block;
+  pointer-events: none;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.gradientCompositeCanvas {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.heroZone[data-layout-mode="editorial"] .gradientSourceViewport,
+.heroZone[data-layout-mode="editorial"] .gradientOutputViewport {
+  bottom: auto;
+  height: var(--hero-header-height);
+}
+
+.heroZone[data-layout-mode="editorial"] .gradientSourceCanvas,
+.heroZone[data-layout-mode="editorial"] .gradientOutputStack {
+  top: var(--hero-editorial-stack-offset);
+  bottom: auto;
+  height: var(--hero-editorial-stack-height);
+}
+
+@media (min-width: 768px) {
+  .heroZone[data-layout-mode="editorial"] .gradientSourceViewport,
+  .heroZone[data-layout-mode="editorial"] .gradientOutputViewport {
+    height: var(--hero-header-height-desktop);
+  }
+}
+
+.heroZone[data-sky-mode="static"],
+.heroZone[data-sky-mode="living"] {
+  background-image: radial-gradient(
+    ellipse var(--hero-sky-radius-x) var(--hero-sky-radius-y) at var(--hero-sky-origin-x) var(--hero-sky-origin-y),
+    var(--hero-sky-stops)
+  );
+  background-repeat: no-repeat;
+}
+
+.refractorLayer {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.refractorLayer[data-orientation="columns"] {
+  grid-template-columns: repeat(var(--refractor-slice-count), minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.refractorLayer[data-orientation="rows"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(var(--refractor-slice-count), minmax(0, 1fr));
+}
+
+.refractorSlice {
+  min-width: 0;
+  min-height: 0;
+  background-color: #ffffff;
+  background-image: radial-gradient(circle closest-side at center center, #0000ff 0%, #ffffff 100%);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 62vmin 62vmin;
+}
+
+.refractorLayer[data-orientation="rows"] .refractorSlice {
+  background-image: radial-gradient(
+    ellipse closest-side at center calc(50% + var(--refractor-row-displacement-y, 0%)),
+    #0000ff 0%,
+    #ffffff 100%
+  );
+  background-position: center center;
+  background-size: 100% var(--refractor-row-scale-y, 100%);
+}
+
+.refractorLayer[data-orientation="columns"] .refractorSlice {
+  background-image: radial-gradient(
+    circle closest-side at calc(50% + var(--refractor-column-displacement-x, 0%)) center,
+    #0000ff 0%,
+    #ffffff 100%
+  );
+  background-position: center center;
+  background-size: var(--refractor-column-scale-x, 62vmin) 62vmin;
+}
+
+.heroScrim {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.68) 0%,
+    rgba(0, 0, 0, 0.64) 58%,
+    rgba(0, 0, 0, 0.18) 70%,
+    transparent 78%
+  );
+}
+
+.siteHeader {
+  color: inherit;
+}
+
+.synthAffordance {
+  color: var(--hero-ink);
+  opacity: 0.92;
+  transition:
+    color 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.primaryNav {
+  /* --active-heading-font is set inline from SiteHeader's resolved
+     fontFamily config — var()'s own fallback covers the case where it isn't
+     set (e.g. this class reused outside SiteHeader). */
+  font-family: var(--active-heading-font, var(--hero-sans));
+}
+
+.navLink {
+  color: rgba(20, 35, 41, 0.78);
+  /* font-weight/text-transform are literal Tailwind classes set in
+     SiteHeader.tsx's own navItemClassName (navFontWeight/
+     navUppercase config fields) — not set here, so there's no second,
+     competing declaration. letter-spacing stays here since it's a plain
+     em number (this codebase's established precedent for letter-spacing
+     fields — see SectionHeading/PageTitle/FiberHeading), fed via the
+     --nav-letter-spacing custom property set inline on the header
+     (SiteHeader.tsx's heroHeaderStyle, from navLetterSpacingEm). */
+  line-height: 1;
+  letter-spacing: var(--nav-letter-spacing, 0.12em);
+  text-decoration: none;
+  transition: color 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.contactLink {
+  border-color: currentColor;
+}
+
+.heroZone .contactLink {
+  border-width: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.navLabel {
+  position: relative;
+  display: inline-block;
+}
+
+.navLabel::after {
+  position: absolute;
+  right: 0;
+  bottom: -8px;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: currentColor;
+  opacity: 0.48;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.contactLink .navLabel::after {
+  display: none;
+}
+
+.heroZone .contactLink .navLabel::after {
+  display: block;
+}
+
+.navLink:focus-visible,
+.synthAffordance:focus-visible {
+  outline: 2px solid rgba(20, 35, 41, 0.88);
+  outline-offset: 4px;
+}
+
+.heroZone[data-hero-tone="light"] .navLink {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.heroZone[data-hero-tone="light"] .synthAffordance {
+  color: white;
+  filter: drop-shadow(0 1px 10px rgba(0, 0, 0, 0.42));
+}
+
+.heroZone[data-hero-tone="light"] .navLink:focus-visible,
+.heroZone[data-hero-tone="light"] .synthAffordance:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.96);
+}
+
+/* Semantic tone overrides are applied only when background awareness is enabled. */
+.siteHeader[data-ink-tone="light"] .navLink {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.siteHeader[data-ink-tone="dark"] .navLink {
+  color: rgba(20, 35, 41, 0.82);
+}
+
+.siteHeader[data-ink-tone="light"] .synthAffordance {
+  color: #fff;
+  filter: drop-shadow(0 1px 10px rgba(0, 0, 0, 0.42));
+}
+
+.siteHeader[data-ink-tone="dark"] .synthAffordance {
+  color: var(--hero-ink);
+  filter: none;
+}
+
+.siteHeader[data-color-mode="custom"] .navLink,
+.siteHeader[data-color-mode="surface"] .navLink,
+.siteHeader[data-color-mode="column"] .navLink {
+  color: var(--hero-header-nav-text);
+}
+
+.siteHeader[data-color-mode="custom"] .contactLink,
+.siteHeader[data-color-mode="surface"] .contactLink,
+.siteHeader[data-color-mode="column"] .contactLink {
+  border-color: var(--hero-header-nav-border);
+}
+
+.siteHeader[data-ink-tone="light"] .navLink:focus-visible,
+.siteHeader[data-ink-tone="light"] .synthAffordance:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.96);
+}
+
+.siteHeader[data-ink-tone="dark"] .navLink:focus-visible,
+.siteHeader[data-ink-tone="dark"] .synthAffordance:focus-visible {
+  outline-color: rgba(20, 35, 41, 0.88);
+}
+
+.journalSection {
+  width: 100%;
+  scroll-margin-top: 24px;
+}
+
+@media (pointer: coarse) {
+  .heroZone .navLink {
+    min-width: 44px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .navLink:hover {
+    color: var(--hero-ink);
+  }
+
+  .navLink:hover .navLabel::after {
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+
+  .synthAffordance:hover {
+    opacity: 1;
+  }
+
+  .heroZone[data-hero-tone="light"] .navLink:hover {
+    color: #fff;
+  }
+
+  .heroZone[data-hero-tone="light"] .synthAffordance:hover {
+    filter: drop-shadow(0 1px 14px rgba(0, 0, 0, 0.56));
+  }
+
+  .siteHeader[data-ink-tone="dark"] .navLink:hover {
+    color: var(--hero-ink);
+  }
+
+  .siteHeader[data-ink-tone="light"] .navLink:hover {
+    color: #fff;
+  }
+
+  .siteHeader[data-color-mode="custom"] .navLink:hover,
+  .siteHeader[data-color-mode="surface"] .navLink:hover,
+  .siteHeader[data-color-mode="column"] .navLink:hover {
+    color: var(--hero-header-nav-text);
+  }
+}
+
+@media (max-width: 599px) {
+  .heroScrim {
+    background: linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.68) 0%,
+      rgba(0, 0, 0, 0.64) 82%,
+      rgba(0, 0, 0, 0.42) 100%
+    );
+  }
+}
+
+@media (max-width: 767px) {
+  .heroZone[data-layout-mode="editorial"] .primaryNav .navLink {
+    color: #646469;
+  }
+
+  .heroZone[data-layout-mode="editorial"] .siteHeader[data-color-mode="custom"] .primaryNav .navLink,
+  .heroZone[data-layout-mode="editorial"] .siteHeader[data-color-mode="surface"] .primaryNav .navLink {
+    color: var(--hero-header-nav-text);
+  }
+
+  /* ABSTRACT-01 fix (2026-08-20-139d957), same root-cause shape as
+     pages/about.module.css's own `.splitRight { margin-top: 0 !important }`
+     mobile-stacked fix (see scripts/responsiveness-agentic-feedback.md's
+     2026-08-19 entry for that precedent): pages/abstract.tsx sets
+     wideColumnStyle/narrowColumnStyle's own minHeight to
+     wideColumnRowMinHeightCss/narrowColumnRowMinHeightCss, which both
+     resolve to '100dvh' below the pushDown-header case (this page's own
+     shipped default, wideColumnHeaderBehavior/narrowColumnHeaderBehavior:
+     'float') — correct at >=768px, where SplitColumnLayout's own
+     md:grid-cols-[...] puts both columns in the same row and each needs a
+     full-viewport-height floor to look intentional side by side. Below
+     768px the grid collapses to grid-cols-1 (SplitColumnLayout.tsx's own
+     unconditional base), turning the columns into separate stacked rows —
+     confirmed via live computed-style inspection: the narrow column's own
+     row was rendering at 100dvh (568px) tall even though its actual
+     headline+paragraph content only needed ~682px including padding
+     already, over-allocating the *next* row (the card) has to start well
+     below the real end of the narrow column's own content, producing a
+     large dead vertical-space gap with no visible content in it — a real,
+     visible defect once the card is no longer a position:fixed layer
+     floating over the whole page regardless of this gap (see CardStack.tsx/
+     useCardStackLayout.ts's own `stacked` mechanism, this same run).
+     !important is required because these are inline styles (React's own
+     style prop), which an external stylesheet rule cannot outrank by
+     specificity alone. */
+  .abstractStackedRow {
+    min-height: auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroZone,
+  .navLink,
+  .navLabel::after,
+  .synthAffordance {
+    transition: none;
+  }
+
+  .synthAffordance stop {
+    transition: none !important;
+  }
+
+}

@@ -1,0 +1,3401 @@
+'use client';
+
+import SeoHead from '../components/SeoHead';
+import { buildSiteTitle } from '../helpers/siteMetadata';
+import { getLabSummaries, type LabSummary } from '../helpers/labContent';
+import type {
+  CSSProperties,
+  PointerEvent as ReactPointerEvent,
+  WheelEvent as ReactWheelEvent,
+} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  DEFAULT_GRADIENT_DESIGNER_CONFIG,
+  type GradientDesignerConfig,
+} from '../experiences/abstract/components/AbstractGradientBackground.config';
+import {
+  DEFAULT_CTA_BUTTON_CONFIG,
+  normalizeCtaButtonConfig,
+} from '../components/CtaButton/config/registered';
+import {
+  applyCtaButtonColorOverride,
+  ABSTRACT_CTA_BUTTON_COLOR_OVERRIDE_CONFIG,
+  normalizeCtaButtonColorOverrideConfig,
+  type CtaButtonColorOverrideConfig,
+} from '../components/CtaButton/config/colorOverride';
+import {
+  DEFAULT_SECTION_HEADING_CONFIG,
+  normalizeSectionHeadingConfig,
+  type SectionHeadingConfig,
+} from '../components/SectionHeading.config';
+import { SectionHeading } from '../components/SectionHeading';
+import { PageContainer } from '../components/PageContainer';
+import {
+  DEFAULT_PAGE_SURFACE_CONFIG,
+  normalizePageSurfaceConfig,
+} from '../components/PageSurface.config';
+import { useSharedDesignConfig } from '../components/SharedDesignConfigProvider';
+import { useAbstractDesignConfig } from '../experiences/abstract/components/AbstractDesignConfigProvider';
+import { buildSynthLogoStops } from '../experiences/synth/gradients/synthGradient';
+import { clamp } from '../helpers/clamp';
+import { resolveSiteHeaderLogoStops } from '../experiences/abstract/components/SiteHeader/hooks/resolveSiteHeaderLogoStops';
+import { resolveContrastAwareTextColor } from '../helpers/surfaceColorDerivation';
+import {
+  ABSTRACT_LEGACY_PALETTE_GUARD_FRAGMENT_SOURCE,
+  PROCEDURAL_COLOR_FRAGMENT_SOURCE,
+  PROCEDURAL_COLOR_VERTEX_SOURCE,
+} from '../helpers/proceduralColorShader';
+import { GLASS_BAND_GRADIENT_FRAGMENT_SOURCE } from '../helpers/glassBandGradientShader';
+import {
+  ATMOSPHERIC_ELLIPSE_FRAGMENT_SOURCE,
+  ATMOSPHERIC_ELLIPSE_VERTEX_SOURCE,
+} from '../helpers/atmosphericEllipseShader';
+import { resolveProceduralColorResolution } from '../helpers/proceduralColorResolution';
+import {
+  getProceduralColorAtlasCellRect,
+  getProceduralColorLayerVariations,
+  type ProceduralColorAtlasLayout,
+} from '../helpers/proceduralColorAtlas';
+import {
+  paintGradientGridFrame,
+  resolveGradientGridAtlasPlan,
+  type GradientGridFrame,
+} from '../helpers/abstractHeroGridAtlas';
+import {
+  getProceduralColorStackLayerRowPixelBand,
+  getProceduralColorStackLayerHeightRatio,
+  remapProceduralColorTopRowY,
+  resolveProceduralColorStackRow,
+} from '../helpers/proceduralColorSnapshot';
+import {
+  AbstractLegacyPaletteEvaluator,
+  smoothPaletteIntervention,
+  type AbstractLegacyPaletteField,
+  type AbstractLegacyPaletteLimits,
+} from '../helpers/abstractLegacyPaletteController';
+import {
+  AbstractPaletteCadenceController,
+  type AbstractPaletteCadenceSettings,
+} from '../helpers/abstractPaletteCadence';
+import {
+  paintLegacyGradientHeadline,
+  resolveLegacyHeadlineSourceRegion,
+} from '../helpers/abstractLegacyHeadlineCompositor';
+import { paintGradientTextureSurface } from '../helpers/gradientTextureSurface';
+import { AbstractPostDock, DEFAULT_LIQUID_SLIDER_CONFIG } from '../experiences/abstract/components/AbstractPostDock';
+import { AbstractMetalLabList } from '../experiences/abstract/components/AbstractMetalLabList';
+import { AbstractJournalLabCollection } from '../experiences/abstract/components/AbstractJournalLabCollection';
+import {
+  DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_CONFIG,
+  type AbstractJournalLabCollectionConfig,
+} from '../experiences/abstract/components/AbstractJournalLabCollection/config/presentation';
+import {
+  DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_CONFIG,
+  type AbstractJournalLabCollectionSliderConfig,
+} from '../experiences/abstract/components/AbstractJournalLabCollection/config/slider';
+import {
+  DEFAULT_ABSTRACT_METAL_LAB_CARD_CONFIG,
+  type AbstractMetalLabCardConfig,
+} from '../experiences/abstract/components/AbstractMetalLabList.config';
+import { AbstractEditorialHero } from '../experiences/abstract/components/AbstractEditorialHero';
+import { SiteHeader } from '../experiences/abstract/components/SiteHeader';
+import { buildEffectiveSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/buildEffectiveSiteHeaderConfig';
+import {
+  DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
+  normalizeAbstractEditorialHeroConfig,
+  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT,
+  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_WIDE,
+  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG,
+  type AbstractEditorialHeroConfig,
+} from '../experiences/abstract/components/AbstractEditorialHero.config';
+import {
+  DEFAULT_SITE_HEADER_CONFIG,
+  resolveSiteHeaderNavBandColorFilter,
+  SPLIT_ALIGNED_NAV_CONTENT_GAP_PX,
+  type SiteHeaderConfig,
+} from '../experiences/abstract/components/SiteHeader/config/registered';
+import {
+  ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG,
+  normalizeSiteHeaderColorOverrideConfig,
+  type SiteHeaderColorOverrideConfig,
+} from '../experiences/abstract/components/SiteHeader/config/colorOverride';
+import { useNormalizedSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/hooks/useNormalizedSiteHeaderConfig';
+import { AbstractHeroGrid } from '../experiences/abstract/components/AbstractHeroGrid';
+import {
+  computeAbstractPostDockTopPeekPx,
+  DEFAULT_ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_CONFIG,
+  DEFAULT_ABSTRACT_POST_DOCK_HUE_INFLUENCE_CONFIG,
+  DEFAULT_ABSTRACT_POST_DOCK_INTRODUCTION_CONFIG,
+  DEFAULT_ABSTRACT_POST_DOCK_MESH_GEOMETRY_CONFIG,
+  DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG,
+  DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
+  DEFAULT_ABSTRACT_POST_DOCK_HOLOGRAM_CONFIG,
+  normalizeAbstractPostDockMeshGeometryConfig,
+  type AbstractPostDockGradientPerformanceConfig,
+  type AbstractPostDockHueInfluenceConfig,
+  type AbstractPostDockIntroductionConfig,
+  type AbstractPostDockMeshGeometryConfig,
+  type AbstractPostDockPaletteConfig,
+  type AbstractPostDockLayoutConfig,
+  type AbstractPostDockHologramConfig,
+} from '../experiences/abstract/components/AbstractPostDock/config/registered';
+import {
+  DEFAULT_ABSTRACT_HERO_CTA_COMPOSER_CONFIG,
+  normalizeAbstractHeroCtaComposerConfig,
+  type AbstractHeroCtaComposerConfig,
+} from '../experiences/abstract/components/AbstractHeroCtaComposer/config/registered';
+import {
+  DEFAULT_ABSTRACT_LAB_SECTION_CONFIG,
+  type AbstractLabSectionConfig,
+} from '../experiences/abstract/LabSection.config';
+import {
+  ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG,
+  DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
+  applyAbstractPolymorphicLayoutAllSizesUpdate,
+  normalizeAbstractPageLayoutConfig,
+  type AbstractPageLayoutConfig,
+} from './abstract.config';
+import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
+import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
+import {
+  normalizePolymorphicLayoutConfig,
+  type PolymorphicLayoutConfig,
+} from '../experiences/abstract/components/PolymorphicLayout.config';
+import { resolveSplitColumnAccent } from '../experiences/abstract/components/SplitColumnLayout/colorResolution';
+import { SplitColumnCardPreview } from '../experiences/abstract/components/SplitColumnCardPreview';
+import {
+  DEFAULT_SPLIT_COLUMN_CARD_PREVIEW_CONFIG,
+  normalizeSplitColumnCardPreviewConfig,
+  type SplitColumnCardPreviewConfig,
+} from '../experiences/abstract/components/SplitColumnCardPreview.config';
+import {
+  DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG,
+  normalizeSplitColumnCardStackConfig,
+  type SplitColumnCardStackConfig,
+} from '../experiences/abstract/components/SplitColumnCardPreview/config/stack';
+import type { AbstractPostDockItem } from '../experiences/abstract/helpers/abstractPostDockItems';
+import {
+  generateTwilightSkyGradient,
+  recommendTwilightSkyInk,
+  TWILIGHT_SKY_LUT_SIZE,
+  type TwilightSkyGradient,
+} from '../experiences/abstract/helpers/twilightSkyGradient';
+import styles from './abstract.module.css';
+
+type GradientProgram = {
+  program: WebGLProgram;
+  vertexBuffer: WebGLBuffer;
+  vertexPositionAttribute: number;
+  uTime: WebGLUniformLocation | null;
+  uResolution: WebGLUniformLocation | null;
+  uVariation: WebGLUniformLocation | null;
+  uSaturation: WebGLUniformLocation | null;
+  uBrightness: WebGLUniformLocation | null;
+  uScale: WebGLUniformLocation | null;
+  uSeed: WebGLUniformLocation | null;
+  uRandomness: WebGLUniformLocation | null;
+  uOffset: WebGLUniformLocation | null;
+  uHueOffset: WebGLUniformLocation | null;
+  uMorph: WebGLUniformLocation | null;
+  uShimmer: WebGLUniformLocation | null;
+  uPulse: WebGLUniformLocation | null;
+};
+
+type GlassGradientProgram = GradientProgram & {
+  uGlassColorA: WebGLUniformLocation | null;
+  uGlassColorB: WebGLUniformLocation | null;
+  uGlassColorC: WebGLUniformLocation | null;
+  uGlassColorD: WebGLUniformLocation | null;
+  uGlassGradientAngle: WebGLUniformLocation | null;
+};
+
+type AbstractLegacyGradientProgram = GradientProgram & {
+  uPaletteGuardAmount: WebGLUniformLocation | null;
+  uPaletteGuardLayerPhase: WebGLUniformLocation | null;
+  uPalettePhase: WebGLUniformLocation | null;
+};
+
+type FirstRowColorOverrides = {
+  variation: number;
+  saturation: number;
+  brightness: number;
+  hueOffset: number;
+  morph: number;
+  shimmer: number;
+  pulse: number;
+};
+
+type AtmosphericGradientProgram = {
+  program: WebGLProgram;
+  vertexBuffer: WebGLBuffer;
+  vertexPositionAttribute: number;
+  uTime: WebGLUniformLocation | null;
+  uResolution: WebGLUniformLocation | null;
+  uPalette: WebGLUniformLocation | null;
+  uCenter: WebGLUniformLocation | null;
+  uRadius: WebGLUniformLocation | null;
+  uDriftAmount: WebGLUniformLocation | null;
+  uBreathAmount: WebGLUniformLocation | null;
+  uTurbulence: WebGLUniformLocation | null;
+  uSeed: WebGLUniformLocation | null;
+  uDitherStrength: WebGLUniformLocation | null;
+};
+
+type DragState = {
+  active: boolean;
+  pointerId: number | null;
+  x: number;
+  y: number;
+};
+
+type GradientSnapshotFrame = {
+  layerFaceIndices: number[];
+  sourceWidth: number;
+  sourceHeight: number;
+  atlasCellCount: number;
+  overlayFaceCount: number;
+  capturedAt: number;
+};
+
+type GradientViewportPixelSize = {
+  width: number;
+  height: number;
+};
+
+type HeroInkTone = 'light' | 'dark';
+
+type AdaptiveHeroInkTones = {
+  header: HeroInkTone;
+  content: HeroInkTone;
+  actions: HeroInkTone;
+};
+
+// splitColumnLayoutConfig.colorSource === 'palette' — the same
+// resolveSplitColumnAccent(index, count, paletteConfig) call /about's own
+// leftPanelColor uses, against two distinct fixed indices instead of one so
+// the wide/narrow columns land on two different, evenly-spaced points of
+// the same ramp rather than an identical flat color on both.
+const ABSTRACT_SPLIT_COLUMN_PALETTE_STOP_COUNT = 2;
+const ABSTRACT_WIDE_COLUMN_PALETTE_INDEX = 0;
+const ABSTRACT_NARROW_COLUMN_PALETTE_INDEX = 1;
+
+// AbstractEditorialHero's own horizontalPlacement prop (a required,
+// top-level prop as of PLAN-POLYMORPHIC-LAYOUT-CONTENT-CONTAINER-
+// UNIFICATION.md — see that component's own doc comment) takes a
+// NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT/-WIDE/-LG: relocated to
+// AbstractEditorialHero.config.ts (PLAN-EDITORIAL-HERO-UNIFICATION-AND-
+// CARDSTACK-RESIZE-FIX.md Part 2) — see that file's own doc comment. This
+// page's own `narrowColumnContentAlign*` mapping continues to resolve
+// through the same imported tables below, unchanged behavior.
+
+// AbstractEditorialHero's own headline/paragraph content — was hardcoded
+// inside that component until it became a shared primitive across pages
+// (Part 2 above); this page's own copy, byte-identical to what the
+// component used to hardcode, so both existing instances below render
+// exactly as before.
+const ABSTRACT_EDITORIAL_HEADLINE =
+  'I work where engineering, design, and strategy meet.';
+// About page's own emphasis markup convention (pages/about.tsx), reused
+// verbatim — `**word**` runs render brighter via renderEmphasisText
+// (helpers/textEmphasis.tsx). Markup only: no word, punctuation, or
+// order differs from the plain copy below. Exactly two pivot nouns per
+// paragraph — the noun each sentence turns on, never a claim or adjective.
+// "light and sound" is the same linking phrase the About page uses for the
+// same relationship — deliberate repetition, preserved exactly.
+const ABSTRACT_EDITORIAL_PARAGRAPH_1 =
+  'Abstract Voyage began as a **persona**, loose enough to let me study whatever held my ' +
+  'attention. It started with how **light and sound** relate. That habit took me to ' +
+  'McKinsey, where I kept studying and experimenting. Then AI opened questions I wanted ' +
+  'to chase myself.';
+const ABSTRACT_EDITORIAL_PARAGRAPH_2 =
+  'I start by listening to the people closest to the work. That is usually where the ' +
+  'unnamed **risks** are. Once the picture is accurate I plan the work against **outcomes**.';
+const ABSTRACT_EDITORIAL_PARAGRAPHS = [ABSTRACT_EDITORIAL_PARAGRAPH_1, ABSTRACT_EDITORIAL_PARAGRAPH_2];
+
+const ABSTRACT_GRADIENT_SNAPSHOT_BLEND_MODE = 'overlay';
+const ABSTRACT_GRADIENT_SNAPSHOT_OPACITY = 1;
+const ABSTRACT_HERO_INK_SAMPLE_POINTS = [
+  [0.08, 0.06],
+  [0.92, 0.06],
+  [0.08, 0.38],
+  [0.18, 0.52],
+  [0.18, 0.7],
+] as const;
+const ABSTRACT_HERO_HEADER_SAMPLE_POINTS = [
+  { x: 0.08, y: 0.94 },
+  { x: 0.5, y: 0.94 },
+  { x: 0.92, y: 0.94 },
+] as const;
+const ABSTRACT_HERO_CONTENT_SAMPLE_POINTS = [
+  { x: 0.06, y: 0.72 },
+  { x: 0.18, y: 0.58 },
+  { x: 0.34, y: 0.44 },
+] as const;
+const ABSTRACT_HERO_ACTION_SAMPLE_POINTS = [
+  { x: 0.08, y: 0.26 },
+  { x: 0.2, y: 0.26 },
+  { x: 0.34, y: 0.26 },
+] as const;
+const ABSTRACT_SYNTH_LOGO_STOPS = buildSynthLogoStops();
+const ABSTRACT_SYNTH_LOGO_DARK_STOPS = buildSynthLogoStops({
+  lightnessRange: { min: 10, max: 24 },
+  chromaRange: { min: 0, max: 12 },
+});
+// The outer collection container follows the same max-width and responsive
+// inset contract as the above-the-fold editorial content. Card rows consume
+// this content box; they never replace or shrink the page-level boundary.
+const COLLECTION_CONTAINER_CLASSNAME = [
+  'relative z-10',
+  '[padding-left:calc(35px_+_env(safe-area-inset-left))]',
+  '[padding-right:calc(24px_+_env(safe-area-inset-right))]',
+  'sm:[padding-left:calc(24px_+_env(safe-area-inset-left))]',
+  'sm:[padding-right:calc(24px_+_env(safe-area-inset-right))]',
+  'md:[padding-left:calc(32px_+_env(safe-area-inset-left))]',
+  'md:[padding-right:calc(32px_+_env(safe-area-inset-right))]',
+  'lg:[padding-left:calc(48px_+_env(safe-area-inset-left))]',
+  'lg:[padding-right:calc(48px_+_env(safe-area-inset-right))]',
+].join(' ');
+const ABSTRACT_POST_DOCK_NARROW_BREAKPOINT_PX = 1180;
+
+// This page's own baseline for LiquidSliderConfig — not the component's
+// shared DEFAULT_LIQUID_SLIDER_CONFIG (pages/slider.tsx and pages/about.tsx
+// also consume that default and must stay untouched). Narrow/touch
+// viewports in the JOURNAL dock below should never cast the active-card
+// drop shadow.
+const JOURNAL_DOCK_SLIDER_CONFIG = {
+  ...DEFAULT_LIQUID_SLIDER_CONFIG,
+  dockShadowDisableOnNarrow: true,
+};
+
+// Page-level override discarded 2026-08-21 (operator instruction): this
+// page now reads the shared DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG
+// directly rather than its own local copy. Note for future reference — the
+// discarded override existed as the RSP-01 fix (2026-08-20-139d957):
+// showArrowControlsEnabled's shared default (false) hides the prev/next
+// arrow group on every device including touch, leaving no visible
+// affordance that the stack advances there. Reverting to the shared
+// default reintroduces that gap on /abstract for touch devices.
+
+/**
+ * Keeps the configured card width as the column-count target, then lets the
+ * cards flex just enough for every complete row to occupy the page content
+ * width exactly. This prevents a second, narrower centered layout from
+ * forming inside the above-the-fold container.
+ */
+function resolveCollectionCardWidthPx(
+  contentWidthPx: number,
+  containerWidthPx: number,
+  enforceScatteredCardBounds: boolean,
+  layoutConfig: Pick<
+    AbstractPostDockLayoutConfig,
+    'cardWidthPx' | 'columnGapPx'
+  >,
+) {
+  const preferredCardWidthPx = clamp(layoutConfig.cardWidthPx, 160, 480);
+  const columnGapPx = Math.max(0, layoutConfig.columnGapPx);
+  let columnCount = Math.max(
+    1,
+    Math.floor(
+      (containerWidthPx + columnGapPx) /
+      (preferredCardWidthPx + columnGapPx),
+    ),
+  );
+
+  // Column count follows the unpadded page container, preserving the original
+  // responsive breakpoints. Card width then flexes inside the editorial
+  // content edges. Only the wide scattered renderer enforces its 480px cap;
+  // narrow dock cards intentionally consume the complete content width.
+  while (columnCount > 0) {
+    const resolvedCardWidthPx =
+      (contentWidthPx - (columnCount - 1) * columnGapPx) / columnCount;
+    const nextColumnWidthPx =
+      (contentWidthPx - columnCount * columnGapPx) / (columnCount + 1);
+
+    if (
+      !enforceScatteredCardBounds ||
+      resolvedCardWidthPx <= 480 ||
+      nextColumnWidthPx < 160
+    ) {
+      return Math.max(1, resolvedCardWidthPx);
+    }
+
+    columnCount += 1;
+  }
+
+  return contentWidthPx;
+}
+function getGradientFaceCount(config: GradientDesignerConfig) {
+  return Math.round(clamp(config.gradientFaceCount, 1, 16));
+}
+
+function getGradientLayerCount(overlayFaceCount: number) {
+  return overlayFaceCount + 1;
+}
+
+function resolveAdaptiveHeroInkTone(
+  current: HeroInkTone,
+  lightness: number,
+  brightThreshold: number,
+  darkThreshold: number,
+): HeroInkTone {
+  if (current === 'light' && lightness >= brightThreshold) return 'dark';
+  if (current === 'dark' && lightness <= darkThreshold) return 'light';
+  return current;
+}
+
+function createWebGlShader(gl: WebGLRenderingContext, type: number, source: string) {
+  const shader = gl.createShader(type);
+
+  if (!shader) return null;
+
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    gl.deleteShader(shader);
+    return null;
+  }
+
+  return shader;
+}
+
+function createGradientProgram(
+  gl: WebGLRenderingContext,
+  fragmentSource = PROCEDURAL_COLOR_FRAGMENT_SOURCE,
+): GradientProgram | null {
+  const vertexShader = createWebGlShader(gl, gl.VERTEX_SHADER, PROCEDURAL_COLOR_VERTEX_SOURCE);
+  const fragmentShader = createWebGlShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+
+  if (!vertexShader || !fragmentShader) return null;
+
+  const program = gl.createProgram();
+  const vertexBuffer = gl.createBuffer();
+
+  if (!program || !vertexBuffer) return null;
+
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+
+  gl.deleteShader(vertexShader);
+  gl.deleteShader(fragmentShader);
+
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    gl.deleteProgram(program);
+    return null;
+  }
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([
+      -1, -1,
+      1, -1,
+      -1, 1,
+      1, 1,
+    ]),
+    gl.STATIC_DRAW,
+  );
+
+  return {
+    program,
+    vertexBuffer,
+    vertexPositionAttribute: gl.getAttribLocation(program, 'aVertexPosition'),
+    uTime: gl.getUniformLocation(program, 'uTime'),
+    uResolution: gl.getUniformLocation(program, 'uResolution'),
+    uVariation: gl.getUniformLocation(program, 'uVariation'),
+    uSaturation: gl.getUniformLocation(program, 'uSaturation'),
+    uBrightness: gl.getUniformLocation(program, 'uBrightness'),
+    uScale: gl.getUniformLocation(program, 'uScale'),
+    uSeed: gl.getUniformLocation(program, 'uSeed'),
+    uRandomness: gl.getUniformLocation(program, 'uRandomness'),
+    uOffset: gl.getUniformLocation(program, 'uOffset'),
+    uHueOffset: gl.getUniformLocation(program, 'uHueOffset'),
+    uMorph: gl.getUniformLocation(program, 'uMorph'),
+    uShimmer: gl.getUniformLocation(program, 'uShimmer'),
+    uPulse: gl.getUniformLocation(program, 'uPulse'),
+  };
+}
+
+function createGlassGradientProgram(gl: WebGLRenderingContext): GlassGradientProgram | null {
+  const gradientProgram = createGradientProgram(gl, GLASS_BAND_GRADIENT_FRAGMENT_SOURCE);
+  if (!gradientProgram) return null;
+
+  return {
+    ...gradientProgram,
+    uGlassColorA: gl.getUniformLocation(gradientProgram.program, 'uGlassColorA'),
+    uGlassColorB: gl.getUniformLocation(gradientProgram.program, 'uGlassColorB'),
+    uGlassColorC: gl.getUniformLocation(gradientProgram.program, 'uGlassColorC'),
+    uGlassColorD: gl.getUniformLocation(gradientProgram.program, 'uGlassColorD'),
+    uGlassGradientAngle: gl.getUniformLocation(gradientProgram.program, 'uGlassGradientAngle'),
+  };
+}
+
+function createAbstractLegacyGradientProgram(
+  gl: WebGLRenderingContext,
+): AbstractLegacyGradientProgram | null {
+  const gradientProgram = createGradientProgram(
+    gl,
+    ABSTRACT_LEGACY_PALETTE_GUARD_FRAGMENT_SOURCE,
+  );
+  if (!gradientProgram) return null;
+
+  return {
+    ...gradientProgram,
+    uPaletteGuardAmount: gl.getUniformLocation(
+      gradientProgram.program,
+      'uPaletteGuardAmount',
+    ),
+    uPaletteGuardLayerPhase: gl.getUniformLocation(
+      gradientProgram.program,
+      'uPaletteGuardLayerPhase',
+    ),
+    uPalettePhase: gl.getUniformLocation(
+      gradientProgram.program,
+      'uPalettePhase',
+    ),
+  };
+}
+
+function createAtmosphericGradientProgram(gl: WebGLRenderingContext): AtmosphericGradientProgram | null {
+  const vertexShader = createWebGlShader(gl, gl.VERTEX_SHADER, ATMOSPHERIC_ELLIPSE_VERTEX_SOURCE);
+  const fragmentShader = createWebGlShader(gl, gl.FRAGMENT_SHADER, ATMOSPHERIC_ELLIPSE_FRAGMENT_SOURCE);
+
+  if (!vertexShader || !fragmentShader) return null;
+
+  const program = gl.createProgram();
+  const vertexBuffer = gl.createBuffer();
+
+  if (!program || !vertexBuffer) return null;
+
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  gl.deleteShader(vertexShader);
+  gl.deleteShader(fragmentShader);
+
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    gl.deleteProgram(program);
+    return null;
+  }
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
+    gl.STATIC_DRAW,
+  );
+
+  return {
+    program,
+    vertexBuffer,
+    vertexPositionAttribute: gl.getAttribLocation(program, 'aVertexPosition'),
+    uTime: gl.getUniformLocation(program, 'uTime'),
+    uResolution: gl.getUniformLocation(program, 'uResolution'),
+    uPalette: gl.getUniformLocation(program, 'uPalette'),
+    uCenter: gl.getUniformLocation(program, 'uCenter'),
+    uRadius: gl.getUniformLocation(program, 'uRadius'),
+    uDriftAmount: gl.getUniformLocation(program, 'uDriftAmount'),
+    uBreathAmount: gl.getUniformLocation(program, 'uBreathAmount'),
+    uTurbulence: gl.getUniformLocation(program, 'uTurbulence'),
+    uSeed: gl.getUniformLocation(program, 'uSeed'),
+    uDitherStrength: gl.getUniformLocation(program, 'uDitherStrength'),
+  };
+}
+
+function uploadTwilightPalette(
+  gl: WebGLRenderingContext,
+  texture: WebGLTexture,
+  gradient: TwilightSkyGradient,
+) {
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    TWILIGHT_SKY_LUT_SIZE,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    gradient.lut,
+  );
+}
+
+function applyGradientUniforms({
+  gl,
+  gradientProgram,
+  config,
+  width,
+  height,
+  shaderTime,
+  variation,
+  offset,
+  colorOverrides,
+}: {
+  gl: WebGLRenderingContext;
+  gradientProgram: GradientProgram;
+  config: GradientDesignerConfig;
+  width: number;
+  height: number;
+  shaderTime: number;
+  variation: number;
+  offset?: { x: number; y: number };
+  colorOverrides?: FirstRowColorOverrides;
+}) {
+  gl.uniform1f(gradientProgram.uTime, shaderTime);
+  gl.uniform2f(gradientProgram.uResolution, width, height);
+  gl.uniform1f(gradientProgram.uVariation, variation);
+  gl.uniform1f(
+    gradientProgram.uSaturation,
+    colorOverrides?.saturation ?? clamp(config.shaderColorSaturation, 0, 2.5),
+  );
+  gl.uniform1f(
+    gradientProgram.uBrightness,
+    colorOverrides?.brightness ?? clamp(config.shaderColorBrightness, 0.4, 1.6),
+  );
+  gl.uniform1f(gradientProgram.uScale, clamp(config.shaderColorScale, 0.5, 4) * clamp(config.viewZoom, 0.25, 8));
+  gl.uniform1f(gradientProgram.uSeed, config.seed * 1000);
+  gl.uniform1f(gradientProgram.uRandomness, clamp(config.shaderColorRandomness, 0, 1));
+  gl.uniform2f(
+    gradientProgram.uOffset,
+    offset?.x ?? config.viewOffsetX,
+    offset?.y ?? config.viewOffsetY,
+  );
+  gl.uniform1f(
+    gradientProgram.uHueOffset,
+    colorOverrides?.hueOffset ?? clamp(config.shaderColorHueOffset, -0.36, 0.36),
+  );
+  gl.uniform1f(
+    gradientProgram.uMorph,
+    colorOverrides?.morph ?? clamp(config.shaderColorMorph, 0, 1.45),
+  );
+  gl.uniform1f(
+    gradientProgram.uShimmer,
+    colorOverrides?.shimmer ?? clamp(config.shaderColorShimmer, 0, 1.5),
+  );
+  gl.uniform1f(
+    gradientProgram.uPulse,
+    colorOverrides?.pulse ?? clamp(config.shaderColorPulse, 0, 1.5),
+  );
+}
+
+function getFirstRowColorOverrides(
+  config: GradientDesignerConfig,
+): FirstRowColorOverrides | undefined {
+  if (!config.firstRowColorOverrideEnabled) return undefined;
+
+  return {
+    variation: clamp(config.firstRowColorVariation, 0, 0.4),
+    saturation: clamp(config.firstRowColorSaturation, 0, 2.5),
+    brightness: clamp(config.firstRowColorBrightness, 0.4, 1.6),
+    hueOffset: clamp(config.firstRowColorHueOffset, -0.36, 0.36),
+    morph: clamp(config.firstRowColorMorph, 0, 1.45),
+    shimmer: clamp(config.firstRowColorShimmer, 0, 1.5),
+    pulse: clamp(config.firstRowColorPulse, 0, 1.5),
+  };
+}
+
+function applyAbstractLegacyPaletteGuardUniforms(
+  gl: WebGLRenderingContext,
+  gradientProgram: AbstractLegacyGradientProgram,
+  amount: number,
+  normalizedLayer: number,
+  palettePhase: number,
+) {
+  gl.uniform1f(
+    gradientProgram.uPaletteGuardAmount,
+    clamp(amount, 0, 1),
+  );
+  gl.uniform1f(
+    gradientProgram.uPaletteGuardLayerPhase,
+    clamp(normalizedLayer, -0.5, 0.5) * clamp(amount, 0, 1) * 0.18,
+  );
+  gl.uniform1f(gradientProgram.uPalettePhase, palettePhase);
+}
+
+function getAbstractLegacyPaletteField(
+  config: GradientDesignerConfig,
+  palettePhase: number,
+  overlayFaceCount: number,
+  colorOverrides?: FirstRowColorOverrides,
+): AbstractLegacyPaletteField {
+  return {
+    variation: colorOverrides?.variation ?? clamp(config.shaderColorVariation, 0, 0.4),
+    saturation: colorOverrides?.saturation ?? clamp(config.shaderColorSaturation, 0, 2.5),
+    brightness: colorOverrides?.brightness ?? clamp(config.shaderColorBrightness, 0.4, 1.6),
+    scale: clamp(config.shaderColorScale, 0.5, 4) * clamp(config.viewZoom, 0.25, 8),
+    seed: config.seed * 1000,
+    randomness: clamp(config.shaderColorRandomness, 0, 1),
+    offsetX: config.viewOffsetX,
+    offsetY: config.viewOffsetY,
+    hueOffset: colorOverrides?.hueOffset ?? clamp(config.shaderColorHueOffset, -0.36, 0.36),
+    palettePhase,
+    morph: colorOverrides?.morph ?? clamp(config.shaderColorMorph, 0, 1.45),
+    shimmer: colorOverrides?.shimmer ?? clamp(config.shaderColorShimmer, 0, 1.5),
+    pulse: colorOverrides?.pulse ?? clamp(config.shaderColorPulse, 0, 1.5),
+    overlayFaceCount,
+  };
+}
+
+function getAbstractPaletteCadenceSettings(
+  config: GradientDesignerConfig,
+  motionAllowed: boolean,
+): AbstractPaletteCadenceSettings {
+  return {
+    enabled: config.legacyPaletteCadenceEnabled && motionAllowed,
+    distribution: config.legacyPaletteCadenceDistribution,
+    easing: config.legacyPaletteCadenceEasing,
+    initialDelayMs: config.legacyPaletteCadenceInitialDelayMs,
+    dwellMinMs: config.legacyPaletteCadenceDwellMinMs,
+    dwellMaxMs: config.legacyPaletteCadenceDwellMaxMs,
+    transitionDurationMs: config.legacyPaletteCadenceTransitionDurationMs,
+    paletteTravel: config.legacyPaletteCadenceTravel,
+    distributionWidth: config.legacyPaletteCadenceDistributionWidth,
+    invertedCenterVelocity: config.legacyPaletteCadenceInvertedCenterVelocity,
+    seed: config.seed,
+  };
+}
+
+function getAbstractLegacyPaletteLimits(
+  config: GradientDesignerConfig,
+): AbstractLegacyPaletteLimits {
+  return {
+    maximumYellowCoverage: clamp(config.legacyPaletteMaximumYellowCoverage, 0.25, 0.85),
+    minimumCounterpointCoverage: clamp(
+      config.legacyPaletteMinimumCounterpointCoverage,
+      0.04,
+      0.4,
+    ),
+    minimumHueDiversity: clamp(config.legacyPaletteMinimumHueDiversity, 0.04, 0.5),
+    minimumChroma: clamp(config.legacyPaletteMinimumChroma, 0.02, 0.18),
+    maximumIntervention: clamp(config.legacyPaletteMaximumIntervention, 0.2, 1),
+  };
+}
+
+function renderLegacyGradientAtlasFrame({
+  atlasCanvas,
+  capturedAt,
+  config,
+  gl,
+  overlayFaceCount,
+  paletteIntervention,
+  palettePhase,
+  program,
+  shaderTime,
+  sourceHeight,
+  sourceWidth,
+}: {
+  atlasCanvas: HTMLCanvasElement;
+  capturedAt: number;
+  config: GradientDesignerConfig;
+  gl: WebGLRenderingContext;
+  overlayFaceCount: number;
+  paletteIntervention: number;
+  palettePhase: number;
+  program: AbstractLegacyGradientProgram;
+  shaderTime: number;
+  sourceHeight: number;
+  sourceWidth: number;
+}): GradientSnapshotFrame {
+  const layerCount = getGradientLayerCount(overlayFaceCount);
+  const atlasWidth = sourceWidth;
+  const atlasHeight = sourceHeight * layerCount;
+
+  if (atlasCanvas.width !== atlasWidth) atlasCanvas.width = atlasWidth;
+  if (atlasCanvas.height !== atlasHeight) atlasCanvas.height = atlasHeight;
+
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(program.program);
+  gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
+  gl.enableVertexAttribArray(program.vertexPositionAttribute);
+  gl.vertexAttribPointer(program.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+  const layerVariations = getProceduralColorLayerVariations({
+    faceCount: layerCount,
+    shaderColorVariation: clamp(config.shaderColorVariation, 0, 0.4),
+    audioVariation: 0,
+    shaderParameterPhase: shaderTime,
+    compositionInfluence: 1,
+  });
+  const firstRowColorOverrides = getFirstRowColorOverrides(config);
+  const firstRowLayerVariations = firstRowColorOverrides
+    ? getProceduralColorLayerVariations({
+      faceCount: layerCount,
+      shaderColorVariation: firstRowColorOverrides.variation,
+      audioVariation: 0,
+      shaderParameterPhase: shaderTime,
+      compositionInfluence: 1,
+    })
+    : null;
+  const firstRowSourceRow = config.heroLayoutMode === 'editorial'
+    ? config.editorialSourceRow
+    : 1;
+
+  for (let faceIndex = 0; faceIndex < layerCount; faceIndex += 1) {
+    const faceViewportY = atlasHeight - (faceIndex + 1) * sourceHeight;
+    const firstRowPixelBand = firstRowColorOverrides
+      ? getProceduralColorStackLayerRowPixelBand({
+        sourceRow: firstRowSourceRow,
+        overlayFaceCount,
+        layerIndex: faceIndex,
+        pixelHeight: sourceHeight,
+      })
+      : null;
+    gl.viewport(0, faceViewportY, sourceWidth, sourceHeight);
+    applyGradientUniforms({
+      gl,
+      gradientProgram: program,
+      config,
+      width: sourceWidth,
+      height: sourceHeight,
+      shaderTime,
+      variation: layerVariations[faceIndex] ?? 0,
+    });
+    const normalizedLayer = layerCount > 1
+      ? faceIndex / (layerCount - 1) - 0.5
+      : 0;
+    applyAbstractLegacyPaletteGuardUniforms(
+      gl,
+      program,
+      paletteIntervention,
+      normalizedLayer,
+      palettePhase,
+    );
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    if (firstRowColorOverrides && firstRowLayerVariations && firstRowPixelBand) {
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(
+        0,
+        faceViewportY + firstRowPixelBand.sourceY,
+        sourceWidth,
+        firstRowPixelBand.sourceHeight,
+      );
+      applyGradientUniforms({
+        gl,
+        gradientProgram: program,
+        config,
+        width: sourceWidth,
+        height: sourceHeight,
+        shaderTime,
+        variation: firstRowLayerVariations[faceIndex] ?? 0,
+        colorOverrides: firstRowColorOverrides,
+      });
+      applyAbstractLegacyPaletteGuardUniforms(
+        gl,
+        program,
+        paletteIntervention,
+        normalizedLayer,
+        palettePhase,
+      );
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.disable(gl.SCISSOR_TEST);
+    }
+  }
+  gl.flush();
+
+  return {
+    layerFaceIndices: Array.from({ length: layerCount }, (_, faceIndex) => faceIndex),
+    sourceWidth,
+    sourceHeight,
+    atlasCellCount: layerCount,
+    overlayFaceCount,
+    capturedAt,
+  };
+}
+
+type LegacyGradientRuntime = {
+  cadence: AbstractPaletteCadenceController;
+  evaluator: AbstractLegacyPaletteEvaluator;
+  intervention: number;
+  lastConfig: GradientDesignerConfig | null;
+  nextEvaluationAt: number;
+  paletteTarget: number;
+  settings: AbstractPaletteCadenceSettings;
+  shaderTime: number;
+};
+
+function createLegacyGradientRuntime(
+  config: GradientDesignerConfig,
+  motionAllowed: boolean,
+): LegacyGradientRuntime {
+  return {
+    cadence: new AbstractPaletteCadenceController(),
+    evaluator: new AbstractLegacyPaletteEvaluator(),
+    intervention: 0,
+    lastConfig: null,
+    nextEvaluationAt: 0,
+    paletteTarget: 0,
+    settings: getAbstractPaletteCadenceSettings(config, motionAllowed),
+    shaderTime: 0,
+  };
+}
+
+function advanceLegacyGradientRuntime({
+  canAdvance,
+  canStartTransition,
+  config,
+  dt,
+  motionAllowed,
+  now,
+  overlayFaceCount,
+  runtime,
+}: {
+  canAdvance: boolean;
+  canStartTransition: boolean;
+  config: GradientDesignerConfig;
+  dt: number;
+  motionAllowed: boolean;
+  now: number;
+  overlayFaceCount: number;
+  runtime: LegacyGradientRuntime;
+}) {
+  if (runtime.lastConfig !== config) {
+    runtime.lastConfig = config;
+    runtime.settings = getAbstractPaletteCadenceSettings(config, motionAllowed);
+    runtime.nextEvaluationAt = 0;
+  }
+
+  const structuralSpeed = runtime.settings.enabled
+    ? clamp(config.legacyPaletteCadenceIdleSpeed, 0, 0.4)
+    : clamp(config.shaderColorSpeed, 0, 3);
+  runtime.shaderTime += dt * structuralSpeed;
+  const palettePhase = runtime.cadence.advance(
+    canAdvance ? dt * 1000 : 0,
+    runtime.settings,
+    canStartTransition,
+  );
+
+  let emergencyCorrection = false;
+  if (!config.legacyPaletteGuardEnabled) {
+    runtime.paletteTarget = 0;
+  } else if (canAdvance && now >= runtime.nextEvaluationAt) {
+    const lookAheadSeconds = clamp(config.legacyPaletteLookAheadMs, 0, 2000) / 1000;
+    const paletteLimits = getAbstractLegacyPaletteLimits(config);
+    const paletteResolution = runtime.evaluator.resolve(
+      getAbstractLegacyPaletteField(config, palettePhase, overlayFaceCount),
+      runtime.shaderTime,
+      runtime.shaderTime + lookAheadSeconds * structuralSpeed,
+      paletteLimits,
+      getAbstractLegacyPaletteField(
+        config,
+        runtime.cadence.project(
+          lookAheadSeconds * 1000,
+          runtime.settings,
+          canStartTransition,
+        ),
+        overlayFaceCount,
+      ),
+    );
+    runtime.paletteTarget = paletteResolution.amount;
+    emergencyCorrection = paletteResolution.current.yellowCoverage >
+      paletteLimits.maximumYellowCoverage;
+    if (emergencyCorrection) runtime.intervention = runtime.paletteTarget;
+    runtime.nextEvaluationAt = now + (runtime.paletteTarget > 0 ? 120 : 360);
+  }
+
+  if (!emergencyCorrection) {
+    runtime.intervention = smoothPaletteIntervention(
+      runtime.intervention,
+      runtime.paletteTarget,
+      dt,
+      clamp(config.legacyPaletteAttackMs, 100, 1500),
+      clamp(config.legacyPaletteReleaseMs, 300, 3000),
+    );
+  }
+
+  return palettePhase;
+}
+
+function parseGlassColor(value: string): [number, number, number] {
+  const normalized = value.trim().replace(/^#/, '');
+  const expanded = normalized.length === 3
+    ? normalized.split('').map(channel => `${channel}${channel}`).join('')
+    : normalized;
+  const numeric = /^[0-9a-f]{6}$/i.test(expanded) ? Number.parseInt(expanded, 16) : 0;
+
+  return [
+    ((numeric >> 16) & 255) / 255,
+    ((numeric >> 8) & 255) / 255,
+    (numeric & 255) / 255,
+  ];
+}
+
+function applyGlassPaletteUniforms(
+  gl: WebGLRenderingContext,
+  gradientProgram: GlassGradientProgram,
+  config: GradientDesignerConfig,
+) {
+  const colorA = parseGlassColor(config.glassGradientColorA);
+  const colorB = parseGlassColor(config.glassGradientColorB);
+  const colorC = parseGlassColor(config.glassGradientColorC);
+  const colorD = parseGlassColor(config.glassGradientColorD);
+  gl.uniform3f(gradientProgram.uGlassColorA, ...colorA);
+  gl.uniform3f(gradientProgram.uGlassColorB, ...colorB);
+  gl.uniform3f(gradientProgram.uGlassColorC, ...colorC);
+  gl.uniform3f(gradientProgram.uGlassColorD, ...colorD);
+  gl.uniform1f(
+    gradientProgram.uGlassGradientAngle,
+    clamp(config.glassGradientAngleDeg, -180, 180) * Math.PI / 180,
+  );
+}
+
+function applyAtmosphericGradientUniforms({
+  gl,
+  gradientProgram,
+  config,
+  width,
+  height,
+  shaderTime,
+}: {
+  gl: WebGLRenderingContext;
+  gradientProgram: AtmosphericGradientProgram;
+  config: GradientDesignerConfig;
+  width: number;
+  height: number;
+  shaderTime: number;
+}) {
+  gl.uniform1f(gradientProgram.uTime, shaderTime);
+  gl.uniform2f(gradientProgram.uResolution, width, height);
+  gl.uniform1i(gradientProgram.uPalette, 0);
+  gl.uniform2f(
+    gradientProgram.uCenter,
+    clamp(config.skyOriginXPercent, -20, 40) / 100,
+    clamp(config.skyOriginYPercent, -20, 40) / 100,
+  );
+  gl.uniform2f(
+    gradientProgram.uRadius,
+    clamp(config.skyRadiusXPercent, 40, 180) / 100,
+    clamp(config.skyRadiusYPercent, 40, 180) / 100,
+  );
+  gl.uniform1f(gradientProgram.uDriftAmount, clamp(config.skyDriftAmount, 0, 0.06));
+  gl.uniform1f(gradientProgram.uBreathAmount, clamp(config.skyBreathAmount, 0, 0.06));
+  gl.uniform1f(gradientProgram.uTurbulence, clamp(config.skyTurbulence, 0, 0.08));
+  gl.uniform1f(gradientProgram.uSeed, config.seed * 1000);
+  gl.uniform1f(gradientProgram.uDitherStrength, clamp(config.skyDitherStrength, 0, 2));
+}
+
+function resolveCanvasBufferSize(canvas: HTMLCanvasElement, configuredResolution: number) {
+  const rect = canvas.getBoundingClientRect();
+  const cssWidth = Math.max(1, Math.round(rect.width || window.innerWidth || 1));
+  const cssHeight = Math.max(1, Math.round(rect.height || window.innerHeight || 1));
+  const resolved = resolveProceduralColorResolution({
+    configuredResolution,
+    viewportWidth: cssWidth,
+    viewportHeight: cssHeight,
+    devicePixelRatio: window.devicePixelRatio || 1,
+    visualSizeVmin: 100,
+    faceReach: 1,
+  });
+  const bufferScale = resolved.resolution / Math.max(1, Math.min(cssWidth, cssHeight));
+
+  return {
+    width: Math.max(1, Math.round(cssWidth * bufferScale)),
+    height: Math.max(1, Math.round(cssHeight * bufferScale)),
+  };
+}
+
+function clearGradientSnapshotLayers(layerCanvases: Array<HTMLCanvasElement | null>) {
+  layerCanvases.forEach(layerCanvas => {
+    const layerContext = layerCanvas?.getContext('2d');
+    if (!layerCanvas || !layerContext) return;
+    layerContext.clearRect(0, 0, layerCanvas.width, layerCanvas.height);
+  });
+}
+
+function paintGradientSnapshotFrame({
+  layerCanvases,
+  frame,
+  atlasCanvas,
+  frozenLayerSources = null,
+  pixelSize,
+}: {
+  layerCanvases: Array<HTMLCanvasElement | null>;
+  frame: GradientSnapshotFrame | null;
+  atlasCanvas: HTMLCanvasElement | null;
+  frozenLayerSources?: HTMLCanvasElement[] | null;
+  pixelSize: GradientViewportPixelSize;
+}) {
+  const safePixelWidth = Math.max(1, Math.round(pixelSize.width));
+  const safePixelHeight = Math.max(1, Math.round(pixelSize.height));
+
+  if (!frame || (!atlasCanvas && !frozenLayerSources)) {
+    clearGradientSnapshotLayers(layerCanvases);
+    return;
+  }
+
+  frame.layerFaceIndices.forEach((faceIndex, layerIndex) => {
+    const layerCanvas = layerCanvases[layerIndex];
+    const layerContext = layerCanvas?.getContext('2d');
+    const layerHeightRatio = getProceduralColorStackLayerHeightRatio(layerIndex, frame.overlayFaceCount);
+    const layerWidth = safePixelWidth;
+    const layerHeight = Math.max(1, Math.round(safePixelHeight * layerHeightRatio));
+    const frozenSource = frozenLayerSources?.[layerIndex] ?? null;
+
+    if (!layerCanvas || !layerContext) return;
+
+    if (layerCanvas.width !== layerWidth) layerCanvas.width = layerWidth;
+    if (layerCanvas.height !== layerHeight) layerCanvas.height = layerHeight;
+
+    layerContext.clearRect(0, 0, layerWidth, layerHeight);
+    layerContext.imageSmoothingEnabled = true;
+    layerContext.imageSmoothingQuality = 'high';
+
+    if (frozenSource) {
+      layerContext.drawImage(
+        frozenSource,
+        0,
+        0,
+        frozenSource.width,
+        frozenSource.height,
+        0,
+        0,
+        layerWidth,
+        layerHeight,
+      );
+      return;
+    }
+
+    if (!atlasCanvas) return;
+
+    const sourceIndex = ((faceIndex % frame.atlasCellCount) + frame.atlasCellCount) % frame.atlasCellCount;
+    const sourceY = sourceIndex * frame.sourceHeight;
+
+    layerContext.drawImage(
+      atlasCanvas,
+      0,
+      sourceY,
+      frame.sourceWidth,
+      frame.sourceHeight,
+      0,
+      0,
+      layerWidth,
+      layerHeight,
+    );
+  });
+
+  for (let layerIndex = frame.layerFaceIndices.length; layerIndex < layerCanvases.length; layerIndex += 1) {
+    const layerCanvas = layerCanvases[layerIndex];
+    const layerContext = layerCanvas?.getContext('2d');
+    if (!layerCanvas || !layerContext) continue;
+    layerContext.clearRect(0, 0, layerCanvas.width, layerCanvas.height);
+  }
+}
+
+function paintLegacyCompositeFrame({
+  layerCanvases,
+  pixelSize,
+  targetCanvas,
+}: {
+  layerCanvases: Array<HTMLCanvasElement | null>;
+  pixelSize: GradientViewportPixelSize;
+  targetCanvas: HTMLCanvasElement | null;
+}) {
+  if (!targetCanvas) return false;
+  const width = Math.max(1, Math.round(pixelSize.width));
+  const height = Math.max(1, Math.round(pixelSize.height));
+  if (targetCanvas.width !== width) targetCanvas.width = width;
+  if (targetCanvas.height !== height) targetCanvas.height = height;
+
+  const context = targetCanvas.getContext('2d');
+  if (!context) return false;
+  context.clearRect(0, 0, width, height);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+
+  let paintedLayers = 0;
+  layerCanvases.forEach(layerCanvas => {
+    if (!layerCanvas || layerCanvas.width <= 0 || layerCanvas.height <= 0) return;
+    context.globalCompositeOperation = paintedLayers === 0 ? 'source-over' : 'overlay';
+    context.drawImage(
+      layerCanvas,
+      0,
+      Math.max(0, height - layerCanvas.height),
+      width,
+      layerCanvas.height,
+    );
+    paintedLayers += 1;
+  });
+  context.globalCompositeOperation = 'source-over';
+  return paintedLayers > 0;
+}
+
+type AbstractPageProps = {
+  dockItems?: AbstractPostDockItem[];
+  labs: LabSummary[];
+};
+
+export async function getStaticProps() {
+  const { loadAbstractPostDockItems } = await import('../experiences/abstract/helpers/loadAbstractPostDockItems.server');
+  const dockItems = loadAbstractPostDockItems();
+  const labs = getLabSummaries();
+
+  return {
+    props: {
+      dockItems,
+      labs,
+    },
+  };
+}
+
+export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const snapshotAtlasRef = useRef<HTMLCanvasElement | null>(null);
+  const gradientSnapshotLayerRefs = useRef<Array<HTMLCanvasElement | null>>([]);
+  const legacyCompositeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const headingGradientCompositeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const liveHeadingGradientFrameRef = useRef<GradientSnapshotFrame | null>(null);
+  const heroHeadlineCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const heroHeadlineDebugCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const heroNavBandCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const heroHeadlineRef = useRef<HTMLHeadingElement | null>(null);
+  const legacyGradientRenderScheduleRef = useRef<(() => void) | null>(null);
+  const gradientGridCellCanvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
+  const liveGradientGridFrameRef = useRef<GradientGridFrame | null>(null);
+  const gradientViewportPixelSizeRef = useRef<GradientViewportPixelSize>({ width: 1, height: 1 });
+  const liveGradientFrameRef = useRef<GradientSnapshotFrame | null>(null);
+  const frozenGradientFrameRef = useRef<GradientSnapshotFrame | null>(null);
+  const frozenGradientLayerSourcesRef = useRef<HTMLCanvasElement[] | null>(null);
+  const gradientSnapshotFrozenRef = useRef(false);
+  const configRef = useRef(DEFAULT_GRADIENT_DESIGNER_CONFIG);
+  const headingGradientConfigRef = useRef(DEFAULT_GRADIENT_DESIGNER_CONFIG);
+  const editorialHeroConfigRef = useRef<AbstractEditorialHeroConfig>({
+    ...DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
+  });
+  const siteHeaderConfigRef = useRef<SiteHeaderConfig>({
+    ...DEFAULT_SITE_HEADER_CONFIG,
+  });
+  const twilightGradientRef = useRef<TwilightSkyGradient | null>(null);
+  const glassRenderScheduleRef = useRef<(() => void) | null>(null);
+  const dragRef = useRef<DragState>({ active: false, pointerId: null, x: 0, y: 0 });
+  const [config, setConfig] = useState<GradientDesignerConfig>(DEFAULT_GRADIENT_DESIGNER_CONFIG);
+  const [headingGradientConfig, setHeadingGradientConfig] =
+    useState<GradientDesignerConfig>(() => ({ ...DEFAULT_GRADIENT_DESIGNER_CONFIG }));
+  const [editorialHeroConfig, setEditorialHeroConfig] =
+    useState<AbstractEditorialHeroConfig>(() => ({
+      ...DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
+    }));
+  // The split-column branch keeps independent color/type state from the
+  // classic branch because only one branch renders at a time and each can
+  // be tuned without mutating the other. Structural layout is deliberately
+  // not part of either hero state; PolymorphicLayout owns that concern.
+  const [splitColumnHeroConfig, setSplitColumnHeroConfig] =
+    useState<AbstractEditorialHeroConfig>(() => ({
+      ...DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
+      // /abstract's own divergence from the shared default: the paragraph
+      // copy derives from the narrow column's own resolved background
+      // (columnBackgroundColor, passed at this hero's own render call site
+      // below) via resolveContrastAwareTextColor, instead of the shared
+      // default's flat 'surface'-mode derivation — the WCAG-contrast-aware,
+      // hue-preserving search this page's own screenshots asked for. Offset
+      // 0 keeps the result purely contrast-driven; minContrast deliberately
+      // remains owned by the authoritative component default so config
+      // updates and reset stay in sync with the registered scope.
+      paragraphTextColorMode: 'column',
+      paragraphSurfaceOffset: 0,
+    }));
+  // PLAN-HOMEPAGE-IA-LAYOUT.md 8.8 — presentationMode picks which of the
+  // two fully-maintained render branches below actually mounts. Default
+  // 'splitColumn' is what a real visitor sees; 'classic' is today's
+  // shipped presentation, kept working as a live fallback, not deleted.
+  const [abstractPageLayoutConfig, setAbstractPageLayoutConfig] =
+    useState<AbstractPageLayoutConfig>(() => (
+      normalizeAbstractPageLayoutConfig(DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG)
+    ));
+  // The split-column branch consumes this complete config; the classic
+  // fallback deliberately reads its narrow-column alignment triplet too,
+  // so no second page or hero panel can become an alternate layout owner.
+  // This page's own independently-authoritative config
+  // (PLAN-CONFIG-SCOPE-PAGE-OWNERSHIP.md) — ABSTRACT_POLYMORPHIC_
+  // LAYOUT_CONFIG in pages/abstract.config.ts (PolymorphicLayoutConfig —
+  // components/PolymorphicLayout.config.ts's own fully independent type,
+  // same shared system /about and /posts-lab already run on). Supersedes
+  // the former components/SplitColumnLayout.config.ts-based
+  // ABSTRACT_SPLIT_COLUMN_LAYOUT_CONFIG (that scope's own panel is now
+  // dead — this page edits these fields from ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
+  // "Polymorphic Layout," instead; ABSTRACT_SPLIT_COLUMN_LAYOUT_CONFIG
+  // itself stays as the one-time value source this config was copied from,
+  // not a live import). Never a partial spread over some shared default —
+  // that was exactly the fragility this replaced: 'right'/'float'/'custom'
+  // etc. below used to be hand-applied overrides on top of a shared
+  // constant that had already drifted once (to 'left') outside this page's
+  // own edits, silently breaking /about too, since /about had no override
+  // of its own to shield it. Each page now owns its own values outright, so
+  // there's nothing left for either page to silently inherit from the
+  // other.
+  const [splitColumnLayoutConfig, setSplitColumnLayoutConfig] =
+    useState<PolymorphicLayoutConfig>(() => (
+      normalizePolymorphicLayoutConfig(ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG)
+    ));
+  // A live measurement of the header's own real rendered height — not a
+  // formula re-derived from its own height/paddingY/marginTop/marginBottom
+  // config fields by hand, which would just be another instance of the
+  // "two things that can silently drift" problem splitBandSide/
+  // wideColumnSide already had (see SplitColumnPageShell's own doc
+  // comment). Feeds both the header's own legibility scrim (which needs to
+  // know its real height regardless) and, below, whichever column(s)
+  // currently opt into splitColumnLayoutConfig's *ColumnHeaderBehavior:
+  // 'pushDown' — SplitColumnPageShell already measures this same box
+  // internally for its own per-column marginTop, but this page needs its
+  // own copy too, for the card stack's headerOffsetPx (a fixed-position
+  // layer SplitColumnPageShell's own margin mechanism can't reach — see
+  // useCardStackLayout's own doc comment) and for
+  // wideColumnRowMinHeightCss/narrowColumnRowMinHeightCss below.
+  // Sourced from useMeasuredElementRect (PLAN-DEDUPLICATE-PAGE-SHELL-LOGIC.md
+  // §1) — was a page-local hand-rolled ResizeObserver+resize effect before
+  // that hook existed. extraDeps: [presentationMode] — this page's own real
+  // variance among the four former copies, re-running the measurement when
+  // presentationMode flips (that swaps which DOM subtree the ref points at
+  // entirely, not just resizing something already mounted).
+  const { ref: splitColumnHeaderWrapperRef, rect: splitColumnHeaderWrapperRect } =
+    useMeasuredElementRect<HTMLDivElement>([abstractPageLayoutConfig.presentationMode]);
+  const splitColumnHeaderHeightPx = splitColumnHeaderWrapperRect?.height;
+  // Per-column: 'float' (this page's shipped default for both columns) is a
+  // flat 100dvh, since the fixed header floats over the row rather than
+  // sitting above it in flow — no header height to subtract. 'pushDown'
+  // subtracts the header's own live-measured height instead, since
+  // SplitColumnPageShell already shifted that column down by the same
+  // amount via marginTop (see that file's own effectiveWideColumnStyle/
+  // effectiveNarrowColumnStyle) — without the matching reduction here the
+  // column's own box would extend that far past the viewport's bottom edge
+  // instead of ending flush with it, the same "about.tsx's own
+  // calc(100dvh - var(--about-nav-h))" pairing that page's CSS already does
+  // for itself. Undefined splitColumnHeaderHeightPx (before first
+  // measurement) falls back to the flat value rather than guessing.
+  const wideColumnRowMinHeightCss = splitColumnLayoutConfig.wideColumnHeaderBehavior === 'pushDown'
+    && splitColumnHeaderHeightPx !== undefined
+    ? `calc(100dvh - ${splitColumnHeaderHeightPx}px)`
+    : '100dvh';
+  const narrowColumnRowMinHeightCss = splitColumnLayoutConfig.narrowColumnHeaderBehavior === 'pushDown'
+    && splitColumnHeaderHeightPx !== undefined
+    ? `calc(100dvh - ${splitColumnHeaderHeightPx}px)`
+    : '100dvh';
+  // What the card stack's own fixed layer (position: fixed, outside normal
+  // flow — see useCardStackLayout's own doc comment) gives back to the
+  // header instead of rendering under, mirroring the wide column's own
+  // choice above. 0 (this page's shipped default): today's only behavior,
+  // unchanged.
+  const cardStackHeaderOffsetPx = splitColumnLayoutConfig.wideColumnHeaderBehavior === 'pushDown'
+    ? (splitColumnHeaderHeightPx ?? 0)
+    : 0;
+  // Tabs-to-card separation inside the narrow column's card preview — see
+  // SplitColumnCardPreview.config.ts's own doc comment.
+  const [splitColumnCardPreviewConfig, setSplitColumnCardPreviewConfig] =
+    useState<SplitColumnCardPreviewConfig>(() => (
+      normalizeSplitColumnCardPreviewConfig(DEFAULT_SPLIT_COLUMN_CARD_PREVIEW_CONFIG)
+    ));
+  // The opt-in vertical card-stack presentation — its own scope/state,
+  // separate from splitColumnCardPreviewConfig above, see
+  // SplitColumnCardPreview/config/stack.ts's own doc comment.
+  const [splitColumnCardStackConfig, setSplitColumnCardStackConfig] =
+    useState<SplitColumnCardStackConfig>(() => (
+      normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG)
+    ));
+  // Shared across every page via SharedDesignConfigProvider (pages/_app.tsx)
+  // — tuning these here reflects on contact.tsx/about.tsx/design-system.tsx
+  // too, and vice versa, instead of each page holding its own disconnected
+  // copy of the same default values.
+  const {
+    pageSurfaceConfig, setPageSurfaceConfig,
+    ctaButtonConfig, setCtaButtonConfig,
+  } = useSharedDesignConfig();
+  const { siteHeaderConfig, setSiteHeaderConfig } = useAbstractDesignConfig();
+  // Page-local override of the shared siteHeaderConfig/ctaButtonConfig
+  // color fields above — enabled: false (default) inherits the shared
+  // foundation exactly like every other page; on, only this page's own
+  // colors change. Seeded from this page's own complete config
+  // (ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG /
+  // ABSTRACT_CTA_BUTTON_COLOR_OVERRIDE_CONFIG), not a shared
+  // DEFAULT_..._CONFIG object — see SiteHeaderColorOverride.config.ts's
+  // own doc comment for the full per-page config ownership model
+  // (PLAN-CONFIG-SCOPE-PAGE-OWNERSHIP.md).
+  const [siteHeaderColorOverride, setSiteHeaderColorOverride] =
+    useState<SiteHeaderColorOverrideConfig>(() => (
+      normalizeSiteHeaderColorOverrideConfig(ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG)
+    ));
+  const [ctaButtonColorOverride, setCtaButtonColorOverride] =
+    useState<CtaButtonColorOverrideConfig>(() => (
+      normalizeCtaButtonColorOverrideConfig(ABSTRACT_CTA_BUTTON_COLOR_OVERRIDE_CONFIG)
+    ));
+  const [collectionHeadingConfig, setCollectionHeadingConfig] =
+    useState<SectionHeadingConfig>(() => ({
+      ...DEFAULT_SECTION_HEADING_CONFIG,
+    }));
+  const [dockIntroductionConfig, setDockIntroductionConfig] =
+    useState<AbstractPostDockIntroductionConfig>(() => ({
+      ...DEFAULT_ABSTRACT_POST_DOCK_INTRODUCTION_CONFIG,
+    }));
+  const [dockGradientPerformanceConfig, setDockGradientPerformanceConfig] =
+    useState<AbstractPostDockGradientPerformanceConfig>(() => ({
+      ...DEFAULT_ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_CONFIG,
+    }));
+  const [dockPaletteConfig, setDockPaletteConfig] =
+    useState<AbstractPostDockPaletteConfig>(() => ({
+      ...DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG,
+    }));
+  const [dockMeshGeometryConfig, setDockMeshGeometryConfig] =
+    useState<AbstractPostDockMeshGeometryConfig>(() => ({
+      ...DEFAULT_ABSTRACT_POST_DOCK_MESH_GEOMETRY_CONFIG,
+    }));
+  const [dockHueInfluenceConfig, setDockHueInfluenceConfig] =
+    useState<AbstractPostDockHueInfluenceConfig>(() => ({
+      ...DEFAULT_ABSTRACT_POST_DOCK_HUE_INFLUENCE_CONFIG,
+    }));
+  const [dockLayoutConfig, setDockLayoutConfig] =
+    useState<AbstractPostDockLayoutConfig>(() => ({
+      ...DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
+    }));
+  const [dockHologramConfig, setDockHologramConfig] =
+    useState<AbstractPostDockHologramConfig>(() => ({
+      ...DEFAULT_ABSTRACT_POST_DOCK_HOLOGRAM_CONFIG,
+    }));
+  const [journalLabCollectionConfig, setJournalLabCollectionConfig] =
+    useState<AbstractJournalLabCollectionConfig>(() => ({
+      ...DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_CONFIG,
+    }));
+  const [journalLabCollectionSliderConfig, setJournalLabCollectionSliderConfig] =
+    useState<AbstractJournalLabCollectionSliderConfig>(() => ({
+      ...DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_CONFIG,
+    }));
+  const [labCardConfig, setLabCardConfig] =
+    useState<AbstractMetalLabCardConfig>(() => ({
+      ...DEFAULT_ABSTRACT_METAL_LAB_CARD_CONFIG,
+    }));
+  const [labSectionConfig, setLabSectionConfig] =
+    useState<AbstractLabSectionConfig>(() => ({
+      ...DEFAULT_ABSTRACT_LAB_SECTION_CONFIG,
+    }));
+  const [heroCtaComposerConfig, setHeroCtaComposerConfig] =
+    useState<AbstractHeroCtaComposerConfig>(() => ({
+      ...DEFAULT_ABSTRACT_HERO_CTA_COMPOSER_CONFIG,
+    }));
+  const [isDragging, setIsDragging] = useState(false);
+  const [gradientSnapshotFrozen, setGradientSnapshotFrozen] = useState(false);
+  const collectionContainerProbeRef = useRef<HTMLDivElement | null>(null);
+  const [collectionAvailableWidthPx, setCollectionAvailableWidthPx] =
+    useState<number | null>(null);
+  const [collectionContainerWidthPx, setCollectionContainerWidthPx] =
+    useState<number | null>(null);
+  const [collectionViewportWidthPx, setCollectionViewportWidthPx] =
+    useState<number | null>(null);
+  const [adaptiveHeroInkTones, setAdaptiveHeroInkTones] =
+    useState<AdaptiveHeroInkTones>({ header: 'light', content: 'light', actions: 'light' });
+  const adaptiveHeroInkTonesRef = useRef(adaptiveHeroInkTones);
+  const overlayFaceCount = getGradientFaceCount(config);
+  const gradientLayerCount = getGradientLayerCount(overlayFaceCount);
+  const editorialRow = resolveProceduralColorStackRow(
+    config.editorialSourceRow,
+    overlayFaceCount,
+  );
+  const heroLayoutMode = config.skyRenderMode === 'legacy'
+    ? config.heroLayoutMode
+    : 'full';
+  const editorialLayoutActive = heroLayoutMode === 'editorial';
+  const gridLayoutActive = heroLayoutMode === 'grid';
+  const heroContentPresentationActive = config.skyRenderMode === 'legacy' &&
+    config.heroContentEnabled &&
+    !gridLayoutActive;
+  const legacyGradientDragEnabled = config.skyRenderMode === 'legacy' &&
+    !heroContentPresentationActive;
+  const normalizedEditorialHeroConfig = useMemo(
+    () => normalizeAbstractEditorialHeroConfig(editorialHeroConfig),
+    [editorialHeroConfig],
+  );
+  const normalizedSplitColumnHeroConfig = useMemo(
+    () => normalizeAbstractEditorialHeroConfig(splitColumnHeroConfig),
+    [splitColumnHeroConfig],
+  );
+  // Shared by the header nav (via SiteHeader's own PageContainer),
+  // the hero's own copy column, and the cards/heading wrapper (further down
+  // this render) so all cap to the exact same width — see PageSurfaceConfig's
+  // docs for why this must be one shared value rather than independently-
+  // configured ones that could drift apart.
+  const normalizedPageSurfaceConfig = useMemo(
+    () => normalizePageSurfaceConfig(pageSurfaceConfig),
+    [pageSurfaceConfig],
+  );
+  const normalizedDockMeshGeometryConfig = useMemo(
+    () => normalizeAbstractPostDockMeshGeometryConfig(dockMeshGeometryConfig),
+    [dockMeshGeometryConfig],
+  );
+  const journalDockSliderConfig = useMemo(
+    () => ({
+      ...JOURNAL_DOCK_SLIDER_CONFIG,
+      shaderMeshGeometryEnabled: normalizedDockMeshGeometryConfig.enabled,
+      shaderDomainCurveBoost:
+        normalizedDockMeshGeometryConfig.domainCurveBoost,
+      shaderBandCurveBoost:
+        normalizedDockMeshGeometryConfig.bandCurveBoost,
+      // Dock palette direction's own "Gradient scale"/"Gradient noise"
+      // fields — shared with /about (same panel scope), applied here so
+      // every Card Stack slot (active + neighbors, Articles + Labs) reads
+      // the same live zoom/noise instead of the static baseline's own
+      // shaderColorScale/shaderColorRandomness.
+      shaderColorScale: dockPaletteConfig.gradientScale,
+      shaderColorRandomness: dockPaletteConfig.gradientNoise,
+    }),
+    [
+      normalizedDockMeshGeometryConfig,
+      dockPaletteConfig.gradientScale,
+      dockPaletteConfig.gradientNoise,
+    ],
+  );
+  useEffect(() => {
+    const probe = collectionContainerProbeRef.current;
+    if (!probe) return;
+
+    const syncCollectionAvailableWidth = () => {
+      const nextWidth = Math.max(1, probe.getBoundingClientRect().width);
+      setCollectionAvailableWidthPx(previousWidth => (
+        previousWidth === nextWidth ? previousWidth : nextWidth
+      ));
+      const nextContainerWidth = Math.max(
+        1,
+        probe.parentElement?.getBoundingClientRect().width ?? nextWidth,
+      );
+      setCollectionContainerWidthPx(previousWidth => (
+        previousWidth === nextContainerWidth ? previousWidth : nextContainerWidth
+      ));
+      const nextViewportWidth = Math.max(1, document.documentElement.clientWidth);
+      setCollectionViewportWidthPx(previousWidth => (
+        previousWidth === nextViewportWidth ? previousWidth : nextViewportWidth
+      ));
+    };
+
+    syncCollectionAvailableWidth();
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(syncCollectionAvailableWidth);
+    resizeObserver?.observe(probe);
+    if (probe.parentElement) resizeObserver?.observe(probe.parentElement);
+    window.addEventListener('resize', syncCollectionAvailableWidth, { passive: true });
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', syncCollectionAvailableWidth);
+    };
+  }, []);
+  const journalUsesNarrowDock = collectionViewportWidthPx !== null &&
+    collectionViewportWidthPx < ABSTRACT_POST_DOCK_NARROW_BREAKPOINT_PX;
+  const collectionCardWidthPx =
+    collectionAvailableWidthPx === null || collectionContainerWidthPx === null
+    ? null
+    : resolveCollectionCardWidthPx(
+        collectionAvailableWidthPx,
+        collectionContainerWidthPx,
+        !journalUsesNarrowDock,
+        dockLayoutConfig,
+      );
+  const resolvedCollectionDockLayoutConfig = useMemo(
+    () => ({
+      ...dockLayoutConfig,
+      cardWidthPx: collectionCardWidthPx ?? dockLayoutConfig.cardWidthPx,
+    }),
+    [collectionCardWidthPx, dockLayoutConfig],
+  );
+  const journalDockNarrowPeekRem = clamp(
+    JOURNAL_DOCK_SLIDER_CONFIG.dockMobilePeekRem,
+    0.5,
+    3,
+  );
+  // Reserved above the JOURNAL heading's own bottom edge so the scattered
+  // deck's negative-margin peek (see AbstractPostDockScatter's own
+  // useScatterLayout) has clearance to ride up into instead of overlapping
+  // the heading itself — same formula the deck uses, so this can never fall
+  // out of sync with however far the deck actually rides up.
+  const journalTopPeekPx = computeAbstractPostDockTopPeekPx(
+    resolvedCollectionDockLayoutConfig,
+  );
+  const normalizedCtaButtonConfig = useMemo(
+    () => applyCtaButtonColorOverride(
+      normalizeCtaButtonConfig(ctaButtonConfig),
+      normalizeCtaButtonColorOverrideConfig(ctaButtonColorOverride),
+    ),
+    [ctaButtonConfig, ctaButtonColorOverride],
+  );
+  const normalizedHeroCtaComposerConfig = useMemo(
+    () => normalizeAbstractHeroCtaComposerConfig(heroCtaComposerConfig),
+    [heroCtaComposerConfig],
+  );
+  const normalizedCollectionHeadingConfig = useMemo(
+    () => normalizeSectionHeadingConfig(collectionHeadingConfig),
+    [collectionHeadingConfig],
+  );
+  const normalizedSiteHeaderConfig = useNormalizedSiteHeaderConfig(siteHeaderConfig, siteHeaderColorOverride);
+  editorialHeroConfigRef.current = normalizedEditorialHeroConfig;
+  siteHeaderConfigRef.current = normalizedSiteHeaderConfig;
+  const heroNavBandActive = config.skyRenderMode === 'legacy' &&
+    !gridLayoutActive &&
+    normalizedSiteHeaderConfig.navBandEnabled;
+  const heroNavBandColorFilter = resolveSiteHeaderNavBandColorFilter(
+    normalizedSiteHeaderConfig,
+  );
+  const twilightGradient = useMemo(() => generateTwilightSkyGradient({
+    sunElevationDeg: config.skySunElevationDeg,
+    stopCount: config.skyStopCount,
+    turbidity: config.skyTurbidity,
+    exposure: config.skyExposure,
+    saturation: config.skySaturation,
+    chromaDuck: config.skyChromaDuck,
+    inkUnity: config.skyInkUnity,
+    nightDepth: config.skyNightDepth,
+    afterglow: config.skyAfterglow,
+    ozone: config.skyOzone,
+    falloff: config.skyFalloff,
+  }), [
+    config.skyAfterglow,
+    config.skyChromaDuck,
+    config.skyExposure,
+    config.skyFalloff,
+    config.skyNightDepth,
+    config.skyInkUnity,
+    config.skyOzone,
+    config.skySaturation,
+    config.skyStopCount,
+    config.skySunElevationDeg,
+    config.skyTurbidity,
+  ]);
+  const fieldHeroTone = config.skyRenderMode === 'legacy'
+    ? 'light'
+    : config.skyRenderMode === 'refractor'
+      ? config.skyInkMode === 'auto' ? 'light' : config.skyInkMode
+    : config.skyRenderMode === 'glass'
+      ? config.skyInkMode === 'auto' ? 'light' : config.skyInkMode
+    : config.skyInkMode === 'auto'
+      ? recommendTwilightSkyInk({
+        gradient: twilightGradient,
+        originX: clamp(config.skyOriginXPercent, -20, 40) / 100,
+        originY: clamp(config.skyOriginYPercent, -20, 40) / 100,
+        radiusX: clamp(config.skyRadiusXPercent, 40, 180) / 100,
+        radiusY: clamp(config.skyRadiusYPercent, 40, 180) / 100,
+        samplePoints: ABSTRACT_HERO_INK_SAMPLE_POINTS,
+      })
+      : config.skyInkMode;
+  const heroTone = heroContentPresentationActive ? 'dark' : fieldHeroTone;
+  const backgroundAwarenessActive = config.skyRenderMode === 'legacy' &&
+    !heroContentPresentationActive &&
+    config.heroBackgroundAwarenessEnabled;
+  const headerTone = backgroundAwarenessActive ? adaptiveHeroInkTones.header : heroTone;
+  const contentTone = backgroundAwarenessActive && !editorialLayoutActive
+    ? adaptiveHeroInkTones.content
+    : heroTone;
+  const actionsTone = backgroundAwarenessActive && !editorialLayoutActive
+    ? adaptiveHeroInkTones.actions
+    : heroTone;
+  // Every breakpoint-tiered column/split-band color computation this page
+  // used to hand-roll (the four-way colorSource switch, physical-side
+  // mapping, split-band left/right resolution) now lives once inside
+  // usePolymorphicLayoutColors (components/PolymorphicLayout.tsx) — the
+  // same hook /about already calls, per PLAN-SPLIT-COLUMN-LAYOUT-
+  // ENRICHMENT-EXTRACTION.md's own correction ("we're not reusing, we're
+  // duplicating"). <PolymorphicLayout> itself resolves and applies
+  // splitBandLeftColor/splitBandRightColor internally from
+  // splitColumnLayoutConfig's own splitBandLeftMode/splitBandRightMode —
+  // this page has no conditional need to override that (unlike /about's own
+  // Spacefield-visible case), so it isn't passed as a prop below. `'wide'`/
+  // `'narrow'` only matter when colorSource is 'palette' (this page's
+  // default is 'custom', so paletteColorResolver is exercised only if an
+  // operator switches sources via the panel).
+  const paletteColorResolver = useCallback(
+    (column: 'wide' | 'narrow') => resolveSplitColumnAccent(
+      column === 'wide' ? ABSTRACT_WIDE_COLUMN_PALETTE_INDEX : ABSTRACT_NARROW_COLUMN_PALETTE_INDEX,
+      ABSTRACT_SPLIT_COLUMN_PALETTE_STOP_COUNT,
+      dockPaletteConfig,
+    ),
+    [dockPaletteConfig],
+  );
+  const colors = usePolymorphicLayoutColors(
+    splitColumnLayoutConfig, normalizedPageSurfaceConfig.color, paletteColorResolver,
+  );
+  // CardStack's visible layer is fixed to the browser viewport, outside the
+  // flex box PolymorphicLayout normally positions. Translate the currently
+  // active responsive tier into CardStack's generic start/center/end prop so
+  // the same panel field moves the actual cards, not only their zero-height
+  // normal-flow anchor.
+  const resolvedWideColumnVerticalAlign = colors.breakpointTier === 'lg'
+    ? splitColumnLayoutConfig.wideColumnContentVerticalAlignLg
+    : colors.breakpointTier === 'md'
+      ? splitColumnLayoutConfig.wideColumnContentVerticalAlignWide
+      : splitColumnLayoutConfig.wideColumnContentVerticalAlign;
+  const resolvedWideColumnPaddingTop = colors.breakpointTier === 'lg'
+    ? splitColumnLayoutConfig.wideColumnContentPaddingTopLg
+    : colors.breakpointTier === 'md'
+      ? splitColumnLayoutConfig.wideColumnContentPaddingTopWide
+      : splitColumnLayoutConfig.wideColumnContentPaddingTop;
+  const resolvedWideColumnPaddingBottom = colors.breakpointTier === 'lg'
+    ? splitColumnLayoutConfig.wideColumnContentPaddingBottomLg
+    : colors.breakpointTier === 'md'
+      ? splitColumnLayoutConfig.wideColumnContentPaddingBottomWide
+      : splitColumnLayoutConfig.wideColumnContentPaddingBottom;
+  const cardStackVerticalAlign = resolvedWideColumnVerticalAlign.endsWith('justify-start')
+    ? 'start'
+    : resolvedWideColumnVerticalAlign.endsWith('justify-end')
+      ? 'end'
+      : 'center';
+  // Still needed here, unlike the <SiteHeader> call sites below (which now
+  // resolve their own 'custom'/'surface'/'column'-mode logo stops
+  // internally from physicalLeftColumnColor — see SiteHeaderProps.logoStops's
+  // own doc comment): AbstractHeroGrid (the legacy skyRenderMode branch,
+  // below) is a genuinely different component with no equivalent internal
+  // computation of its own, so it still needs a pre-resolved value handed
+  // in. Also still the right value to pass to <SiteHeader>'s own logoStops
+  // prop — SiteHeader only actually reads it in 'adaptive' colorMode now,
+  // which this page (uniquely among current callers) genuinely uses.
+  // The fallback passed as the 4th arg only matters in 'adaptive' colorMode
+  // (resolveSiteHeaderLogoStops's own unmatched-mode branch). While
+  // backgroundAwarenessActive is genuinely sampling a moving, non-flat
+  // background in real time, there's no single flat color to run
+  // resolveContrastAwareTextColor against, so the curated light/dark synth
+  // stops remain the right fallback. Otherwise headerTone is just a static
+  // config choice and colors.actualLeftSegmentColor is a real, derivable
+  // column color — the same one every other on-page text (e.g. the hero
+  // paragraph's paragraphTextColorMode: 'column') already derives its own
+  // color from, so the logo should match it instead of a generic brand
+  // gradient unrelated to the page's actual colors.
+  const heroHeaderLogoStops = resolveSiteHeaderLogoStops(
+    normalizedSiteHeaderConfig,
+    normalizedPageSurfaceConfig.color,
+    colors.actualLeftSegmentColor,
+    backgroundAwarenessActive
+      ? (headerTone === 'light' ? ABSTRACT_SYNTH_LOGO_STOPS : ABSTRACT_SYNTH_LOGO_DARK_STOPS)
+      : (() => {
+        const derivedLogoColor = resolveContrastAwareTextColor(
+          colors.actualLeftSegmentColor,
+          normalizedSiteHeaderConfig.columnTextMinContrast,
+          normalizedSiteHeaderConfig.logoSurfaceOffset,
+        );
+        return [{ color: derivedLogoColor, at: 0 }, { color: derivedLogoColor, at: 100 }];
+      })(),
+  );
+  const heroHeaderHeight = {
+    'h-12': '3rem',
+    'h-14': '3.5rem',
+    'h-16': '4rem',
+    'h-20': '5rem',
+    'h-24': '6rem',
+    'h-28': '7rem',
+    'h-32': '8rem',
+    'h-36': '9rem',
+    'h-40': '10rem',
+  }[normalizedSiteHeaderConfig.height];
+  const heroHeaderDesktopHeight = {
+    'md:h-12': '3rem',
+    'md:h-14': '3.5rem',
+    'md:h-16': '4rem',
+    'md:h-20': '5rem',
+    'md:h-24': '6rem',
+    'md:h-28': '7rem',
+    'md:h-32': '8rem',
+    'md:h-36': '9rem',
+    'md:h-40': '10rem',
+  }[normalizedSiteHeaderConfig.desktopHeight];
+  const heroStyle = useMemo(() => ({
+    backgroundColor: heroContentPresentationActive
+      ? normalizedPageSurfaceConfig.color
+      : config.skyRenderMode === 'refractor'
+      ? '#ffffff'
+      : editorialLayoutActive
+      ? normalizedPageSurfaceConfig.color
+      : config.skyRenderMode === 'legacy' || config.skyRenderMode === 'glass'
+      ? config.backgroundColor
+      : twilightGradient.terminalColor,
+    '--hero-sky-stops': twilightGradient.cssStops,
+    '--hero-sky-origin-x': `${clamp(config.skyOriginXPercent, -20, 40)}%`,
+    '--hero-sky-origin-y': `${clamp(config.skyOriginYPercent, -20, 40)}%`,
+    '--hero-sky-radius-x': `${clamp(config.skyRadiusXPercent, 40, 180)}%`,
+    '--hero-sky-radius-y': `${clamp(config.skyRadiusYPercent, 40, 180)}%`,
+    '--hero-header-height': heroHeaderHeight,
+    '--hero-header-height-desktop': heroHeaderDesktopHeight,
+    '--hero-editorial-stack-height': `${editorialRow.rowCount * 100}%`,
+    '--hero-editorial-stack-offset': `${-editorialRow.rowIndex * 100}%`,
+  } as CSSProperties), [
+    config.backgroundColor,
+    config.skyOriginXPercent,
+    config.skyOriginYPercent,
+    config.skyRadiusXPercent,
+    config.skyRadiusYPercent,
+    config.skyRenderMode,
+    editorialLayoutActive,
+    editorialRow.rowCount,
+    editorialRow.rowIndex,
+    heroHeaderHeight,
+    heroHeaderDesktopHeight,
+    normalizedPageSurfaceConfig.color,
+    heroContentPresentationActive,
+    twilightGradient.cssStops,
+    twilightGradient.terminalColor,
+  ]);
+  const refractorSliceCount = Math.round(clamp(config.refractorSliceCount, 1, 64));
+  const refractorCenterSliceIndex = Math.floor(refractorSliceCount / 2);
+  const refractorRowDisplacementStepPercent = clamp(
+    config.refractorRowDisplacementStepPercent,
+    0,
+    30,
+  );
+  const refractorRowScaleStepPercent = clamp(
+    config.refractorRowScaleStepPercent,
+    0,
+    20,
+  );
+  const refractorColumnDisplacementStepPercent = clamp(
+    config.refractorColumnDisplacementStepPercent,
+    0,
+    30,
+  );
+  const refractorColumnScaleStepPercent = clamp(
+    config.refractorColumnScaleStepPercent,
+    0,
+    20,
+  );
+  configRef.current = config;
+  headingGradientConfigRef.current = headingGradientConfig;
+  twilightGradientRef.current = twilightGradient;
+
+  useEffect(() => {
+    gradientSnapshotFrozenRef.current = gradientSnapshotFrozen;
+  }, [gradientSnapshotFrozen]);
+
+  useEffect(() => {
+    adaptiveHeroInkTonesRef.current = adaptiveHeroInkTones;
+  }, [adaptiveHeroInkTones]);
+
+  useEffect(() => {
+    if (backgroundAwarenessActive) return;
+    const next = { header: heroTone, content: heroTone, actions: heroTone };
+    adaptiveHeroInkTonesRef.current = next;
+    setAdaptiveHeroInkTones(next);
+  }, [backgroundAwarenessActive, heroTone]);
+
+  useEffect(() => {
+    if (config.skyRenderMode === 'legacy') return;
+
+    gradientSnapshotFrozenRef.current = false;
+    frozenGradientFrameRef.current = null;
+    frozenGradientLayerSourcesRef.current = null;
+    setGradientSnapshotFrozen(false);
+  }, [config.skyRenderMode]);
+
+  useEffect(() => {
+    if (config.skyRenderMode !== 'legacy') return undefined;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+
+    const gl = canvas.getContext('webgl', {
+      alpha: false,
+      antialias: false,
+      depth: false,
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: true,
+      stencil: false,
+    });
+
+    if (!gl) return undefined;
+
+    const gradientProgram = createAbstractLegacyGradientProgram(gl);
+    if (!gradientProgram || gradientProgram.vertexPositionAttribute < 0) return undefined;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const snapshotAtlasCanvas = document.createElement('canvas');
+    const snapshotGl = snapshotAtlasCanvas.getContext('webgl', {
+      alpha: true,
+      antialias: false,
+      depth: false,
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: true,
+      stencil: false,
+    });
+    const snapshotProgram = snapshotGl
+      ? createAbstractLegacyGradientProgram(snapshotGl)
+      : null;
+    snapshotAtlasRef.current = snapshotProgram ? snapshotAtlasCanvas : null;
+    const headingCompositeCanvas = document.createElement('canvas');
+    const headingLayerCanvases: HTMLCanvasElement[] = [];
+    const headingRuntime = createLegacyGradientRuntime(
+      headingGradientConfigRef.current,
+      !prefersReducedMotion,
+    );
+    headingGradientCompositeCanvasRef.current = headingCompositeCanvas;
+
+    let animationFrame = 0;
+    let lastFrame = performance.now();
+    let shaderTime = 0;
+    let paletteIntervention = 0;
+    let paletteTarget = 0;
+    let nextPaletteEvaluationAt = 0;
+    let cachedGridAtlasPlan: ProceduralColorAtlasLayout | null = null;
+    let cachedGridAtlasPlanKey = '';
+    let nextHeroInkEvaluationAt = 0;
+    let isVisible = true;
+    let isDocumentVisible = !document.hidden;
+    let lastPaletteConfig: GradientDesignerConfig | null = null;
+    let lastPaletteInteractionAt = Number.NEGATIVE_INFINITY;
+    const paletteEvaluator = new AbstractLegacyPaletteEvaluator();
+    const paletteCadence = new AbstractPaletteCadenceController();
+    let paletteCadenceSettings = getAbstractPaletteCadenceSettings(
+      configRef.current,
+      !prefersReducedMotion,
+    );
+    const intersectionObserver = typeof IntersectionObserver === 'undefined'
+      ? null
+      : new IntersectionObserver(entries => {
+        isVisible = entries[0]?.isIntersecting ?? true;
+        if (isVisible) nextPaletteEvaluationAt = 0;
+      }, { rootMargin: '160px' });
+    const handleVisibilityChange = () => {
+      isDocumentVisible = !document.hidden;
+      if (isDocumentVisible) nextPaletteEvaluationAt = 0;
+    };
+    const markPaletteInteraction = () => {
+      lastPaletteInteractionAt = performance.now();
+    };
+
+    intersectionObserver?.observe(canvas);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pointerdown', markPaletteInteraction, { passive: true });
+    window.addEventListener('wheel', markPaletteInteraction, { passive: true });
+    window.addEventListener('scroll', markPaletteInteraction, { passive: true });
+    window.addEventListener('keydown', markPaletteInteraction);
+
+    const render = (now: number) => {
+      animationFrame = 0;
+      const currentConfig = configRef.current;
+      const currentOverlayFaceCount = getGradientFaceCount(currentConfig);
+      const dt = Math.min(Math.max((now - lastFrame) / 1000, 0), 0.1);
+      lastFrame = now;
+      if (currentConfig !== lastPaletteConfig) {
+        lastPaletteConfig = currentConfig;
+        paletteCadenceSettings = getAbstractPaletteCadenceSettings(
+          currentConfig,
+          !prefersReducedMotion,
+        );
+        nextPaletteEvaluationAt = 0;
+      }
+
+      const bufferSize = resolveCanvasBufferSize(canvas, currentConfig.shaderColorResolution);
+      if (canvas.width !== bufferSize.width) canvas.width = bufferSize.width;
+      if (canvas.height !== bufferSize.height) canvas.height = bufferSize.height;
+      gradientViewportPixelSizeRef.current = bufferSize;
+
+      const cadenceEnabled = paletteCadenceSettings.enabled;
+      const structuralSpeed = cadenceEnabled
+        ? clamp(currentConfig.legacyPaletteCadenceIdleSpeed, 0, 0.4)
+        : clamp(currentConfig.shaderColorSpeed, 0, 3);
+      const cadenceCanAdvance = isVisible && isDocumentVisible &&
+        !gradientSnapshotFrozenRef.current;
+      const cadenceCanStartTransition = now - lastPaletteInteractionAt >= clamp(
+        currentConfig.legacyPaletteCadenceInteractionQuietMs,
+        0,
+        10000,
+      );
+      shaderTime += dt * structuralSpeed;
+      const palettePhase = paletteCadence.advance(
+        cadenceCanAdvance ? dt * 1000 : 0,
+        paletteCadenceSettings,
+        cadenceCanStartTransition,
+      );
+
+      let emergencyPaletteCorrection = false;
+      if (!currentConfig.legacyPaletteGuardEnabled) {
+        paletteTarget = 0;
+      } else if (
+        isVisible &&
+        isDocumentVisible &&
+        !gradientSnapshotFrozenRef.current &&
+        now >= nextPaletteEvaluationAt
+      ) {
+        const lookAheadSeconds = clamp(currentConfig.legacyPaletteLookAheadMs, 0, 2000) / 1000;
+        const lookAheadShaderTime = shaderTime +
+          lookAheadSeconds * structuralSpeed;
+        const lookAheadPalettePhase = paletteCadence.project(
+          lookAheadSeconds * 1000,
+          paletteCadenceSettings,
+          cadenceCanStartTransition,
+        );
+        const paletteLimits = getAbstractLegacyPaletteLimits(currentConfig);
+        const paletteResolution = paletteEvaluator.resolve(
+          getAbstractLegacyPaletteField(
+            currentConfig,
+            palettePhase,
+            currentOverlayFaceCount,
+          ),
+          shaderTime,
+          lookAheadShaderTime,
+          paletteLimits,
+          getAbstractLegacyPaletteField(
+            currentConfig,
+            lookAheadPalettePhase,
+            currentOverlayFaceCount,
+          ),
+        );
+        paletteTarget = paletteResolution.amount;
+        emergencyPaletteCorrection = paletteResolution.current.yellowCoverage >
+          paletteLimits.maximumYellowCoverage;
+        if (emergencyPaletteCorrection) paletteIntervention = paletteTarget;
+        nextPaletteEvaluationAt = now + (paletteTarget > 0 ? 120 : 360);
+      }
+      if (!emergencyPaletteCorrection) {
+        paletteIntervention = smoothPaletteIntervention(
+          paletteIntervention,
+          paletteTarget,
+          dt,
+          clamp(currentConfig.legacyPaletteAttackMs, 100, 1500),
+          clamp(currentConfig.legacyPaletteReleaseMs, 300, 3000),
+        );
+      }
+
+
+      if (
+        currentConfig.heroBackgroundAwarenessEnabled &&
+        isVisible &&
+        isDocumentVisible &&
+        !gradientSnapshotFrozenRef.current &&
+        now >= nextHeroInkEvaluationAt
+      ) {
+        const field = getAbstractLegacyPaletteField(
+          currentConfig,
+          palettePhase,
+          currentOverlayFaceCount,
+        );
+        const firstRowField = getAbstractLegacyPaletteField(
+          currentConfig,
+          palettePhase,
+          currentOverlayFaceCount,
+          getFirstRowColorOverrides(currentConfig),
+        );
+        const brightThreshold = clamp(
+          Math.max(
+            currentConfig.heroBackgroundAwarenessBrightThreshold,
+            currentConfig.heroBackgroundAwarenessDarkThreshold + 0.05,
+          ),
+          0.2,
+          0.9,
+        );
+        const darkThreshold = clamp(
+          Math.min(
+            currentConfig.heroBackgroundAwarenessDarkThreshold,
+            brightThreshold - 0.05,
+          ),
+          0.1,
+          0.8,
+        );
+        const currentTones = adaptiveHeroInkTonesRef.current;
+        const headerSamplePoints = currentConfig.heroLayoutMode === 'editorial'
+          ? ABSTRACT_HERO_HEADER_SAMPLE_POINTS.map(point => ({
+            x: point.x,
+            y: remapProceduralColorTopRowY(
+              point.y,
+              currentConfig.editorialSourceRow,
+              currentOverlayFaceCount,
+            ),
+          }))
+          : ABSTRACT_HERO_HEADER_SAMPLE_POINTS;
+        const headerLightness = paletteEvaluator.evaluateLightness(
+          firstRowField,
+          shaderTime,
+          paletteIntervention,
+          headerSamplePoints,
+        );
+        const nextTones: AdaptiveHeroInkTones = {
+          header: resolveAdaptiveHeroInkTone(
+            currentTones.header,
+            headerLightness,
+            brightThreshold,
+            darkThreshold,
+          ),
+          content: resolveAdaptiveHeroInkTone(
+            currentTones.content,
+            currentConfig.heroLayoutMode === 'editorial'
+              ? 0
+              : paletteEvaluator.evaluateLightness(
+                field,
+                shaderTime,
+                paletteIntervention,
+                ABSTRACT_HERO_CONTENT_SAMPLE_POINTS,
+              ),
+            brightThreshold,
+            darkThreshold,
+          ),
+          actions: resolveAdaptiveHeroInkTone(
+            currentTones.actions,
+            currentConfig.heroLayoutMode === 'editorial'
+              ? 0
+              : paletteEvaluator.evaluateLightness(
+                field,
+                shaderTime,
+                paletteIntervention,
+                ABSTRACT_HERO_ACTION_SAMPLE_POINTS,
+              ),
+            brightThreshold,
+            darkThreshold,
+          ),
+        };
+        if (
+          nextTones.header !== currentTones.header ||
+          nextTones.content !== currentTones.content ||
+          nextTones.actions !== currentTones.actions
+        ) {
+          adaptiveHeroInkTonesRef.current = nextTones;
+          setAdaptiveHeroInkTones(nextTones);
+        }
+        nextHeroInkEvaluationAt = now + 250;
+      }
+
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(gradientProgram.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, gradientProgram.vertexBuffer);
+      gl.enableVertexAttribArray(gradientProgram.vertexPositionAttribute);
+      gl.vertexAttribPointer(gradientProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+      applyGradientUniforms({
+        gl,
+        gradientProgram,
+        config: currentConfig,
+        width: canvas.width,
+        height: canvas.height,
+        shaderTime,
+        variation: clamp(currentConfig.shaderColorVariation, 0, 0.4),
+      });
+      applyAbstractLegacyPaletteGuardUniforms(
+        gl,
+        gradientProgram,
+        paletteIntervention,
+        -0.5,
+        palettePhase,
+      );
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.flush();
+
+      const currentEditorialHeroConfig = editorialHeroConfigRef.current;
+      if (
+        snapshotGl &&
+        snapshotProgram &&
+        currentConfig.heroContentEnabled &&
+        currentConfig.heroLayoutMode !== 'grid' &&
+        currentEditorialHeroConfig.headlineGradientRelationship === 'custom' &&
+        !gradientSnapshotFrozenRef.current
+      ) {
+        const customConfig = headingGradientConfigRef.current;
+        const customOverlayFaceCount = getGradientFaceCount(customConfig);
+        const customBufferSize = resolveCanvasBufferSize(
+          canvas,
+          customConfig.shaderColorResolution,
+        );
+        const customCanAdvance = isVisible && isDocumentVisible;
+        const customPalettePhase = advanceLegacyGradientRuntime({
+          canAdvance: customCanAdvance,
+          canStartTransition: now - lastPaletteInteractionAt >= clamp(
+            customConfig.legacyPaletteCadenceInteractionQuietMs,
+            0,
+            10000,
+          ),
+          config: customConfig,
+          dt,
+          motionAllowed: !prefersReducedMotion,
+          now,
+          overlayFaceCount: customOverlayFaceCount,
+          runtime: headingRuntime,
+        });
+        const customFrame = renderLegacyGradientAtlasFrame({
+          atlasCanvas: snapshotAtlasCanvas,
+          capturedAt: now,
+          config: customConfig,
+          gl: snapshotGl,
+          overlayFaceCount: customOverlayFaceCount,
+          paletteIntervention: headingRuntime.intervention,
+          palettePhase: customPalettePhase,
+          program: snapshotProgram,
+          shaderTime: headingRuntime.shaderTime,
+          sourceHeight: customBufferSize.height,
+          sourceWidth: customBufferSize.width,
+        });
+        while (headingLayerCanvases.length < customFrame.layerFaceIndices.length) {
+          headingLayerCanvases.push(document.createElement('canvas'));
+        }
+        paintGradientSnapshotFrame({
+          layerCanvases: headingLayerCanvases,
+          frame: customFrame,
+          atlasCanvas: snapshotAtlasCanvas,
+          pixelSize: customBufferSize,
+        });
+        paintLegacyCompositeFrame({
+          layerCanvases: headingLayerCanvases,
+          pixelSize: customBufferSize,
+          targetCanvas: headingCompositeCanvas,
+        });
+        liveHeadingGradientFrameRef.current = customFrame;
+      }
+
+      if (snapshotGl && snapshotProgram && currentConfig.heroLayoutMode === 'grid') {
+        const totalCells = Math.max(4, currentOverlayFaceCount);
+        const cellResolutionPx = currentConfig.shaderColorResolution;
+        const atlasPlanKey = `${totalCells}:${cellResolutionPx}`;
+
+        if (!cachedGridAtlasPlan || cachedGridAtlasPlanKey !== atlasPlanKey) {
+          cachedGridAtlasPlan = resolveGradientGridAtlasPlan({
+            gl: snapshotGl,
+            cellCount: totalCells,
+            cellResolutionPx,
+          });
+          cachedGridAtlasPlanKey = atlasPlanKey;
+        }
+
+        const atlasPlan = cachedGridAtlasPlan;
+
+        if (snapshotAtlasCanvas.width !== atlasPlan.width) snapshotAtlasCanvas.width = atlasPlan.width;
+        if (snapshotAtlasCanvas.height !== atlasPlan.height) snapshotAtlasCanvas.height = atlasPlan.height;
+
+        snapshotGl.clearColor(0, 0, 0, 0);
+        snapshotGl.clear(snapshotGl.COLOR_BUFFER_BIT);
+        snapshotGl.useProgram(snapshotProgram.program);
+        snapshotGl.bindBuffer(snapshotGl.ARRAY_BUFFER, snapshotProgram.vertexBuffer);
+        snapshotGl.enableVertexAttribArray(snapshotProgram.vertexPositionAttribute);
+        snapshotGl.vertexAttribPointer(snapshotProgram.vertexPositionAttribute, 2, snapshotGl.FLOAT, false, 0, 0);
+
+        const cellVariations = getProceduralColorLayerVariations({
+          faceCount: totalCells,
+          shaderColorVariation: clamp(currentConfig.shaderColorVariation, 0, 0.4),
+          audioVariation: 0,
+          shaderParameterPhase: shaderTime,
+          compositionInfluence: 1,
+        });
+
+        for (let faceIndex = 0; faceIndex < totalCells; faceIndex += 1) {
+          const cellRect = getProceduralColorAtlasCellRect(atlasPlan, faceIndex);
+          snapshotGl.viewport(cellRect.viewportX, cellRect.viewportY, cellRect.size, cellRect.size);
+          applyGradientUniforms({
+            gl: snapshotGl,
+            gradientProgram: snapshotProgram,
+            config: currentConfig,
+            width: cellRect.size,
+            height: cellRect.size,
+            shaderTime,
+            variation: cellVariations[faceIndex] ?? 0,
+          });
+          const normalizedCell = totalCells > 1
+            ? faceIndex / (totalCells - 1) - 0.5
+            : 0;
+          applyAbstractLegacyPaletteGuardUniforms(
+            snapshotGl,
+            snapshotProgram,
+            paletteIntervention,
+            normalizedCell,
+            palettePhase,
+          );
+          snapshotGl.drawArrays(snapshotGl.TRIANGLE_STRIP, 0, 4);
+        }
+        snapshotGl.flush();
+
+        const nextGridFrame: GradientGridFrame = {
+          layerFaceIndices: Array.from({ length: totalCells }, (_, faceIndex) => faceIndex),
+          atlasCellCount: totalCells,
+          cellResolutionPx: atlasPlan.cellSize,
+          capturedAt: now,
+        };
+
+        liveGradientGridFrameRef.current = nextGridFrame;
+
+        if (!gradientSnapshotFrozenRef.current) {
+          paintGradientGridFrame({
+            cellCanvases: gradientGridCellCanvasRefs.current,
+            frame: nextGridFrame,
+            atlasCanvas: snapshotAtlasCanvas,
+            atlasLayout: atlasPlan,
+          });
+        }
+      } else if (snapshotGl && snapshotProgram) {
+        const overlayCount = currentOverlayFaceCount;
+        const sourceWidth = bufferSize.width;
+        const sourceHeight = bufferSize.height;
+        const nextGradientFrame = renderLegacyGradientAtlasFrame({
+          atlasCanvas: snapshotAtlasCanvas,
+          capturedAt: now,
+          config: currentConfig,
+          gl: snapshotGl,
+          overlayFaceCount: overlayCount,
+          paletteIntervention,
+          palettePhase,
+          program: snapshotProgram,
+          shaderTime,
+          sourceHeight,
+          sourceWidth,
+        });
+
+        liveGradientFrameRef.current = nextGradientFrame;
+
+        if (!gradientSnapshotFrozenRef.current) {
+          paintGradientSnapshotFrame({
+            layerCanvases: gradientSnapshotLayerRefs.current,
+            frame: nextGradientFrame,
+            atlasCanvas: snapshotAtlasCanvas,
+            pixelSize: bufferSize,
+          });
+          paintLegacyCompositeFrame({
+            layerCanvases: gradientSnapshotLayerRefs.current,
+            pixelSize: bufferSize,
+            targetCanvas: legacyCompositeCanvasRef.current,
+          });
+        }
+      }
+
+      if (currentConfig.heroContentEnabled && currentConfig.heroLayoutMode !== 'grid') {
+        const customHeadline = currentEditorialHeroConfig.headlineGradientRelationship === 'custom';
+        const headlineFrame = customHeadline
+          ? liveHeadingGradientFrameRef.current
+          : gradientSnapshotFrozenRef.current
+            ? frozenGradientFrameRef.current
+            : liveGradientFrameRef.current;
+        const headlineSourceCanvas = customHeadline
+          ? headingGradientCompositeCanvasRef.current
+          : legacyCompositeCanvasRef.current;
+        paintLegacyGradientHeadline({
+          atlasCanvas: null,
+          debugCanvas: currentEditorialHeroConfig.headlineGradientDebugEnabled
+            ? heroHeadlineDebugCanvasRef.current
+            : null,
+          debugSizeCssPixels: currentEditorialHeroConfig.headlineGradientDebugSizePx,
+          frame: headlineFrame,
+          frozenLayerSources: null,
+          headlineElement: heroHeadlineRef.current,
+          panXPercent: currentEditorialHeroConfig.headlineGradientPanXPercent,
+          panYPercent: currentEditorialHeroConfig.headlineGradientPanYPercent,
+          pixelRatio: window.devicePixelRatio || 1,
+          scale: currentEditorialHeroConfig.headlineGradientScale,
+          sourceCanvas: headlineSourceCanvas,
+          sourceMode: currentEditorialHeroConfig.headlineGradientSourceMode,
+          sourceRow: currentEditorialHeroConfig.headlineGradientSourceRow,
+          targetCanvas: heroHeadlineCanvasRef.current,
+        });
+      }
+
+      const currentHeaderConfig = siteHeaderConfigRef.current;
+      const navBandCanvas = heroNavBandCanvasRef.current;
+      const navBandSourceCanvas = legacyCompositeCanvasRef.current;
+      if (
+        currentHeaderConfig.navBandEnabled &&
+        currentConfig.heroLayoutMode !== 'grid' &&
+        navBandCanvas &&
+        navBandSourceCanvas &&
+        navBandSourceCanvas.width > 0 &&
+        navBandSourceCanvas.height > 0
+      ) {
+        paintGradientTextureSurface({
+          border: false,
+          fill: true,
+          panXPercent: currentHeaderConfig.navBandPanXPercent,
+          panYPercent: currentHeaderConfig.navBandPanYPercent,
+          pixelRatio: window.devicePixelRatio || 1,
+          scale: currentHeaderConfig.navBandScale,
+          sourceCanvas: navBandSourceCanvas,
+          sourceRegion: resolveLegacyHeadlineSourceRegion({
+            overlayFaceCount: currentOverlayFaceCount,
+            sourceHeight: navBandSourceCanvas.height,
+            sourceMode: 'band',
+            sourceRow: currentHeaderConfig.navBandSourceRow,
+            sourceWidth: navBandSourceCanvas.width,
+          }),
+          targetCanvas: navBandCanvas,
+          targetElement: navBandCanvas,
+        });
+      }
+
+      if (!prefersReducedMotion) {
+        scheduleRender();
+      }
+    };
+
+    const scheduleRender = () => {
+      if (!animationFrame) animationFrame = window.requestAnimationFrame(render);
+    };
+
+    legacyGradientRenderScheduleRef.current = scheduleRender;
+    let resizeFollowUpFrame = 0;
+    const scheduleViewportRepaint = () => {
+      scheduleRender();
+      if (resizeFollowUpFrame) window.cancelAnimationFrame(resizeFollowUpFrame);
+      resizeFollowUpFrame = window.requestAnimationFrame(() => {
+        resizeFollowUpFrame = 0;
+        scheduleRender();
+      });
+    };
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(scheduleViewportRepaint);
+    resizeObserver?.observe(canvas);
+    if (heroHeadlineRef.current) resizeObserver?.observe(heroHeadlineRef.current);
+    if (heroNavBandCanvasRef.current) resizeObserver?.observe(heroNavBandCanvasRef.current);
+    window.addEventListener('resize', scheduleViewportRepaint, { passive: true });
+    window.visualViewport?.addEventListener('resize', scheduleViewportRepaint, { passive: true });
+    scheduleRender();
+
+    return () => {
+      if (legacyGradientRenderScheduleRef.current === scheduleRender) {
+        legacyGradientRenderScheduleRef.current = null;
+      }
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      if (resizeFollowUpFrame) window.cancelAnimationFrame(resizeFollowUpFrame);
+      resizeObserver?.disconnect();
+      intersectionObserver?.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pointerdown', markPaletteInteraction);
+      window.removeEventListener('wheel', markPaletteInteraction);
+      window.removeEventListener('scroll', markPaletteInteraction);
+      window.removeEventListener('keydown', markPaletteInteraction);
+      window.removeEventListener('resize', scheduleViewportRepaint);
+      window.visualViewport?.removeEventListener('resize', scheduleViewportRepaint);
+      gl.deleteBuffer(gradientProgram.vertexBuffer);
+      gl.deleteProgram(gradientProgram.program);
+      if (snapshotProgram && snapshotGl) {
+        snapshotGl.deleteBuffer(snapshotProgram.vertexBuffer);
+        snapshotGl.deleteProgram(snapshotProgram.program);
+      }
+      snapshotAtlasRef.current = null;
+      headingGradientCompositeCanvasRef.current = null;
+      liveGradientFrameRef.current = null;
+      liveHeadingGradientFrameRef.current = null;
+      frozenGradientFrameRef.current = null;
+      frozenGradientLayerSourcesRef.current = null;
+    };
+  }, [config.skyRenderMode]);
+
+  useEffect(() => {
+    legacyGradientRenderScheduleRef.current?.();
+  }, [config]);
+
+  useEffect(() => {
+    legacyGradientRenderScheduleRef.current?.();
+  }, [headingGradientConfig]);
+
+  useEffect(() => {
+    legacyGradientRenderScheduleRef.current?.();
+  }, [editorialHeroConfig]);
+
+  useEffect(() => {
+    legacyGradientRenderScheduleRef.current?.();
+  }, [siteHeaderConfig]);
+
+  useEffect(() => {
+    if (!heroContentPresentationActive) return undefined;
+    const headline = heroHeadlineRef.current;
+    if (!headline) return undefined;
+
+    let active = true;
+    const scheduleRender = () => {
+      if (active) legacyGradientRenderScheduleRef.current?.();
+    };
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(scheduleRender);
+
+    resizeObserver?.observe(headline);
+    document.fonts?.ready.then(scheduleRender);
+
+    return () => {
+      active = false;
+      resizeObserver?.disconnect();
+    };
+  }, [heroContentPresentationActive]);
+
+  useEffect(() => {
+    if (!heroNavBandActive) return undefined;
+    const navBandCanvas = heroNavBandCanvasRef.current;
+    if (!navBandCanvas) return undefined;
+
+    const scheduleRender = () => legacyGradientRenderScheduleRef.current?.();
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(scheduleRender);
+    resizeObserver?.observe(navBandCanvas);
+    scheduleRender();
+
+    return () => resizeObserver?.disconnect();
+  }, [heroNavBandActive]);
+
+  useEffect(() => {
+    if (config.skyRenderMode !== 'living') return undefined;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const gl = canvas.getContext('webgl', {
+      // Keep the CSS version of the exact same palette visible until the
+      // first GPU frame, avoiding a black initialization flash.
+      alpha: true,
+      antialias: false,
+      depth: false,
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: false,
+      stencil: false,
+    });
+    if (!gl) return undefined;
+
+    const gradientProgram = createAtmosphericGradientProgram(gl);
+    const paletteTexture = gl.createTexture();
+    if (!gradientProgram || gradientProgram.vertexPositionAttribute < 0 || !paletteTexture) {
+      return undefined;
+    }
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let animationFrame = 0;
+    let lastFrame = performance.now();
+    let shaderTime = 0;
+    let isVisible = true;
+    let lastGradient: TwilightSkyGradient | null = null;
+
+    const render = (now: number) => {
+      animationFrame = 0;
+      const currentConfig = configRef.current;
+      if (currentConfig.skyPauseWhenOffscreen && !isVisible) {
+        lastFrame = now;
+        return;
+      }
+
+      const currentGradient = twilightGradientRef.current;
+      if (!currentGradient) return;
+      if (currentGradient !== lastGradient) {
+        uploadTwilightPalette(gl, paletteTexture, currentGradient);
+        lastGradient = currentGradient;
+      }
+
+      const dt = Math.min(Math.max((now - lastFrame) / 1000, 0), 0.1);
+      lastFrame = now;
+      if (!prefersReducedMotion) {
+        shaderTime += dt * clamp(currentConfig.skyMotionSpeed, 0, 0.4);
+      }
+
+      const bufferSize = resolveCanvasBufferSize(canvas, currentConfig.skyResolution);
+      if (canvas.width !== bufferSize.width) canvas.width = bufferSize.width;
+      if (canvas.height !== bufferSize.height) canvas.height = bufferSize.height;
+
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(gradientProgram.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, gradientProgram.vertexBuffer);
+      gl.enableVertexAttribArray(gradientProgram.vertexPositionAttribute);
+      gl.vertexAttribPointer(
+        gradientProgram.vertexPositionAttribute,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0,
+      );
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, paletteTexture);
+      applyAtmosphericGradientUniforms({
+        gl,
+        gradientProgram,
+        config: currentConfig,
+        width: canvas.width,
+        height: canvas.height,
+        shaderTime,
+      });
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.flush();
+
+      if (!prefersReducedMotion) animationFrame = window.requestAnimationFrame(render);
+    };
+
+    const scheduleRender = () => {
+      if (!animationFrame) animationFrame = window.requestAnimationFrame(render);
+    };
+    const observer = typeof IntersectionObserver === 'undefined'
+      ? null
+      : new IntersectionObserver(entries => {
+        isVisible = entries[0]?.isIntersecting ?? true;
+        if (isVisible || !configRef.current.skyPauseWhenOffscreen) scheduleRender();
+      }, { threshold: 0.01 });
+
+    observer?.observe(canvas);
+    scheduleRender();
+
+    return () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      observer?.disconnect();
+      gl.deleteTexture(paletteTexture);
+      gl.deleteBuffer(gradientProgram.vertexBuffer);
+      gl.deleteProgram(gradientProgram.program);
+    };
+  }, [
+    config.seed,
+    config.skyBreathAmount,
+    config.skyDitherStrength,
+    config.skyDriftAmount,
+    config.skyMotionSpeed,
+    config.skyOriginXPercent,
+    config.skyOriginYPercent,
+    config.skyPauseWhenOffscreen,
+    config.skyRadiusXPercent,
+    config.skyRadiusYPercent,
+    config.skyRenderMode,
+    config.skyResolution,
+    config.skyTurbulence,
+    twilightGradient,
+  ]);
+
+  useEffect(() => {
+    if (config.skyRenderMode !== 'glass') return undefined;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const gl = canvas.getContext('webgl', {
+      alpha: true,
+      antialias: false,
+      depth: false,
+      premultipliedAlpha: false,
+      // Static playback has no continuous frame loop, so retain its completed
+      // frame. Dynamic playback uses the same context and shader path.
+      preserveDrawingBuffer: true,
+      stencil: false,
+    });
+    if (!gl) return undefined;
+
+    const gradientProgram = createGlassGradientProgram(gl);
+    if (!gradientProgram || gradientProgram.vertexPositionAttribute < 0) return undefined;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let animationFrame = 0;
+    let elapsedTime = 0;
+    let lastFrame = performance.now();
+    let isVisible = true;
+
+    const render = (now: number) => {
+      animationFrame = 0;
+      const currentConfig = configRef.current;
+      if (currentConfig.skyRenderMode !== 'glass') return;
+      const isDynamic = currentConfig.glassPlayback === 'dynamic' && !prefersReducedMotion;
+      if (isDynamic && currentConfig.glassPauseWhenOffscreen && !isVisible) {
+        lastFrame = now;
+        return;
+      }
+
+      const dt = Math.min(Math.max((now - lastFrame) / 1000, 0), 0.1);
+      lastFrame = now;
+      if (isDynamic) elapsedTime += dt * clamp(currentConfig.glassSpeed, 0, 3);
+
+      const bufferSize = resolveCanvasBufferSize(canvas, currentConfig.glassResolution);
+      if (canvas.width !== bufferSize.width) canvas.width = bufferSize.width;
+      if (canvas.height !== bufferSize.height) canvas.height = bufferSize.height;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(gradientProgram.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, gradientProgram.vertexBuffer);
+      gl.enableVertexAttribArray(gradientProgram.vertexPositionAttribute);
+      gl.vertexAttribPointer(
+        gradientProgram.vertexPositionAttribute,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0,
+      );
+      applyGlassPaletteUniforms(gl, gradientProgram, currentConfig);
+
+      const usesColumns = currentConfig.glassBandOrientation === 'columns';
+      const bandSize = Math.round(clamp(currentConfig.glassBandSizePx, 4, 160));
+      const bandSpan = usesColumns ? canvas.width : canvas.height;
+      const bandCount = Math.ceil(bandSpan / bandSize);
+      const displacement = clamp(currentConfig.glassDisplacementDeltaPercent, -40, 40) / 100;
+      const direction = clamp(currentConfig.glassDisplacementDirectionDeg, -180, 180) * Math.PI / 180;
+      const deltaX = Math.cos(direction) * displacement;
+      const deltaY = Math.sin(direction) * displacement;
+
+      gl.enable(gl.SCISSOR_TEST);
+      for (let bandIndex = 0; bandIndex < bandCount; bandIndex += 1) {
+        const bandOffset = bandIndex * bandSize;
+        gl.scissor(
+          usesColumns ? bandOffset : 0,
+          usesColumns ? 0 : bandOffset,
+          usesColumns ? Math.min(bandSize, canvas.width - bandOffset) : canvas.width,
+          usesColumns ? canvas.height : Math.min(bandSize, canvas.height - bandOffset),
+        );
+        applyGradientUniforms({
+          gl,
+          gradientProgram,
+          config: currentConfig,
+          width: canvas.width,
+          height: canvas.height,
+          shaderTime: clamp(currentConfig.glassPhase, 0, 20) + elapsedTime,
+          variation: clamp(currentConfig.shaderColorVariation, 0, 0.4),
+          offset: {
+            x: currentConfig.viewOffsetX + bandIndex * deltaX,
+            y: currentConfig.viewOffsetY + bandIndex * deltaY,
+          },
+        });
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
+      gl.disable(gl.SCISSOR_TEST);
+      gl.flush();
+
+      if (isDynamic) animationFrame = window.requestAnimationFrame(render);
+    };
+
+    const scheduleRender = () => {
+      if (!animationFrame) animationFrame = window.requestAnimationFrame(render);
+    };
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(scheduleRender);
+    const observer = typeof IntersectionObserver === 'undefined'
+      ? null
+      : new IntersectionObserver(entries => {
+        isVisible = entries[0]?.isIntersecting ?? true;
+        if (isVisible || !configRef.current.glassPauseWhenOffscreen) scheduleRender();
+      }, { threshold: 0.01 });
+
+    glassRenderScheduleRef.current = scheduleRender;
+    resizeObserver?.observe(canvas);
+    observer?.observe(canvas);
+    window.addEventListener('resize', scheduleRender, { passive: true });
+    scheduleRender();
+
+    return () => {
+      glassRenderScheduleRef.current = null;
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      resizeObserver?.disconnect();
+      observer?.disconnect();
+      window.removeEventListener('resize', scheduleRender);
+      gl.deleteBuffer(gradientProgram.vertexBuffer);
+      gl.deleteProgram(gradientProgram.program);
+    };
+  }, [config.glassPlayback, config.skyRenderMode]);
+
+  useEffect(() => {
+    if (config.skyRenderMode === 'glass') glassRenderScheduleRef.current?.();
+  }, [config]);
+
+  const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      active: true,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    setIsDragging(true);
+  }, []);
+
+  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const drag = dragRef.current;
+    if (!drag.active || drag.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    dragRef.current = { ...drag, x: event.clientX, y: event.clientY };
+
+    const canvas = canvasRef.current;
+    const width = Math.max(1, canvas?.clientWidth || window.innerWidth || 1);
+    const height = Math.max(1, canvas?.clientHeight || window.innerHeight || 1);
+
+    setConfig(previous => {
+      const zoom = Math.max(0.25, previous.viewZoom);
+      return {
+        ...previous,
+        viewOffsetX: clamp(previous.viewOffsetX - dx / width / zoom, -2, 2),
+        viewOffsetY: clamp(previous.viewOffsetY + dy / height / zoom, -2, 2),
+      };
+    });
+  }, []);
+
+  const handlePointerEnd = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragRef.current = { active: false, pointerId: null, x: 0, y: 0 };
+    setIsDragging(false);
+  }, []);
+
+  const handleWheel = useCallback((event: ReactWheelEvent<HTMLCanvasElement>) => {
+    if (!event.metaKey && !event.ctrlKey) return;
+
+    event.preventDefault();
+    setConfig(previous => ({
+      ...previous,
+      viewZoom: clamp(previous.viewZoom * Math.exp(-event.deltaY * 0.0012), 0.25, 8),
+    }));
+  }, []);
+
+  return (
+    <>
+      <SeoHead
+        title={buildSiteTitle('Manuel Cerdas — Independent Engineer & Advisor')}
+        description="Independent engineering and advisory across AI products, technical systems, product strategy, and interface design."
+        canonicalPath="/abstract"
+      />
+    {abstractPageLayoutConfig.presentationMode === 'classic' ? (
+    <>
+    <main
+      className="relative min-h-[100dvh] overflow-x-clip"
+      style={{
+        color: 'white',
+        background: heroContentPresentationActive
+          ? normalizedPageSurfaceConfig.color
+          : config.skyRenderMode === 'refractor'
+          ? '#ffffff'
+          : config.skyRenderMode === 'legacy' || config.skyRenderMode === 'glass'
+          ? config.backgroundColor
+          : twilightGradient.terminalColor,
+      }}
+    >
+      <section
+        id="about"
+        aria-labelledby="abstract-hero-title"
+        className={[
+          styles.heroZone,
+          'relative isolate flex h-auto min-h-0 flex-col overflow-visible [touch-action:pan-y] md:h-[calc(100svh_-_var(--hero-dock-peek))]',
+          '[--hero-gutter:20px] [--hero-dock-peek:64px]',
+          'max-[359px]:[--hero-gutter:18px] min-[600px]:[--hero-gutter:24px] md:[--hero-gutter:32px] md:[--hero-dock-peek:294px] lg:[--hero-gutter:48px] lg:[--hero-dock-peek:clamp(128px,calc(101svh_-_811.52px),640px)] [@media(min-width:1024px)_and_(max-height:800px)]:[--hero-dock-peek:136px]',
+        ].filter(Boolean).join(' ')}
+        data-hero-tone={heroTone}
+        data-hero-content-surface={heroContentPresentationActive ? 'light' : 'field'}
+        data-layout-mode={heroLayoutMode}
+        data-sky-mode={config.skyRenderMode}
+        style={heroStyle}
+      >
+        {config.skyRenderMode === 'living' || config.skyRenderMode === 'glass' || config.skyRenderMode === 'legacy' ? (
+          <div className={styles.gradientSourceViewport}>
+            <canvas
+              key={config.skyRenderMode}
+              ref={canvasRef}
+              className={styles.gradientSourceCanvas}
+              onPointerDown={legacyGradientDragEnabled ? handlePointerDown : undefined}
+              onPointerMove={legacyGradientDragEnabled ? handlePointerMove : undefined}
+              onPointerUp={legacyGradientDragEnabled ? handlePointerEnd : undefined}
+              onPointerCancel={legacyGradientDragEnabled ? handlePointerEnd : undefined}
+              onWheel={legacyGradientDragEnabled ? handleWheel : undefined}
+              aria-hidden={!legacyGradientDragEnabled || undefined}
+              aria-label={legacyGradientDragEnabled ? 'Gradient designer canvas' : undefined}
+              style={{
+                cursor: legacyGradientDragEnabled
+                  ? isDragging ? 'grabbing' : 'grab'
+                  : 'default',
+                opacity: config.skyRenderMode === 'living' || config.skyRenderMode === 'glass' ? 1 : 0,
+                pointerEvents: legacyGradientDragEnabled ? 'auto' : 'none',
+                touchAction: legacyGradientDragEnabled ? 'pan-y' : 'auto',
+                userSelect: 'none',
+              }}
+            />
+          </div>
+        ) : null}
+        {config.skyRenderMode === 'refractor' ? (
+          <div
+            aria-hidden="true"
+            className={styles.refractorLayer}
+            data-orientation={config.refractorOrientation}
+            style={{
+              '--refractor-slice-count': refractorSliceCount,
+            } as CSSProperties}
+          >
+            {Array.from({ length: refractorSliceCount }, (_, sliceIndex) => {
+              const sliceDistanceFromCenter = Math.abs(refractorCenterSliceIndex - sliceIndex);
+              const rowDisplacementPercent = config.refractorOrientation === 'rows'
+                ? (refractorCenterSliceIndex - sliceIndex) * refractorRowDisplacementStepPercent
+                : 0;
+              const rowScalePercent = config.refractorOrientation === 'rows'
+                ? Math.max(10, 100 - sliceDistanceFromCenter * refractorRowScaleStepPercent)
+                : 100;
+              const columnDisplacementPercent = config.refractorOrientation === 'columns'
+                ? (refractorCenterSliceIndex - sliceIndex) * refractorColumnDisplacementStepPercent
+                : 0;
+              const columnScalePercent = config.refractorOrientation === 'columns'
+                ? Math.max(10, 100 - sliceDistanceFromCenter * refractorColumnScaleStepPercent)
+                : 100;
+
+              return (
+                <span
+                  className={styles.refractorSlice}
+                  key={sliceIndex}
+                  style={{
+                    '--refractor-row-displacement-y': `${rowDisplacementPercent}%`,
+                    '--refractor-row-scale-y': `${rowScalePercent}%`,
+                    '--refractor-column-displacement-x': `${columnDisplacementPercent}%`,
+                    '--refractor-column-scale-x': `${62 * columnScalePercent / 100}vmin`,
+                  } as CSSProperties}
+                />
+              );
+            })}
+          </div>
+        ) : null}
+        {config.skyRenderMode === 'legacy' && gridLayoutActive ? (
+          <AbstractHeroGrid
+            cellCanvasRefs={gradientGridCellCanvasRefs}
+            colorMode={normalizedSiteHeaderConfig.colorMode}
+            headerTone={backgroundAwarenessActive ? headerTone : heroTone}
+            logoStops={heroHeaderLogoStops}
+            navBorderColor={normalizedSiteHeaderConfig.navBorderColor}
+            navTextColor={normalizedSiteHeaderConfig.navTextColor}
+            totalCellCount={overlayFaceCount}
+          />
+        ) : (
+          <>
+            {config.skyRenderMode === 'legacy' ? (
+              <div
+                aria-hidden="true"
+                className={styles.gradientOutputViewport}
+                data-content-surface={heroContentPresentationActive ? 'light' : 'field'}
+              >
+                <div className={styles.gradientOutputStack}>
+                  {Array.from({ length: gradientLayerCount }).map((_, layerIndex) => (
+                    <canvas
+                      key={layerIndex}
+                      ref={node => {
+                        gradientSnapshotLayerRefs.current[layerIndex] = node;
+                      }}
+                      className={styles.gradientSnapshotLayer}
+                      style={{
+                        height: `${getProceduralColorStackLayerHeightRatio(layerIndex, overlayFaceCount) * 100}%`,
+                        mixBlendMode: layerIndex === 0 ? 'normal' : ABSTRACT_GRADIENT_SNAPSHOT_BLEND_MODE,
+                        opacity: ABSTRACT_GRADIENT_SNAPSHOT_OPACITY,
+                      }}
+                    />
+                  ))}
+                  <canvas
+                    ref={legacyCompositeCanvasRef}
+                    className={styles.gradientCompositeCanvas}
+                    data-legacy-canonical-composite="true"
+                  />
+                </div>
+                {config.legacyScrimEnabled ? (
+                  <div aria-hidden="true" className={styles.heroScrim} />
+                ) : null}
+              </div>
+            ) : null}
+          <SiteHeader
+            config={normalizedSiteHeaderConfig}
+            dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
+            logoStops={heroHeaderLogoStops}
+            navBandActive={heroNavBandActive}
+            navBandCanvasRef={heroNavBandCanvasRef}
+            navBandColorFilter={heroNavBandColorFilter}
+            pageSurfaceConfig={normalizedPageSurfaceConfig}
+          />
+          </>
+        )}
+
+      {!gridLayoutActive && config.heroContentEnabled ? (
+        <AbstractEditorialHero
+          headline={ABSTRACT_EDITORIAL_HEADLINE}
+          paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
+          actionInkTone={actionsTone}
+          config={normalizedEditorialHeroConfig}
+          horizontalPlacement={
+            NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
+              splitColumnLayoutConfig.narrowColumnContentAlign
+            ]
+          }
+          horizontalPlacementWide={
+            NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_WIDE[
+              splitColumnLayoutConfig.narrowColumnContentAlignWide
+            ]
+          }
+          horizontalPlacementLg={
+            NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG[
+              splitColumnLayoutConfig.narrowColumnContentAlignLg
+            ]
+          }
+          copyInkTone={contentTone}
+          ctaConfig={normalizedCtaButtonConfig}
+          heroCtaComposerConfig={normalizedHeroCtaComposerConfig}
+          gradientHeadlineActive={heroContentPresentationActive}
+          gradientDebugCanvasRef={heroHeadlineDebugCanvasRef}
+          headlineCanvasRef={heroHeadlineCanvasRef}
+          headlineRef={heroHeadlineRef}
+          layoutMode={heroLayoutMode}
+          surfaceColor={normalizedPageSurfaceConfig.color}
+        />
+      ) : null}
+      </section>
+      {/* The collection owns its label/control spacing while the scattered deck
+          still reserves exactly journalTopPeekPx before its positioned field.
+          The deck's own container
+          (AbstractPostDockScatter) rides up into that reserved space via a
+          negative margin-top of the same amount (see
+          computeAbstractPostDockTopPeekPx), so the deck's peek is fully
+          absorbed before it reaches the collection header.
+          Padding, specifically, because a *margin* here would collapse with
+          the collection header's own bottom spacing. Padding never collapses
+          with that margin, so the mechanical clearance remains fully absorbed
+          by the deck's cancelling negative margin. marginTop is still
+          dockLayoutConfig's own headingOffsetPx (default 0); the hero section
+          above already reserves the above-the-fold card sliver. */}
+      <div
+        id="journal"
+        aria-label="Journal"
+        className={styles.journalSection}
+        role="region"
+        style={{
+          // The slider layout mode deliberately bleeds its draggable row to
+          // the true viewport edges (CardSlider's own `left: 50%; width:
+          // 100vw; margin-left: -50vw` wrapper) — 'clip' here would cut that
+          // off at this section's own padded box. Grid mode never bleeds, so
+          // it keeps the original clip that contains its scattered cards'
+          // rotation overflow.
+          overflowX: journalLabCollectionSliderConfig.layoutMode === 'slider'
+            ? 'visible'
+            : 'clip',
+        }}
+        tabIndex={-1}
+      >
+        <PageContainer
+          className={COLLECTION_CONTAINER_CLASSNAME}
+          config={normalizedPageSurfaceConfig}
+          style={{
+            marginTop: `${dockLayoutConfig.headingOffsetPx}px`,
+          }}
+        >
+          <div
+            className="w-full"
+            ref={collectionContainerProbeRef}
+          >
+            {journalLabCollectionConfig.enabled ? (
+              <AbstractJournalLabCollection
+                articles={dockItems ?? []}
+                labs={labs ?? []}
+                config={journalLabCollectionConfig}
+                sliderConfig={journalLabCollectionSliderConfig}
+                introductionConfig={dockIntroductionConfig}
+                gradientConfig={journalDockSliderConfig}
+                paletteConfig={dockPaletteConfig}
+                hueInfluenceConfig={dockHueInfluenceConfig}
+                layoutConfig={resolvedCollectionDockLayoutConfig}
+                journalHologramConfig={dockHologramConfig}
+                labCardConfig={labCardConfig}
+                headingConfig={normalizedCollectionHeadingConfig}
+                containerBg={normalizedPageSurfaceConfig.color}
+                containerWidthPx={
+                  collectionAvailableWidthPx ??
+                  collectionContainerWidthPx ??
+                  resolvedCollectionDockLayoutConfig.cardWidthPx
+                }
+                enforceCardWidthBounds={!journalUsesNarrowDock}
+              />
+            ) : (
+              <>
+                {/* paddingBottom (not marginBottom) reserves the peek space —
+                    see the long comment that used to sit above this block for
+                    why padding is required here instead of margin. */}
+                <div style={{ paddingBottom: `${journalTopPeekPx}px` }}>
+                  <SectionHeading config={normalizedCollectionHeadingConfig}>
+                    JOURNAL & LABS
+                  </SectionHeading>
+                </div>
+                <div
+                  style={journalUsesNarrowDock
+                    ? {
+                        marginInline: `-${journalDockNarrowPeekRem}rem`,
+                        width: `calc(100% + ${journalDockNarrowPeekRem * 2}rem)`,
+                      }
+                    : undefined}
+                >
+                  <AbstractPostDock
+                    items={dockItems ?? []}
+                    config={journalDockSliderConfig}
+                    introductionConfig={dockIntroductionConfig}
+                    gradientPerformanceConfig={dockGradientPerformanceConfig}
+                    paletteConfig={dockPaletteConfig}
+                    hueInfluenceConfig={dockHueInfluenceConfig}
+                    layoutConfig={resolvedCollectionDockLayoutConfig}
+                    hologramConfig={dockHologramConfig}
+                    editorialSurfaceColor={normalizedPageSurfaceConfig.color}
+                    narrowDetectionSource="viewport"
+                    variant="embedded"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </PageContainer>
+      </div>
+    </main>
+    {!journalLabCollectionConfig.enabled && labs && labs.length > 0 && (
+      <section
+        className="relative z-10 py-16"
+        style={labSectionConfig.backgroundMode !== 'transparent'
+          ? { backgroundColor: labSectionConfig.backgroundMode === 'custom'
+              ? labSectionConfig.customBackgroundColor
+              : normalizedPageSurfaceConfig.color }
+          : undefined}
+      >
+        {/* This is the same page-level content box used above the fold.
+            LabList itself adds no horizontal inset; its responsive card width
+            consumes this box exactly while preserving the configured gap. */}
+        <PageContainer
+          className={COLLECTION_CONTAINER_CLASSNAME}
+          config={normalizedPageSurfaceConfig}
+        >
+          <AbstractMetalLabList
+            labs={labs}
+            showViewAll
+            gradientConfig={journalDockSliderConfig}
+            paletteConfig={dockPaletteConfig}
+            hueInfluenceConfig={dockHueInfluenceConfig}
+            cardConfig={labCardConfig}
+            headingConfig={normalizedCollectionHeadingConfig}
+            containerBg={
+              labSectionConfig.backgroundMode === 'custom'
+                ? labSectionConfig.customBackgroundColor
+                : normalizedPageSurfaceConfig.color
+            }
+            cardWidthPx={collectionCardWidthPx ?? dockLayoutConfig.cardWidthPx}
+            columnGapPx={dockLayoutConfig.columnGapPx}
+            rowGapPx={dockLayoutConfig.rowGapPx}
+            cardRadius={dockLayoutConfig.cardRadius}
+          />
+        </PageContainer>
+      </section>
+    )}
+    </>
+    ) : (
+      // PLAN-HOMEPAGE-IA-LAYOUT.md 8.3-8.8 — the 'splitColumn' branch.
+      // Per explicit correction: this branch must render with the page's
+      // own real surface/ink colors and real composer — the same
+      // heroContentPresentationActive/contentTone/actionsTone/
+      // normalizedPageSurfaceConfig the 'classic' branch already computes
+      // and uses above, not invented fixed colors. No background color is
+      // applied to the header or to either SplitColumnLayout column —
+      // the whole page reads as one flat surface, exactly as it already
+      // does today, just reflowed into two columns. Renders through the
+      // same <PolymorphicLayout> /about and /posts-lab already use (see
+      // PLAN-SPLIT-COLUMN-LAYOUT-ENRICHMENT-EXTRACTION.md) — the shared,
+      // already-configurable marginTop/desktopMarginTop, properly contained
+      // by the shell's own overflow-hidden wrapper, not a page-specific
+      // mt-0 override (which fixed one symptom — an exposed sliver of
+      // globals.css's body{bg-slate-950} — by hiding it behind a different,
+      // now-inconsistent margin instead of containing it).
+      <PolymorphicLayout
+        config={splitColumnLayoutConfig}
+        pageSurfaceConfig={normalizedPageSurfaceConfig}
+        paletteColorResolver={paletteColorResolver}
+        headerWrapperRef={splitColumnHeaderWrapperRef}
+        // Both columns default 'float' on this page (see
+        // splitColumnLayoutConfig's own useState initializer) — no reserved
+        // space, the card-stack/hero row starts at the true viewport top and
+        // the fixed header floats over it (see wideColumnRowMinHeightCss/
+        // narrowColumnRowMinHeightCss above). This is what lets a
+        // transparent/scrim'd header segment actually reveal the slider
+        // through it. Either column can opt into 'pushDown' instead via the
+        // "Polymorphic Layout" panel, independently.
+        //
+        // No legibilityScrimEnabled prop here — the shell resolves that
+        // itself from splitColumnLayoutConfig.legibilityScrimEnabled (an
+        // explicit, panel-exposed opt-in, default off on both /about and
+        // /abstract) together with each column's own *ColumnHeaderBehavior,
+        // rather than this page auto-computing "blur whenever a column
+        // floats." The blur is a deliberate visual choice per config, not an
+        // automatic consequence of choosing 'float'.
+        //
+        // /about's own columns are already full-bleed; /abstract's are
+        // deliberately bounded/centered (config.contentContainer: 'bounded'
+        // — see ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own doc comment) —
+        // switching this to 'full-bleed' was tried and reverted: it lets
+        // SplitColumnCardPreview's own wide column grow past the width its
+        // internal ResizeObserver-driven sizing (and
+        // wideColumnContentWidthWide/-Lg's own 'match-narrow-column' cap —
+        // ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG, resolved by
+        // components/PolymorphicLayout.tsx's own resolveWideColumnContentWidth
+        // — tuned against the bounded box's own width) was built for, which
+        // is what broke its layout.
+        // edgeBackdropEnabled extends whatever colors wideColumnStyle/
+        // narrowColumnStyle below actually resolve to out to the true
+        // viewport edges — inert when colorSource is 'none' — seamed at the
+        // same live-measured column boundary <PolymorphicLayout> already
+        // tracks internally via autoAlignNavSplit, without touching the
+        // bounded content's own real width at all.
+        edgeBackdropEnabled
+        // PLAN-POLYMORPHIC-LAYOUT-DECOUPLING.md §6 — this page constructs
+        // its own <SiteHeader> instead of handing PolymorphicLayout
+        // a siteHeaderConfig/logoStops/dataInkTone/splitBand*/etc. bundle to
+        // render automatically. This is the largest, highest-risk migration
+        // of the four (the plan's own §6 flags this stage as the most
+        // likely to drop a value) — every prop below was cross-checked
+        // against the old call site's own full prop list, not reconstructed
+        // from memory. Note: navBandActive/navBandCanvasRef/
+        // navBandColorFilter, which an earlier audit flagged as this page's
+        // own wrinkle to preserve, are NOT part of this splitColumn branch
+        // at all — grepped the whole file and confirmed all three live
+        // exclusively on the 'classic'-presentation-mode branch's own
+        // direct <SiteHeader> call (out of scope per §0.7), so
+        // there is nothing to carry over here. slotProps (HeaderSlotProps)
+        // carries the values only PolymorphicLayout's own internal
+        // machinery can compute; spread last so nothing here can silently
+        // shadow them.
+        header={(slotProps) => (
+          <SiteHeader
+            // Local override, same technique /about uses for its own
+            // navAlignedToSplitEnabled override — layered on at the render
+            // call site, not mutating the shared normalizedSiteHeaderConfig,
+            // so any other consumer of that same config stays on the
+            // original nav layout by default. navAlignedToPageContainer:
+            // false is the percentage-mode fallback for the one frame
+            // before onNavAlignmentChange's own first measurement lands —
+            // false is /about's own arrangement (unpadded), so even that
+            // brief fallback frame matches /about.
+            config={buildEffectiveSiteHeaderConfig(
+              {
+                ...normalizedSiteHeaderConfig,
+                navAlignedToSplitEnabled: true,
+                navAlignedToPageContainer: false,
+                navContentGapPx: SPLIT_ALIGNED_NAV_CONTENT_GAP_PX,
+              },
+              splitColumnLayoutConfig,
+            )}
+            dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
+            logoStops={heroHeaderLogoStops}
+            physicalLeftColumnColor={colors.actualLeftSegmentColor}
+            pageSurfaceConfig={normalizedPageSurfaceConfig}
+            // Unlike /about's own conditional Spacefield-visible override,
+            // this page has no runtime need to force the band regardless of
+            // config — colors.resolvedSplitBandLeft/RightColor (this page's
+            // own pre-existing usePolymorphicLayoutColors() call, already
+            // used above for wideColumnColor/narrowColumnColor/etc.) plus
+            // splitColumnLayoutConfig.headerSplitBandEnabled
+            // directly replicate the same headerSplitBandEnabled/
+            // splitBandLeftMode/splitBandRightMode resolution
+            // PolymorphicLayout used to apply internally (same fix pattern
+            // as /posts-lab's own Stage D migration).
+            splitBandActive={splitColumnLayoutConfig.headerSplitBandEnabled}
+            splitBandLeftColor={colors.resolvedSplitBandLeftColor}
+            splitBandRightColor={colors.resolvedSplitBandRightColor}
+            splitBandStacked={colors.splitBandStacked}
+            {...slotProps}
+          />
+        )}
+        // wideColumn/narrowColumn below are the CARD PREVIEW and HERO TEXT
+        // respectively — the card stack is the physically-wide (62%) slot,
+        // the hero text is the narrow (38%) one, matching /about's own
+        // arrangement (its wide slot holds AbstractPostDock, its narrow
+        // slot holds the short hero headline). This used to be reversed
+        // (hero wide, cards narrow), which is what produced the header
+        // band/body grid mismatch fixed in SplitColumnPageShell — see that
+        // file's own doc comment. className/style pairs below are grouped
+        // with the content they actually style, not with the "wide"/
+        // "narrow" prop names, since which slot is physically wide is an
+        // orthogonal choice (splitColumnLayoutConfig.wideColumnSide).
+        //
+        // No justify-*/padding classes here anymore — both now come from
+        // config (wideColumnContentVerticalAlign, wideColumnContentPadding*)
+        // via <PolymorphicLayout>'s own buildWideColumnClassName. No
+        // page-level justify-* override lives here: Polymorphic Layout's
+        // base/tablet/desktop values are the sole vertical-position source.
+        wideColumnClassName={`flex flex-col gap-6 ${styles.abstractStackedRow}`}
+        wideColumnStyle={{
+          minHeight: wideColumnRowMinHeightCss,
+          backgroundColor: colors.wideColumnColor,
+        }}
+        narrowColumnClassName={[
+          // No 'items-center' here anymore — the narrow column's own real
+          // vertical-centering slack (from narrowColumnStyle's own minHeight
+          // below) now passes through to NarrowColumnContent's own outer
+          // box via flexbox's default 'stretch' cross-axis instead, so that
+          // primitive's own verticalAlign (narrowColumnContentVerticalAlign
+          // — see ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own doc comment on
+          // that field) is what actually centers AbstractEditorialHero now,
+          // not a page-local class disconnected from that already-live
+          // panel control.
+          'flex',
+          // ABSTRACT-01 fix (2026-08-20-139d957): CSS-module class (not a
+          // Tailwind utility — abstract.module.css's own
+          // @media (max-width: 767px) block targets .abstractStackedRow by
+          // name) so that stylesheet can reset this row's inline minHeight
+          // (below) back to auto once the two columns stack — see that CSS
+          // rule's own doc comment for the full root-cause explanation.
+          // Present on both wideColumnClassName and this
+          // narrowColumnClassName since both columns share the identical
+          // 100dvh-floor mechanism.
+          styles.abstractStackedRow,
+        ].join(' ')}
+        narrowColumnStyle={{
+          minHeight: narrowColumnRowMinHeightCss,
+          backgroundColor: colors.narrowColumnColor,
+        }}
+        // wideColumn/narrowColumn below are raw content — no page-level
+        // WideColumnContent/NarrowColumnContent composition. PolymorphicLayout
+        // itself wraps both automatically now that wideColumnContentContainer/
+        // narrowColumnContentContainer are 'bounded' (ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG),
+        // the exact same unconditional coordinator path every other
+        // PolymorphicLayout page already gets — this page previously opted
+        // out ('full-bleed') and hand-composed the identical primitive
+        // itself in this JSX, which is what let three separate call sites
+        // (this page, posts-lab, about) each type out their own subset of
+        // ColumnContentBoxProps fields and silently drop different tiers.
+        wideColumn={(
+          // SplitColumnCardPreview measures its own container's real width
+          // (ResizeObserver, see that file's own containerRef effect) and
+          // scales the whole card to fill it exactly — it takes no width
+          // opinion of its own (no className override here), filling
+          // whatever box PolymorphicLayout's own coordinator gives it. That
+          // box is exactly what ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own
+          // wideColumnContentWidthWide/-Lg ('match-narrow-column') caps it
+          // to — the container sets the constraint, the content fills it
+          // fluidly, not the other way around.
+          <SplitColumnCardPreview
+            articles={dockItems ?? []}
+            labs={labs ?? []}
+            collectionConfig={journalLabCollectionConfig}
+            config={splitColumnCardPreviewConfig}
+            stackConfig={splitColumnCardStackConfig}
+            headerOffsetPx={cardStackHeaderOffsetPx}
+            stackVerticalAlign={cardStackVerticalAlign}
+            stackVerticalPaddingTopClass={resolvedWideColumnPaddingTop}
+            stackVerticalPaddingBottomClass={resolvedWideColumnPaddingBottom}
+            physicsConfig={normalizedCtaButtonConfig}
+            gradientConfig={journalDockSliderConfig}
+            paletteConfig={dockPaletteConfig}
+            hueInfluenceConfig={dockHueInfluenceConfig}
+            hologramConfig={dockHologramConfig}
+            layoutConfig={resolvedCollectionDockLayoutConfig}
+            cardRadius={resolvedCollectionDockLayoutConfig.cardRadius}
+            surfaceColor={normalizedPageSurfaceConfig.color}
+            columnBackgroundColor={colors.wideColumnColor}
+          />
+        )}
+        narrowColumn={(
+          <AbstractEditorialHero
+            headline={ABSTRACT_EDITORIAL_HEADLINE}
+            paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
+            actionInkTone={actionsTone}
+            config={normalizedSplitColumnHeroConfig}
+            horizontalPlacement={
+              NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
+                splitColumnLayoutConfig.narrowColumnContentAlign
+              ]
+            }
+            horizontalPlacementWide={
+              NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_WIDE[
+                splitColumnLayoutConfig.narrowColumnContentAlignWide
+              ]
+            }
+            horizontalPlacementLg={
+              NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG[
+                splitColumnLayoutConfig.narrowColumnContentAlignLg
+              ]
+            }
+            copyInkTone={contentTone}
+            ctaConfig={normalizedCtaButtonConfig}
+            heroCtaComposerConfig={normalizedHeroCtaComposerConfig}
+            gradientHeadlineActive={heroContentPresentationActive}
+            gradientDebugCanvasRef={heroHeadlineDebugCanvasRef}
+            headlineCanvasRef={heroHeadlineCanvasRef}
+            headlineRef={heroHeadlineRef}
+            layoutMode={gridLayoutActive ? 'editorial' : heroLayoutMode}
+            surfaceColor={normalizedPageSurfaceConfig.color}
+            columnBackgroundColor={colors.narrowColumnColor}
+          />
+        )}
+      >
+      </PolymorphicLayout>
+    )}
+    </>
+  );
+}

@@ -1,0 +1,244 @@
+/* Full-bleed 38%/62% split — outside what Tailwind utilities can express
+   (an exact percentage grid split with no max-width cap), same rationale
+   EditorialSection.module.css already documents for its own fr-based grid. */
+
+/* The page sets --about-nav-h-mobile/--about-nav-h-desktop inline (computed
+   from the real SiteHeader height/margin tokens) — this class picks
+   the right one into the single --about-nav-h consumed below. Redefining a
+   custom property per breakpoint has to happen in a stylesheet rule (not an
+   inline style) for the media query to be able to override it at all. */
+.main {
+  --about-nav-h: var(--about-nav-h-mobile);
+}
+
+@media (min-width: 768px) {
+  .main {
+    --about-nav-h: var(--about-nav-h-desktop);
+  }
+}
+
+/* The 38%/62% split itself (plus its narrow-viewport 1fr collapse) now lives
+   in components/SplitColumnLayout.tsx as literal Tailwind grid-cols classes
+   — .splitGrid used to own this, now this page only owns per-column visual
+   treatment (height, padding, background hookup) via the two classes below,
+   applied as SplitColumnLayout's own slot classNames. */
+
+.splitLeft,
+.splitRight {
+  /* vh fallback first, dvh override after — later declaration wins in
+     browsers that support it, ignored (falls back to the vh rule) otherwise. */
+  height: calc(100vh - var(--about-nav-h));
+  height: calc(100dvh - var(--about-nav-h));
+  overflow: hidden;
+}
+
+.splitLeft {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  /* Left inset matches the header logo's own measured left edge
+     (--about-left-align-px, set inline once about.tsx measures it — see the
+     logoAnchorRef effect) so the two starting points line up exactly; the
+     clamp() is only the pre-measurement/no-JS fallback. Right padding is
+     intentionally absent here: ABOUT_POLYMORPHIC_LAYOUT_CONFIG owns it at
+     every tier so the navigation no-content zone remains live in the page's
+     registered Polymorphic Layout panel.
+     padding-top/-bottom deliberately absent too (BUGS-AUDIT-POLYMORPHIC-
+     LAYOUT-CARD-STACK.md BUG-006) — a former `padding-top: clamp(2rem, 6vh,
+     4rem)` here had no live-measurement justification (unlike padding-left
+     above) and simply out-ranked ABOUT_POLYMORPHIC_LAYOUT_CONFIG's own
+     narrowColumnContentPaddingTop/-Bottom fields at every breakpoint via
+     equal-specificity/later-cascade-order, the exact same class of bug
+     found independently on AbstractEditorialHero (BUG-004). Removed so
+     those panel fields (already correctly emitting pt-0/md:pt-14/lg:pt-0
+     etc. into the DOM) are the sole, working source of vertical padding. */
+  padding-left: var(--about-left-align-px, clamp(1.5rem, 4vw, 4rem));
+  /* The page sets --about-left-panel-color inline from live palette state
+     (see resolveAboutAccent in about.tsx) — same custom-property hookup
+     pattern as --about-nav-h-*. Forced to transparent (still via this same
+     variable, from JS) whenever the spacefield is visible — the field's own
+     backgroundColor becomes this panel's real background then, painted by
+     a layer behind it rather than this element's own background-color. */
+  background-color: var(--about-left-panel-color);
+}
+
+/* AbstractPostDock's own wrapping <section> has no explicit height of its
+   own (it sizes to content by design, for its default page-flow usage) — a
+   plain block child here would hit the classic "auto-height parent, 100%-
+   height child" CSS collapse (dockRef's own height:100% has nothing to
+   resolve against and collapses to 0). Flex's stretch sizing isn't subject
+   to that percentage-resolution rule, so making splitRight a flex container
+   is what actually forces the section — and everything inside it — to fill
+   the real, already-bounded height computed above. */
+.splitRight {
+  display: flex;
+}
+
+@media (max-width: 767px) {
+  .splitLeft,
+  .splitRight {
+    height: auto;
+    min-height: calc(50vh - var(--about-nav-h) / 2);
+    min-height: calc(50dvh - var(--about-nav-h) / 2);
+  }
+
+  /* SplitColumnPageShell applies `marginTop: <measured fixed-header height>`
+     (inline style) to BOTH columns whenever their own *ColumnHeaderBehavior
+     is 'pushDown' (ABOUT_POLYMORPHIC_LAYOUT_CONFIG sets both to 'pushDown' —
+     see pages/about.config.ts) — correct at >=768px, where .splitLeft/
+     .splitRight sit side by side in the SAME grid row and the fixed header
+     floats over both simultaneously, so both genuinely need that reserved
+     space. Below 768px the grid collapses to grid-cols-1 (.splitGrid's own
+     stacked mode) and the two columns become separate stacked ROWS instead:
+     the header only ever floats over .splitLeft (the first row); .splitRight
+     (the second row) starts well below the header regardless, so its own
+     copy of that same marginTop is pure dead space stacked on top of
+     .splitLeft's already-legitimate one — confirmed via direct measurement
+     (finding ABOUT-01, scripts/responsiveness-agentic-feedback.md; the two
+     112px reservations combined were pushing the first editorial card
+     ~220px below the fold on a 320x568 viewport for no visual reason, with
+     document.scrollHeight measured at 680px pre-fix vs. 568px == viewport
+     height post-fix). SplitColumnPageShell has no visibility into which
+     grid mode a page-owned .splitLeft/.splitRight pairing is actually in
+     (its own doc comment on effectiveWideColumnStyle says as much), so this
+     narrow, page-owned override is the correct place to zero out the
+     redundant half of it rather than teaching the shared shell about this
+     page's own stacked-grid CSS. !important is required: SplitColumnPageShell
+     sets marginTop via the style attribute, which an external stylesheet
+     rule cannot outrank by specificity alone. */
+  .splitRight {
+    margin-top: 0 !important;
+  }
+}
+
+/* Prev/next triangle control — pinned to the left panel's own top-right
+   corner, right at the seam with the right panel. No background/pill:
+   NavTriangleButton (about.tsx) renders only the bare white triangle glyph
+   itself, so this is just a positioning + gap wrapper around the two
+   buttons. Gap is set inline (navControlArrowSizePx * 0.32 — see
+   NAV_CONTROL_GAP_RATIO in about.tsx). */
+.navControl {
+  position: absolute;
+  top: clamp(1rem, 3vh, 1.75rem);
+  right: clamp(1rem, 3vh, 1.75rem);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+
+.navControlButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--about-nav-control-idle-color, #ffffff);
+  opacity: var(--about-nav-control-idle-opacity, 0.85);
+  /* The classic asymmetric-transition trick: this (base/idle/disabled)
+     rule's own transition-duration/-timing-function govern whenever the
+     computed value is REVERTING to it — i.e. mouse-out, or going disabled —
+     while the :hover rule below declares the ENTER timing on itself. No
+     pointer-event JS needed for either direction. */
+  transition-property: opacity;
+  transition-duration: var(--about-nav-control-mouseout-ms, 320ms);
+  transition-timing-function: var(--about-nav-control-mouseout-easing, ease);
+}
+
+.navControlButton:hover:not(:disabled) {
+  opacity: var(--about-nav-control-hover-opacity, 1);
+  transition-duration: var(--about-nav-control-hover-ms, 160ms);
+  transition-timing-function: var(--about-nav-control-hover-easing, ease);
+}
+
+.navControlButton:disabled {
+  opacity: var(--about-nav-control-disabled-opacity, 0.35);
+  cursor: default;
+}
+
+.navControlButton:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgb(0 0 0 / 0.72);
+}
+
+/* The triangle's own fill/stroke — idle is the darkened complement, hover
+   blends back toward the undarkened color (see navControlIdleColor/
+   navControlHoverColor in about.tsx). No shadow anywhere: color + opacity
+   alone carry active/hover/disabled state. Same enter-on-:hover,
+   exit-on-base transition trick as the opacity above, applied to fill/stroke
+   instead. */
+.navControlGlyph polygon {
+  fill: var(--about-nav-control-idle-color, #ffffff);
+  stroke: var(--about-nav-control-idle-color, #ffffff);
+  transition-property: fill, stroke;
+  transition-duration: var(--about-nav-control-mouseout-ms, 320ms);
+  transition-timing-function: var(--about-nav-control-mouseout-easing, ease);
+}
+
+.navControlButton:hover:not(:disabled) .navControlGlyph polygon {
+  fill: var(--about-nav-control-hover-color, #ffffff);
+  stroke: var(--about-nav-control-hover-color, #ffffff);
+  transition-duration: var(--about-nav-control-hover-ms, 160ms);
+  transition-timing-function: var(--about-nav-control-hover-easing, ease);
+}
+
+/* AboutMobileAccordionItem's own disclosure chevron — same asymmetric
+   enter-on-:hover/exit-on-base transition trick as .navControlButton above
+   (no pointer-event JS needed for either direction), but with two
+   independently-timed properties on the SAME element instead of one:
+   opacity (hover-driven, idle = the row's own non-highlighted-text
+   opacity, matching AboutMobileAccordionItem's dimOpacity) and transform
+   (rotation, expanded/collapsed-state-driven, its own unrelated duration —
+   config.affordanceRotationDurationMs — that must never change just
+   because the pointer happens to be over the row at the same moment).
+   transition-duration/-timing-function take a comma-separated list
+   positionally matched to transition-property's own list (opacity first,
+   transform second) specifically so the :hover rule below can override
+   opacity's timing alone while leaving transform's untouched — a single
+   unqualified value in either rule would apply to both properties, wrongly
+   coupling rotation speed to hover state. The element's `transform` value
+   itself stays inline (React-state-driven, not something a CSS pseudo-
+   class can express). */
+.accordionAffordance {
+  opacity: var(--about-accordion-affordance-idle-opacity, 0.45);
+  transition-property: opacity, transform;
+  transition-duration:
+    var(--about-accordion-affordance-mouseout-ms, 320ms),
+    var(--about-accordion-affordance-rotation-ms, 220ms);
+  transition-timing-function:
+    var(--about-accordion-affordance-mouseout-easing, ease),
+    var(--about-accordion-affordance-rotation-easing, ease);
+}
+
+/* Suppresses the browser's own default mobile tap-highlight overlay — a
+   translucent gray/black rectangle WebKit/Chrome paint automatically over
+   any tappable element's own bounding box on touch, entirely outside this
+   component's control otherwise (no React state, no class, no `:active`
+   rule anywhere produces it — confirmed nothing in this file or any other
+   sets `-webkit-tap-highlight-color` today). Invisible on most of this
+   site's other buttons (light backgrounds/small hit areas mask it), but
+   glaringly obvious here: a full-row-sized hit target sitting directly on
+   the accordion's own animated gradient, where the overlay reads as an
+   unwanted darkening flash on every tap instead of a deliberate press
+   state. This component already has its own real, designed hover state
+   (the chevron opacity rule below) — the OS-level highlight isn't adding
+   feedback, it's fighting the design's own. */
+.accordionHeaderButton {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hovering anywhere on the header row lights the chevron — a bigger,
+   friendlier hover target than the chevron's own small icon box alone
+   (standard disclosure-affordance UX: the whole row is the click target,
+   so the whole row should be the hover target too). */
+.accordionHeaderButton:hover .accordionAffordance {
+  opacity: var(--about-accordion-affordance-hover-opacity, 0.9);
+  transition-duration:
+    var(--about-accordion-affordance-hover-ms, 160ms),
+    var(--about-accordion-affordance-rotation-ms, 220ms);
+  transition-timing-function:
+    var(--about-accordion-affordance-hover-easing, ease),
+    var(--about-accordion-affordance-rotation-easing, ease);
+}

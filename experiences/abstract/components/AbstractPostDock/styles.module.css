@@ -1,0 +1,146 @@
+.dock {
+  --abstract-dock-opacity-easing: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.dock [data-magnification-dock-index]::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: '';
+  pointer-events: none;
+  box-shadow: var(--abstract-dock-shadow, none);
+  opacity: 0;
+  transition: opacity 280ms var(--abstract-dock-opacity-easing);
+  /* Persistent layer: keeps the shadow composited for the dock's lifetime so
+     activation never promotes/demotes layers mid-transition. */
+  will-change: opacity;
+  /* Follows whatever border-radius the originating element itself carries
+     (e.g. layoutConfig.cardRadius applied directly to a Swiper slide) so the
+     shadow's own box matches the visible card underneath it. Without this,
+     the shadow projects from this pseudo-element's own (square, radius: 0)
+     box regardless of how rounded the card content inside actually is,
+     visible as a dark square wedge poking past the rounded corner into the
+     peek gap between adjacent cards. `inherit` works here even though
+     border-radius isn't a normally-inherited property — pseudo-elements can
+     always pull any property from their originating element's computed
+     value via the `inherit` keyword specifically. */
+  border-radius: inherit;
+}
+
+/* The shadow waits for the deck to settle; editorial details below are tied
+   only to the committed active item so touch-down never hides active content. */
+.dockSettled [data-magnification-dock-index][data-active='true'][data-revealed='true']::before {
+  opacity: 1;
+  transition-duration: 600ms;
+  transition-delay: 50ms;
+}
+
+.dockDate,
+.dockReadingTime {
+  opacity: 0;
+  transition-property: opacity;
+  transition-duration: 200ms;
+  transition-delay: 0ms;
+  transition-timing-function: var(--abstract-dock-opacity-easing);
+  /* Persistent layer: constant AA mode for the text — no promote/demote pop at
+     the start/end of each fade. */
+  will-change: opacity;
+}
+
+/* Preserve the CTA's layout slot on every card, but disclose it only after the
+   committed active card settles. */
+.dockCta {
+  opacity: 0;
+  pointer-events: none;
+  transition-property: opacity, color, border-color;
+  transition-duration: 200ms;
+  transition-delay: 0ms;
+  transition-timing-function: var(--abstract-dock-opacity-easing);
+  will-change: opacity;
+}
+
+.dockCard[data-active='true'][data-revealed='true'][data-details-visible='true'] .dockDate {
+  opacity: 1;
+  transition-duration: 420ms;
+  transition-delay: 110ms;
+}
+
+.dockCard[data-active='true'][data-revealed='true'][data-details-visible='true'] .dockReadingTime {
+  opacity: 1;
+  transition-duration: 440ms;
+  transition-delay: 200ms;
+}
+
+.dockCard[data-active='true'][data-revealed='true'][data-details-visible='true'] .dockCta {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: 460ms, 200ms, 200ms;
+  transition-delay: 290ms, 0ms, 0ms;
+}
+
+.dimmingOverlay {
+  opacity: var(--abstract-dock-dimming-opacity, 0);
+  /* Matched to the slide movement so dimming reads as part of one motion,
+     not a second wave; persistent layer avoids promotion churn. */
+  transition: opacity var(--abstract-dock-motion-ms, 420ms) var(--abstract-dock-opacity-easing);
+  will-change: opacity;
+}
+
+/*
+ * dockLayout's title/excerpt sizing keyed to the CARD's own rendered width,
+ * not the viewport. The two used to be the same signal by coincidence (a
+ * phone-viewport deck card is narrow, a desktop-viewport dock card is wide)
+ * but scattered mode breaks that coincidence: small cards inside a wide
+ * (desktop-only) viewport.
+ *
+ * The threshold below is NOT a straight reuse of Tailwind's own sm/md/xl
+ * pixel values -- measuring the two existing call sites directly showed why
+ * that doesn't work: the mobile deck's card is ~300-430px wide, but the
+ * desktop dock's card tops out around 570-950px across realistic viewport
+ * widths (1180-1920px+) -- it never reaches anywhere near 1280px, since
+ * `dockActivePercent` caps it well under the full viewport. A single
+ * threshold placed between those two populations (480px) reproduces the old
+ * *practical* behavior for both: small on an actually-narrow card, full-size
+ * on anything dock/desktop-card-width or wider -- including scattered mode's
+ * ~280px cards, which land in the same "small" tier as the phone deck.
+ */
+.dockLayoutContainer {
+  container-type: inline-size;
+}
+
+.dockTitleCompact {
+  font-size: 1.25rem; /* text-xl, matches the mobile deck's own size */
+}
+
+.dockTitleFull {
+  font-size: 1.5rem; /* text-2xl */
+}
+
+.dockExcerpt {
+  font-size: 0.875rem; /* text-sm */
+  line-height: 1.5rem; /* leading-6 */
+}
+
+@container (min-width: 480px) {
+  .dockTitleCompact {
+    font-size: 2.25rem; /* matches the desktop dock's old xl:text-4xl */
+  }
+  .dockTitleFull {
+    font-size: 3rem; /* matches the desktop dock's old xl:text-5xl */
+  }
+  .dockExcerpt {
+    font-size: 1rem; /* text-base */
+    line-height: 1.75rem; /* leading-7 */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock [data-magnification-dock-index]::before,
+  .dockDate,
+  .dockReadingTime,
+  .dockCta,
+  .dimmingOverlay {
+    transition-duration: 0ms;
+    transition-delay: 0ms;
+  }
+}

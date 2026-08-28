@@ -6,7 +6,15 @@
 @layer base {
   html,
   body {
-    @apply bg-slate-950;
+    @apply bg-slate-950 font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif;
   }
   h1 {
     /* @apply text-2xl font-semibold mt-10 mb-3 dark:text-slate-50; */
@@ -97,6 +105,3 @@
     @apply text-white/60;
   }
 }
-
-@import url('https://fonts.googleapis.com/css?family=Open+Sans:400,600,300');
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap');
