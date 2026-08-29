@@ -25,6 +25,7 @@ import { buildSplitAlignedSiteHeaderConfig } from '../experiences/abstract/compo
 import { SiteHeader } from '../experiences/abstract/components/SiteHeader';
 import { buildEffectiveSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/buildEffectiveSiteHeaderConfig';
 import { DEFAULT_SITE_HEADER_CONFIG } from '../experiences/abstract/components/SiteHeader/config/registered';
+import { DEFAULT_WORDMARK_CONFIG } from '../experiences/abstract/components/SiteHeader/config/wordmark';
 import {
   ABOUT_SITE_HEADER_COLOR_OVERRIDE_CONFIG,
   normalizeSiteHeaderColorOverrideConfig,
@@ -320,7 +321,9 @@ function AboutPageContent() {
     setLayoutDebugConfig,
     ctaButtonConfig,
   } = useSharedDesignConfig();
-  const { siteHeaderConfig, setSiteHeaderConfig } = useAbstractDesignConfig();
+  const {
+    siteHeaderConfig, setSiteHeaderConfig, wordmarkConfig, setWordmarkConfig,
+  } = useAbstractDesignConfig();
   // Page-local override of the shared siteHeaderConfig's color fields —
   // enabled: false (default) inherits the shared foundation exactly like
   // every other page. Seeded from this page's own complete config
@@ -1311,6 +1314,7 @@ function AboutPageContent() {
     setPanelShellConfig({ ...DEFAULT_PANEL_SHELL_CONFIG });
     setPageSurfaceConfig({ ...DEFAULT_PAGE_SURFACE_CONFIG });
     setSiteHeaderConfig({ ...DEFAULT_SITE_HEADER_CONFIG });
+    setWordmarkConfig({ ...DEFAULT_WORDMARK_CONFIG });
     setLayoutDebugConfig({ ...DEFAULT_LAYOUT_DEBUG_CONFIG });
     setDockPaletteConfig({ ...ABOUT_DEFAULT_DOCK_PALETTE_CONFIG });
     setDockLayoutConfig({ ...ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG });
@@ -1334,6 +1338,7 @@ function AboutPageContent() {
     setPageSurfaceConfig,
     setPanelShellConfig,
     setSiteHeaderConfig,
+    setWordmarkConfig,
   ]);
 
   return (
@@ -1392,6 +1397,17 @@ function AboutPageContent() {
               ),
               splitColumnLayoutConfig,
             )}
+            // The wordmark's own color/adaptive/intro config, fully
+            // decoupled from `config` above (which is nav-only now) — the
+            // same shared instance /abstract also binds, via
+            // AbstractDesignConfigProvider, so the two pages' wordmarks
+            // stay in genuine parity rather than merely starting from the
+            // same default (see WordmarkConfig's own doc comment for the
+            // bug this fixes: /about's colorMode/columnTextMinContrast
+            // previously silently diverged from /abstract's whenever this
+            // page's own now-nav-only SiteHeaderColorOverride was off,
+            // which it is by default).
+            wordmarkConfig={wordmarkConfig}
             // physicalLeftColumnColor: SiteHeader itself resolves the
             // logo's own colorMode-driven stops internally from this value
             // now (see SiteHeaderProps.logoStops's own doc comment for

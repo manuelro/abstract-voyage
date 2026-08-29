@@ -56,6 +56,15 @@ const HEADER_LAYOUT_KEYS_OWNED_ELSEWHERE: ReadonlyArray<keyof SiteHeaderConfig> 
   'headerContentLayoutOwnedByPage',
   'headerLeftSegmentClassName',
   'headerRightSegmentClassName',
+  // logoColor/logoSurfaceOffset: moved to the shared Wordmark panel
+  // (config/wordmark.panel.ts) — see registered.ts's own doc comment on
+  // these two fields. Still listed here (rather than removed from
+  // SiteHeaderConfig outright) purely as the legacy-fallback value a page
+  // that hasn't migrated to `wordmarkConfig` still gets (SiteHeader.tsx's
+  // own effectiveWordmarkConfig shim) — never panel-editable on this scope
+  // anymore.
+  'logoColor',
+  'logoSurfaceOffset',
 ];
 
 /**
@@ -74,7 +83,7 @@ export const SITE_HEADER_COLOR_FIELDS: ReadonlyArray<ConfigScopeEntry<SiteHeader
     kind: 'enum',
     key: 'colorMode',
     label: 'Header color mode',
-    description: 'Adaptive follows the hero ink tone. Custom applies the colors below. Surface derives all three from the page surface color, offset by the amounts below. Column derives logo/nav from the split column\'s own color underneath each, contrast-checked and offset by the same amounts below.',
+    description: 'Nav text/border only now — the logo\'s own color mode lives on the shared "Wordmark" panel instead (see that scope\'s own doc comment for why the two were split apart). Adaptive follows the hero ink tone. Custom applies the colors below. Surface derives both from the page surface color, offset by the amounts below. Column derives from the split column\'s own color underneath each, contrast-checked and offset by the same amounts below.',
     options: [
       { label: 'ADAPTIVE', value: 'adaptive' },
       { label: 'CUSTOM', value: 'custom' },
@@ -87,7 +96,6 @@ export const SITE_HEADER_COLOR_FIELDS: ReadonlyArray<ConfigScopeEntry<SiteHeader
     label: 'Custom colors',
     visibleWhen: config => config.colorMode === 'custom',
     fields: [
-      { kind: 'color', key: 'logoColor', label: 'Logo' },
       { kind: 'color', key: 'navTextColor', label: 'Navigation text' },
       { kind: 'color', key: 'navBorderColor', label: 'Navigation border' },
     ],
@@ -97,15 +105,6 @@ export const SITE_HEADER_COLOR_FIELDS: ReadonlyArray<ConfigScopeEntry<SiteHeader
     label: 'Surface/column offset',
     visibleWhen: config => config.colorMode === 'surface' || config.colorMode === 'column',
     fields: [
-      {
-        kind: 'number',
-        key: 'logoSurfaceOffset',
-        label: 'Logo offset',
-        description: 'How much lighter (positive) or darker (negative) than the base color the logo is.',
-        min: -1,
-        max: 1,
-        step: 0.01,
-      },
       {
         kind: 'number',
         key: 'navTextSurfaceOffset',
@@ -135,7 +134,7 @@ export const SITE_HEADER_COLOR_FIELDS: ReadonlyArray<ConfigScopeEntry<SiteHeader
         kind: 'number',
         key: 'columnTextMinContrast',
         label: 'Minimum contrast ratio',
-        description: 'Target WCAG contrast ratio for logo/nav text/nav border against their own split column color. If the target is physically impossible for that background, the highest-contrast black/white endpoint is used.',
+        description: 'Target WCAG contrast ratio for nav text/nav border against their own split column color. If the target is physically impossible for that background, the highest-contrast black/white endpoint is used. The logo has its own independent copy of this same knob on the "Wordmark" panel.',
         min: 1,
         max: 21,
         step: 0.1,

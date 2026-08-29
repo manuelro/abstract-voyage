@@ -61,6 +61,26 @@ type LogoWithGradientBgProps = {
 
   /** Optional duration for smoothly interpolating runtime stop-color changes. */
   stopTransitionMs?: number;
+
+  /** Intro stagger/motion — forwarded straight through to the wrapping
+   * SvgStaggerGroup. Every default below reproduces this component's own
+   * previous hardcoded values exactly, so a caller that omits all of them
+   * (e.g. AbstractHeroGrid.tsx's own bare `<Logo>` usage) is unaffected. A
+   * caller that wants this configurable (SiteHeader.tsx, driven by
+   * WordmarkConfig) passes every field explicitly instead. */
+  introAnimate?: boolean;
+  introInitialDelay?: number;
+  introStepDelay?: number;
+  introDuration?: number;
+  introEasing?: string;
+  introDirection?: 'forward' | 'reverse';
+  introScalePivot?: 'center' | 'top-left' | 'top-center' | 'top-right' | 'left-center'
+    | 'right-center' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+  introBloomEnabled?: boolean;
+  introBloomBase?: number;
+  introBloomPeak?: number;
+  introBloomInitialDelay?: number;
+  introBloomStepDelay?: number;
 };
 
 // Default: a premium, darker, center-bright gradient generated around a base hue.
@@ -94,6 +114,18 @@ const LogoWithGradientBg: React.FC<LogoWithGradientBgProps> = ({
   className = '',
   ariaLabel = 'Abstract Voyage Logo',
   stopTransitionMs = 0,
+  introAnimate = true,
+  introInitialDelay = 0.01,
+  introStepDelay = 0.02,
+  introDuration = 1.4,
+  introEasing,
+  introDirection = 'reverse',
+  introScalePivot = 'left-center',
+  introBloomEnabled = true,
+  introBloomBase = 1,
+  introBloomPeak = 1.4,
+  introBloomInitialDelay = 0.1,
+  introBloomStepDelay = 0.08,
 }) => {
   // Namespaced id to avoid collisions, kept internal.
   const gradId = `gradient-logo-grad-${useId()}`;
@@ -153,16 +185,18 @@ const LogoWithGradientBg: React.FC<LogoWithGradientBgProps> = ({
       {/* New logo paths; gradient applied via the scoped class above. */}
       <SvgStaggerGroup
         className={fillScopeClassName}
-        initialDelay={0.01}
-        stepDelay={0.02}
-        duration={1.4}
-        direction="reverse"
-        scalePivot="left-center"
-        bloom
-        bloomBase={1}
-        bloomPeak={1.4}
-        bloomInitialDelay={0.1}
-        bloomStepDelay={0.08}
+        animate={introAnimate}
+        initialDelay={introInitialDelay}
+        stepDelay={introStepDelay}
+        duration={introDuration}
+        easing={introEasing}
+        direction={introDirection}
+        scalePivot={introScalePivot}
+        bloom={introBloomEnabled}
+        bloomBase={introBloomBase}
+        bloomPeak={introBloomPeak}
+        bloomInitialDelay={introBloomInitialDelay}
+        bloomStepDelay={introBloomStepDelay}
       >
         {BRAND_WORDMARK_GLYPH_PATHS.map((d, index) => (
           <path key={index} d={d} fill="white" />

@@ -1,6 +1,10 @@
 import { defineConfigScopeRegistry } from '../components/Panel/config';
 import { LAYOUT_DEBUG_PANEL, LAYOUT_DEBUG_SCOPE_ID } from '../components/LayoutDebug.panel';
 import {
+  WORDMARK_PANEL,
+  WORDMARK_SCOPE_ID,
+} from '../experiences/abstract/components/SiteHeader/config/wordmark.panel';
+import {
   ABOUT_PAGE_LAYOUT_PANEL,
   ABOUT_PAGE_LAYOUT_SCOPE_ID,
   ABOUT_TOP_SEGMENT_GRADIENT_PANEL,
@@ -34,4 +38,5 @@ export const aboutConfigPanelRegistry = defineConfigScopeRegistry({
   [ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID]: ABOUT_TOP_SEGMENT_GRADIENT_PANEL,
   [ABOUT_DOCK_PALETTE_SCOPE_ID]: ABOUT_DOCK_PALETTE_PANEL,
   [LAYOUT_DEBUG_SCOPE_ID]: LAYOUT_DEBUG_PANEL,
+  [WORDMARK_SCOPE_ID]: WORDMARK_PANEL,
 });

@@ -187,6 +187,16 @@ export type SiteHeaderConfig = {
   navFontWeight: SiteHeaderNavFontWeight;
   navFontSizeNarrow: SiteHeaderNavFontSizeNarrow;
   navFontSizeDesktop: SiteHeaderNavFontSizeDesktop;
+  // logoColor/logoSurfaceOffset: legacy-only now. The logo's own color/
+  // adaptive config lives on the shared WordmarkConfig scope (config/
+  // wordmark.ts) — see that file's own doc comment for the parity bug this
+  // split fixed. These two fields still exist here, and SiteHeader.tsx
+  // still reads them, ONLY as the fallback a caller that doesn't supply the
+  // new `wordmarkConfig` prop gets (pages/contact.tsx, pages/posts/[slug]
+  // .tsx — both out of scope for the Wordmark consolidation), so their
+  // pre-existing logo behavior stays byte-identical. Not exposed on this
+  // scope's own panel.ts anymore; a page that HAS migrated to
+  // `wordmarkConfig` never reads these two at all.
   logoColor: string;
   navTextColor: string;
   navBorderColor: string;
@@ -201,9 +211,11 @@ export type SiteHeaderConfig = {
   navBorderSurfaceOffset: number;
   // Only meaningful while colorMode is 'column'. Minimum WCAG contrast
   // ratio resolveContrastAwareTextColor must clear against each element's
-  // own physical column color — shared across logo/nav text/nav border,
-  // same coupling precedent as colorMode itself. Same 1-21 range/semantics
-  // as CtaButtonConfig.autoTextMinContrast.
+  // own physical column color — shared across nav text/nav border, same
+  // coupling precedent as colorMode itself. Nav-only now (see logoColor's
+  // own doc comment above); the logo has its own independent copy,
+  // WordmarkConfig.columnTextMinContrast. Same 1-21 range/semantics as
+  // CtaButtonConfig.autoTextMinContrast.
   columnTextMinContrast: number;
   height: SiteHeaderHeight;
   desktopHeight: SiteHeaderDesktopHeight;

@@ -1224,7 +1224,7 @@ export default function ContactPage() {
     pageSurfaceConfig,
     ctaButtonConfig,
   } = useSharedDesignConfig()
-  const { siteHeaderConfig } = useAbstractDesignConfig()
+  const { siteHeaderConfig, wordmarkConfig } = useAbstractDesignConfig()
   // Page-local override of the shared siteHeaderConfig/ctaButtonConfig
   // color fields above — enabled: false (default) inherits the shared
   // foundation exactly like every other page. Seeded from this page's own
@@ -1402,6 +1402,18 @@ export default function ContactPage() {
               ),
               contactPolymorphicLayoutConfig,
             )}
+            // The same shared, cross-page Wordmark config /about and
+            // /abstract already bind (AbstractDesignConfigProvider) —
+            // this page previously rendered a flat, non-adaptive
+            // colorMode: 'custom' logo (CONTACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG's
+            // own logoColor, '#67676f') via SiteHeader.tsx's legacy shim.
+            // Passing this prop switches the logo to the same
+            // colorMode: 'column' contrast-aware derivation the other two
+            // pages use, so it stays legible against whatever background
+            // actually sits behind it (dark or light) instead of one fixed
+            // gray. Nav text/border are unaffected — `config` above still
+            // drives those independently via CONTACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG.
+            wordmarkConfig={wordmarkConfig}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
             {...slotProps}
           />

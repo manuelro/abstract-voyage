@@ -16,6 +16,7 @@ import {
   type SiteHeaderDesktopMarginTop,
   type SiteHeaderMarginTop,
 } from './SiteHeader/config/registered';
+import { DEFAULT_WORDMARK_CONFIG, type WordmarkConfig } from './SiteHeader/config/wordmark';
 import styles from '../../../pages/abstract.module.css';
 
 // margin-top sits OUTSIDE the header's own box, so a child positioned via
@@ -149,6 +150,18 @@ export type SiteHeaderProps = {
    * mode computation here is what makes that class of drift structurally
    * impossible going forward, not just fixed once. */
   logoStops?: SvgStop[];
+  /** The wordmark's own color/adaptive/intro-animation config — see
+   * WordmarkConfig's own doc comment (config/wordmark.ts). Omit to fall
+   * back to this component's legacy behavior: the logo's color is derived
+   * from `config`'s own (now nav-facing) colorMode/logoColor/
+   * logoSurfaceOffset/columnTextMinContrast fields instead, and the intro
+   * animation/color-transition use the same fixed values every caller got
+   * before this config existed (pages/contact.tsx, pages/posts/[slug].tsx —
+   * both unmigrated, so this keeps their logo pixel-identical). A page that
+   * supplies this prop (pages/about.tsx, pages/abstract.tsx) gets the
+   * dedicated, cross-page-shared Wordmark config instead, fully decoupled
+   * from `config`'s own nav-facing color fields. */
+  wordmarkConfig?: WordmarkConfig;
   /** The left/logo segment's own real, physically-painted background —
    * same contract as physicalRightColumnColor below, mirrored for the
    * left side (see that prop's own doc comment and
@@ -326,6 +339,7 @@ export function SiteHeader({
   config,
   pageSurfaceConfig,
   logoStops: adaptiveLogoStops,
+  wordmarkConfig,
   physicalLeftColumnColor,
   dataInkTone,
   navBandActive = false,
@@ -347,6 +361,19 @@ export function SiteHeader({
   legibilityScrimRightEnabled = false,
 }: SiteHeaderProps) {
   const normalized = normalizeSiteHeaderConfig(config);
+  // See SiteHeaderProps.wordmarkConfig's own doc comment — a caller that
+  // hasn't migrated gets a shim built from this same `normalized` object's
+  // legacy logo fields (byte-identical to this component's pre-Wordmark-
+  // config behavior), still spread over DEFAULT_WORDMARK_CONFIG's own
+  // intro/motion/colorTransitionMs values (which are themselves just this
+  // component's previous hardcoded <Logo> call-site literals, unchanged).
+  const effectiveWordmarkConfig: WordmarkConfig = wordmarkConfig ?? {
+    ...DEFAULT_WORDMARK_CONFIG,
+    colorMode: normalized.colorMode,
+    color: normalized.logoColor,
+    surfaceOffset: normalized.logoSurfaceOffset,
+    columnTextMinContrast: normalized.columnTextMinContrast,
+  };
   const { globalTypographyConfig } = useSharedDesignConfig();
   const resolvedFontFamily = normalized.fontFamily === 'inherit'
     ? globalTypographyConfig.headingFontFamily
@@ -468,14 +495,96 @@ export function SiteHeader({
   // 'adaptive' mode without supplying anything, which never happens for
   // any current caller but keeps this component correct regardless.
   const resolvedLogoStops = resolveSiteHeaderLogoStops(
-    normalized,
+    effectiveWordmarkConfig,
     pageSurfaceConfig.color,
     physicalLeftColumnColor ?? pageSurfaceConfig.color,
     adaptiveLogoStops ?? [
-      { color: normalized.logoColor, at: 0 },
-      { color: normalized.logoColor, at: 100 },
+      { color: effectiveWordmarkConfig.color, at: 0 },
+      { color: effectiveWordmarkConfig.color, at: 100 },
     ],
   );
+
+  // Live-preview support for the Wordmark panel (operator ask: "any knob
+  // ... let us visualize the change in the UI on knobs update"). Color
+  // fields (colorMode/color/surfaceOffset/columnTextMinContrast) already
+  // preview live for free — editing them changes resolvedLogoStops above,
+  // which the persistently-mounted <Logo>/SvgGradientDef below already
+  // cross-fades via its own CSS `transition: stop-color ...` (confirmed
+  // live). Two classes of knob don't get that for free, though:
+  //
+  // 1. Every intro* field (SvgStaggerGroup's own per-glyph fade/scale/
+  //    bloom) only plays once, on mount — it's a CSS custom-property-driven
+  //    animation, not a live-bound style, so editing e.g. introDurationS
+  //    after the glyphs have already settled into their resting state
+  //    changes the CSS variable but has nothing left to animate; there's no
+  //    visible feedback until a full page reload replays the mount. Keying
+  //    just the <Logo> (not the whole header/page) on a signature of these
+  //    fields forces exactly that replay, scoped to the logo alone, the
+  //    moment any of them changes. introReplayKey below is a stable, small
+  //    integer — bumped only when the signature string actually differs
+  //    from the previous render's, via React's own documented "adjust
+  //    state during render when a prop changes" pattern (calling setState
+  //    directly in the render body), not an effect (an effect would
+  //    remount one paint late, showing a stale frame first).
+  const introReplaySignature = [
+    effectiveWordmarkConfig.introEnabled,
+    effectiveWordmarkConfig.introInitialDelayS,
+    effectiveWordmarkConfig.introStepDelayS,
+    effectiveWordmarkConfig.introDurationS,
+    effectiveWordmarkConfig.introEasing,
+    effectiveWordmarkConfig.introDirection,
+    effectiveWordmarkConfig.introScalePivot,
+    effectiveWordmarkConfig.introBloomEnabled,
+    effectiveWordmarkConfig.introBloomBase,
+    effectiveWordmarkConfig.introBloomPeak,
+    effectiveWordmarkConfig.introBloomInitialDelayS,
+    effectiveWordmarkConfig.introBloomStepDelayS,
+  ].join('|');
+  const [previousIntroReplaySignature, setPreviousIntroReplaySignature] = useState(introReplaySignature);
+  const [introReplayKey, setIntroReplayKey] = useState(0);
+  if (introReplaySignature !== previousIntroReplaySignature) {
+    setPreviousIntroReplaySignature(introReplaySignature);
+    setIntroReplayKey(key => key + 1);
+  }
+
+  // 2. colorTransitionMs (the cross-fade duration/easing itself) has no
+  //    visible effect when edited alone — nothing about the *resting*
+  //    color changed, so there's nothing for the operator to watch
+  //    transition. A self-reverting "nudge" — offset the current resolved
+  //    color's lightness, hold it for exactly the just-edited duration (so
+  //    the full out-transition genuinely completes, not a single-frame
+  //    blip too brief to see), then hand back the real target for the
+  //    same duration — makes the edited value visible by riding the exact
+  //    same stop-color CSS transition colorMode/color/surfaceOffset/
+  //    columnTextMinContrast edits already use, rather than inventing a
+  //    second animation mechanism.
+  const [colorPreviewNudgeActive, setColorPreviewNudgeActive] = useState(false);
+  const previousColorTransitionMsRef = useRef(effectiveWordmarkConfig.colorTransitionMs);
+  useEffect(() => {
+    if (previousColorTransitionMsRef.current === effectiveWordmarkConfig.colorTransitionMs) return undefined;
+    previousColorTransitionMsRef.current = effectiveWordmarkConfig.colorTransitionMs;
+    // The DOM's own transition-duration is already this new value by the
+    // time this effect runs (same render committed both) — held for long
+    // enough that the nudge-out transition genuinely completes before
+    // reverting, so a slow duration reads as slow, not clipped.
+    const holdMs = Math.max(16, effectiveWordmarkConfig.colorTransitionMs);
+    setColorPreviewNudgeActive(true);
+    const timeout = window.setTimeout(() => setColorPreviewNudgeActive(false), holdMs);
+    return () => window.clearTimeout(timeout);
+  }, [effectiveWordmarkConfig.colorTransitionMs]);
+  const previewedLogoStops = colorPreviewNudgeActive
+    ? resolvedLogoStops.map((stop) => {
+        // Try lightening first; if the stop was already at (or clamped to)
+        // white, lightening is a no-op, so fall back to darkening instead
+        // — either direction reads as a visible "nudge," which is all this
+        // needs, but a no-op wouldn't be visible at all.
+        const lightened = deriveSurfaceColor(stop.color, 0.4);
+        const nudged = lightened.toLowerCase() === stop.color.toLowerCase()
+          ? deriveSurfaceColor(stop.color, -0.4)
+          : lightened;
+        return { ...stop, color: nudged };
+      })
+    : resolvedLogoStops;
 
   // Shared between the default (PageContainer) slot and, when
   // logoAlignedToSplitEnabled is on, the moved desktop position next to
@@ -491,10 +600,28 @@ export function SiteHeader({
       ref={ref}
     >
       <Logo
+        // Remounts (replaying the intro stagger from scratch) only when an
+        // intro/motion field's own value actually changes — see
+        // introReplayKey's own doc comment above. Every other prop change
+        // (color, layout, etc.) reconciles onto the same instance as
+        // before, so this never disrupts the color cross-fade.
+        key={introReplayKey}
         ariaLabel="Abstract Voyage"
-        stops={resolvedLogoStops}
-        stopTransitionMs={280}
+        stops={previewedLogoStops}
+        stopTransitionMs={effectiveWordmarkConfig.colorTransitionMs}
         width="100%"
+        introAnimate={effectiveWordmarkConfig.introEnabled}
+        introInitialDelay={effectiveWordmarkConfig.introInitialDelayS}
+        introStepDelay={effectiveWordmarkConfig.introStepDelayS}
+        introDuration={effectiveWordmarkConfig.introDurationS}
+        introEasing={effectiveWordmarkConfig.introEasing}
+        introDirection={effectiveWordmarkConfig.introDirection}
+        introScalePivot={effectiveWordmarkConfig.introScalePivot}
+        introBloomEnabled={effectiveWordmarkConfig.introBloomEnabled}
+        introBloomBase={effectiveWordmarkConfig.introBloomBase}
+        introBloomPeak={effectiveWordmarkConfig.introBloomPeak}
+        introBloomInitialDelay={effectiveWordmarkConfig.introBloomInitialDelayS}
+        introBloomStepDelay={effectiveWordmarkConfig.introBloomStepDelayS}
       />
     </Link>
   );

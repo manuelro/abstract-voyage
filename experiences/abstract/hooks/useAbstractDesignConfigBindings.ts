@@ -11,19 +11,27 @@ import { LAYOUT_DEBUG_PANEL } from '../../../components/LayoutDebug.panel';
 import { useSharedDesignConfig } from '../../../components/SharedDesignConfigProvider';
 import { useAbstractDesignConfig } from '../components/AbstractDesignConfigProvider';
 import { SITE_HEADER_COLORS_PANEL } from '../components/SiteHeader/config/panel';
+import { WORDMARK_PANEL } from '../components/SiteHeader/config/wordmark.panel';
 
 export type AbstractDesignConfigBindingKey =
   | 'pageSurface'
   | 'ctaButton'
   | 'siteHeader'
   | 'globalTypography'
-  | 'layoutDebug';
+  | 'layoutDebug'
+  | 'wordmark';
 
-/** The shared scopes each Abstract page actually renders and may edit. */
+/** The shared scopes each Abstract page actually renders and may edit.
+ * 'wordmark' is now bound on 'abstract'/'about'/'contact' — every page this
+ * scope has been consolidated onto so far (see WordmarkConfig's own doc
+ * comment). 'postsLab' still renders its own logo via SiteHeader's legacy
+ * per-page color-override fallback (SiteHeaderConfig.logoColor/
+ * logoSurfaceOffset, SiteHeader.tsx's own effectiveWordmarkConfig shim),
+ * unaffected by this scope either way — not yet migrated. */
 export const ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE = {
-  abstract: ['pageSurface', 'ctaButton', 'siteHeader', 'globalTypography', 'layoutDebug'],
-  about: ['pageSurface', 'siteHeader', 'layoutDebug'],
-  contact: ['pageSurface', 'ctaButton', 'siteHeader', 'layoutDebug'],
+  abstract: ['pageSurface', 'ctaButton', 'siteHeader', 'globalTypography', 'layoutDebug', 'wordmark'],
+  about: ['pageSurface', 'siteHeader', 'layoutDebug', 'wordmark'],
+  contact: ['pageSurface', 'ctaButton', 'siteHeader', 'layoutDebug', 'wordmark'],
   postsLab: ['siteHeader', 'layoutDebug'],
 } as const satisfies Record<string, ReadonlyArray<AbstractDesignConfigBindingKey>>;
 
@@ -45,7 +53,9 @@ export function useAbstractDesignConfigBindings(
     layoutDebugConfig,
     setLayoutDebugConfig,
   } = useSharedDesignConfig();
-  const { siteHeaderConfig, setSiteHeaderConfig } = useAbstractDesignConfig();
+  const {
+    siteHeaderConfig, setSiteHeaderConfig, wordmarkConfig, setWordmarkConfig,
+  } = useAbstractDesignConfig();
 
   return useMemo(() => {
     if (process.env.NODE_ENV !== 'production' && new Set(keys).size !== keys.length) {
@@ -89,6 +99,13 @@ export function useAbstractDesignConfigBindings(
             onChange: setLayoutDebugConfig,
             global: true,
           });
+        case 'wordmark':
+          return createConfigScopeBinding({
+            definition: WORDMARK_PANEL,
+            value: wordmarkConfig,
+            onChange: setWordmarkConfig,
+            global: true,
+          });
       }
     });
   }, [
@@ -103,5 +120,7 @@ export function useAbstractDesignConfigBindings(
     setGlobalTypographyConfig,
     layoutDebugConfig,
     setLayoutDebugConfig,
+    wordmarkConfig,
+    setWordmarkConfig,
   ]);
 }

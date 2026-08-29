@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T00:53:14.673Z",
+  "generatedAt": "2026-08-29T05:22:52.256Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -171,6 +171,14 @@
         "SITE_HEADER_COLORS_SCOPE_ID",
         "SITE_HEADER_COLOR_FIELDS",
         "SITE_HEADER_COLORS_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/SiteHeader/config/wordmark.panel.ts",
+      "stub": "experiences/abstract/components/SiteHeader/config/wordmark.panel.stub.ts",
+      "exports": [
+        "WORDMARK_SCOPE_ID",
+        "WORDMARK_PANEL"
       ]
     },
     {

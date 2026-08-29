@@ -160,6 +160,7 @@ import {
   normalizeSiteHeaderColorOverrideConfig,
   type SiteHeaderColorOverrideConfig,
 } from '../experiences/abstract/components/SiteHeader/config/colorOverride';
+import { DEFAULT_WORDMARK_CONFIG } from '../experiences/abstract/components/SiteHeader/config/wordmark';
 import { useNormalizedSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/hooks/useNormalizedSiteHeaderConfig';
 import { ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_PANEL } from '../experiences/abstract/components/SiteHeader/config/colorOverride.panel';
 import { AbstractHeroGrid } from '../experiences/abstract/components/AbstractHeroGrid';
@@ -1507,7 +1508,9 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     panelShellConfig, setPanelShellConfig,
     setLayoutDebugConfig,
   } = useSharedDesignConfig();
-  const { siteHeaderConfig, setSiteHeaderConfig } = useAbstractDesignConfig();
+  const {
+    siteHeaderConfig, setSiteHeaderConfig, wordmarkConfig, setWordmarkConfig,
+  } = useAbstractDesignConfig();
   // Page-local override of the shared siteHeaderConfig/ctaButtonConfig
   // color fields above — enabled: false (default) inherits the shared
   // foundation exactly like every other page; on, only this page's own
@@ -1878,7 +1881,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // color from, so the logo should match it instead of a generic brand
   // gradient unrelated to the page's actual colors.
   const heroHeaderLogoStops = resolveSiteHeaderLogoStops(
-    normalizedSiteHeaderConfig,
+    wordmarkConfig,
     normalizedPageSurfaceConfig.color,
     colors.actualLeftSegmentColor,
     backgroundAwarenessActive
@@ -1886,8 +1889,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       : (() => {
         const derivedLogoColor = resolveContrastAwareTextColor(
           colors.actualLeftSegmentColor,
-          normalizedSiteHeaderConfig.columnTextMinContrast,
-          normalizedSiteHeaderConfig.logoSurfaceOffset,
+          wordmarkConfig.columnTextMinContrast,
+          wordmarkConfig.surfaceOffset,
         );
         return [{ color: derivedLogoColor, at: 0 }, { color: derivedLogoColor, at: 100 }];
       })(),
@@ -2196,6 +2199,9 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     setSiteHeaderConfig({
       ...DEFAULT_SITE_HEADER_CONFIG,
     });
+    setWordmarkConfig({
+      ...DEFAULT_WORDMARK_CONFIG,
+    });
     setSiteHeaderColorOverride({
       ...ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG,
     });
@@ -2248,6 +2254,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     setPageSurfaceConfig,
     setPanelShellConfig,
     setSiteHeaderConfig,
+    setWordmarkConfig,
   ]);
 
   const randomizeActiveDesignerSeed = useCallback(() => {
@@ -3432,6 +3439,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             config={normalizedSiteHeaderConfig}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
             logoStops={heroHeaderLogoStops}
+            wordmarkConfig={wordmarkConfig}
             navBandActive={heroNavBandActive}
             navBandCanvasRef={heroNavBandCanvasRef}
             navBandColorFilter={heroNavBandColorFilter}
@@ -3732,6 +3740,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             )}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
             logoStops={heroHeaderLogoStops}
+            wordmarkConfig={wordmarkConfig}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
             // Unlike /about's own conditional Spacefield-visible override,

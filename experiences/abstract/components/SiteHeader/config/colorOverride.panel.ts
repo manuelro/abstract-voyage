@@ -71,6 +71,12 @@ export function createSiteHeaderColorOverridePanel(
     summary: 'Per-page override of the shared header color foundation',
     defaultOpen: false,
     defaultValue,
+    // logoColor/logoSurfaceOffset: same reasoning as SITE_HEADER_COLOR_FIELDS's
+    // own HEADER_LAYOUT_KEYS_OWNED_ELSEWHERE entry for these two keys
+    // (panel.ts) — moved to the shared Wordmark panel, still present on
+    // this config's own type only as the legacy value a page that hasn't
+    // migrated to `wordmarkConfig` gets.
+    hiddenKeys: ['logoColor', 'logoSurfaceOffset'],
     fields: [
       {
         kind: 'boolean',

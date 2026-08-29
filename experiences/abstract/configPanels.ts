@@ -48,6 +48,10 @@ import {
   SITE_HEADER_COLORS_SCOPE_ID,
 } from './components/SiteHeader/config/panel';
 import {
+  WORDMARK_PANEL,
+  WORDMARK_SCOPE_ID,
+} from './components/SiteHeader/config/wordmark.panel';
+import {
   ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_PANEL,
   ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_SCOPE_ID,
 } from './components/AbstractHeroCtaComposer/config/panel';
@@ -103,6 +107,8 @@ export const abstractConfigPanelRegistry = defineConfigScopeRegistry({
     ABSTRACT_EDITORIAL_HERO_LAYOUT_PANEL,
   [SITE_HEADER_COLORS_SCOPE_ID]:
     SITE_HEADER_COLORS_PANEL,
+  [WORDMARK_SCOPE_ID]:
+    WORDMARK_PANEL,
   [ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_SCOPE_ID]:
     ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_PANEL,
   [ABSTRACT_POST_DOCK_INTRODUCTION_SCOPE_ID]:
