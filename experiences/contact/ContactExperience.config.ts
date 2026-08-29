@@ -85,7 +85,32 @@ export type ContactExperienceConfig = {
    * stays at full opacity. Linear interpolation between the two across the
    * visible window. */
   messageFadeFloorOpacity: number;
+  /** Same 'auto'/'custom' contract as messageTextColorMode above, applied to
+   * the muted-tier text (the composer placeholder, "Send as is," turn
+   * labels) instead of the primary reading text. Previously always a flat
+   * hardcoded gray (#7c7c83) regardless of the page surface color — legible
+   * by coincidence against this page's original dark surface, not because
+   * it was actually deriving from it; a bright/light surface (e.g. an
+   * operator-set page-surface color) could silently leave it unreadable.
+   * 'auto' (new default) closes that gap the same way messageTextColorMode
+   * already did for primary text. */
+  mutedTextColorMode: ContactMessageTextColorMode;
+  /** Minimum contrast ratio the auto-picked muted text must clear against
+   * the page surface — deliberately lower than messageAutoTextMinContrast
+   * (this tier is supposed to visually recede, not read as primary copy),
+   * but still a real, checked floor rather than an unconstrained tint. */
+  mutedAutoTextMinContrast: number;
   mutedTextColor: string;
+  /** Same 'auto'/'custom' contract, applied to control borders/dividers
+   * (--contact-border and its color-mix'd subtle/hover/focus variants)
+   * instead of text. Same "was a flat hardcoded gray, not actually
+   * surface-derived" gap as mutedTextColorMode above. */
+  borderColorMode: ContactMessageTextColorMode;
+  /** Minimum contrast ratio the auto-picked border color must clear against
+   * the page surface — a low floor (matches composerPlaceholderMinContrast's
+   * own precedent) since a border only needs to be visible, not legible as
+   * text. */
+  borderAutoTextMinContrast: number;
   borderColor: string;
   loadingBaseColor: string;
   loadingHighlightColor: string;
@@ -241,7 +266,11 @@ export const DEFAULT_CONTACT_EXPERIENCE_CONFIG: ContactExperienceConfig = {
   messageTextAlign: 'left',
   messageVisibleCount: 6,
   messageFadeFloorOpacity: 0.1,
+  mutedTextColorMode: 'auto',
+  mutedAutoTextMinContrast: 3,
   mutedTextColor: '#7c7c83',
+  borderColorMode: 'auto',
+  borderAutoTextMinContrast: 1.5,
   borderColor: '#85858b',
   loadingBaseColor: '#85858b',
   loadingHighlightColor: '#48484e',

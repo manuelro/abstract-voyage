@@ -1273,6 +1273,43 @@ export default function ContactPage() {
       normalizedPageSurfaceConfig.color,
     ],
   )
+  // Same 'auto'/'custom' contract as resolvedMessageTextColor above, for the
+  // muted-tier text (composer placeholder, "Send as is," turn labels) and
+  // control borders — previously flat hardcoded grays regardless of the
+  // page surface color (see ContactExperienceConfig.mutedTextColorMode's
+  // own doc comment for the legibility gap this closes).
+  const resolvedMutedTextColor = useMemo(
+    () => (
+      contactConfig.mutedTextColorMode === 'auto'
+        ? resolveAutoMessageTextColor(
+          normalizedPageSurfaceConfig.color,
+          contactConfig.mutedAutoTextMinContrast,
+        )
+        : contactConfig.mutedTextColor
+    ),
+    [
+      contactConfig.mutedTextColorMode,
+      contactConfig.mutedAutoTextMinContrast,
+      contactConfig.mutedTextColor,
+      normalizedPageSurfaceConfig.color,
+    ],
+  )
+  const resolvedBorderColor = useMemo(
+    () => (
+      contactConfig.borderColorMode === 'auto'
+        ? resolveAutoMessageTextColor(
+          normalizedPageSurfaceConfig.color,
+          contactConfig.borderAutoTextMinContrast,
+        )
+        : contactConfig.borderColor
+    ),
+    [
+      contactConfig.borderColorMode,
+      contactConfig.borderAutoTextMinContrast,
+      contactConfig.borderColor,
+      normalizedPageSurfaceConfig.color,
+    ],
+  )
   // Live-measured header height, feeding FixedViewportColumnContent's
   // headerOffsetPx below — mirrors components/SplitColumnPageShell.tsx's own
   // internal measuredHeaderHeightPx/internalHeaderWrapperRef idiom verbatim.
@@ -1342,11 +1379,11 @@ export default function ContactPage() {
     '--contact-viewport-height': `${contactConfig.conversationViewportHeightPx}px`,
     '--contact-message-duration': `${contactConfig.messageEntryDurationMs}ms`,
     '--contact-primary': resolvedMessageTextColor,
-    '--contact-muted': contactConfig.mutedTextColor,
-    '--contact-border': contactConfig.borderColor,
-    '--contact-border-subtle': `color-mix(in srgb, ${contactConfig.borderColor} 16%, transparent)`,
-    '--contact-border-hover': `color-mix(in srgb, ${contactConfig.borderColor} 28%, transparent)`,
-    '--contact-border-focus': `color-mix(in srgb, ${contactConfig.borderColor} 44%, transparent)`,
+    '--contact-muted': resolvedMutedTextColor,
+    '--contact-border': resolvedBorderColor,
+    '--contact-border-subtle': `color-mix(in srgb, ${resolvedBorderColor} 16%, transparent)`,
+    '--contact-border-hover': `color-mix(in srgb, ${resolvedBorderColor} 28%, transparent)`,
+    '--contact-border-focus': `color-mix(in srgb, ${resolvedBorderColor} 44%, transparent)`,
   } as CSSProperties
 
   return (
