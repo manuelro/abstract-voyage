@@ -111,10 +111,10 @@ Everything through Phase 6 happens on `spike/panel-build-exclusion-poc`, not `ma
 
 ## 8. Exit criteria — what "100% ready" concretely means
 
-- [ ] All 5 production routes (`/`, `/about`, `/abstract`, `/contact`, `/posts/*`) import and render their own config panel correctly under `next dev`.
-- [ ] `npm run verify:release` passes clean against the full working tree (not just the 2 already-done pages).
-- [ ] A local `next build && next export` genuinely contains zero panel-identifier leakage across all 5 routes (Phase 4's own gate, re-stated because this is the actual point).
-- [ ] Phase 5's visual gate completed for every route, both panel-visible (dev) and panel-absent (production preview) states.
-- [ ] `CONFIG-CHANGE-PROTOCOL.md` updated to describe the new, collapsed model as current, not aspirational.
-- [ ] Work committed in reviewable, thematic commits and merged to `main`.
-- [ ] §6's three decisions made explicitly (not defaulted-into) before or at Phase 7.
+- [x] All 5 production routes (`/`, `/about`, `/abstract`, `/contact`, `/posts/*`) import and render their own config panel correctly under `next dev`.
+- [x] `npm run verify:release` passes clean against the full working tree (not just the 2 already-done pages).
+- [x] A local `next build && next export` genuinely contains zero panel-identifier leakage across all 5 routes (Phase 4's own gate, re-stated because this is the actual point).
+- [x] Phase 5's visual gate completed for every route, both panel-visible (dev) and panel-absent (production preview) states.
+- [x] `CONFIG-CHANGE-PROTOCOL.md` updated to describe the new, collapsed model as current, not aspirational.
+- [x] Work committed — one release commit (`002d255`) per the operator's explicit instruction (supersedes this section's original "small number of thematic commits" recommendation) — and fast-forward merged into local `main`. **Not yet pushed to `origin/main`**: operator chose to hold off pending further review, so Netlify has not deployed this yet.
+- [x] §6's three decisions made explicitly (not defaulted-into) before or at Phase 7: (1) `dynamics_detached` superseded, not deleted; (2) single release commit, direct-merge mechanics, push held for a separate explicit go-ahead; (3) `config/misc` superseded, not deleted.
