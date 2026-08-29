@@ -55,8 +55,8 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnClearsFloatingHeaderWide: true,
   narrowColumnClearsFloatingHeaderLg: true,
   colorSource: 'custom',
-  wideColumnCustomColor: '#b9b9c6',
-  narrowColumnCustomColor: '#b9b9c6',
+  wideColumnCustomColor: '#32323e',
+  narrowColumnCustomColor: '#32323e',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
   headerSplitBandEnabled: true,
@@ -247,10 +247,10 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   bodyGutterPaddingRightLg: 'lg:pr-0',
   colorSourceWide: 'custom',
   colorSourceLg: 'custom',
-  wideColumnCustomColorWide: '#b9b9c6',
-  wideColumnCustomColorLg: '#b9b9c6',
-  narrowColumnCustomColorWide: '#b9b9c6',
-  narrowColumnCustomColorLg: '#b9b9c6',
+  wideColumnCustomColorWide: '#32323e',
+  wideColumnCustomColorLg: '#32323e',
+  narrowColumnCustomColorWide: '#32323e',
+  narrowColumnCustomColorLg: '#32323e',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
@@ -292,8 +292,8 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // '#0e1230' placeholder this scope's colorSource: 'surface' had made
   // permanently inert.
   colorSource: 'custom',
-  wideColumnCustomColor: '#3d3d43',
-  narrowColumnCustomColor: '#3d3d43',
+  wideColumnCustomColor: '#32323e',
+  narrowColumnCustomColor: '#32323e',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
   headerSplitBandEnabled: true,
@@ -485,12 +485,12 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // pages/about.tsx's own wideColumnStyle doc comment for the OTHER half of
   // this incident — this value was also, independently, never actually
   // painted anywhere on the page at all until that fix.
-  wideColumnCustomColorWide: '#3d3d43',
-  wideColumnCustomColorLg: '#3d3d43',
+  wideColumnCustomColorWide: '#32323e',
+  wideColumnCustomColorLg: '#32323e',
   // Was '#dadbe2' — parity fix, same reason as wideColumnCustomColorWide
   // above (colorSourceWide's own doc comment).
-  narrowColumnCustomColorWide: '#3d3d43',
-  narrowColumnCustomColorLg: '#3d3d43',
+  narrowColumnCustomColorWide: '#32323e',
+  narrowColumnCustomColorLg: '#32323e',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
@@ -524,4 +524,6 @@ export const POST_LAB_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnContentWidthLg: 'lg:max-w-[60%]',
   narrowColumnContentPaddingLeftLg: 'lg:pl-0',
   narrowColumnContentPaddingRightLg: 'lg:pr-7',
+  narrowColumnContentPaddingTopWide: 'md:pt-7',
+  narrowColumnContentPaddingTopLg: 'lg:pt-7',
 };
