@@ -1,7 +1,6 @@
 import type { CtaButtonMotionEasing } from '../components/CtaButton/config/registered';
 import { DEFAULT_LIQUID_SLIDER_CONFIG } from '../experiences/abstract/components/AbstractPostDock';
 import {
-  DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG,
   DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
   type AbstractPostDockPaletteConfig,
   type AbstractPostDockLayoutConfig,
@@ -296,76 +295,80 @@ export function normalizeAboutTopSegmentGradientConfig(
 }
 
 /**
- * This page's own tuning of AbstractPostDock's shared palette config,
- * layered onto (not replacing) DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG —
- * /abstract's own JOURNAL section reads that same shared default directly,
- * unmodified.
+ * A fixed snapshot of what /abstract's own card stack gradient looked
+ * like — DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG (AbstractPostDock/
+ * config/registered.ts), read verbatim with zero local override — at
+ * commit 0f47c5df0e7f9238ee74fb30d3fff05c103b1cb4, the commit immediately
+ * before that shared default was retuned (mode -> 'chord', hueSpread ->
+ * 0.5, windowPanCurve -> 'gaussian', fieldKinship -> 0.35, plus the
+ * gradientScale/gradientNoise dead-knob fix) in a later commit. Operator
+ * request: keep /about's own gradient mesh matching that earlier /abstract
+ * look specifically, decoupled from wherever the shared default goes next
+ * — every field below is a literal value, not a spread of the (now
+ * different) current shared default, and this constant no longer tracks
+ * that default's own future changes at all.
  *
  * Moved here from pages/about.tsx (was a page-local, unexported const)
  * specifically so pages/about.panel.ts can also import it — the root cause
  * of a real, confirmed bug (operator-reported, live screenshots, 2026-08-24):
- * about.tsx's own "Dock palette direction" panel section was bound to
- * ABSTRACT_POST_DOCK_PALETTE_PANEL, the SAME scope definition /abstract
- * uses, whose own `copy` metadata targets the SHARED symbol
- * (DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG in AbstractPostDock/config/
- * registered.ts) — but about.tsx's actual LIVE state initializes from THIS
- * constant, which hardcodes windowStep/inactiveChromaDuck on top of that
- * shared default. An operator tuning "Inactive duck" on /about and applying
- * the resulting component-config-update/v1 prompt was therefore updating a
- * symbol that governs every OTHER consumer of the shared default, while
- * about.tsx's own inactiveChromaDuck stayed pinned to whatever literal sits
- * here — silently discarding the update on every subsequent refresh, which
- * read as "the config isn't persisting" when the update itself had actually
- * landed correctly in the file. See ABOUT_DOCK_PALETTE_PANEL (about.panel.ts)
- * for the fix: a page-owned scope whose own `copy.targetSymbol` points at
- * THIS constant instead, so an operator's own update-prompt lands where the
- * page actually reads from. AbstractPostDockLayoutConfig's own equivalent
+ * about.tsx's own "Dock palette direction" panel section used to bind
+ * straight to ABSTRACT_POST_DOCK_PALETTE_PANEL, the SAME scope definition
+ * /abstract uses, whose own `copy` metadata targets
+ * DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG directly — but about.tsx's own
+ * live state never read that symbol verbatim, so an operator's own tuning
+ * session there silently landed in a file this page never actually reads
+ * from. See ABOUT_DOCK_PALETTE_PANEL (about.panel.ts) for the fix: a
+ * page-owned scope whose own `copy.targetSymbol` points at THIS constant
+ * instead, so an operator's own update-prompt lands where the page
+ * actually reads from. AbstractPostDockLayoutConfig's own equivalent
  * page-local override had the identical defect (same class of bug,
  * different scope) — since fixed the same way; see
  * ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG below and ABOUT_DOCK_LAYOUT_PANEL
  * (about.panel.ts).
  */
 export const ABOUT_DEFAULT_DOCK_PALETTE_CONFIG: AbstractPostDockPaletteConfig = {
-  ...DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG,
-  windowStep: 0.16,
-  hueSpread: 0.3,
+  enabled: true,
+  mode: 'window',
+  windowStep: 0.21,
+  hueSpread: 0,
   windowPanCurve: 'gaussian',
-  gaussianPeakIndex: -1,
-  gaussianSigma: 1.7,
-  gaussianAmplitude: 0.72,
-  gaussianFloor: 0,
-  fieldKinship: 0,
-  // Wide/Lg (tablet/desktop) start byte-identical to the base/mobile value
-  // below — preserves this page's existing tuned look at every breakpoint
-  // it already rendered at (AbstractPostDock, ≥768px) now that gradient
-  // scale/noise are tiered; the mobile accordion (<768px) is the newly
-  // independently-tunable tier this split was actually for (operator ask,
-  // 2026-08-25).
-  gradientScale: 1.91,
-  gradientNoise: 0.2,
-  gradientScaleWide: 0.75,
-  gradientNoiseWide: 0.1,
-  gradientScaleLg: 0.87,
-  gradientNoiseLg: 0.16,
-  // Recalibrated for continuous gaussian-envelope duck (0.1 was tuned for
-  // the old binary "take the edge off the unfocused row" nudge — reached
-  // only at the bell's extreme tail, that read as barely visible).
-  inactiveChromaDuck: 0.65,
-  valueRigAmount: 0,
-  masterSaturation: 0.9,
-  masterBrightness: 0.9,
-  masterContrast: 0.82,
-  // Recalibrated from the shared default's power: 0.25/maxOpacity: 0.75 —
-  // that front-loads the black overlay so hard the row right next to
-  // active was already ~54% dark (operator-reported, live screenshot).
-  // power: 1 removes the front-loading; baselineOpacity keeps the nearest
-  // row very slightly receded (reinforcing which row has focus) instead of
-  // starting from a hard 0; maxOpacity is lowered so even the farthest row
-  // never goes fully black. Starting values — tune live via the panel.
-  distanceDimmingMaxOpacity: 0.39,
-  distanceDimmingBaselineOpacity: 0.05,
-  distanceDimmingPower: 1.8,
-  distanceDimmingEasing: 'linear',
+  gaussianPeakIndex: 3,
+  gaussianSigma: 0.4,
+  gaussianAmplitude: 0.25,
+  gaussianFloor: 0.14,
+  gaussianVisualTestModeEnabled: false,
+  gaussianProximityMorphEnabled: false,
+  gaussianProximityResponseMs: 220,
+  gaussianProximityStaggerMsPerBand: 60,
+  gaussianProximityEasing: 'smootherstep',
+  fieldKinship: 1,
+  inactiveChromaDuck: 0.25,
+  valueRigAmount: 0.25,
+  masterSaturation: 0.95,
+  masterBrightness: 0.85,
+  masterContrast: 0.95,
+  masterSoftness: 1,
+  gradientScale: 0.5,
+  gradientNoise: 1,
+  gradientScaleWide: 0.5,
+  gradientNoiseWide: 1,
+  gradientScaleLg: 0.72,
+  gradientNoiseLg: 0,
+  distanceDimmingEnabled: true,
+  distanceDimmingMaxOpacity: 0.4,
+  distanceDimmingBaselineOpacity: 0,
+  distanceDimmingPower: 0.45,
+  distanceDimmingEasing: 'soft',
+  rampSpan: 1,
+  rampRotation: 0.29,
+  rampPath: 'mirror',
+  relayEnabled: true,
+  counterpointChroma: 0.5,
+  chordChroma: 1.4,
+  paletteLightness: 0.42,
+  lightnessContrast: 0.55,
+  inkUnity: 0.15,
+  voiceSpread: 0.4,
 };
 
 /**

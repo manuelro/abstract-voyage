@@ -50,8 +50,18 @@ export function AboutMobileAccordion({
   // topSegmentPaletteState uses) so every row's palette state is uniform,
   // config-derived, and never index-dependent duck/chroma treatment meant
   // for a single highlighted slide.
+  // tier: 'mobile' explicitly, not the default parameter — this component
+  // only ever mounts below md (see its own doc comment above), so 'mobile'
+  // is always correct here, but PLAN-DOCK-PALETTE-CONFIG-SEGREGATION.md's
+  // audit found the same buildDeckPaletteStates call missing an explicit
+  // tier in two other, genuinely multi-breakpoint call sites (View.tsx,
+  // pages/about.tsx's own topSegmentPaletteState) where relying on the
+  // default silently applied the wrong tier — making it explicit here too,
+  // even though it happens to already be correct, so a reader auditing
+  // this call site never has to re-derive that same "is this one safe?"
+  // reasoning again.
   const paletteStates = useMemo(
-    () => buildDeckPaletteStates({ slides, paletteConfig, activeIndex: null }),
+    () => buildDeckPaletteStates({ slides, paletteConfig, activeIndex: null, tier: 'mobile' }),
     [slides, paletteConfig],
   );
 

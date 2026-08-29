@@ -586,6 +586,7 @@ function AboutPageContent() {
     if (!topSegmentBackgroundEnabled) return null;
     const referenceStates = buildDeckPaletteStates({
       slides: aboutSlides, paletteConfig: dockPaletteConfig, activeIndex: null,
+      tier: gradientBreakpointTier,
     });
     const reference = referenceStates?.[0];
     if (!reference) return null;
@@ -615,7 +616,7 @@ function AboutPageContent() {
           ))
         : reference.chromaDuckTarget,
     };
-  }, [topSegmentBackgroundEnabled, aboutSlides, dockPaletteConfig]);
+  }, [topSegmentBackgroundEnabled, aboutSlides, dockPaletteConfig, gradientBreakpointTier]);
   // Gaussian pan curve, proximity morph (opt-in via
   // dockPaletteConfig.gaussianProximityMorphEnabled, off by default): 5
   // explicit useGaussianProximityBand calls — one per real band index in
@@ -717,37 +718,25 @@ function AboutPageContent() {
     offsetY: 0,
     accent: topSegmentAccent ?? '#0e1230',
   } : null;
-  // Gradient scale/noise are tiered by breakpoint (operator ask,
-  // 2026-08-25 — "Dock palette direction" panel's own MOBILE/TABLET/
-  // DESKTOP tabs, AbstractPostDock/config/panel.ts): resolved here against
-  // the page's own live breakpoint, same base/Wide/Lg → mobile/md/lg
-  // mapping `usePolymorphicLayoutColors`'s own `resolveColorTier` already
-  // uses. Below md, this is what actually reaches AboutMobileAccordion's
-  // own rows (the "mobile version of both knobs" the operator asked to be
-  // wired in) instead of silently inheriting the desktop dock's tier.
-  const resolvedGradientScale = gradientBreakpointTier === 'lg'
-    ? dockPaletteConfig.gradientScaleLg
-    : gradientBreakpointTier === 'md'
-      ? dockPaletteConfig.gradientScaleWide
-      : dockPaletteConfig.gradientScale;
-  const resolvedGradientNoise = gradientBreakpointTier === 'lg'
-    ? dockPaletteConfig.gradientNoiseLg
-    : gradientBreakpointTier === 'md'
-      ? dockPaletteConfig.gradientNoiseWide
-      : dockPaletteConfig.gradientNoise;
-  // Only shaderColorScale ("zoom into the gradient field") is exposed via
-  // the panel — every other LiquidSliderConfig field stays at its default,
-  // so this is additive rather than a second parallel config surface.
-  // Moved above topSegmentMotion below (was previously declared later in
-  // this component) — both the dock's own gradient AND the header
-  // top-segment's gradient read this same instance, so a live edit to
-  // "Gradient scale"/"Gradient noise" (Dock palette direction panel —
-  // shared with /abstract's own Card Stack) retunes both at once, never
-  // just one of them.
+  // Gradient scale/noise used to be resolved here (against the page's own
+  // live breakpoint) and written into shaderColorScale/shaderColorRandomness
+  // below — a second, parallel tier-resolution path alongside
+  // buildDeckPaletteStates's own paletteScale/paletteNoise (deckPalette.ts),
+  // which every LiquidGradientAdapter mount on this page ALSO receives via
+  // its own `palette` prop (View.tsx's deckPaletteStates, and
+  // topSegmentPaletteState below — both now correctly tier-aware, see their
+  // own `tier: gradientBreakpointTier` call sites). Since webgl.ts's own
+  // uScale/uRandomness assembly always prefers a non-null paletteScale/
+  // paletteNoise over shaderColorScale/shaderColorRandomness
+  // (`paletteScale ?? config.shaderColorScale`), this page-local copy was
+  // already fully overridden and inert everywhere it was still set —
+  // removed rather than left as dead, misleading state (PLAN-DOCK-PALETTE-
+  // CONFIG-SEGREGATION.md's own audit: the two mechanisms happened to
+  // agree only because every gradient tier here was ported to an identical
+  // value; they would silently diverge — this page-local copy losing — the
+  // moment any tier was tuned to actually differ from another).
   const dockSliderConfig = useMemo(() => ({
     ...DEFAULT_LIQUID_SLIDER_CONFIG,
-    shaderColorScale: resolvedGradientScale,
-    shaderColorRandomness: resolvedGradientNoise,
     // PLAN-EDITORIAL-HERO-UNIFICATION-AND-CARDSTACK-RESIZE-FIX.md Part 4 —
     // the "Accordion" panel's own ALL SIZES tab (AboutMobileAccordion.panel.ts)
     // is the one shared source for these three now; copying them in here is
@@ -774,8 +763,6 @@ function AboutPageContent() {
     shaderBellStrokeWidth: 0.05,
     shaderBellStrokeIntensity: dockPaletteConfig.windowPanCurve === 'gaussian' ? 0.85 : 0,
   }), [
-    resolvedGradientScale,
-    resolvedGradientNoise,
     aboutMobileAccordionConfig.transitionMs,
     aboutMobileAccordionConfig.transitionEasing,
     aboutMobileAccordionConfig.contentSettleMs,

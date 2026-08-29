@@ -25,6 +25,7 @@ import { abstractPostDockActiveOpacityStyle } from '../helpers/activeOpacityReve
 import { colorToRgba } from '../helpers/misc';
 import { renderEmphasisText, stripEmphasisMarkup } from '../../../../../helpers/textEmphasis';
 import { usePrefersReducedMotion, useDockGradientAvailability, useIsomorphicLayoutEffect } from '../hooks/browserState';
+import { useBreakpointTier } from '../../../../../components/useBreakpointTier';
 import { useSliderVisualMetrics } from '../hooks/viewport';
 import { useDetailsRevealGate } from '../hooks/detailsRevealGate';
 import type { useLiquidSliderMotion } from '../hooks/motion';
@@ -121,6 +122,19 @@ export function AbstractPostDockView({
     excerptLines: configuredExcerptLines,
   } = useSliderVisualMetrics(config);
 
+  // Live breakpoint — resolves paletteConfig.gradientScale/gradientNoise's
+  // own base/Wide/Lg triplet (see buildDeckPaletteStates's own `tier` doc
+  // comment). Previously omitted here, which silently defaulted to
+  // 'mobile' regardless of the page's actual viewport — every consumer of
+  // this view (both /abstract's journal/lab grid and /about's narrative
+  // dock) always got the mobile-tier gradient zoom/noise on desktop too,
+  // and — since this component's own resulting paletteScale/paletteNoise
+  // unconditionally wins over any caller-side shaderColorScale/
+  // shaderColorRandomness override (webgl.ts's `paletteScale ?? config....`
+  // fallback) — that wrong-tier value silently overrode whatever a caller
+  // (e.g. about.tsx's own now-removed resolvedGradientScale/
+  // resolvedGradientNoise mechanism) thought it was applying instead.
+  const { tier } = useBreakpointTier();
   // Journal and labs now share one source-state builder. Passing activeIndex
   // here preserves the journal's inactive chroma duck exactly; the lab grid
   // passes null because it has no active-card concept.
@@ -129,7 +143,8 @@ export function AbstractPostDockView({
     paletteConfig,
     hueInfluenceConfig,
     activeIndex,
-  }), [activeIndex, hueInfluenceConfig, paletteConfig, slides]);
+    tier,
+  }), [activeIndex, hueInfluenceConfig, paletteConfig, slides, tier]);
   // Gaussian visual test mode (AbstractPostDockPaletteConfig.
   // gaussianVisualTestModeEnabled) — an art-direction aid, not a page-owned
   // feature this component needs its own prop for: it's entirely derived
