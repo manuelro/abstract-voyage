@@ -566,15 +566,24 @@ export type AbstractPostDockPaletteConfig = {
    * LiquidSliderConfig's own `shaderColorScale` (the same "Shader scale"
    * uniform every card's gradient shader already reads). Lower shows more
    * hue variety per card; higher is flatter/more concentrated. Shared
-   * across every consumer of this palette config (the card stack's own
-   * cards on /abstract, the real narrative rows and header top segment on
-   * /about) so a single control tunes the mesh's own zoom everywhere at
-   * once. */
+   * across every consumer of *this one page's own* palette config instance
+   * (e.g. every card in /abstract's own card stack all reading the same
+   * object) so a single control tunes the mesh's own zoom everywhere that
+   * page uses it at once. NOT shared across pages: /about holds its own
+   * independent `AbstractPostDockPaletteConfig` value (see
+   * PLAN-DOCK-PALETTE-CONFIG-SEGREGATION.md — pages/about.panel.ts's own
+   * ABOUT_DOCK_PALETTE_PANEL scope, forked from this one specifically so
+   * tuning either page's copy can never affect the other's stored
+   * default). This doc comment previously said otherwise (a description of
+   * this config's pre-fork architecture) — corrected because an
+   * overclaiming comment here is exactly what makes an already-fixed
+   * cross-page bleed bug look unresolved. */
   gradientScale: number;
   /** Amplitude of the gradient shader's own domain-warp noise — maps
    * straight through to LiquidSliderConfig's `shaderColorRandomness` (the
    * "Field randomness" uniform). 0 is a smooth, static field; 1 is the full
-   * organic wobble. Same shared-everywhere scope as `gradientScale` above. */
+   * organic wobble. Same page-scoped-not-cross-page-shared scope as
+   * `gradientScale` above. */
   gradientNoise: number;
   /** Same two fields, ≥ tablet width (768px) — same three-tier
    * unprefixed/-Wide/-Lg vocabulary `PolymorphicLayoutConfig` already uses
@@ -639,35 +648,35 @@ export const DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG = {
   enabled: true,
   mode: 'window',
   windowStep: 0.27,
-  hueSpread: 0.31,
-  windowPanCurve: 'linear',
+  hueSpread: 0.5,
+  windowPanCurve: 'gaussian',
   gaussianPeakIndex: 0,
-  gaussianSigma: 1.5,
-  gaussianAmplitude: 0.27,
-  gaussianFloor: 0,
+  gaussianSigma: 6,
+  gaussianAmplitude: 1,
+  gaussianFloor: 1,
   gaussianVisualTestModeEnabled: false,
   gaussianProximityMorphEnabled: false,
   gaussianProximityResponseMs: 220,
   gaussianProximityStaggerMsPerBand: 60,
   gaussianProximityEasing: 'smootherstep',
-  fieldKinship: 0.03,
+  fieldKinship: 0.76,
   inactiveChromaDuck: 0.2,
-  valueRigAmount: 0.29,
+  valueRigAmount: 1,
   masterSaturation: 0.85,
   masterBrightness: 0.96,
-  masterContrast: 0.98,
+  masterContrast: 1.04,
   masterSoftness: 1,
   gradientScale: 0.5,
   gradientNoise: 1,
   gradientScaleWide: 0.5,
   gradientNoiseWide: 1,
-  gradientScaleLg: 0.5,
+  gradientScaleLg: 4,
   gradientNoiseLg: 1,
   distanceDimmingEnabled: true,
-  distanceDimmingMaxOpacity: 0.75,
-  distanceDimmingBaselineOpacity: 0,
-  distanceDimmingPower: 0.25,
-  distanceDimmingEasing: 'soft',
+  distanceDimmingMaxOpacity: 1,
+  distanceDimmingBaselineOpacity: 1,
+  distanceDimmingPower: 4,
+  distanceDimmingEasing: 'expo',
   rampSpan: 1,
   rampRotation: 0.29,
   rampPath: 'mirror',

@@ -240,6 +240,8 @@ export function applySliderGradientUniforms({
   paletteBrightness = 1,
   paletteContrast = 1,
   paletteSoftness = 0,
+  paletteScale = null,
+  paletteNoise = null,
   hueInfluenceEnabled = false,
   hueInfluenceMix = 0,
   hueInfluenceTargetRadians = 0,
@@ -290,6 +292,13 @@ export function applySliderGradientUniforms({
   paletteBrightness?: number;
   paletteContrast?: number;
   paletteSoftness?: number;
+  /** Tier-resolved AbstractPostDockPaletteConfig.gradientScale/gradientNoise
+   * — overrides (not multiplies) config.shaderColorScale/shaderColorRandomness
+   * below when present, same "?? " idiom paletteOffsetX/paletteHueOffset
+   * already use, per those fields' own "maps straight through to
+   * shaderColorScale/shaderColorRandomness" doc comments. */
+  paletteScale?: number | null;
+  paletteNoise?: number | null;
   hueInfluenceEnabled?: boolean;
   hueInfluenceMix?: number;
   hueInfluenceTargetRadians?: number;
@@ -334,9 +343,9 @@ export function applySliderGradientUniforms({
   gl.uniform1f(gradientProgram.uVariation, clamp(config.shaderColorVariation + slide.variationBias + intensity * 0.055, 0, 0.4));
   gl.uniform1f(gradientProgram.uSaturation, clamp((config.shaderColorSaturation + intensity * 0.18 + hologramSaturationBoost) * paletteSaturation, 0, 2.5));
   gl.uniform1f(gradientProgram.uBrightness, clamp((config.shaderColorBrightness + motionValues.settlingIntensity * 0.08 + hologramBrightnessBoost) * paletteBrightness, 0.3, 1.8));
-  gl.uniform1f(gradientProgram.uScale, clamp(config.shaderColorScale * (1 + (motionValues.gradientStretch - 1) * 1.8), 0.5, 4));
+  gl.uniform1f(gradientProgram.uScale, clamp((paletteScale ?? config.shaderColorScale) * (1 + (motionValues.gradientStretch - 1) * 1.8), 0.5, 4));
   gl.uniform1f(gradientProgram.uSeed, (config.seed + (paletteSeed ?? slide.seed)) * 1000);
-  gl.uniform1f(gradientProgram.uRandomness, clamp(config.shaderColorRandomness + motionValues.gradientDistortion * 0.12, 0, 1));
+  gl.uniform1f(gradientProgram.uRandomness, clamp((paletteNoise ?? config.shaderColorRandomness) + motionValues.gradientDistortion * 0.12, 0, 1));
   gl.uniform2f(
     gradientProgram.uOffset,
     // The shader samples `st + uOffset`, so the visual movement is inverse.

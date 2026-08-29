@@ -33,6 +33,7 @@ import type { LabSummary } from '../../../helpers/labContent';
 import type { SliderContentSlide } from '../../../helpers/postContent';
 import { getArticleCardFallbackBackground } from '../../../helpers/articleCardFallback';
 import { usePrefersReducedMotion } from '../../../helpers/usePrefersReducedMotion';
+import { useBreakpointTier } from '../../../components/useBreakpointTier';
 import { createCssEasingFunction } from '../../../helpers/cubicBezierEasing';
 import { computeMagnificationDockRevealSchedule } from '../../../helpers/magnificationDockRevealMath';
 import {
@@ -1426,6 +1427,7 @@ export function AbstractJournalLabCollection({
     [suppliedSliderConfig],
   );
   const prefersReducedMotion = usePrefersReducedMotion();
+  const { tier } = useBreakpointTier();
   const motion = useLiquidSliderMotion(gradientConfig);
   const normalizedPalette = useMemo(
     () => normalizeAbstractPostDockPaletteConfig(paletteConfig),
@@ -1456,13 +1458,15 @@ export function AbstractJournalLabCollection({
     paletteConfig: normalizedPalette,
     hueInfluenceConfig: normalizedHueInfluence,
     activeIndex: Math.min(7, Math.max(0, articles.length - 1)),
-  }), [articles, normalizedHueInfluence, normalizedPalette]);
+    tier,
+  }), [articles, normalizedHueInfluence, normalizedPalette, tier]);
   const labPalettes = useMemo(() => buildDeckPaletteStates({
     slides: labSlides,
     paletteConfig: normalizedPalette,
     hueInfluenceConfig: normalizedHueInfluence,
     activeIndex: null,
-  }), [labSlides, normalizedHueInfluence, normalizedPalette]);
+    tier,
+  }), [labSlides, normalizedHueInfluence, normalizedPalette, tier]);
   const hueFadeInfluenceConfigs = useMemo(() => {
     const transition = {
       ...normalizedHueInfluence,
@@ -1484,10 +1488,12 @@ export function AbstractJournalLabCollection({
     paletteConfig: normalizedPalette,
     hueInfluenceConfig: hueFadeInfluenceConfigs.base,
     activeIndex: Math.min(7, Math.max(0, articles.length - 1)),
+    tier,
   }), [
     articles,
     hueFadeInfluenceConfigs.base,
     normalizedPalette,
+    tier,
   ]);
   const hueFadeArticleInfluencedPalettes = useMemo(
     () => buildDeckPaletteStates({
@@ -1495,11 +1501,13 @@ export function AbstractJournalLabCollection({
       paletteConfig: normalizedPalette,
       hueInfluenceConfig: hueFadeInfluenceConfigs.influenced,
       activeIndex: Math.min(7, Math.max(0, articles.length - 1)),
+      tier,
     }),
     [
       articles,
       hueFadeInfluenceConfigs.influenced,
       normalizedPalette,
+      tier,
     ],
   );
   const hueFadeLabBasePalettes = useMemo(() => buildDeckPaletteStates({
@@ -1507,10 +1515,12 @@ export function AbstractJournalLabCollection({
     paletteConfig: normalizedPalette,
     hueInfluenceConfig: hueFadeInfluenceConfigs.base,
     activeIndex: null,
+    tier,
   }), [
     hueFadeInfluenceConfigs.base,
     labSlides,
     normalizedPalette,
+    tier,
   ]);
   const hueFadeLabInfluencedPalettes = useMemo(
     () => buildDeckPaletteStates({
@@ -1518,11 +1528,13 @@ export function AbstractJournalLabCollection({
       paletteConfig: normalizedPalette,
       hueInfluenceConfig: hueFadeInfluenceConfigs.influenced,
       activeIndex: null,
+      tier,
     }),
     [
       hueFadeInfluenceConfigs.influenced,
       labSlides,
       normalizedPalette,
+      tier,
     ],
   );
   const labFallbacks = useMemo(

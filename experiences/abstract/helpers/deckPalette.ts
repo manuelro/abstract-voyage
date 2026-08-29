@@ -23,6 +23,7 @@ import {
   type AbstractPostDockPaletteConfig,
 } from '../components/AbstractPostDock/config/registered';
 import { ABSTRACT_INK_RGB } from './abstractPalette';
+import type { BreakpointTier } from '../../../components/useBreakpointTier';
 import type { SliderContentSlide } from '../../../helpers/postContent';
 import {
   getArticleCardFallbackPalette,
@@ -57,6 +58,15 @@ export type DeckPaletteState = {
   masterBrightness: number;
   masterContrast: number;
   masterSoftness: number;
+  /** Tier-resolved gradientScale/gradientNoise (see AbstractPostDockPaletteConfig's
+   * own doc comments) — resolved by the caller against the live breakpoint
+   * before reaching this state, since this function has no viewport
+   * awareness of its own. Overrides (not multiplies) the base
+   * shaderColorScale/shaderColorRandomness uniforms, same "?? " pattern as
+   * offsetX/hueOffset above. `null` when the palette is disabled, matching
+   * every other palette-derived field's own disabled fallback. */
+  paletteScale: number | null;
+  paletteNoise: number | null;
   hueInfluenceEnabled: boolean;
   hueInfluenceMix: number;
   hueInfluenceTargetRadians: number;
@@ -545,16 +555,30 @@ export function deckKinshipSeed(
  * `activeIndex: null` means the collection has no active-card semantics and
  * therefore applies no inactive chroma duck (the lab grid case).
  */
+/** base/Wide/Lg tier pick — the same shape as PolymorphicLayout.tsx's own
+ * private resolveColorTier, duplicated locally rather than exported from
+ * that shared component file for a single narrow use here. */
+function resolvePaletteTier<T>(tier: BreakpointTier, base: T, wide: T, lg: T): T {
+  return tier === 'lg' ? lg : tier === 'md' ? wide : base;
+}
+
 export function buildDeckPaletteStates({
   slides,
   paletteConfig,
   hueInfluenceConfig,
   activeIndex = null,
+  tier = 'mobile',
 }: {
   slides: readonly SliderContentSlide[];
   paletteConfig: AbstractPostDockPaletteConfig | null | undefined;
   hueInfluenceConfig?: AbstractPostDockHueInfluenceConfig | null;
   activeIndex?: number | null;
+  /** Live breakpoint tier (components/useBreakpointTier.ts) — resolves
+   * gradientScale/gradientNoise's own base/Wide/Lg triplet. Defaults to
+   * 'mobile' (this file's own SSR-safe default, matching useBreakpointTier's
+   * pre-measurement value) for the many existing call sites that don't pass
+   * a live tier; those callers keep today's base-tier-only behavior. */
+  tier?: BreakpointTier;
 }): DeckPaletteState[] | null {
   const directedPaletteEnabled = Boolean(paletteConfig?.enabled);
   const hueInfluenceEnabled = Boolean(
@@ -743,6 +767,12 @@ export function buildDeckPaletteStates({
       masterSoftness: directedPaletteEnabled && paletteConfig
         ? paletteConfig.masterSoftness
         : 0,
+      paletteScale: directedPaletteEnabled && paletteConfig
+        ? resolvePaletteTier(tier, paletteConfig.gradientScale, paletteConfig.gradientScaleWide, paletteConfig.gradientScaleLg)
+        : null,
+      paletteNoise: directedPaletteEnabled && paletteConfig
+        ? resolvePaletteTier(tier, paletteConfig.gradientNoise, paletteConfig.gradientNoiseWide, paletteConfig.gradientNoiseLg)
+        : null,
       hueInfluenceEnabled,
       hueInfluenceMix: hueInfluenceEnabled
         ? hueInfluenceConfig?.gradeMix ?? 0
