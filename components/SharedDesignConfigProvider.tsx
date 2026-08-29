@@ -17,6 +17,10 @@ import {
   DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
   type GlobalTypographyConfig,
 } from './GlobalTypography.config';
+import {
+  DEFAULT_PANEL_SHELL_CONFIG,
+  type PanelShellConfig,
+} from './Panel/config/shell';
 import { DEFAULT_LAYOUT_DEBUG_CONFIG, type LayoutDebugConfig } from './LayoutDebug.config';
 
 /**
@@ -53,6 +57,14 @@ type SharedDesignConfigState = {
   setEditorialSectionConfig: Dispatch<SetStateAction<EditorialSectionConfig>>;
   globalTypographyConfig: GlobalTypographyConfig;
   setGlobalTypographyConfig: Dispatch<SetStateAction<GlobalTypographyConfig>>;
+  // Required in the type (every real consumer — components/Panel/* — only
+  // ever runs outside production, where this is genuinely always present)
+  // but runtime-omitted in production via the cast in the useMemo below —
+  // the field's own key string must never survive into the production
+  // bundle, since nothing that ships to production reads it. See
+  // CONFIG-CHANGE-PROTOCOL.md.
+  panelShellConfig: PanelShellConfig;
+  setPanelShellConfig: Dispatch<SetStateAction<PanelShellConfig>>;
   layoutDebugConfig: LayoutDebugConfig;
   setLayoutDebugConfig: Dispatch<SetStateAction<LayoutDebugConfig>>;
 };
@@ -80,11 +92,14 @@ export function SharedDesignConfigProvider({ children }: { children: ReactNode }
     useState<GlobalTypographyConfig>(() => ({
       ...DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
     }));
+  const [panelShellConfig, setPanelShellConfig] = useState<PanelShellConfig>(() => ({
+    ...DEFAULT_PANEL_SHELL_CONFIG,
+  }));
   const [layoutDebugConfig, setLayoutDebugConfig] = useState<LayoutDebugConfig>(() => ({
     ...DEFAULT_LAYOUT_DEBUG_CONFIG,
   }));
 
-  const value = useMemo<SharedDesignConfigState>(() => ({
+  const value = useMemo(() => ({
     pageSurfaceConfig,
     setPageSurfaceConfig,
     ctaButtonConfig,
@@ -97,15 +112,23 @@ export function SharedDesignConfigProvider({ children }: { children: ReactNode }
     setEditorialSectionConfig,
     globalTypographyConfig,
     setGlobalTypographyConfig,
+    // Dead-code-eliminated in production builds — process.env.NODE_ENV is
+    // inlined to the literal 'production' at build time, so this whole
+    // conditional (including the object literal's own key strings) is
+    // provably unreachable and gets stripped, not just hidden behind a
+    // runtime check. Confirmed empirically (bundle grep) during the panel
+    // build-exclusion spike — see CONFIG-CHANGE-PROTOCOL.md.
+    ...(process.env.NODE_ENV !== 'production' ? { panelShellConfig, setPanelShellConfig } : {}),
     layoutDebugConfig,
     setLayoutDebugConfig,
-  }), [
+  } as SharedDesignConfigState), [
     pageSurfaceConfig,
     ctaButtonConfig,
     pageTitleConfig,
     bodyTextConfig,
     editorialSectionConfig,
     globalTypographyConfig,
+    panelShellConfig,
     layoutDebugConfig,
   ]);
 

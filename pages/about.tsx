@@ -2,6 +2,12 @@ import SeoHead from '../components/SeoHead';
 import { buildSiteTitle } from '../helpers/siteMetadata';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { PanelShell, PanelStandardHeaderActions } from '../components/Panel';
+import {
+  ConfigScopeList,
+  createConfigScopeBinding,
+  useConfigPanelBindings,
+} from '../components/Panel/config';
 import {
   CTA_BUTTON_MOTION_EASINGS,
   normalizeCtaButtonConfig,
@@ -10,8 +16,11 @@ import {
   DEFAULT_PAGE_SURFACE_CONFIG,
   normalizePageSurfaceConfig,
 } from '../components/PageSurface.config';
+import { DEFAULT_LAYOUT_DEBUG_CONFIG } from '../components/LayoutDebug.config';
 import { useSharedDesignConfig } from '../components/SharedDesignConfigProvider';
 import { useAbstractDesignConfig } from '../experiences/abstract/components/AbstractDesignConfigProvider';
+import { DEFAULT_PANEL_SHELL_CONFIG } from '../components/Panel/config/shell';
+import { useAuthoringToolsVisibility } from '../components/Panel/useAuthoringToolsVisibility';
 import { buildSplitAlignedSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/hooks/buildSplitAlignedSiteHeaderConfig';
 import { SiteHeader } from '../experiences/abstract/components/SiteHeader';
 import { buildEffectiveSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/buildEffectiveSiteHeaderConfig';
@@ -22,6 +31,11 @@ import {
   type SiteHeaderColorOverrideConfig,
 } from '../experiences/abstract/components/SiteHeader/config/colorOverride';
 import { useNormalizedSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/hooks/useNormalizedSiteHeaderConfig';
+import { ABOUT_SITE_HEADER_COLOR_OVERRIDE_PANEL } from '../experiences/abstract/components/SiteHeader/config/colorOverride.panel';
+import {
+  ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE,
+  useAbstractDesignConfigBindings,
+} from '../experiences/abstract/hooks/useAbstractDesignConfigBindings';
 import {
   AbstractPostDock,
   DEFAULT_LIQUID_SLIDER_CONFIG,
@@ -34,6 +48,10 @@ import {
   type AbstractPostDockLayoutConfig,
   type AbstractPostDockPaletteConfig,
 } from '../experiences/abstract/components/AbstractPostDock/config/registered';
+import {
+  ABSTRACT_POST_DOCK_LAYOUT_SCOPE_ID,
+} from '../experiences/abstract/components/AbstractPostDock/config/panel';
+import { abstractConfigPanelRegistry } from '../experiences/abstract/configPanels';
 import {
   buildDeckPaletteStates,
   deckWindowHueOffset,
@@ -67,6 +85,8 @@ import {
   parseCssColorToRgb,
 } from '../experiences/abstract/components/SplitColumnLayout/colorResolution';
 import type { SliderContentSlide } from '../helpers/postContent';
+import { spacefieldConfigPanelRegistry } from '../experiences/spacefield/configPanels';
+import { SPACEFIELD_SCOPE_ID } from '../experiences/spacefield/SpacefieldBackground/config/panel';
 import {
   DEFAULT_SPACEFIELD_CONFIG,
   normalizeSpacefieldConfig,
@@ -83,6 +103,13 @@ import {
   type AboutPageLayoutConfig,
   type AboutTopSegmentGradientConfig,
 } from './about.config';
+import {
+  ABOUT_PAGE_LAYOUT_SCOPE_ID,
+  ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID,
+  ABOUT_DOCK_PALETTE_SCOPE_ID,
+  ABOUT_POLYMORPHIC_LAYOUT_PANEL,
+} from './about.panel';
+import { aboutConfigPanelRegistry } from './aboutConfigPanels';
 import { BELOW_MD_MEDIA_QUERY, MD_BREAKPOINT_PX } from '../components/breakpoints';
 import { useBreakpointTier } from '../components/useBreakpointTier';
 import { AboutMobileAccordion } from '../experiences/about/components/AboutMobileAccordion';
@@ -91,6 +118,7 @@ import {
   normalizeAboutMobileAccordionConfig,
   type AboutMobileAccordionConfig,
 } from '../experiences/about/components/AboutMobileAccordion.config';
+import { ABOUT_MOBILE_ACCORDION_SCOPE_ID } from '../experiences/about/components/AboutMobileAccordion.panel';
 import { AbstractEditorialHero } from '../experiences/abstract/components/AbstractEditorialHero';
 import {
   DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
@@ -100,6 +128,7 @@ import {
   NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG,
   type AbstractEditorialHeroConfig,
 } from '../experiences/abstract/components/AbstractEditorialHero.config';
+import { ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID } from '../experiences/abstract/components/AbstractEditorialHero.panel';
 import styles from './about.module.css';
 
 // Below this width, splitLeft/splitRight stack top/bottom instead of
@@ -134,6 +163,28 @@ const ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG: AbstractPostDockLayoutConfig = {
   minimalModeTextDimOpacity: 0.45,
   minimalModeTextEmphasisOpacity: 0.95,
 };
+
+const ABOUT_DOCK_PALETTE_DEFINITION =
+  aboutConfigPanelRegistry.resolve(ABOUT_DOCK_PALETTE_SCOPE_ID);
+const ABSTRACT_POST_DOCK_LAYOUT_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_LAYOUT_SCOPE_ID);
+const ABOUT_PAGE_LAYOUT_DEFINITION =
+  aboutConfigPanelRegistry.resolve(ABOUT_PAGE_LAYOUT_SCOPE_ID);
+const ABOUT_MOBILE_ACCORDION_DEFINITION =
+  aboutConfigPanelRegistry.resolve(ABOUT_MOBILE_ACCORDION_SCOPE_ID);
+// Reuses /abstract's own registered scope directly (PLAN-EDITORIAL-HERO-
+// UNIFICATION-AND-CARDSTACK-RESIZE-FIX.md Part 2) — already registered in
+// abstractConfigPanelRegistry (experiences/abstract/configPanels.ts), the
+// same registry ABSTRACT_POST_DOCK_LAYOUT_DEFINITION below already resolves
+// from on this page. Schema shared, value page-local: this page's own
+// editorialHeroConfig state is an independent third instance, the same
+// shape pages/abstract.tsx's own two instances already use.
+const ABSTRACT_EDITORIAL_HERO_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID);
+const ABOUT_TOP_SEGMENT_GRADIENT_DEFINITION =
+  aboutConfigPanelRegistry.resolve(ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID);
+const SPACEFIELD_DEFINITION =
+  spacefieldConfigPanelRegistry.resolve(SPACEFIELD_SCOPE_ID);
 
 // `**word**` runs render brighter (see renderEmphasisText in
 // helpers/textEmphasis.tsx) — a lightweight, source-only way to mark each
@@ -263,6 +314,10 @@ export default function AboutPage() {
 function AboutPageContent() {
   const {
     pageSurfaceConfig,
+    setPageSurfaceConfig,
+    panelShellConfig,
+    setPanelShellConfig,
+    setLayoutDebugConfig,
     ctaButtonConfig,
   } = useSharedDesignConfig();
   const { siteHeaderConfig, setSiteHeaderConfig } = useAbstractDesignConfig();
@@ -401,6 +456,7 @@ function AboutPageContent() {
     useState<PolymorphicLayoutConfig>(
       () => normalizePolymorphicLayoutConfig(ABOUT_POLYMORPHIC_LAYOUT_CONFIG),
     );
+  const { showAuthoringTools, isPanelOpen, setIsPanelOpen, togglePanel } = useAuthoringToolsVisibility();
 
   // Gates the whole feature — see AboutPageLayoutConfig.topSegmentDynamic-
   // BackgroundEnabled's own doc comment. Deliberately NOT also gated on
@@ -1181,6 +1237,105 @@ function AboutPageContent() {
     [editorialHeroConfig],
   );
 
+  const sharedConfigBindings = useAbstractDesignConfigBindings(
+    ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE.about,
+  );
+  const localConfigBindings = useMemo(() => [
+    createConfigScopeBinding({
+      definition: ABOUT_DOCK_PALETTE_DEFINITION,
+      value: dockPaletteConfig,
+      onChange: setDockPaletteConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POST_DOCK_LAYOUT_DEFINITION,
+      value: dockLayoutConfig,
+      onChange: setDockLayoutConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABOUT_PAGE_LAYOUT_DEFINITION,
+      value: aboutPageLayoutConfig,
+      onChange: setAboutPageLayoutConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABOUT_MOBILE_ACCORDION_DEFINITION,
+      value: aboutMobileAccordionConfig,
+      onChange: setAboutMobileAccordionConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_EDITORIAL_HERO_DEFINITION,
+      value: editorialHeroConfig,
+      onChange: setEditorialHeroConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABOUT_TOP_SEGMENT_GRADIENT_DEFINITION,
+      value: topSegmentGradientConfig,
+      onChange: setTopSegmentGradientConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABOUT_POLYMORPHIC_LAYOUT_PANEL,
+      value: splitColumnLayoutConfig,
+      // Wrapped rather than passed directly (setSplitColumnLayoutConfig):
+      // PolymorphicLayoutConfig's own shape throws off
+      // createConfigScopeBinding's TConfig inference when a raw
+      // Dispatch<SetStateAction<T>> is passed straight through — same
+      // runtime behavior, this only fixes what TS infers TConfig as.
+      onChange: value => setSplitColumnLayoutConfig(value),
+    }),
+    createConfigScopeBinding({
+      definition: SPACEFIELD_DEFINITION,
+      value: spacefieldConfig,
+      onChange: setSpacefieldConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABOUT_SITE_HEADER_COLOR_OVERRIDE_PANEL,
+      value: siteHeaderColorOverride,
+      onChange: setSiteHeaderColorOverride,
+    }),
+  ], [
+    dockPaletteConfig,
+    dockLayoutConfig,
+    aboutPageLayoutConfig,
+    aboutMobileAccordionConfig,
+    editorialHeroConfig,
+    topSegmentGradientConfig,
+    splitColumnLayoutConfig,
+    spacefieldConfig,
+    siteHeaderColorOverride,
+  ]);
+  const applicableConfigBindings = useMemo(
+    () => [...sharedConfigBindings, ...localConfigBindings],
+    [sharedConfigBindings, localConfigBindings],
+  );
+  const componentConfigBindings = useConfigPanelBindings(applicableConfigBindings);
+  const resetAllConfig = useCallback(() => {
+    setPanelShellConfig({ ...DEFAULT_PANEL_SHELL_CONFIG });
+    setPageSurfaceConfig({ ...DEFAULT_PAGE_SURFACE_CONFIG });
+    setSiteHeaderConfig({ ...DEFAULT_SITE_HEADER_CONFIG });
+    setLayoutDebugConfig({ ...DEFAULT_LAYOUT_DEBUG_CONFIG });
+    setDockPaletteConfig({ ...ABOUT_DEFAULT_DOCK_PALETTE_CONFIG });
+    setDockLayoutConfig({ ...ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG });
+    setAboutPageLayoutConfig(normalizeAboutPageLayoutConfig(DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG));
+    setAboutMobileAccordionConfig(
+      normalizeAboutMobileAccordionConfig(DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG),
+    );
+    setEditorialHeroConfig(
+      normalizeAbstractEditorialHeroConfig(DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG),
+    );
+    setTopSegmentGradientConfig(
+      normalizeAboutTopSegmentGradientConfig(DEFAULT_ABOUT_TOP_SEGMENT_GRADIENT_CONFIG),
+    );
+    setSplitColumnLayoutConfig(
+      normalizePolymorphicLayoutConfig(ABOUT_POLYMORPHIC_LAYOUT_CONFIG),
+    );
+    setSpacefieldConfig(normalizeSpacefieldConfig(DEFAULT_SPACEFIELD_CONFIG));
+    setSiteHeaderColorOverride({ ...ABOUT_SITE_HEADER_COLOR_OVERRIDE_CONFIG });
+  }, [
+    setLayoutDebugConfig,
+    setPageSurfaceConfig,
+    setPanelShellConfig,
+    setSiteHeaderConfig,
+  ]);
+
   return (
     // LayoutDebugHighlightProvider now mounts once in pages/_app.tsx
     // (PLAN-DEDUPLICATE-PAGE-SHELL-LOGIC.md §6) — was independently
@@ -1481,6 +1636,19 @@ function AboutPageContent() {
           />
         )}
       >
+        {showAuthoringTools ? (
+          <PanelShell
+            title="ABOUT SETTINGS"
+            isOpen={isPanelOpen}
+            onToggle={togglePanel}
+            config={panelShellConfig}
+            headerActions={(
+              <PanelStandardHeaderActions bindings={componentConfigBindings} onReset={resetAllConfig} />
+            )}
+          >
+            <ConfigScopeList bindings={componentConfigBindings} />
+          </PanelShell>
+        ) : null}
       </PolymorphicLayout>
     </>
   );

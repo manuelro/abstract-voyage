@@ -14,6 +14,11 @@
 # AGENTS.md's "Local dev server" section), name varies per session.
 /.next-*/
 /out/
+# scripts/verify-release.js's own isolated build/export dirs — never the
+# real .next/out, so a release-gate run can't corrupt a concurrent dev
+# server's own build cache.
+/.next-verify/
+/out-verify/
 
 # production
 /build

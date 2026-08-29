@@ -3,7 +3,7 @@ import type {
   MagnificationDockRevealMode,
 } from '../../../../../helpers/magnificationDockRevealMath';
 import type { MagnificationDockDimmingEasing } from '../../../../../components/MagnificationDock';
-import { clamp } from '../../../../../helpers/clamp';
+import { clamp } from '../../../../../components/mathUtils';
 import type { CtaButtonRadius } from '../../../../../components/CtaButton/config/registered';
 import type { PointerProximityEasing } from '../../../../../helpers/pointerProximity';
 import type {

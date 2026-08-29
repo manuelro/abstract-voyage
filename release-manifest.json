@@ -23,12 +23,10 @@
     "/robots.txt",
     "/feed.xml"
   ],
+  "_forbiddenIdentifiers_note": "Deliberately does NOT include function/hook names like useAuthoringToolsVisibility or createConfigScopeBinding — production stubs must keep those exact names for the webpack alias substitution to work at all (see next.config.js), so they always appear, harmlessly, with no-op bodies. Found the hard way: an earlier version of this list flagged them and produced false positives on every real page. Use markers that are structurally impossible for a stub to produce instead — real UI text, or a CSS-module class prefix that only exists if Panel.module.css was actually imported (stubs never import it).",
   "forbiddenIdentifiers": [
-    "PanelShell",
-    "ConfigScopeBinding",
+    "Panel_panelShell",
     "ConfigScopeRenderer",
-    "useAuthoringToolsVisibility",
-    "PostsLabConfigPanel",
-    "createConfigScopeBinding"
+    "COPY DIFF"
   ]
 }

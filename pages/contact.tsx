@@ -4,6 +4,8 @@ import {
   useCallback, useEffect, useMemo, useRef, useState,
   type CSSProperties, type MutableRefObject,
 } from 'react'
+import { createConfigScopeBinding } from '../components/Panel/config'
+import { useAuthoringToolsVisibility } from '../components/Panel/useAuthoringToolsVisibility'
 import { CtaButton } from '../components/CtaButton'
 import {
   ComposerPill,
@@ -22,6 +24,10 @@ import { PAGE_CONTENT_GUTTER_CLASSNAME } from '../components/PageContainer'
 import { normalizePageSurfaceConfig } from '../components/PageSurface.config'
 import { useSharedDesignConfig } from '../components/SharedDesignConfigProvider'
 import { useAbstractDesignConfig } from '../experiences/abstract/components/AbstractDesignConfigProvider'
+import {
+  ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE,
+  useAbstractDesignConfigBindings,
+} from '../experiences/abstract/hooks/useAbstractDesignConfigBindings'
 import { PolymorphicLayout } from '../experiences/abstract/components/PolymorphicLayout'
 import { FixedViewportColumnContent } from '../experiences/abstract/components/FixedViewportColumnContent'
 import {
@@ -35,17 +41,28 @@ import {
   type SiteHeaderColorOverrideConfig,
 } from '../experiences/abstract/components/SiteHeader/config/colorOverride'
 import { useNormalizedSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/hooks/useNormalizedSiteHeaderConfig'
+import { CONTACT_SITE_HEADER_COLOR_OVERRIDE_PANEL } from '../experiences/abstract/components/SiteHeader/config/colorOverride.panel'
 import {
   applyCtaButtonColorOverride,
   CONTACT_CTA_BUTTON_COLOR_OVERRIDE_CONFIG,
   normalizeCtaButtonColorOverrideConfig,
   type CtaButtonColorOverrideConfig,
 } from '../components/CtaButton/config/colorOverride'
+import { CONTACT_CTA_BUTTON_COLOR_OVERRIDE_PANEL } from '../components/CtaButton/config/colorOverride.panel'
+import { contactConfigPanelRegistry } from '../experiences/contact/configPanels'
+import { ContactConfigPanel } from '../experiences/contact/ContactConfigPanel'
 import { CONTACT_POLYMORPHIC_LAYOUT_CONFIG } from './contact.config'
+import { CONTACT_POLYMORPHIC_LAYOUT_PANEL } from './contact.panel'
 import {
   DEFAULT_CONTACT_EXPERIENCE_CONFIG,
   type ContactExperienceConfig,
 } from '../experiences/contact/ContactExperience.config'
+import { CONTACT_EXPERIENCE_SCOPE_ID } from '../experiences/contact/ContactExperience.panel'
+import {
+  DEFAULT_CONTACT_DEV_MODE_CONFIG,
+  type ContactDevModeConfig,
+} from '../experiences/contact/ContactDevMode.config'
+import { CONTACT_DEV_MODE_SCOPE_ID } from '../experiences/contact/ContactDevMode.panel'
 import { AgentPendingIndicator } from '../experiences/contact/ConversationPendingFeedback'
 import { useComposerHeroPhase, type HeroPhase } from '../experiences/contact/useComposerHeroPhase'
 import { ContactHeroGreeting } from '../experiences/contact/ContactHeroGreeting'
@@ -171,6 +188,23 @@ export const computeMessageFadeOpacity = (
   return 1 - fadeRatio * (1 - floorOpacity)
 }
 
+// Stands in for a real fetch's round-trip time in dev-mode simulation (see
+// GuidedIntake's simulateIntakeResponse) — rejects the same way a real
+// fetch does on abort, so the existing `error.name === 'AbortError'` no-ops
+// in runGapCheck/runRecap keep working unchanged under simulation.
+const simulateNetworkDelay = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'))
+      return
+    }
+    const timeoutId = window.setTimeout(resolve, ms)
+    signal?.addEventListener('abort', () => {
+      window.clearTimeout(timeoutId)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }, { once: true })
+  })
+
 function EmailFallback({ emphasized = false }: { emphasized?: boolean }) {
   return (
     <a
@@ -183,11 +217,12 @@ function EmailFallback({ emphasized = false }: { emphasized?: boolean }) {
 }
 
 function GuidedIntake({
-  config, ctaButtonConfig, surfaceColor,
+  config, ctaButtonConfig, surfaceColor, devModeConfig,
 }: {
   config: ContactExperienceConfig
   ctaButtonConfig: CtaButtonConfig
   surfaceColor: string
+  devModeConfig: ContactDevModeConfig
 }) {
   // The greeting is not turns[0] — it's ContactHeroGreeting, driven by
   // heroPhase below, not the scrolling conversation feed (see
@@ -407,7 +442,71 @@ function GuidedIntake({
     message?: string
   }
 
+  // Dev-mode network simulation (see experiences/contact/ContactDevMode.config.ts) —
+  // reuses followUpCountRef/deliveryRetryCountRef, the same refs the real
+  // client logic already maintains for its own bookkeeping, rather than
+  // parsing anything off the request body: the wire contract (followUpToken,
+  // submissionId) is opaque to this mock exactly as it is to the real
+  // server-verification logic in intake.js, and reading the local refs
+  // directly stays correct regardless of what that wire shape looks like.
+  const DEV_FOLLOW_UP_ROUNDS = 2 // 'happy-with-followup' resolves after this many rounds
+
+  const simulateIntakeResponse = async (body: Record<string, unknown>, signal?: AbortSignal): Promise<IntakeResponse> => {
+    await simulateNetworkDelay(devModeConfig.simulatedLatencyMs, signal)
+    const stage = body.stage as 'gap-check' | 'recap' | 'deliver'
+    const scenario = devModeConfig.scenario
+
+    if (scenario === 'degraded') {
+      // Uniform: any non-deliver stage fails the same way intake.js does on
+      // a missing API key. Gap-check always runs first in the real flow, so
+      // recap's branch here is defensive rather than load-bearing.
+      return stage === 'deliver' ? { ok: true } : { ok: false, degraded: true }
+    }
+
+    if (stage === 'gap-check') {
+      if (scenario === 'insufficiency-stop') {
+        // Always asks for more — the client's own MAX_FOLLOW_UPS ceiling
+        // (below) is what actually stops this, not the mock.
+        return { ok: true, needsFollowUp: true, question: 'Simulated follow-up question.', followUpToken: 'simulated' }
+      }
+      if (scenario === 'happy-with-followup' && followUpCountRef.current < DEV_FOLLOW_UP_ROUNDS) {
+        return {
+          ok: true,
+          needsFollowUp: true,
+          question: `Simulated follow-up question ${followUpCountRef.current + 1}.`,
+          followUpToken: 'simulated',
+        }
+      }
+      return { ok: true, needsFollowUp: false }
+    }
+
+    if (stage === 'recap') {
+      // Echoes what was actually typed rather than fully-canned text, so
+      // the confirm screen stays coherent while testing.
+      const echoed = visitorAnswersRef.current.join(' ').trim()
+      return { ok: true, recap: echoed || 'Simulated recap.' }
+    }
+
+    // stage === 'deliver'
+    if (scenario === 'delivery-fail-recover') {
+      return deliveryRetryCountRef.current < 1
+        ? { ok: false, message: 'Simulated delivery failure.' }
+        : { ok: true }
+    }
+    if (scenario === 'delivery-fail-exhausted') {
+      return { ok: false, message: 'Simulated delivery failure.' }
+    }
+    return { ok: true }
+  }
+
   const postIntake = async (body: Record<string, unknown>, signal?: AbortSignal): Promise<IntakeResponse> => {
+    // A second, independent gate on top of the panel's own showAuthoringTools
+    // (which only controls whether the panel renders) — applied at the
+    // actual network chokepoint so a simulated scenario can never leak into
+    // a production build regardless of how devModeConfig got populated.
+    if (process.env.NODE_ENV !== 'production' && devModeConfig.scenario !== 'live') {
+      return simulateIntakeResponse(body, signal)
+    }
     const response = await fetch(intakeEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1113,6 +1212,9 @@ export default function ContactPage() {
   const [contactConfig, setContactConfig] = useState<ContactExperienceConfig>(() => ({
     ...DEFAULT_CONTACT_EXPERIENCE_CONFIG,
   }))
+  const [contactDevModeConfig, setContactDevModeConfig] = useState<ContactDevModeConfig>(() => ({
+    ...DEFAULT_CONTACT_DEV_MODE_CONFIG,
+  }))
   const [contactPolymorphicLayoutConfig, setContactPolymorphicLayoutConfig] =
     useState<PolymorphicLayoutConfig>(
       () => normalizePolymorphicLayoutConfig(CONTACT_POLYMORPHIC_LAYOUT_CONFIG),
@@ -1142,6 +1244,7 @@ export default function ContactPage() {
     useState<CtaButtonColorOverrideConfig>(() => (
       normalizeCtaButtonColorOverrideConfig(CONTACT_CTA_BUTTON_COLOR_OVERRIDE_CONFIG)
     ))
+  const { showAuthoringTools, isPanelOpen, setIsPanelOpen, togglePanel } = useAuthoringToolsVisibility()
   const normalizedPageSurfaceConfig = useMemo(
     () => normalizePageSurfaceConfig(pageSurfaceConfig),
     [pageSurfaceConfig],
@@ -1182,6 +1285,43 @@ export default function ContactPage() {
   // existed.
   const { ref: headerWrapperRef, rect: headerWrapperRect } = useMeasuredElementRect<HTMLDivElement>()
 
+  const sharedConfigBindings = useAbstractDesignConfigBindings(
+    ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE.contact,
+  )
+  const localConfigBindings = useMemo(() => [
+    createConfigScopeBinding({
+      definition: contactConfigPanelRegistry.resolve(CONTACT_EXPERIENCE_SCOPE_ID),
+      value: contactConfig,
+      onChange: setContactConfig,
+    }),
+    createConfigScopeBinding({
+      definition: contactConfigPanelRegistry.resolve(CONTACT_DEV_MODE_SCOPE_ID),
+      value: contactDevModeConfig,
+      onChange: setContactDevModeConfig,
+    }),
+    createConfigScopeBinding({
+      definition: CONTACT_SITE_HEADER_COLOR_OVERRIDE_PANEL,
+      value: siteHeaderColorOverride,
+      onChange: setSiteHeaderColorOverride,
+    }),
+    createConfigScopeBinding({
+      definition: CONTACT_CTA_BUTTON_COLOR_OVERRIDE_PANEL,
+      value: ctaButtonColorOverride,
+      onChange: setCtaButtonColorOverride,
+    }),
+    createConfigScopeBinding({
+      definition: CONTACT_POLYMORPHIC_LAYOUT_PANEL,
+      value: contactPolymorphicLayoutConfig,
+      onChange: setContactPolymorphicLayoutConfig,
+    }),
+  ], [
+    contactConfig, contactDevModeConfig,
+    siteHeaderColorOverride, ctaButtonColorOverride, contactPolymorphicLayoutConfig,
+  ])
+  const configBindings = useMemo(
+    () => [...sharedConfigBindings, ...localConfigBindings],
+    [sharedConfigBindings, localConfigBindings],
+  )
   const contactStyle = {
     '--contact-conversation-max': `${contactConfig.conversationMaxWidthPx}px`,
     '--contact-optical-y': `${contactConfig.opticalOffsetYVh}svh`,
@@ -1287,8 +1427,18 @@ export default function ContactPage() {
               >
                 <div className="mx-auto flex h-full min-h-0 w-full max-w-[var(--contact-conversation-max)] flex-col pt-6">
                   <GuidedIntake
+                    // Changing scenario remounts GuidedIntake outright — its
+                    // existing unmount cleanup effect already aborts any in-flight
+                    // request and clears pending retries, so this is a clean reset
+                    // across every ref/state value without hand-writing one.
+                    // simulatedLatencyMs is deliberately excluded: a pacing-only
+                    // change should never discard an in-progress conversation. In
+                    // production this key is permanently 'live', since the panel
+                    // that could change it never renders.
+                    key={contactDevModeConfig.scenario}
                     config={contactConfig}
                     ctaButtonConfig={normalizedCtaButtonConfig}
+                    devModeConfig={contactDevModeConfig}
                     surfaceColor={normalizedPageSurfaceConfig.color}
                   />
                 </div>
@@ -1392,6 +1542,14 @@ export default function ContactPage() {
         }
       `}</style>
 
+      {showAuthoringTools ? (
+        <ContactConfigPanel
+          bindings={configBindings}
+          isOpen={isPanelOpen}
+          onToggle={togglePanel}
+          backgroundColor={normalizedPageSurfaceConfig.color}
+        />
+      ) : null}
       </PolymorphicLayout>
     </>
   )

@@ -1,0 +1,205 @@
+import { defineConfigScope } from '../../../../../components/Panel/config';
+import { MARGIN_BOTTOM_OPTIONS } from '../../../../../components/tailwindSpacingScale';
+import {
+  DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_CONFIG,
+  type AbstractJournalLabCollectionSliderConfig,
+} from './slider';
+
+export const ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_SCOPE_ID =
+  'AbstractJournalLabCollection/slider' as const;
+
+const whenSliderEnabled = (
+  config: Readonly<AbstractJournalLabCollectionSliderConfig>,
+) => config.layoutMode === 'slider';
+
+export const ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_PANEL =
+  defineConfigScope<AbstractJournalLabCollectionSliderConfig>({
+    id: ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_SCOPE_ID,
+    component: 'AbstractJournalLabCollection',
+    scope: 'slider',
+    title: 'Journal / labs slider',
+    createdAt: '2026-07-31',
+    summary: 'Opt-in continuous drag slider, capped groups, View all reveal',
+    defaultOpen: false,
+    defaultValue: DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_CONFIG,
+    fields: [
+      {
+        kind: 'enum',
+        key: 'layoutMode',
+        label: 'Layout mode',
+        description:
+          'Grid keeps the existing uncapped, multi-row scatter layout (default). Slider opts into a physics-driven, draggable single row capped at groupSize × groupCount cards per view.',
+        options: [
+          { label: 'GRID', value: 'grid' },
+          { label: 'SLIDER', value: 'slider' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'wideGroupSize',
+        label: 'Wide group size',
+        description: 'Cards visible at once per view on wide viewports.',
+        min: 1,
+        max: 8,
+        step: 1,
+        integer: true,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'narrowGroupSize',
+        label: 'Narrow group size',
+        description: 'Cards visible at once per view on narrow viewports.',
+        min: 1,
+        max: 8,
+        step: 1,
+        integer: true,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'groupCount',
+        label: 'Group count',
+        description:
+          'Number of groups reachable by dragging. Total cap per view is group size × group count (default 4 × 2 = 8).',
+        min: 1,
+        max: 4,
+        step: 1,
+        integer: true,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'wideViewAllThreshold',
+        label: 'Wide "View all" threshold',
+        description: 'Drag progress (0–1) past which "View all" reveals, on wide viewports.',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'narrowViewAllThreshold',
+        label: 'Narrow "View all" threshold',
+        description: 'Drag progress (0–1) past which "View all" reveals, on narrow viewports.',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'narrowBreakpointPx',
+        label: 'Narrow breakpoint',
+        min: 320,
+        max: 2400,
+        step: 10,
+        unit: 'px',
+        integer: true,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'dragResistance',
+        label: 'Drag edge resistance',
+        description: 'Swiper resistanceRatio — 0 is a hard clamp at the first/last card (no overshoot; also avoids a verified Swiper freeMode edge-snap bug), 1 follows the finger past the edge with no resistance.',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'boolean',
+        key: 'dragMomentumEnabled',
+        label: 'Momentum on release',
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'dragMomentumRatio',
+        label: 'Momentum distance',
+        min: 0.1,
+        max: 3,
+        step: 0.05,
+        visibleWhen: (config: Readonly<AbstractJournalLabCollectionSliderConfig>) =>
+          whenSliderEnabled(config) && config.dragMomentumEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'dragMomentumVelocityRatio',
+        label: 'Momentum velocity sensitivity',
+        min: 0.1,
+        max: 3,
+        step: 0.05,
+        visibleWhen: (config: Readonly<AbstractJournalLabCollectionSliderConfig>) =>
+          whenSliderEnabled(config) && config.dragMomentumEnabled,
+      },
+      {
+        kind: 'number',
+        key: 'snapSpeedMs',
+        label: 'Snap duration',
+        description: 'Duration of the settle transition once momentum decays and sticky commits to the nearest card.',
+        min: 120,
+        max: 1200,
+        step: 20,
+        unit: 'ms',
+        integer: true,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'enum',
+        key: 'snapEasing',
+        label: 'Snap easing',
+        visibleWhen: whenSliderEnabled,
+        options: [
+          { label: 'STANDARD', value: 'standard' },
+          { label: 'SOFT EXPO', value: 'soft-expo' },
+          { label: 'VISCOUS', value: 'viscous' },
+          { label: 'SETTLE', value: 'settle' },
+          { label: 'LUXURY', value: 'luxury' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'viewSwitchFadeDurationMs',
+        label: 'View-switch fade duration',
+        description: 'Whole-slider opacity cross-fade used only when switching Articles/Labs while the slider is scrolled away from rest.',
+        min: 0,
+        max: 1500,
+        step: 20,
+        unit: 'ms',
+        integer: true,
+        visibleWhen: whenSliderEnabled,
+      },
+      {
+        kind: 'enum',
+        key: 'viewSwitchFadeEasing',
+        label: 'View-switch fade easing',
+        visibleWhen: whenSliderEnabled,
+        options: [
+          { label: 'STANDARD', value: 'standard' },
+          { label: 'SOFT EXPO', value: 'soft-expo' },
+          { label: 'VISCOUS', value: 'viscous' },
+          { label: 'SETTLE', value: 'settle' },
+          { label: 'LUXURY', value: 'luxury' },
+        ],
+      },
+      {
+        kind: 'select',
+        key: 'bottomSpacingClass',
+        label: 'Bottom spacing',
+        description: 'Space reserved below the slider.',
+        visibleWhen: whenSliderEnabled,
+        options: MARGIN_BOTTOM_OPTIONS,
+      },
+    ],
+    copy: {
+      targetFile:
+        'experiences/abstract/components/AbstractJournalLabCollection/config/slider.ts',
+      targetSymbol: 'DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_CONFIG',
+      targetType: 'AbstractJournalLabCollectionSliderConfig',
+      updateStrategy: 'replace_scope',
+      completeScope: true,
+    },
+  });

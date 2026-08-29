@@ -1,0 +1,311 @@
+{
+  "generatedAt": "2026-08-29T00:53:14.673Z",
+  "scopes": [
+    {
+      "real": "components/CtaButton/config/colorOverride.panel.ts",
+      "stub": "components/CtaButton/config/colorOverride.panel.stub.ts",
+      "exports": [
+        "createCtaButtonColorOverridePanel",
+        "ABSTRACT_CTA_BUTTON_COLOR_OVERRIDE_PANEL",
+        "CONTACT_CTA_BUTTON_COLOR_OVERRIDE_PANEL"
+      ]
+    },
+    {
+      "real": "components/CtaButton/config/panel.ts",
+      "stub": "components/CtaButton/config/panel.stub.ts",
+      "exports": [
+        "CTA_BUTTON_APPEARANCE_SCOPE_ID",
+        "CTA_BUTTON_APPEARANCE_PANEL"
+      ]
+    },
+    {
+      "real": "components/FiberHeading.panel.ts",
+      "stub": "components/FiberHeading.panel.stub.ts",
+      "exports": [
+        "FIBER_HEADING_APPEARANCE_SCOPE_ID",
+        "FIBER_HEADING_APPEARANCE_PANEL"
+      ]
+    },
+    {
+      "real": "components/GlobalTypography.panel.ts",
+      "stub": "components/GlobalTypography.panel.stub.ts",
+      "exports": [
+        "GLOBAL_TYPOGRAPHY_APPEARANCE_SCOPE_ID",
+        "GLOBAL_TYPOGRAPHY_APPEARANCE_PANEL"
+      ]
+    },
+    {
+      "real": "components/LayoutDebug.panel.ts",
+      "stub": "components/LayoutDebug.panel.stub.ts",
+      "exports": [
+        "LAYOUT_DEBUG_SCOPE_ID",
+        "LAYOUT_DEBUG_FIELDS",
+        "LAYOUT_DEBUG_PANEL"
+      ]
+    },
+    {
+      "real": "components/PageSurface.panel.ts",
+      "stub": "components/PageSurface.panel.stub.ts",
+      "exports": [
+        "PAGE_SURFACE_APPEARANCE_SCOPE_ID",
+        "PAGE_SURFACE_APPEARANCE_PANEL"
+      ]
+    },
+    {
+      "real": "components/SectionHeading.panel.ts",
+      "stub": "components/SectionHeading.panel.stub.ts",
+      "exports": [
+        "SECTION_HEADING_APPEARANCE_SCOPE_ID",
+        "SECTION_HEADING_APPEARANCE_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/about/components/AboutMobileAccordion.panel.ts",
+      "stub": "experiences/about/components/AboutMobileAccordion.panel.stub.ts",
+      "exports": [
+        "ABOUT_MOBILE_ACCORDION_SCOPE_ID",
+        "ABOUT_MOBILE_ACCORDION_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/LabSection.panel.ts",
+      "stub": "experiences/abstract/LabSection.panel.stub.ts",
+      "exports": [
+        "ABSTRACT_LAB_SECTION_APPEARANCE_SCOPE_ID",
+        "ABSTRACT_LAB_SECTION_APPEARANCE_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/AbstractEditorialHero.panel.ts",
+      "stub": "experiences/abstract/components/AbstractEditorialHero.panel.stub.ts",
+      "exports": [
+        "ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID",
+        "ABSTRACT_EDITORIAL_HERO_LAYOUT_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/AbstractHeroCtaComposer/config/panel.ts",
+      "stub": "experiences/abstract/components/AbstractHeroCtaComposer/config/panel.stub.ts",
+      "exports": [
+        "ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_SCOPE_ID",
+        "ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/AbstractJournalLabCollection/config/presentation.panel.ts",
+      "stub": "experiences/abstract/components/AbstractJournalLabCollection/config/presentation.panel.stub.ts",
+      "exports": [
+        "ABSTRACT_JOURNAL_LAB_COLLECTION_SCOPE_ID",
+        "ABSTRACT_JOURNAL_LAB_COLLECTION_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/AbstractJournalLabCollection/config/slider.panel.ts",
+      "stub": "experiences/abstract/components/AbstractJournalLabCollection/config/slider.panel.stub.ts",
+      "exports": [
+        "ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_SCOPE_ID",
+        "ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/AbstractMetalLabList.panel.ts",
+      "stub": "experiences/abstract/components/AbstractMetalLabList.panel.stub.ts",
+      "exports": [
+        "ABSTRACT_METAL_LAB_CARD_SCOPE_ID",
+        "ABSTRACT_METAL_LAB_CARD_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/AbstractPostDock/config/panel.ts",
+      "stub": "experiences/abstract/components/AbstractPostDock/config/panel.stub.ts",
+      "exports": [
+        "ABSTRACT_POST_DOCK_INTRODUCTION_SCOPE_ID",
+        "ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_SCOPE_ID",
+        "ABSTRACT_POST_DOCK_INTRODUCTION_PANEL",
+        "ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_PANEL",
+        "ABSTRACT_POST_DOCK_PALETTE_SCOPE_ID",
+        "ABSTRACT_POST_DOCK_PALETTE_PANEL",
+        "ABSTRACT_POST_DOCK_MESH_GEOMETRY_SCOPE_ID",
+        "ABSTRACT_POST_DOCK_MESH_GEOMETRY_PANEL",
+        "ABSTRACT_POST_DOCK_HUE_INFLUENCE_SCOPE_ID",
+        "ABSTRACT_POST_DOCK_HUE_INFLUENCE_PANEL",
+        "ABSTRACT_POST_DOCK_LAYOUT_SCOPE_ID",
+        "ABSTRACT_POST_DOCK_LAYOUT_PANEL",
+        "ABSTRACT_POST_DOCK_HOLOGRAM_SCOPE_ID",
+        "ABSTRACT_POST_DOCK_HOLOGRAM_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/GradientDesignerPanel.tsx",
+      "stub": "experiences/abstract/components/GradientDesignerPanel.stub.ts",
+      "exports": [
+        "DEFAULT_ABSTRACT_PAGE_GRADIENT_CONFIG",
+        "DEFAULT_GRADIENT_DESIGNER_CONFIG",
+        "selectAbstractPageGradientConfig",
+        "GradientDesignerPanel"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/MarkdownContent/config/panel.ts",
+      "stub": "experiences/abstract/components/MarkdownContent/config/panel.stub.ts",
+      "exports": [
+        "POST_LAB_ARTICLE_READING_SCOPE_ID",
+        "POST_LAB_ARTICLE_READING_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/SiteHeader/config/colorOverride.panel.ts",
+      "stub": "experiences/abstract/components/SiteHeader/config/colorOverride.panel.stub.ts",
+      "exports": [
+        "createSiteHeaderColorOverridePanel",
+        "ABOUT_SITE_HEADER_COLOR_OVERRIDE_PANEL",
+        "CONTACT_SITE_HEADER_COLOR_OVERRIDE_PANEL",
+        "ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_PANEL",
+        "POSTS_LAB_SITE_HEADER_COLOR_OVERRIDE_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/SiteHeader/config/panel.ts",
+      "stub": "experiences/abstract/components/SiteHeader/config/panel.stub.ts",
+      "exports": [
+        "SITE_HEADER_COLORS_SCOPE_ID",
+        "SITE_HEADER_COLOR_FIELDS",
+        "SITE_HEADER_COLORS_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/SplitColumnCardPreview/config/stack.panel.ts",
+      "stub": "experiences/abstract/components/SplitColumnCardPreview/config/stack.panel.stub.ts",
+      "exports": [
+        "SPLIT_COLUMN_CARD_STACK_SCOPE_ID",
+        "SPLIT_COLUMN_CARD_STACK_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/SplitColumnCardPreview.panel.ts",
+      "stub": "experiences/abstract/components/SplitColumnCardPreview.panel.stub.ts",
+      "exports": [
+        "SPLIT_COLUMN_CARD_PREVIEW_SCOPE_ID",
+        "SPLIT_COLUMN_CARD_PREVIEW_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/TableOfContents/config/panel.ts",
+      "stub": "experiences/abstract/components/TableOfContents/config/panel.stub.ts",
+      "exports": [
+        "POST_LAB_ARTICLE_TOC_SCOPE_ID",
+        "POST_LAB_ARTICLE_TOC_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/configPanels.ts",
+      "stub": "experiences/abstract/configPanels.stub.ts",
+      "exports": [
+        "abstractConfigPanelRegistry"
+      ]
+    },
+    {
+      "real": "experiences/contact/ContactConfigPanel.tsx",
+      "stub": "experiences/contact/ContactConfigPanel.stub.ts",
+      "exports": [
+        "ContactConfigPanel"
+      ]
+    },
+    {
+      "real": "experiences/contact/ContactDevMode.panel.ts",
+      "stub": "experiences/contact/ContactDevMode.panel.stub.ts",
+      "exports": [
+        "CONTACT_DEV_MODE_SCOPE_ID",
+        "CONTACT_DEV_MODE_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/contact/ContactExperience.panel.ts",
+      "stub": "experiences/contact/ContactExperience.panel.stub.ts",
+      "exports": [
+        "CONTACT_EXPERIENCE_SCOPE_ID",
+        "CONTACT_EXPERIENCE_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/contact/configPanels.ts",
+      "stub": "experiences/contact/configPanels.stub.ts",
+      "exports": [
+        "contactConfigPanelRegistry"
+      ]
+    },
+    {
+      "real": "experiences/postsLab/PostsLabConfigPanel.tsx",
+      "stub": "experiences/postsLab/PostsLabConfigPanel.stub.ts",
+      "exports": [
+        "PostsLabConfigPanel"
+      ]
+    },
+    {
+      "real": "experiences/postsLab/configPanels.ts",
+      "stub": "experiences/postsLab/configPanels.stub.ts",
+      "exports": [
+        "postsLabConfigPanelRegistry"
+      ]
+    },
+    {
+      "real": "experiences/spacefield/SpacefieldBackground/config/panel.ts",
+      "stub": "experiences/spacefield/SpacefieldBackground/config/panel.stub.ts",
+      "exports": [
+        "SPACEFIELD_SCOPE_ID",
+        "SPACEFIELD_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/spacefield/configPanels.ts",
+      "stub": "experiences/spacefield/configPanels.stub.ts",
+      "exports": [
+        "spacefieldConfigPanelRegistry"
+      ]
+    },
+    {
+      "real": "pages/about.panel.ts",
+      "stub": "pages/about.panel.stub.ts",
+      "exports": [
+        "ABOUT_PAGE_LAYOUT_SCOPE_ID",
+        "ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID",
+        "ABOUT_DOCK_PALETTE_SCOPE_ID",
+        "ABOUT_POLYMORPHIC_LAYOUT_PANEL",
+        "ABOUT_PAGE_LAYOUT_PANEL",
+        "ABOUT_TOP_SEGMENT_GRADIENT_PANEL",
+        "ABOUT_DOCK_PALETTE_PANEL"
+      ]
+    },
+    {
+      "real": "pages/aboutConfigPanels.ts",
+      "stub": "pages/aboutConfigPanels.stub.ts",
+      "exports": [
+        "aboutConfigPanelRegistry"
+      ]
+    },
+    {
+      "real": "pages/abstract.panel.ts",
+      "stub": "pages/abstract.panel.stub.ts",
+      "exports": [
+        "ABSTRACT_PAGE_LAYOUT_SCOPE_ID",
+        "ABSTRACT_POLYMORPHIC_LAYOUT_PANEL",
+        "ABSTRACT_PAGE_LAYOUT_PANEL"
+      ]
+    },
+    {
+      "real": "pages/contact.panel.ts",
+      "stub": "pages/contact.panel.stub.ts",
+      "exports": [
+        "CONTACT_POLYMORPHIC_LAYOUT_PANEL"
+      ]
+    },
+    {
+      "real": "pages/posts/postLab.panel.ts",
+      "stub": "pages/posts/postLab.panel.stub.ts",
+      "exports": [
+        "POST_LAB_PAGE_LAYOUT_SCOPE_ID",
+        "POST_LAB_PAGE_LAYOUT_PANEL"
+      ]
+    }
+  ]
+}

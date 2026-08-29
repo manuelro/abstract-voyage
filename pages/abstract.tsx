@@ -9,10 +9,37 @@ import type {
   WheelEvent as ReactWheelEvent,
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// DEFAULT_GRADIENT_DESIGNER_CONFIG/GradientDesignerConfig/GradientDesignerTarget
+// come from AbstractGradientBackground.config.ts, not GradientDesignerPanel
+// itself, deliberately: this page reads DEFAULT_GRADIENT_DESIGNER_CONFIG
+// unconditionally (useState's own initial value, never gated behind
+// showAuthoringTools — it's what drives the page's real, always-rendered
+// gradient background), while GradientDesignerPanel.tsx is wholesale
+// aliased to a production stub (a Proxy whose target is a function, so it
+// stays safely callable/traversable everywhere it's actually used — see
+// that stub's own doc comment). React's useState specifically special-cases
+// a function-typed initial value as a lazy initializer and calls it — which
+// silently produced `config: undefined` in production and crashed every
+// prerendered read of `config.gradientFaceCount` (confirmed live,
+// 2026-08-28, during this PoC's own production-build verification).
+// AbstractGradientBackground.config.ts already exists as the real,
+// panel-independent home for these exact same three exports — sourcing
+// from there instead avoids the whole class of bug rather than patching
+// this one symptom.
 import {
   DEFAULT_GRADIENT_DESIGNER_CONFIG,
   type GradientDesignerConfig,
+  type GradientDesignerTarget,
 } from '../experiences/abstract/components/AbstractGradientBackground.config';
+import { GradientDesignerPanel } from '../experiences/abstract/components/GradientDesignerPanel';
+import {
+  ConfigScopeList,
+  createConfigScopeBinding,
+  useConfigPanelBindings,
+} from '../components/Panel/config';
+import { PanelShell, PanelStandardHeaderActions } from '../components/Panel';
+import { DEFAULT_PANEL_SHELL_CONFIG } from '../components/Panel/config/shell';
+import { useAuthoringToolsVisibility } from '../components/Panel/useAuthoringToolsVisibility';
 import {
   DEFAULT_CTA_BUTTON_CONFIG,
   normalizeCtaButtonConfig,
@@ -23,21 +50,25 @@ import {
   normalizeCtaButtonColorOverrideConfig,
   type CtaButtonColorOverrideConfig,
 } from '../components/CtaButton/config/colorOverride';
+import { ABSTRACT_CTA_BUTTON_COLOR_OVERRIDE_PANEL } from '../components/CtaButton/config/colorOverride.panel';
 import {
   DEFAULT_SECTION_HEADING_CONFIG,
   normalizeSectionHeadingConfig,
   type SectionHeadingConfig,
 } from '../components/SectionHeading.config';
 import { SectionHeading } from '../components/SectionHeading';
+import { SECTION_HEADING_APPEARANCE_SCOPE_ID } from '../components/SectionHeading.panel';
 import { PageContainer } from '../components/PageContainer';
 import {
   DEFAULT_PAGE_SURFACE_CONFIG,
   normalizePageSurfaceConfig,
 } from '../components/PageSurface.config';
+import { DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG } from '../components/GlobalTypography.config';
+import { DEFAULT_LAYOUT_DEBUG_CONFIG } from '../components/LayoutDebug.config';
 import { useSharedDesignConfig } from '../components/SharedDesignConfigProvider';
 import { useAbstractDesignConfig } from '../experiences/abstract/components/AbstractDesignConfigProvider';
 import { buildSynthLogoStops } from '../experiences/synth/gradients/synthGradient';
-import { clamp } from '../helpers/clamp';
+import { clamp } from '../components/Panel';
 import { resolveSiteHeaderLogoStops } from '../experiences/abstract/components/SiteHeader/hooks/resolveSiteHeaderLogoStops';
 import { resolveContrastAwareTextColor } from '../helpers/surfaceColorDerivation';
 import {
@@ -90,13 +121,22 @@ import {
   type AbstractJournalLabCollectionConfig,
 } from '../experiences/abstract/components/AbstractJournalLabCollection/config/presentation';
 import {
+  ABSTRACT_JOURNAL_LAB_COLLECTION_SCOPE_ID,
+} from '../experiences/abstract/components/AbstractJournalLabCollection/config/presentation.panel';
+import {
   DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_CONFIG,
   type AbstractJournalLabCollectionSliderConfig,
 } from '../experiences/abstract/components/AbstractJournalLabCollection/config/slider';
 import {
+  ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_SCOPE_ID,
+} from '../experiences/abstract/components/AbstractJournalLabCollection/config/slider.panel';
+import {
   DEFAULT_ABSTRACT_METAL_LAB_CARD_CONFIG,
   type AbstractMetalLabCardConfig,
 } from '../experiences/abstract/components/AbstractMetalLabList.config';
+import {
+  ABSTRACT_METAL_LAB_CARD_SCOPE_ID,
+} from '../experiences/abstract/components/AbstractMetalLabList.panel';
 import { AbstractEditorialHero } from '../experiences/abstract/components/AbstractEditorialHero';
 import { SiteHeader } from '../experiences/abstract/components/SiteHeader';
 import { buildEffectiveSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/buildEffectiveSiteHeaderConfig';
@@ -108,6 +148,7 @@ import {
   NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG,
   type AbstractEditorialHeroConfig,
 } from '../experiences/abstract/components/AbstractEditorialHero.config';
+import { ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID } from '../experiences/abstract/components/AbstractEditorialHero.panel';
 import {
   DEFAULT_SITE_HEADER_CONFIG,
   resolveSiteHeaderNavBandColorFilter,
@@ -120,6 +161,7 @@ import {
   type SiteHeaderColorOverrideConfig,
 } from '../experiences/abstract/components/SiteHeader/config/colorOverride';
 import { useNormalizedSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/hooks/useNormalizedSiteHeaderConfig';
+import { ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_PANEL } from '../experiences/abstract/components/SiteHeader/config/colorOverride.panel';
 import { AbstractHeroGrid } from '../experiences/abstract/components/AbstractHeroGrid';
 import {
   computeAbstractPostDockTopPeekPx,
@@ -140,14 +182,30 @@ import {
   type AbstractPostDockHologramConfig,
 } from '../experiences/abstract/components/AbstractPostDock/config/registered';
 import {
+  ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_SCOPE_ID,
+  ABSTRACT_POST_DOCK_HUE_INFLUENCE_SCOPE_ID,
+  ABSTRACT_POST_DOCK_INTRODUCTION_SCOPE_ID,
+  ABSTRACT_POST_DOCK_MESH_GEOMETRY_SCOPE_ID,
+  ABSTRACT_POST_DOCK_PALETTE_SCOPE_ID,
+  ABSTRACT_POST_DOCK_LAYOUT_SCOPE_ID,
+  ABSTRACT_POST_DOCK_HOLOGRAM_SCOPE_ID,
+} from '../experiences/abstract/components/AbstractPostDock/config/panel';
+import {
   DEFAULT_ABSTRACT_HERO_CTA_COMPOSER_CONFIG,
   normalizeAbstractHeroCtaComposerConfig,
   type AbstractHeroCtaComposerConfig,
 } from '../experiences/abstract/components/AbstractHeroCtaComposer/config/registered';
+import { ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_SCOPE_ID } from '../experiences/abstract/components/AbstractHeroCtaComposer/config/panel';
+import { abstractConfigPanelRegistry } from '../experiences/abstract/configPanels';
+import {
+  ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE,
+  useAbstractDesignConfigBindings,
+} from '../experiences/abstract/hooks/useAbstractDesignConfigBindings';
 import {
   DEFAULT_ABSTRACT_LAB_SECTION_CONFIG,
   type AbstractLabSectionConfig,
 } from '../experiences/abstract/LabSection.config';
+import { ABSTRACT_LAB_SECTION_APPEARANCE_SCOPE_ID } from '../experiences/abstract/LabSection.panel';
 import {
   ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
@@ -155,6 +213,7 @@ import {
   normalizeAbstractPageLayoutConfig,
   type AbstractPageLayoutConfig,
 } from './abstract.config';
+import { ABSTRACT_PAGE_LAYOUT_SCOPE_ID, ABSTRACT_POLYMORPHIC_LAYOUT_PANEL } from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
 import {
@@ -168,11 +227,13 @@ import {
   normalizeSplitColumnCardPreviewConfig,
   type SplitColumnCardPreviewConfig,
 } from '../experiences/abstract/components/SplitColumnCardPreview.config';
+import { SPLIT_COLUMN_CARD_PREVIEW_SCOPE_ID } from '../experiences/abstract/components/SplitColumnCardPreview.panel';
 import {
   DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG,
   normalizeSplitColumnCardStackConfig,
   type SplitColumnCardStackConfig,
 } from '../experiences/abstract/components/SplitColumnCardPreview/config/stack';
+import { SPLIT_COLUMN_CARD_STACK_SCOPE_ID } from '../experiences/abstract/components/SplitColumnCardPreview/config/stack.panel';
 import type { AbstractPostDockItem } from '../experiences/abstract/helpers/abstractPostDockItems';
 import {
   generateTwilightSkyGradient,
@@ -356,6 +417,40 @@ const COLLECTION_CONTAINER_CLASSNAME = [
   'lg:[padding-right:calc(48px_+_env(safe-area-inset-right))]',
 ].join(' ');
 const ABSTRACT_POST_DOCK_NARROW_BREAKPOINT_PX = 1180;
+const ABSTRACT_EDITORIAL_HERO_LAYOUT_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID);
+const SECTION_HEADING_APPEARANCE_DEFINITION =
+  abstractConfigPanelRegistry.resolve(SECTION_HEADING_APPEARANCE_SCOPE_ID);
+const ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_SCOPE_ID);
+const ABSTRACT_POST_DOCK_INTRODUCTION_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_INTRODUCTION_SCOPE_ID);
+const ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_SCOPE_ID);
+const ABSTRACT_POST_DOCK_PALETTE_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_PALETTE_SCOPE_ID);
+const ABSTRACT_POST_DOCK_MESH_GEOMETRY_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_MESH_GEOMETRY_SCOPE_ID);
+const ABSTRACT_POST_DOCK_HUE_INFLUENCE_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_HUE_INFLUENCE_SCOPE_ID);
+const ABSTRACT_POST_DOCK_LAYOUT_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_LAYOUT_SCOPE_ID);
+const ABSTRACT_POST_DOCK_HOLOGRAM_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_HOLOGRAM_SCOPE_ID);
+const ABSTRACT_JOURNAL_LAB_COLLECTION_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_JOURNAL_LAB_COLLECTION_SCOPE_ID);
+const ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_SCOPE_ID);
+const ABSTRACT_METAL_LAB_CARD_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_METAL_LAB_CARD_SCOPE_ID);
+const ABSTRACT_LAB_SECTION_APPEARANCE_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_LAB_SECTION_APPEARANCE_SCOPE_ID);
+const ABSTRACT_PAGE_LAYOUT_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_PAGE_LAYOUT_SCOPE_ID);
+const SPLIT_COLUMN_CARD_PREVIEW_DEFINITION =
+  abstractConfigPanelRegistry.resolve(SPLIT_COLUMN_CARD_PREVIEW_SCOPE_ID);
+const SPLIT_COLUMN_CARD_STACK_DEFINITION =
+  abstractConfigPanelRegistry.resolve(SPLIT_COLUMN_CARD_STACK_SCOPE_ID);
 
 // This page's own baseline for LiquidSliderConfig — not the component's
 // shared DEFAULT_LIQUID_SLIDER_CONFIG (pages/slider.tsx and pages/about.tsx
@@ -1279,6 +1374,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const [config, setConfig] = useState<GradientDesignerConfig>(DEFAULT_GRADIENT_DESIGNER_CONFIG);
   const [headingGradientConfig, setHeadingGradientConfig] =
     useState<GradientDesignerConfig>(() => ({ ...DEFAULT_GRADIENT_DESIGNER_CONFIG }));
+  const [gradientDesignerTarget, setGradientDesignerTarget] =
+    useState<GradientDesignerTarget>('background');
   const [editorialHeroConfig, setEditorialHeroConfig] =
     useState<AbstractEditorialHeroConfig>(() => ({
       ...DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
@@ -1406,6 +1503,9 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const {
     pageSurfaceConfig, setPageSurfaceConfig,
     ctaButtonConfig, setCtaButtonConfig,
+    setGlobalTypographyConfig,
+    panelShellConfig, setPanelShellConfig,
+    setLayoutDebugConfig,
   } = useSharedDesignConfig();
   const { siteHeaderConfig, setSiteHeaderConfig } = useAbstractDesignConfig();
   // Page-local override of the shared siteHeaderConfig/ctaButtonConfig
@@ -1477,6 +1577,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     useState<AbstractHeroCtaComposerConfig>(() => ({
       ...DEFAULT_ABSTRACT_HERO_CTA_COMPOSER_CONFIG,
     }));
+  const { showAuthoringTools, isPanelOpen, setIsPanelOpen, togglePanel } = useAuthoringToolsVisibility();
   const [isDragging, setIsDragging] = useState(false);
   const [gradientSnapshotFrozen, setGradientSnapshotFrozen] = useState(false);
   const collectionContainerProbeRef = useRef<HTMLDivElement | null>(null);
@@ -1638,6 +1739,11 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const heroNavBandColorFilter = resolveSiteHeaderNavBandColorFilter(
     normalizedSiteHeaderConfig,
   );
+  const designerEditsCustomHeading = gradientDesignerTarget === 'heading' &&
+    normalizedEditorialHeroConfig.headlineGradientRelationship === 'custom';
+  const activeDesignerConfig = designerEditsCustomHeading
+    ? headingGradientConfig
+    : config;
   const twilightGradient = useMemo(() => generateTwilightSkyGradient({
     sunElevationDeg: config.skySunElevationDeg,
     stopCount: config.skyStopCount,
@@ -1740,6 +1846,17 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     : resolvedWideColumnVerticalAlign.endsWith('justify-end')
       ? 'end'
       : 'center';
+  // The authoring shell belongs visually to the surface at the viewport's
+  // right edge. In split-column mode it inherits that physical column's
+  // resolved color; the classic layout falls back to the page surface
+  // rather than introducing a separate panel color token.
+  // usePolymorphicLayoutColors always returns a real color string (never
+  // undefined — 'transparent' stands in for colorSource: 'none'), so no ??
+  // fallback is needed for the split-column branch the way the former
+  // hand-rolled physicalRightColumnColor (possibly undefined) required.
+  const configPanelBackgroundColor = abstractPageLayoutConfig.presentationMode === 'splitColumn'
+    ? colors.physicalRightColumnColor
+    : normalizedPageSurfaceConfig.color;
   // Still needed here, unlike the <SiteHeader> call sites below (which now
   // resolve their own 'custom'/'surface'/'column'-mode logo stops
   // internally from physicalLeftColumnColor — see SiteHeaderProps.logoStops's
@@ -1855,6 +1972,156 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     0,
     20,
   );
+  const sharedConfigBindings = useAbstractDesignConfigBindings(
+    ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE.abstract,
+  );
+  const localComponentConfigBindings = useMemo(() => [
+    createConfigScopeBinding({
+      definition: SECTION_HEADING_APPEARANCE_DEFINITION,
+      value: collectionHeadingConfig,
+      onChange: setCollectionHeadingConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_EDITORIAL_HERO_LAYOUT_DEFINITION,
+      // Same scope/definition, bound to whichever state is actually live —
+      // PLAN-SPLIT-COLUMN-UX-REFINEMENTS.md 2.2. One panel section, not two
+      // simultaneously-visible "Editorial hero" entries, since only one
+      // branch's hero ever renders at a time.
+      value: abstractPageLayoutConfig.presentationMode === 'splitColumn'
+        ? splitColumnHeroConfig
+        : editorialHeroConfig,
+      onChange: abstractPageLayoutConfig.presentationMode === 'splitColumn'
+        ? setSplitColumnHeroConfig
+        : setEditorialHeroConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_PANEL,
+      value: siteHeaderColorOverride,
+      onChange: setSiteHeaderColorOverride,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_CTA_BUTTON_COLOR_OVERRIDE_PANEL,
+      value: ctaButtonColorOverride,
+      onChange: setCtaButtonColorOverride,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_DEFINITION,
+      value: heroCtaComposerConfig,
+      onChange: setHeroCtaComposerConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POST_DOCK_INTRODUCTION_DEFINITION,
+      value: dockIntroductionConfig,
+      onChange: setDockIntroductionConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_DEFINITION,
+      value: dockGradientPerformanceConfig,
+      onChange: setDockGradientPerformanceConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POST_DOCK_PALETTE_DEFINITION,
+      value: dockPaletteConfig,
+      onChange: setDockPaletteConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POST_DOCK_MESH_GEOMETRY_DEFINITION,
+      value: dockMeshGeometryConfig,
+      onChange: setDockMeshGeometryConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POST_DOCK_HUE_INFLUENCE_DEFINITION,
+      value: dockHueInfluenceConfig,
+      onChange: setDockHueInfluenceConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POST_DOCK_LAYOUT_DEFINITION,
+      value: dockLayoutConfig,
+      onChange: setDockLayoutConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POST_DOCK_HOLOGRAM_DEFINITION,
+      value: dockHologramConfig,
+      onChange: setDockHologramConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_JOURNAL_LAB_COLLECTION_DEFINITION,
+      value: journalLabCollectionConfig,
+      onChange: setJournalLabCollectionConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_DEFINITION,
+      value: journalLabCollectionSliderConfig,
+      onChange: setJournalLabCollectionSliderConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_METAL_LAB_CARD_DEFINITION,
+      value: labCardConfig,
+      onChange: setLabCardConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_LAB_SECTION_APPEARANCE_DEFINITION,
+      value: labSectionConfig,
+      onChange: setLabSectionConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_PAGE_LAYOUT_DEFINITION,
+      value: abstractPageLayoutConfig,
+      onChange: setAbstractPageLayoutConfig,
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
+      value: splitColumnLayoutConfig,
+      onChange: next => setSplitColumnLayoutConfig(previous => (
+        applyAbstractPolymorphicLayoutAllSizesUpdate(previous, next)
+      )),
+      onReset: () => setSplitColumnLayoutConfig(
+        normalizePolymorphicLayoutConfig(ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG),
+      ),
+    }),
+    createConfigScopeBinding({
+      definition: SPLIT_COLUMN_CARD_PREVIEW_DEFINITION,
+      value: splitColumnCardPreviewConfig,
+      onChange: setSplitColumnCardPreviewConfig,
+    }),
+    createConfigScopeBinding({
+      definition: SPLIT_COLUMN_CARD_STACK_DEFINITION,
+      value: splitColumnCardStackConfig,
+      onChange: setSplitColumnCardStackConfig,
+      // No page-level override anymore (see this file's own note above,
+      // line ~433) — reset/"COPY DIFF" compares against the shared scope
+      // default directly.
+      defaultValue: normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG),
+    }),
+  ], [
+    dockGradientPerformanceConfig,
+    dockIntroductionConfig,
+    dockMeshGeometryConfig,
+    dockPaletteConfig,
+    dockHueInfluenceConfig,
+    dockLayoutConfig,
+    dockHologramConfig,
+    journalLabCollectionConfig,
+    journalLabCollectionSliderConfig,
+    labCardConfig,
+    labSectionConfig,
+    collectionHeadingConfig,
+    editorialHeroConfig,
+    splitColumnHeroConfig,
+    siteHeaderColorOverride,
+    ctaButtonColorOverride,
+    heroCtaComposerConfig,
+    abstractPageLayoutConfig,
+    splitColumnLayoutConfig,
+    splitColumnCardPreviewConfig,
+    splitColumnCardStackConfig,
+  ]);
+  const applicableConfigBindings = useMemo(
+    () => [...sharedConfigBindings, ...localComponentConfigBindings],
+    [sharedConfigBindings, localComponentConfigBindings],
+  );
+  const componentConfigBindings = useConfigPanelBindings(applicableConfigBindings);
+
   configRef.current = config;
   headingGradientConfigRef.current = headingGradientConfig;
   twilightGradientRef.current = twilightGradient;
@@ -1882,6 +2149,196 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     frozenGradientLayerSourcesRef.current = null;
     setGradientSnapshotFrozen(false);
   }, [config.skyRenderMode]);
+
+  const updateConfig = useCallback(<K extends keyof GradientDesignerConfig,>(key: K, value: GradientDesignerConfig[K]) => {
+    setConfig(previous => ({ ...previous, [key]: value }));
+  }, []);
+
+  const updateActiveDesignerConfig = useCallback(<K extends keyof GradientDesignerConfig,>(
+    key: K,
+    value: GradientDesignerConfig[K],
+  ) => {
+    if (designerEditsCustomHeading) {
+      setHeadingGradientConfig(previous => ({ ...previous, [key]: value }));
+      return;
+    }
+    updateConfig(key, value);
+  }, [designerEditsCustomHeading, updateConfig]);
+
+  const resetActiveDesignerView = useCallback(() => {
+    const update = designerEditsCustomHeading ? setHeadingGradientConfig : setConfig;
+    update(previous => ({
+      ...previous,
+      viewZoom: DEFAULT_GRADIENT_DESIGNER_CONFIG.viewZoom,
+      viewOffsetX: DEFAULT_GRADIENT_DESIGNER_CONFIG.viewOffsetX,
+      viewOffsetY: DEFAULT_GRADIENT_DESIGNER_CONFIG.viewOffsetY,
+    }));
+  }, [designerEditsCustomHeading]);
+
+  const resetConfig = useCallback(() => {
+    setConfig({ ...DEFAULT_GRADIENT_DESIGNER_CONFIG });
+    setHeadingGradientConfig({ ...DEFAULT_GRADIENT_DESIGNER_CONFIG });
+    setGradientDesignerTarget('background');
+    setPanelShellConfig({ ...DEFAULT_PANEL_SHELL_CONFIG });
+    setPageSurfaceConfig({ ...DEFAULT_PAGE_SURFACE_CONFIG });
+    setGlobalTypographyConfig({ ...DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG });
+    setLayoutDebugConfig({ ...DEFAULT_LAYOUT_DEBUG_CONFIG });
+    setEditorialHeroConfig({
+      ...DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
+    });
+    setSplitColumnHeroConfig({
+      ...DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
+    });
+    setCtaButtonConfig({ ...DEFAULT_CTA_BUTTON_CONFIG });
+    setCollectionHeadingConfig({
+      ...DEFAULT_SECTION_HEADING_CONFIG,
+    });
+    setSiteHeaderConfig({
+      ...DEFAULT_SITE_HEADER_CONFIG,
+    });
+    setSiteHeaderColorOverride({
+      ...ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG,
+    });
+    setCtaButtonColorOverride({
+      ...ABSTRACT_CTA_BUTTON_COLOR_OVERRIDE_CONFIG,
+    });
+    setDockIntroductionConfig({
+      ...DEFAULT_ABSTRACT_POST_DOCK_INTRODUCTION_CONFIG,
+    });
+    setDockGradientPerformanceConfig({
+      ...DEFAULT_ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_CONFIG,
+    });
+    setDockPaletteConfig({
+      ...DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG,
+    });
+    setDockMeshGeometryConfig({
+      ...DEFAULT_ABSTRACT_POST_DOCK_MESH_GEOMETRY_CONFIG,
+    });
+    setDockHueInfluenceConfig({
+      ...DEFAULT_ABSTRACT_POST_DOCK_HUE_INFLUENCE_CONFIG,
+    });
+    setJournalLabCollectionConfig({
+      ...DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_CONFIG,
+    });
+    setJournalLabCollectionSliderConfig({
+      ...DEFAULT_ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_CONFIG,
+    });
+    setLabCardConfig({
+      ...DEFAULT_ABSTRACT_METAL_LAB_CARD_CONFIG,
+    });
+    setAbstractPageLayoutConfig(
+      normalizeAbstractPageLayoutConfig(DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG),
+    );
+    setSplitColumnLayoutConfig(
+      normalizePolymorphicLayoutConfig(ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG),
+    );
+    setSplitColumnCardPreviewConfig(
+      normalizeSplitColumnCardPreviewConfig(DEFAULT_SPLIT_COLUMN_CARD_PREVIEW_CONFIG),
+    );
+    setSplitColumnCardStackConfig(
+      // No page-level override anymore — see this file's own note above,
+      // line ~433. A panel-wide "reset" now resolves to the shared
+      // component default directly, same as any other non-overridden scope.
+      normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG),
+    );
+  }, [
+    setCtaButtonConfig,
+    setGlobalTypographyConfig,
+    setLayoutDebugConfig,
+    setPageSurfaceConfig,
+    setPanelShellConfig,
+    setSiteHeaderConfig,
+  ]);
+
+  const randomizeActiveDesignerSeed = useCallback(() => {
+    const update = designerEditsCustomHeading ? setHeadingGradientConfig : setConfig;
+    update(previous => ({ ...previous, seed: Number(Math.random().toFixed(3)) }));
+  }, [designerEditsCustomHeading]);
+
+  const handleHeadingGradientRelationshipChange = useCallback((
+    relationship: 'linked' | 'custom',
+  ) => {
+    setEditorialHeroConfig(previous => ({
+      ...previous,
+      headlineGradientRelationship: relationship,
+    }));
+  }, []);
+
+  const syncHeadingGradientFromLegacy = useCallback(() => {
+    setHeadingGradientConfig({ ...configRef.current });
+  }, []);
+
+  const handleSnapshotGradient = useCallback(() => {
+    const frame = liveGradientFrameRef.current;
+    const atlasCanvas = snapshotAtlasRef.current;
+    if (!frame || !atlasCanvas) return;
+
+    const frozenLayerSources = frame.layerFaceIndices.map(faceIndex => {
+      const sourceIndex = ((faceIndex % frame.atlasCellCount) + frame.atlasCellCount) % frame.atlasCellCount;
+      const sourceY = sourceIndex * frame.sourceHeight;
+      const sourceCanvas = document.createElement('canvas');
+      const sourceContext = sourceCanvas.getContext('2d');
+
+      sourceCanvas.width = frame.sourceWidth;
+      sourceCanvas.height = frame.sourceHeight;
+      sourceContext?.drawImage(
+        atlasCanvas,
+        0,
+        sourceY,
+        frame.sourceWidth,
+        frame.sourceHeight,
+        0,
+        0,
+        frame.sourceWidth,
+        frame.sourceHeight,
+      );
+
+      return sourceCanvas;
+    });
+
+    frozenGradientLayerSourcesRef.current = frozenLayerSources;
+    frozenGradientFrameRef.current = { ...frame, capturedAt: performance.now() };
+    gradientSnapshotFrozenRef.current = true;
+    setGradientSnapshotFrozen(true);
+    paintGradientSnapshotFrame({
+      layerCanvases: gradientSnapshotLayerRefs.current,
+      frame: frozenGradientFrameRef.current,
+      atlasCanvas: null,
+      frozenLayerSources,
+      pixelSize: gradientViewportPixelSizeRef.current,
+    });
+    paintLegacyCompositeFrame({
+      layerCanvases: gradientSnapshotLayerRefs.current,
+      pixelSize: gradientViewportPixelSizeRef.current,
+      targetCanvas: legacyCompositeCanvasRef.current,
+    });
+  }, []);
+
+  const handleResumeLiveGradient = useCallback(() => {
+    frozenGradientFrameRef.current = null;
+    frozenGradientLayerSourcesRef.current = null;
+    gradientSnapshotFrozenRef.current = false;
+    setGradientSnapshotFrozen(false);
+    paintGradientSnapshotFrame({
+      layerCanvases: gradientSnapshotLayerRefs.current,
+      frame: liveGradientFrameRef.current,
+      atlasCanvas: snapshotAtlasRef.current,
+      pixelSize: gradientViewportPixelSizeRef.current,
+    });
+    paintLegacyCompositeFrame({
+      layerCanvases: gradientSnapshotLayerRefs.current,
+      pixelSize: gradientViewportPixelSizeRef.current,
+      targetCanvas: legacyCompositeCanvasRef.current,
+    });
+  }, []);
+
+  const handlePreviewModeChange = useCallback((mode: 'live' | 'snapshot') => {
+    if (mode === 'snapshot') {
+      handleSnapshotGradient();
+      return;
+    }
+    handleResumeLiveGradient();
+  }, [handleResumeLiveGradient, handleSnapshotGradient]);
 
   useEffect(() => {
     if (config.skyRenderMode !== 'legacy') return undefined;
@@ -3009,6 +3466,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           heroCtaComposerConfig={normalizedHeroCtaComposerConfig}
           gradientHeadlineActive={heroContentPresentationActive}
           gradientDebugCanvasRef={heroHeadlineDebugCanvasRef}
+          gradientDebugPanelOpen={isPanelOpen}
           headlineCanvasRef={heroHeadlineCanvasRef}
           headlineRef={heroHeadlineRef}
           layoutMode={heroLayoutMode}
@@ -3117,6 +3575,28 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           </div>
         </PageContainer>
       </div>
+      {showAuthoringTools ? (
+        <div className={styles.panelSlot}>
+          <GradientDesignerPanel
+            config={activeDesignerConfig}
+            componentConfigBindings={componentConfigBindings}
+            designerTarget={gradientDesignerTarget}
+            headingGradientRelationship={normalizedEditorialHeroConfig.headlineGradientRelationship}
+            isOpen={isPanelOpen}
+            panelBackgroundColor={configPanelBackgroundColor}
+            onDesignerTargetChange={setGradientDesignerTarget}
+            onHeadingGradientRelationshipChange={handleHeadingGradientRelationshipChange}
+            onSyncHeadingGradient={syncHeadingGradientFromLegacy}
+            onToggle={togglePanel}
+            onReset={resetConfig}
+            onResetView={resetActiveDesignerView}
+            onRandomizeSeed={randomizeActiveDesignerSeed}
+            previewMode={gradientSnapshotFrozen ? 'snapshot' : 'live'}
+            onPreviewModeChange={handlePreviewModeChange}
+            updateConfig={updateActiveDesignerConfig}
+          />
+        </div>
+      ) : null}
     </main>
     {!journalLabCollectionConfig.enabled && labs && labs.length > 0 && (
       <section
@@ -3386,6 +3866,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             heroCtaComposerConfig={normalizedHeroCtaComposerConfig}
             gradientHeadlineActive={heroContentPresentationActive}
             gradientDebugCanvasRef={heroHeadlineDebugCanvasRef}
+            gradientDebugPanelOpen={isPanelOpen}
             headlineCanvasRef={heroHeadlineCanvasRef}
             headlineRef={heroHeadlineRef}
             layoutMode={gridLayoutActive ? 'editorial' : heroLayoutMode}
@@ -3394,6 +3875,20 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           />
         )}
       >
+        {showAuthoringTools ? (
+          <PanelShell
+            title="ABSTRACT SETTINGS"
+            isOpen={isPanelOpen}
+            onToggle={togglePanel}
+            backgroundColor={configPanelBackgroundColor}
+            config={panelShellConfig}
+            headerActions={(
+              <PanelStandardHeaderActions bindings={componentConfigBindings} onReset={resetConfig} />
+            )}
+          >
+            <ConfigScopeList bindings={componentConfigBindings} />
+          </PanelShell>
+        ) : null}
       </PolymorphicLayout>
     )}
     </>

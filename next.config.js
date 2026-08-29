@@ -19,6 +19,37 @@ const nextConfig = {
   // without a React Component as default export") unless those defaults
   // files are excluded here.
   pageExtensions: ['tsx'],
+  // SPIKE (components/Panel.stub) — proves panel code can live in this
+  // branch's tree and still be provably absent from production output,
+  // via build-time module substitution rather than physical file removal.
+  // Only active for production builds (`dev` is true under `next dev`,
+  // false under `next build`) — see CONFIG-CHANGE-PROTOCOL.md's
+  // "Architecture path" decision for why this exists and what it must
+  // prove before the real panel system is ported on top of it.
+  webpack(config, { dev }) {
+    if (!dev) {
+      const path = require('path')
+      const fs = require('fs')
+      const alias = {
+        [path.resolve(__dirname, 'components/Panel')]: path.resolve(__dirname, 'components/Panel.stub'),
+      }
+      // Every *.panel.ts scope-definition file gets its own alias entry,
+      // read from the manifest scripts/generate-panel-stubs.js produces —
+      // adding a new panel file and re-running that script is the only
+      // step required to keep this list current; nothing here is
+      // hand-maintained. See CONFIG-CHANGE-PROTOCOL.md.
+      const manifestPath = path.resolve(__dirname, 'scripts/panel-stub-manifest.json')
+      if (fs.existsSync(manifestPath)) {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+        for (const { real, stub } of manifest.scopes) {
+          alias[path.resolve(__dirname, real.replace(/\.tsx?$/, ''))] =
+            path.resolve(__dirname, stub.replace(/\.ts$/, ''))
+        }
+      }
+      config.resolve.alias = { ...config.resolve.alias, ...alias }
+    }
+    return config
+  },
 }
 
 module.exports = nextConfig
