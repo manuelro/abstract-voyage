@@ -18,7 +18,7 @@ export type PageSurfaceConfig = {
 };
 
 export const DEFAULT_PAGE_SURFACE_CONFIG = {
-  color: '#b9b9c6',
+  color: '#dadbe2',
   maxWidthEnabled: true,
   maxWidthPx: 1680,
 } satisfies PageSurfaceConfig;
