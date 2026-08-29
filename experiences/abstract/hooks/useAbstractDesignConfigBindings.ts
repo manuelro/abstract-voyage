@@ -22,17 +22,14 @@ export type AbstractDesignConfigBindingKey =
   | 'wordmark';
 
 /** The shared scopes each Abstract page actually renders and may edit.
- * 'wordmark' is now bound on 'abstract'/'about'/'contact' — every page this
- * scope has been consolidated onto so far (see WordmarkConfig's own doc
- * comment). 'postsLab' still renders its own logo via SiteHeader's legacy
- * per-page color-override fallback (SiteHeaderConfig.logoColor/
- * logoSurfaceOffset, SiteHeader.tsx's own effectiveWordmarkConfig shim),
- * unaffected by this scope either way — not yet migrated. */
+ * 'wordmark' is now bound on every page that renders SiteHeader
+ * ('abstract'/'about'/'contact'/'postsLab') — see WordmarkConfig's own doc
+ * comment for the parity bug this scope's consolidation fixes. */
 export const ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE = {
   abstract: ['pageSurface', 'ctaButton', 'siteHeader', 'globalTypography', 'layoutDebug', 'wordmark'],
   about: ['pageSurface', 'siteHeader', 'layoutDebug', 'wordmark'],
   contact: ['pageSurface', 'ctaButton', 'siteHeader', 'layoutDebug', 'wordmark'],
-  postsLab: ['siteHeader', 'layoutDebug'],
+  postsLab: ['siteHeader', 'layoutDebug', 'wordmark'],
 } as const satisfies Record<string, ReadonlyArray<AbstractDesignConfigBindingKey>>;
 
 /**

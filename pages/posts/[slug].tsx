@@ -115,7 +115,7 @@ export default function PostLab({
   // hatch below for the one dimension (color) that's supposed to diverge —
   // is what pages/abstract.tsx itself does (pages/abstract.tsx:1595-1611,
   // 1820-1826).
-  const { siteHeaderConfig } = useAbstractDesignConfig()
+  const { siteHeaderConfig, wordmarkConfig } = useAbstractDesignConfig()
   // Page-owned per-page color override (per-page config ownership pattern —
   // SiteHeaderColorOverride.config.ts's own doc comment) — the one
   // part of the header that's genuinely meant to diverge per page.
@@ -377,6 +377,16 @@ export default function PostLab({
         header={(slotProps) => (
           <SiteHeader
             config={buildEffectiveSiteHeaderConfig(pageSiteHeaderConfig, postLabLayoutConfig)}
+            // The same shared, cross-page Wordmark config /about, /abstract,
+            // and /contact already bind (AbstractDesignConfigProvider) —
+            // this page previously rendered its logo via SiteHeader.tsx's
+            // legacy shim, driven by POSTS_LAB_SITE_HEADER_COLOR_OVERRIDE_CONFIG
+            // (its own independent colorMode: 'column'/columnTextMinContrast: 4.5
+            // copy, no intro-animation config, no shared panel). Passing
+            // this prop switches the logo to the single centralized
+            // instance instead, for genuine parity — not just similar
+            // resting values.
+            wordmarkConfig={wordmarkConfig}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
             pageSurfaceConfig={pageSurfaceConfig}
             splitBandActive={postLabLayoutConfig.headerSplitBandEnabled}
