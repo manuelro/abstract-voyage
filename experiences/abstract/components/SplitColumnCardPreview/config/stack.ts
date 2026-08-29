@@ -325,6 +325,17 @@ export type SplitColumnCardStackConfig = {
    * below match that prior fixed behavior. */
   ctaHoverDurationMs: number;
   ctaHoverEasing: CtaButtonMotionEasing;
+  /** How long the pointer must stay in (or out of) the card's hover/focus
+   * region before the CTA's fade-in/-out transition above even starts —
+   * applied to both directions via a single CSS `transition-delay`, so a
+   * cursor merely passing over/off the card doesn't trigger a visible
+   * flicker; only a deliberate pause commits to the reveal or the hide.
+   * Genuinely interrupts mid-delay on a real direction change (a plain CSS
+   * transition-delay, not a JS timer) — re-entering before the hide delay
+   * elapses cancels the hide and resumes the reveal from wherever it left
+   * off. Default 150ms — enough to absorb an incidental cursor pass without
+   * a visible flicker, short enough to still read as responsive. */
+  ctaHoverDelayMs: number;
 
   /** Per-slot cascade delay (ms) for arrow-triggered steps — each visible
    * card's motion starts `stepStaggerMs * (distance from the active slot)`
@@ -552,6 +563,7 @@ export const DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG = {
   neighborBorderHoverOpacity: 0.5,
   ctaHoverDurationMs: 420,
   ctaHoverEasing: 'gentle',
+  ctaHoverDelayMs: 150,
   stepStaggerMs: 100,
   stepTiltDurationMs: 180,
   stepTiltEasing: 'viscous',
@@ -686,6 +698,7 @@ export function normalizeSplitColumnCardStackConfig(
     ),
     ctaHoverDurationMs: clamp(base.ctaHoverDurationMs, 0, 1200, D.ctaHoverDurationMs),
     ctaHoverEasing: token(base.ctaHoverEasing, MOTION_EASINGS, D.ctaHoverEasing),
+    ctaHoverDelayMs: clamp(base.ctaHoverDelayMs, 0, 1200, D.ctaHoverDelayMs),
 
     stepStaggerMs: clamp(base.stepStaggerMs, 0, 400, D.stepStaggerMs),
     stepTiltDurationMs: clamp(base.stepTiltDurationMs, 0, 1200, D.stepTiltDurationMs),

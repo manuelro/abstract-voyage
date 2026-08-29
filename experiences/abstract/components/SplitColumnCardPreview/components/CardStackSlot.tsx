@@ -68,6 +68,10 @@ export type CardStackSlotPresentation = {
    * by the card's own `:hover`/`:focus-within` state, not a stack step. */
   ctaHoverDurationMs: number;
   ctaHoverEasingCss: string;
+  /** How long the pointer must dwell in/out of the card's hover/focus region
+   * before the CTA's own fade transition above even starts — see
+   * SplitColumnCardStackConfig.ctaHoverDelayMs's own doc comment. */
+  ctaHoverDelayMs: number;
 };
 
 /**
@@ -575,6 +579,7 @@ export function CardStackSlot<TItem>({
             shadowFadeEasingCss,
             ctaHoverDurationMs: prefersReducedMotion ? 0 : stackConfig.ctaHoverDurationMs,
             ctaHoverEasingCss,
+            ctaHoverDelayMs: prefersReducedMotion ? 0 : stackConfig.ctaHoverDelayMs,
           },
           cardWidthPx,
           cardHeightPx,

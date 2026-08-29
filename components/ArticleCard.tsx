@@ -130,6 +130,13 @@ export type ArticleCardProps = {
    * keep today's shared-constant behavior. */
   ctaHoverDurationMs?: number;
   ctaHoverEasingCss?: string;
+  /** How long the pointer must stay in (or out of) the card's hover/focus
+   * region before `ctaHoverDurationMs`'s fade-in/-out transition even
+   * starts — a plain CSS `transition-delay` on the CTA's own wrapper, so it
+   * applies symmetrically to both directions and genuinely resets on a
+   * direction change mid-delay (no JS timer). Omit for no delay (today's
+   * behavior). */
+  ctaHoverDelayMs?: number;
   /** Overrides the CTA link/span label. Defaults to "Read article". Useful
    * for non-article card surfaces (e.g. labs) where the same whole-card link
    * mechanism applies but "Read article" is semantically wrong. */
@@ -179,6 +186,7 @@ export function ArticleCard({
   ctaHoverOnly = false,
   ctaHoverDurationMs,
   ctaHoverEasingCss,
+  ctaHoverDelayMs,
   ctaLabel = 'Read article',
   excerptHoverOnly = false,
   contentMode = 'full',
@@ -353,10 +361,11 @@ export function ArticleCard({
           <div
             className={ctaHoverOnly ? styles.hoverReveal : styles.detailFade}
             style={ctaHoverOnly
-              ? (ctaHoverDurationMs !== undefined || ctaHoverEasingCss !== undefined
+              ? (ctaHoverDurationMs !== undefined || ctaHoverEasingCss !== undefined || ctaHoverDelayMs !== undefined
                 ? {
                     transitionDuration: ctaHoverDurationMs !== undefined ? `${ctaHoverDurationMs}ms` : undefined,
                     transitionTimingFunction: ctaHoverEasingCss,
+                    transitionDelay: ctaHoverDelayMs !== undefined ? `${ctaHoverDelayMs}ms` : undefined,
                   }
                 : undefined)
               : { transitionDelay: '220ms' }}

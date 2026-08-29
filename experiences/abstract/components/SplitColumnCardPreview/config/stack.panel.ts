@@ -305,6 +305,18 @@ export const SPLIT_COLUMN_CARD_STACK_PANEL = defineConfigScope<SplitColumnCardSt
     },
     {
       kind: 'number',
+      key: 'ctaHoverDelayMs',
+      label: 'CTA reveal delay (hover)',
+      description: 'How long the pointer must stay in (or out of) the card before the "Read article" button\'s fade in/out even starts — absorbs an incidental cursor pass so the reveal only commits on deliberate hover intent.',
+      min: 0,
+      max: 1200,
+      step: 20,
+      unit: 'ms',
+      integer: true,
+      visibleWhen: whenEnabled,
+    },
+    {
+      kind: 'number',
       key: 'stepStaggerMs',
       label: 'Step cascade delay',
       description: 'Per-slot delay, multiplied by distance from the active slot, so a next/prev step ripples outward instead of moving every card in lockstep.',

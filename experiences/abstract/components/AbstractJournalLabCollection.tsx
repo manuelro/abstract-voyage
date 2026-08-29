@@ -687,6 +687,10 @@ export type HueFadeCardProps = {
      * ArticleCard ctaHoverDurationMs/ctaHoverEasingCss below. */
     ctaHoverDurationMs: number;
     ctaHoverEasingCss: string;
+    /** See CardStackSlotPresentation.ctaHoverDelayMs's own doc comment
+     * (CardStackSlot.tsx) — drives this card's own ArticleCard
+     * ctaHoverDelayMs below. */
+    ctaHoverDelayMs: number;
   };
 };
 
@@ -1321,6 +1325,7 @@ export function AbstractJournalLabHueFadeCard({
               ctaHoverOnly={!titleAndSummaryOnly}
               ctaHoverDurationMs={stackPresentation?.ctaHoverDurationMs}
               ctaHoverEasingCss={stackPresentation?.ctaHoverEasingCss}
+              ctaHoverDelayMs={stackPresentation?.ctaHoverDelayMs}
               ctaLabel={payloadLab ? 'View lab' : 'Read article'}
               contentMode={titleAndSummaryOnly ? 'title-and-summary' : 'full'}
               className={cardRadius}
