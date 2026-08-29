@@ -61,6 +61,13 @@ export type CardStackSlotPresentation = {
    * box). */
   shadowFadeDurationMs: number;
   shadowFadeEasingCss: string;
+  /** Duration/easing for the active card's own "Read article" CTA fading in
+   * on hover/focus (ArticleCard's `ctaHoverOnly`) — see
+   * SplitColumnCardStackConfig.ctaHoverDurationMs/-Easing for the source
+   * values. Independent of every other pair above: this reveal is driven
+   * by the card's own `:hover`/`:focus-within` state, not a stack step. */
+  ctaHoverDurationMs: number;
+  ctaHoverEasingCss: string;
 };
 
 /**
@@ -171,6 +178,9 @@ export type CardStackSlotProps<TItem> = {
    * cross-fade). See SplitColumnCardStackConfig.neighborPoseDurationMs's
    * own doc comment for why this split exists. */
   poseEasingCss: string;
+  /** Resolved CSS easing for stackConfig.ctaHoverEasing — see
+   * `CardStackSlotPresentation.ctaHoverEasingCss`'s own doc comment. */
+  ctaHoverEasingCss: string;
   /** Effective translate duration for this step — CardStack.tsx's own
    * resolveStackStepDurationMs, already velocity-scaled for the gesture (if
    * any) that triggered the current step. Read here instead of
@@ -258,6 +268,7 @@ export function CardStackSlot<TItem>({
   gradientRevealEasingCss,
   shadowFadeEasingCss,
   poseEasingCss,
+  ctaHoverEasingCss,
   settleOpacityEasingCss,
   resolvedNeighborBackgroundColor,
   resolvedNeighborTextColor,
@@ -562,6 +573,8 @@ export function CardStackSlot<TItem>({
             gradientRevealBlurPx: prefersReducedMotion ? 0 : stackConfig.neighborGradientRevealBlurPx,
             shadowFadeDurationMs: prefersReducedMotion ? 0 : stackConfig.neighborShadowFadeDurationMs,
             shadowFadeEasingCss,
+            ctaHoverDurationMs: prefersReducedMotion ? 0 : stackConfig.ctaHoverDurationMs,
+            ctaHoverEasingCss,
           },
           cardWidthPx,
           cardHeightPx,

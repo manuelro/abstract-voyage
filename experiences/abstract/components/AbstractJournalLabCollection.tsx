@@ -682,6 +682,11 @@ export type HueFadeCardProps = {
      * below. */
     shadowFadeDurationMs: number;
     shadowFadeEasingCss: string;
+    /** See CardStackSlotPresentation.ctaHoverDurationMs/-EasingCss's own
+     * doc comments (CardStackSlot.tsx) — drives this card's own
+     * ArticleCard ctaHoverDurationMs/ctaHoverEasingCss below. */
+    ctaHoverDurationMs: number;
+    ctaHoverEasingCss: string;
   };
 };
 
@@ -1314,6 +1319,8 @@ export function AbstractJournalLabHueFadeCard({
               excerptVisible={layoutConfig.descriptionVisible}
               excerptHoverOnly={stackActiveSlide ? false : layoutConfig.descriptionHoverReveal}
               ctaHoverOnly={!titleAndSummaryOnly}
+              ctaHoverDurationMs={stackPresentation?.ctaHoverDurationMs}
+              ctaHoverEasingCss={stackPresentation?.ctaHoverEasingCss}
               ctaLabel={payloadLab ? 'View lab' : 'Read article'}
               contentMode={titleAndSummaryOnly ? 'title-and-summary' : 'full'}
               className={cardRadius}

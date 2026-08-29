@@ -118,6 +118,18 @@ export type ArticleCardProps = {
    * false (CTA always visible), preserving today's behavior for existing
    * callers. */
   ctaHoverOnly?: boolean;
+  /** Overrides the fade duration/easing `ctaHoverOnly`'s reveal uses,
+   * instead of the shared `ARTICLE_CARD_DETAIL_FADE_MS`/
+   * `ARTICLE_CARD_DETAIL_FADE_EASING_CSS` constant (`ArticleCard.detailFade
+   * .ts`) every other caller of this component gets. Scoped to the CTA's
+   * own wrapper only — never touches the excerpt/meta-row fades sharing
+   * that same constant elsewhere in this component, so a caller supplying
+   * these (e.g. Card Stack's own configurable `stackConfig.ctaHoverDurationMs`
+   * /`-Easing`) can retime just the "Read article" reveal without affecting
+   * `excerptHoverOnly` or any other `ArticleCard` instance. Omit both to
+   * keep today's shared-constant behavior. */
+  ctaHoverDurationMs?: number;
+  ctaHoverEasingCss?: string;
   /** Overrides the CTA link/span label. Defaults to "Read article". Useful
    * for non-article card surfaces (e.g. labs) where the same whole-card link
    * mechanism applies but "Read article" is semantically wrong. */
@@ -165,6 +177,8 @@ export function ArticleCard({
   physicsConfig,
   rotationDeg = 0,
   ctaHoverOnly = false,
+  ctaHoverDurationMs,
+  ctaHoverEasingCss,
   ctaLabel = 'Read article',
   excerptHoverOnly = false,
   contentMode = 'full',
@@ -338,7 +352,14 @@ export function ArticleCard({
         {cta ? (
           <div
             className={ctaHoverOnly ? styles.hoverReveal : styles.detailFade}
-            style={ctaHoverOnly ? undefined : { transitionDelay: '220ms' }}
+            style={ctaHoverOnly
+              ? (ctaHoverDurationMs !== undefined || ctaHoverEasingCss !== undefined
+                ? {
+                    transitionDuration: ctaHoverDurationMs !== undefined ? `${ctaHoverDurationMs}ms` : undefined,
+                    transitionTimingFunction: ctaHoverEasingCss,
+                  }
+                : undefined)
+              : { transitionDelay: '220ms' }}
           >
             {cta}
           </div>

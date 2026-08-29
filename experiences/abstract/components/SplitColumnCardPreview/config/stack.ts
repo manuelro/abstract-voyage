@@ -315,6 +315,17 @@ export type SplitColumnCardStackConfig = {
    * renders the same text color at 50% opacity while hovered. */
   neighborBorderHoverOpacity: number;
 
+  /** Duration/easing for the active card's "Read article" CTA fading in on
+   * hover/focus (ArticleCard's own `ctaHoverOnly`/`.hoverReveal`) — a
+   * dedicated pair rather than reusing stepTiltDurationMs/stepTiltEasing,
+   * since this reveal is driven by the card's own `:hover`/`:focus-within`
+   * state, not a stack step, and previously had no config knob at all
+   * (ArticleCard.detailFade.ts's shared ARTICLE_CARD_DETAIL_FADE_MS/
+   * _EASING_CSS constant, 420ms / cubic-bezier(0.19, 1, 0.22, 1)). Defaults
+   * below match that prior fixed behavior. */
+  ctaHoverDurationMs: number;
+  ctaHoverEasing: CtaButtonMotionEasing;
+
   /** Per-slot cascade delay (ms) for arrow-triggered steps — each visible
    * card's motion starts `stepStaggerMs * (distance from the active slot)`
    * after the active slot's own motion starts, so the whole-stack reflow
@@ -539,6 +550,8 @@ export const DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG = {
   neighborTextMinContrast: 4.5,
   neighborBorderColorOffset: .28,
   neighborBorderHoverOpacity: 0.5,
+  ctaHoverDurationMs: 420,
+  ctaHoverEasing: 'gentle',
   stepStaggerMs: 100,
   stepTiltDurationMs: 180,
   stepTiltEasing: 'viscous',
@@ -671,6 +684,8 @@ export function normalizeSplitColumnCardStackConfig(
     neighborBorderHoverOpacity: clamp(
       base.neighborBorderHoverOpacity, 0, 1, D.neighborBorderHoverOpacity,
     ),
+    ctaHoverDurationMs: clamp(base.ctaHoverDurationMs, 0, 1200, D.ctaHoverDurationMs),
+    ctaHoverEasing: token(base.ctaHoverEasing, MOTION_EASINGS, D.ctaHoverEasing),
 
     stepStaggerMs: clamp(base.stepStaggerMs, 0, 400, D.stepStaggerMs),
     stepTiltDurationMs: clamp(base.stepTiltDurationMs, 0, 1200, D.stepTiltDurationMs),

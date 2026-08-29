@@ -756,6 +756,7 @@ export function CardStack<TItem>({
   const neighborGradientRevealEasingCss = CTA_BUTTON_MOTION_EASINGS[stackConfig.neighborGradientRevealEasing];
   const neighborShadowFadeEasingCss = CTA_BUTTON_MOTION_EASINGS[stackConfig.neighborShadowFadeEasing];
   const neighborPoseEasingCss = CTA_BUTTON_MOTION_EASINGS[stackConfig.neighborPoseEasing];
+  const ctaHoverEasingCss = CTA_BUTTON_MOTION_EASINGS[stackConfig.ctaHoverEasing];
 
   // Embla's container is never given this style. This wrapper remains the
   // desktop list-switch surface and the narrow fine-pointer keyboard path.
@@ -860,6 +861,7 @@ export function CardStack<TItem>({
         gradientRevealEasingCss={neighborGradientRevealEasingCss}
         shadowFadeEasingCss={neighborShadowFadeEasingCss}
         poseEasingCss={neighborPoseEasingCss}
+        ctaHoverEasingCss={ctaHoverEasingCss}
         settleOpacityEasingCss={settleOpacityEasingCss}
         resolvedNeighborBackgroundColor={resolvedNeighborBackgroundColor}
         resolvedNeighborTextColor={resolvedNeighborTextColor}
@@ -1184,6 +1186,7 @@ export function CardStack<TItem>({
                   gradientRevealEasingCss={neighborGradientRevealEasingCss}
         shadowFadeEasingCss={neighborShadowFadeEasingCss}
         poseEasingCss={neighborPoseEasingCss}
+                  ctaHoverEasingCss={ctaHoverEasingCss}
                   settleOpacityEasingCss={settleOpacityEasingCss}
                   resolvedNeighborBackgroundColor={resolvedNeighborBackgroundColor}
                   resolvedNeighborTextColor={resolvedNeighborTextColor}
