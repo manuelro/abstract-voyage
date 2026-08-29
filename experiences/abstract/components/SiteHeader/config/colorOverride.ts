@@ -84,16 +84,30 @@ export const ABOUT_SITE_HEADER_COLOR_OVERRIDE_CONFIG = {
   columnTextMinContrast: 14.3,
 } satisfies SiteHeaderColorOverrideConfig;
 
+// /contact's own header color divergence, matching /abstract's and
+// posts-lab's own 'column' reasoning immediately below: nav text/border
+// previously used colorMode: 'custom' with a flat #787878 — legible by
+// coincidence against this page's original dark surface, not because it
+// derived from it. /contact never renders a real split column
+// (headerSplitBandEnabled: false, pages/contact.config.ts), so
+// usePolymorphicLayoutColors's own actualRightSegmentColor already falls
+// back to the flat page surface color itself — 'column' mode here derives
+// against exactly that (the true, live page surface), the same mechanism
+// the wordmark's own WordmarkConfig already uses for this page's logo
+// (see pages/contact.tsx's wordmarkConfig wiring), so nav and logo ink
+// stay consistently adaptive together instead of one being live and the
+// other frozen. columnTextMinContrast 4.5 matches /abstract's/posts-lab's
+// own target.
 export const CONTACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG = {
   enabled: true,
-  colorMode: 'custom',
+  colorMode: 'column',
   logoColor: '#67676f',
   navTextColor: '#787878',
   navBorderColor: '#787878',
   logoSurfaceOffset: 0,
   navTextSurfaceOffset: 0,
   navBorderSurfaceOffset: 0,
-  columnTextMinContrast: DEFAULT_SITE_HEADER_CONFIG.columnTextMinContrast,
+  columnTextMinContrast: 4.5,
 } satisfies SiteHeaderColorOverrideConfig;
 
 // /abstract's own header color divergence: 'column' mode derives

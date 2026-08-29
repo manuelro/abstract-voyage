@@ -924,7 +924,22 @@ export function PolymorphicLayout({
         normalizedConfig.headerScrollBehaviorLg,
       )}
       splitBandBoundaryPx={colors.splitBandBoundaryPx}
-      physicalRightColumnColor={colors.physicalRightColumnColor}
+      // actualRightSegmentColor, not the raw physicalRightColumnColor —
+      // see that field's own doc comment above (PolymorphicLayoutResolvedColors):
+      // SiteHeader's own nav text/border contrast search needs "what's
+      // really behind the header's right segment," which collapses to the
+      // flat page surface color whenever headerSplitBandEnabled is off (no
+      // split-column concept at all — e.g. /contact, colorSource: 'none')
+      // or the column source resolves to COLOR_SOURCE_NONE_FALLBACK. Passing
+      // the raw column value instead reproduced BUG-012's exact pattern one
+      // level up: nav text/border derived against a static, page-surface-
+      // color-independent fallback, never reactive to a live PageSurface
+      // panel edit (confirmed live on /contact — the left/logo segment
+      // already got this right, since each page passes its own
+      // physicalLeftColumnColor={colors.actualLeftSegmentColor} explicitly;
+      // this was the one remaining internal passthrough still using the
+      // wrong field for the right/nav segment).
+      physicalRightColumnColor={colors.actualRightSegmentColor}
       splitColumnLayoutConfig={normalizedConfig}
       wideColumn={
         normalizedConfig.wideColumnContentContainer === 'full-bleed'
