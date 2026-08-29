@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T05:22:52.256Z",
+  "generatedAt": "2026-08-29T18:29:30.897Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -278,10 +278,12 @@
         "ABOUT_PAGE_LAYOUT_SCOPE_ID",
         "ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID",
         "ABOUT_DOCK_PALETTE_SCOPE_ID",
+        "ABOUT_DOCK_LAYOUT_SCOPE_ID",
         "ABOUT_POLYMORPHIC_LAYOUT_PANEL",
         "ABOUT_PAGE_LAYOUT_PANEL",
         "ABOUT_TOP_SEGMENT_GRADIENT_PANEL",
-        "ABOUT_DOCK_PALETTE_PANEL"
+        "ABOUT_DOCK_PALETTE_PANEL",
+        "ABOUT_DOCK_LAYOUT_PANEL"
       ]
     },
     {

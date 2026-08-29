@@ -36,6 +36,13 @@ export const ABOUT_DOCK_PALETTE_SCOPE_ID: any = (() => {
   })
   return p
 })()
+export const ABOUT_DOCK_LAYOUT_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
 export const ABOUT_POLYMORPHIC_LAYOUT_PANEL: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
@@ -58,6 +65,13 @@ export const ABOUT_TOP_SEGMENT_GRADIENT_PANEL: any = (() => {
   return p
 })()
 export const ABOUT_DOCK_PALETTE_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const ABOUT_DOCK_LAYOUT_PANEL: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
     apply() { return undefined },

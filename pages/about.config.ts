@@ -2,7 +2,9 @@ import type { CtaButtonMotionEasing } from '../components/CtaButton/config/regis
 import { DEFAULT_LIQUID_SLIDER_CONFIG } from '../experiences/abstract/components/AbstractPostDock';
 import {
   DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG,
+  DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
   type AbstractPostDockPaletteConfig,
+  type AbstractPostDockLayoutConfig,
 } from '../experiences/abstract/components/AbstractPostDock/config/registered';
 
 /** 'column' (the default) derives the headline's own color from the left
@@ -318,20 +320,21 @@ export function normalizeAboutTopSegmentGradientConfig(
  * for the fix: a page-owned scope whose own `copy.targetSymbol` points at
  * THIS constant instead, so an operator's own update-prompt lands where the
  * page actually reads from. AbstractPostDockLayoutConfig's own equivalent
- * page-local override (ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG, pages/about.tsx)
- * has the identical unfixed defect today — same class of bug, different
- * scope, out of scope for this fix (not the field the operator reported).
+ * page-local override had the identical defect (same class of bug,
+ * different scope) — since fixed the same way; see
+ * ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG below and ABOUT_DOCK_LAYOUT_PANEL
+ * (about.panel.ts).
  */
 export const ABOUT_DEFAULT_DOCK_PALETTE_CONFIG: AbstractPostDockPaletteConfig = {
   ...DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG,
-  windowStep: 0.38,
+  windowStep: 0.16,
   hueSpread: 0.3,
   windowPanCurve: 'gaussian',
-  gaussianPeakIndex: 0,
-  gaussianSigma: 1,
-  gaussianAmplitude: 0.33,
-  gaussianFloor: 0.34,
-  fieldKinship: 0.05,
+  gaussianPeakIndex: -1,
+  gaussianSigma: 1.7,
+  gaussianAmplitude: 0.72,
+  gaussianFloor: 0,
+  fieldKinship: 0,
   // Wide/Lg (tablet/desktop) start byte-identical to the base/mobile value
   // below — preserves this page's existing tuned look at every breakpoint
   // it already rendered at (AbstractPostDock, ≥768px) now that gradient
@@ -342,16 +345,16 @@ export const ABOUT_DEFAULT_DOCK_PALETTE_CONFIG: AbstractPostDockPaletteConfig = 
   gradientNoise: 0.2,
   gradientScaleWide: 0.75,
   gradientNoiseWide: 0.1,
-  gradientScaleLg: 0.75,
-  gradientNoiseLg: 0.1,
+  gradientScaleLg: 0.87,
+  gradientNoiseLg: 0.16,
   // Recalibrated for continuous gaussian-envelope duck (0.1 was tuned for
   // the old binary "take the edge off the unfocused row" nudge — reached
   // only at the bell's extreme tail, that read as barely visible).
-  inactiveChromaDuck: 0.8,
-  valueRigAmount: 0.24,
-  masterSaturation: 1.03,
-  masterBrightness: 0.83,
-  masterContrast: 0.74,
+  inactiveChromaDuck: 0.65,
+  valueRigAmount: 0,
+  masterSaturation: 0.9,
+  masterBrightness: 0.9,
+  masterContrast: 0.82,
   // Recalibrated from the shared default's power: 0.25/maxOpacity: 0.75 —
   // that front-loads the black overlay so hard the row right next to
   // active was already ~54% dark (operator-reported, live screenshot).
@@ -359,9 +362,44 @@ export const ABOUT_DEFAULT_DOCK_PALETTE_CONFIG: AbstractPostDockPaletteConfig = 
   // row very slightly receded (reinforcing which row has focus) instead of
   // starting from a hard 0; maxOpacity is lowered so even the farthest row
   // never goes fully black. Starting values — tune live via the panel.
-  distanceDimmingMaxOpacity: 0.55,
-  distanceDimmingBaselineOpacity: 0.1,
-  distanceDimmingPower: 1,
+  distanceDimmingMaxOpacity: 0.39,
+  distanceDimmingBaselineOpacity: 0.05,
+  distanceDimmingPower: 1.8,
+  distanceDimmingEasing: 'linear',
+};
+
+/**
+ * This page's own baseline for AbstractPostDockLayoutConfig (vertical
+ * minimal-mode slider) — NOT DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG
+ * itself (scattered mode), which is what /abstract's own JOURNAL section
+ * reads directly and must stay untouched.
+ *
+ * Moved here from pages/about.tsx (was a page-local, unexported const)
+ * specifically so pages/about.panel.ts can also import it —
+ * PLAN-DOCK-PALETTE-CONFIG-SEGREGATION.md's own audit found this was the
+ * exact same class of bug ABOUT_DEFAULT_DOCK_PALETTE_CONFIG's own doc
+ * comment above already named and fixed for palette, still live here:
+ * about.tsx's "Dock layout" panel section was bound to
+ * ABSTRACT_POST_DOCK_LAYOUT_PANEL, the SAME scope /abstract uses, whose own
+ * `copy` metadata targets the SHARED symbol
+ * (DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG in AbstractPostDock/config/
+ * registered.ts) — but about.tsx's actual LIVE state initializes from THIS
+ * constant. An operator tuning "Dock layout" on /about and applying the
+ * resulting update-prompt would have been silently editing a symbol this
+ * page's own rendered value never reads, while also retargeting
+ * /abstract's own scattered-mode default out from under it. See
+ * ABOUT_DOCK_LAYOUT_PANEL (about.panel.ts) for the fix: a page-owned scope
+ * whose own `copy.targetSymbol` points at THIS constant instead.
+ */
+export const ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG: AbstractPostDockLayoutConfig = {
+  ...DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
+  mode: 'slider',
+  orientation: 'vertical',
+  minimalModeEnabled: true,
+  minimalModeGradientEnabled: true,
+  minimalModeFontSize: 'text-3xl',
+  minimalModeTextDimOpacity: 0.45,
+  minimalModeTextEmphasisOpacity: 0.95,
 };
 
 // PLAN-POLYMORPHIC-LAYOUT-PAGE-CONFIG-PARITY.md: relocated to

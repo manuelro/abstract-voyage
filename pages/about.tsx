@@ -44,14 +44,10 @@ import {
 } from '../experiences/abstract/components/AbstractPostDock';
 import { useLiquidSliderMotion } from '../experiences/abstract/components/AbstractPostDock/hooks/motion';
 import {
-  DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
   resolveAbstractPostDockEasing,
   type AbstractPostDockLayoutConfig,
   type AbstractPostDockPaletteConfig,
 } from '../experiences/abstract/components/AbstractPostDock/config/registered';
-import {
-  ABSTRACT_POST_DOCK_LAYOUT_SCOPE_ID,
-} from '../experiences/abstract/components/AbstractPostDock/config/panel';
 import { abstractConfigPanelRegistry } from '../experiences/abstract/configPanels';
 import {
   buildDeckPaletteStates,
@@ -99,6 +95,7 @@ import {
   DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG,
   DEFAULT_ABOUT_TOP_SEGMENT_GRADIENT_CONFIG,
   ABOUT_DEFAULT_DOCK_PALETTE_CONFIG,
+  ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG,
   normalizeAboutPageLayoutConfig,
   normalizeAboutTopSegmentGradientConfig,
   type AboutPageLayoutConfig,
@@ -108,6 +105,7 @@ import {
   ABOUT_PAGE_LAYOUT_SCOPE_ID,
   ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID,
   ABOUT_DOCK_PALETTE_SCOPE_ID,
+  ABOUT_DOCK_LAYOUT_SCOPE_ID,
   ABOUT_POLYMORPHIC_LAYOUT_PANEL,
 } from './about.panel';
 import { aboutConfigPanelRegistry } from './aboutConfigPanels';
@@ -148,38 +146,30 @@ const NARROW_VIEWPORT_MEDIA_QUERY = BELOW_MD_MEDIA_QUERY;
 const SPACEFIELD_HEADER_NAV_TEXT_COLOR = '#f4f4fa';
 const SPACEFIELD_HEADER_NAV_BORDER_COLOR = 'rgba(244, 244, 250, 0.4)';
 
-// This page's own baseline for AbstractPostDockLayoutConfig — not the
-// component's raw DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG (that's scattered
-// mode, still what abstract.tsx's own JOURNAL section reads directly and
-// must stay untouched), but what about.tsx actually opts into (vertical
-// minimal-mode slider). Shared between the initial useState and RESET so
-// both agree on what "default" means for this page.
-const ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG: AbstractPostDockLayoutConfig = {
-  ...DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
-  mode: 'slider',
-  orientation: 'vertical',
-  minimalModeEnabled: true,
-  minimalModeGradientEnabled: true,
-  minimalModeFontSize: 'text-3xl',
-  minimalModeTextDimOpacity: 0.45,
-  minimalModeTextEmphasisOpacity: 0.95,
-};
+// PLAN-DOCK-PALETTE-CONFIG-SEGREGATION.md: ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG
+// (this page's own baseline — vertical minimal-mode slider, not the
+// component's raw scattered-mode DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
+// which is what abstract.tsx's own JOURNAL section reads directly and must
+// stay untouched) moved to about.config.ts so ABOUT_DOCK_LAYOUT_PANEL
+// (about.panel.ts) could also import it as its own scope's `copy` target —
+// same fix already applied to ABOUT_DEFAULT_DOCK_PALETTE_CONFIG below.
 
 const ABOUT_DOCK_PALETTE_DEFINITION =
   aboutConfigPanelRegistry.resolve(ABOUT_DOCK_PALETTE_SCOPE_ID);
-const ABSTRACT_POST_DOCK_LAYOUT_DEFINITION =
-  abstractConfigPanelRegistry.resolve(ABSTRACT_POST_DOCK_LAYOUT_SCOPE_ID);
+const ABOUT_DOCK_LAYOUT_DEFINITION =
+  aboutConfigPanelRegistry.resolve(ABOUT_DOCK_LAYOUT_SCOPE_ID);
 const ABOUT_PAGE_LAYOUT_DEFINITION =
   aboutConfigPanelRegistry.resolve(ABOUT_PAGE_LAYOUT_SCOPE_ID);
 const ABOUT_MOBILE_ACCORDION_DEFINITION =
   aboutConfigPanelRegistry.resolve(ABOUT_MOBILE_ACCORDION_SCOPE_ID);
 // Reuses /abstract's own registered scope directly (PLAN-EDITORIAL-HERO-
 // UNIFICATION-AND-CARDSTACK-RESIZE-FIX.md Part 2) — already registered in
-// abstractConfigPanelRegistry (experiences/abstract/configPanels.ts), the
-// same registry ABSTRACT_POST_DOCK_LAYOUT_DEFINITION below already resolves
-// from on this page. Schema shared, value page-local: this page's own
-// editorialHeroConfig state is an independent third instance, the same
-// shape pages/abstract.tsx's own two instances already use.
+// abstractConfigPanelRegistry (experiences/abstract/configPanels.ts).
+// Schema shared, value page-local: this page's own editorialHeroConfig
+// state is an independent third instance, the same shape pages/abstract.tsx's
+// own two instances already use. Flagged in PLAN-DOCK-PALETTE-CONFIG-
+// SEGREGATION.md as a known follow-up needing the same audit-and-fork
+// treatment dock palette/layout already got, not yet executed here.
 const ABSTRACT_EDITORIAL_HERO_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID);
 const ABOUT_TOP_SEGMENT_GRADIENT_DEFINITION =
@@ -1250,7 +1240,7 @@ function AboutPageContent() {
       onChange: setDockPaletteConfig,
     }),
     createConfigScopeBinding({
-      definition: ABSTRACT_POST_DOCK_LAYOUT_DEFINITION,
+      definition: ABOUT_DOCK_LAYOUT_DEFINITION,
       value: dockLayoutConfig,
       onChange: setDockLayoutConfig,
     }),

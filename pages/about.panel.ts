@@ -1,13 +1,20 @@
 import { defineConfigScope, definePageConfigScope } from '../components/Panel/config';
 import { POLYMORPHIC_LAYOUT_FIELDS } from '../experiences/abstract/components/PolymorphicLayout.panel';
 import type { PolymorphicLayoutConfig } from '../experiences/abstract/components/PolymorphicLayout.config';
-import { ABSTRACT_POST_DOCK_PALETTE_PANEL } from '../experiences/abstract/components/AbstractPostDock/config/panel';
-import type { AbstractPostDockPaletteConfig } from '../experiences/abstract/components/AbstractPostDock/config/registered';
+import {
+  ABSTRACT_POST_DOCK_PALETTE_PANEL,
+  ABSTRACT_POST_DOCK_LAYOUT_PANEL,
+} from '../experiences/abstract/components/AbstractPostDock/config/panel';
+import type {
+  AbstractPostDockPaletteConfig,
+  AbstractPostDockLayoutConfig,
+} from '../experiences/abstract/components/AbstractPostDock/config/registered';
 import {
   ABOUT_POLYMORPHIC_LAYOUT_CONFIG,
   DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG,
   DEFAULT_ABOUT_TOP_SEGMENT_GRADIENT_CONFIG,
   ABOUT_DEFAULT_DOCK_PALETTE_CONFIG,
+  ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG,
   type AboutPageLayoutConfig,
   type AboutTopSegmentGradientConfig,
 } from './about.config';
@@ -15,6 +22,7 @@ import {
 export const ABOUT_PAGE_LAYOUT_SCOPE_ID = 'AboutPage/layout' as const;
 export const ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID = 'AboutPage/topSegmentGradient' as const;
 export const ABOUT_DOCK_PALETTE_SCOPE_ID = 'AboutPage/dockPalette' as const;
+export const ABOUT_DOCK_LAYOUT_SCOPE_ID = 'AboutPage/dockLayout' as const;
 
 // /about's own instance of the shared PolymorphicLayoutConfig field
 // structure (components/PolymorphicLayout.panel.ts's own
@@ -437,7 +445,16 @@ export const ABOUT_DOCK_PALETTE_PANEL = defineConfigScope<AbstractPostDockPalett
   id: ABOUT_DOCK_PALETTE_SCOPE_ID,
   component: 'AbstractPostDock',
   scope: 'palette',
-  title: 'Dock palette direction',
+  // Deliberately distinct from AbstractPostDock's own generic scope title
+  // ('Dock palette direction', panel.ts) even though the fields/behavior
+  // are identical — PLAN-DOCK-PALETTE-CONFIG-SEGREGATION.md's own audit:
+  // the two scopes were already fully disconnected (own id/default/copy
+  // target) as of the 2026-08-24 fix above, but sharing an identical title
+  // gave an operator no way to tell that apart just from looking at the
+  // panel, which is almost certainly why the same "editing /about changes
+  // /abstract" bleed kept getting reported after the underlying storage
+  // bug was already fixed.
+  title: 'About dock palette',
   createdAt: '2026-08-24',
   summary: ABSTRACT_POST_DOCK_PALETTE_PANEL.summary,
   defaultOpen: false,
@@ -447,6 +464,44 @@ export const ABOUT_DOCK_PALETTE_PANEL = defineConfigScope<AbstractPostDockPalett
     targetFile: 'pages/about.config.ts',
     targetSymbol: 'ABOUT_DEFAULT_DOCK_PALETTE_CONFIG',
     targetType: 'AbstractPostDockPaletteConfig',
+    updateStrategy: 'merge',
+    completeScope: false,
+  },
+});
+
+// Same class of bug as ABOUT_DOCK_PALETTE_PANEL above, same fix
+// (PLAN-DOCK-PALETTE-CONFIG-SEGREGATION.md): about.tsx used to bind its
+// "Dock layout" panel section straight to ABSTRACT_POST_DOCK_LAYOUT_PANEL
+// — the SAME scope definition /abstract's own JOURNAL section uses, whose
+// `copy.targetSymbol` points at the shared
+// DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG (AbstractPostDock/config/
+// registered.ts, scattered-mode defaults /abstract actually renders). But
+// about.tsx's own LIVE state initializes from ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG
+// (about.config.ts, vertical minimal-mode slider) — an operator tuning
+// "Dock layout" here and applying the resulting update-prompt was updating
+// a symbol this page's own rendered value never reads, while also
+// retargeting /abstract's own default out from under it. Fields
+// (ABSTRACT_POST_DOCK_LAYOUT_PANEL.fields) and summary text are reused
+// directly — same generic AbstractPostDockLayoutConfig shape, same
+// controls, same descriptions as /abstract's own instance, never
+// duplicated/retyped — only `defaultValue`/`copy`/`title` differ.
+export const ABOUT_DOCK_LAYOUT_PANEL = defineConfigScope<AbstractPostDockLayoutConfig>({
+  id: ABOUT_DOCK_LAYOUT_SCOPE_ID,
+  component: 'AbstractPostDock',
+  scope: 'layout',
+  // Distinct from AbstractPostDock's own generic scope title ('Dock
+  // layout', panel.ts) for the same operator-facing-disambiguation reason
+  // ABOUT_DOCK_PALETTE_PANEL's own title was renamed above.
+  title: 'About dock layout',
+  createdAt: '2026-08-29',
+  summary: ABSTRACT_POST_DOCK_LAYOUT_PANEL.summary,
+  defaultOpen: false,
+  defaultValue: ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG,
+  fields: ABSTRACT_POST_DOCK_LAYOUT_PANEL.fields,
+  copy: {
+    targetFile: 'pages/about.config.ts',
+    targetSymbol: 'ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG',
+    targetType: 'AbstractPostDockLayoutConfig',
     updateStrategy: 'merge',
     completeScope: false,
   },
