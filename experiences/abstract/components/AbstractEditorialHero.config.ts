@@ -260,7 +260,7 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   copyMinContrast: 4.5,
   paragraphTextColor: '#ffffff',
   paragraphTextColorMode: 'column',
-  paragraphSurfaceOffset: 0.4,
+  paragraphSurfaceOffset: 0,
   paragraphMinContrast: 5.2,
   eyebrowColor: '#85858b',
   eyebrowColorMode: 'surface',
