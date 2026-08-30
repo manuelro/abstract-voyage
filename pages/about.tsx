@@ -846,7 +846,15 @@ function AboutPageContent() {
   // no-JS fallback") for the entire mobile/stacked range, and only lets
   // the live measurement take over once it's actually measuring a real
   // left edge.
-  const leftAlignPx = isNarrowViewport ? undefined : logoAnchorRect?.left;
+  // narrowColumnContentWidthDecoupledEnabled (about.config.ts's own doc
+  // comment has the full mechanism): opting in drops this live measurement
+  // entirely, so .splitLeft's own padding-left (about.module.css) falls
+  // back to its static clamp() default instead of the wordmark's own
+  // measured left edge — the narrow column's real available content width
+  // stops being a function of wherever the wordmark happens to render.
+  const leftAlignPx = (isNarrowViewport || aboutPageLayoutConfig.narrowColumnContentWidthDecoupledEnabled)
+    ? undefined
+    : logoAnchorRect?.left;
 
   // The headline's own text color used to be hand-resolved here
   // (resolveContrastAwareTextColor against colors.narrowColumnColor, mirroring
@@ -1463,7 +1471,20 @@ function AboutPageContent() {
           </div>
         ) : null}
         wideColumnClassName={styles.splitRight}
-        narrowColumnClassName={`${styles.splitLeft} relative isolate`}
+        narrowColumnClassName={[
+          styles.splitLeft,
+          'relative isolate',
+          // See narrowColumnContentWidthDecoupledEnabled's own doc comment
+          // (about.config.ts) — this modifier suppresses .splitLeft's own
+          // padding-left rule (about.module.css) entirely, so the
+          // narrowColumnContentPaddingLeft*/-Wide/-Lg fields already live in
+          // this page's own Polymorphic Layout panel become the real,
+          // working source of left padding instead of always losing to that
+          // rule on equal-specificity/later-cascade-order (the same class of
+          // bug already fixed for padding-top/-bottom, see .splitLeft's own
+          // doc comment).
+          aboutPageLayoutConfig.narrowColumnContentWidthDecoupledEnabled ? styles.splitLeftWidthDecoupled : '',
+        ].filter(Boolean).join(' ')}
         // Was an explicit empty override ({}) — <PolymorphicLayout>'s own
         // default wideColumnStyle already paints colors.wideColumnColor
         // inline; this page used to opt out entirely on the theory that

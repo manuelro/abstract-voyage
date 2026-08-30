@@ -245,6 +245,12 @@ export const ABOUT_PAGE_LAYOUT_PANEL = defineConfigScope<AboutPageLayoutConfig>(
       description: 'Mobile/stacked breakpoint only, and only while the header top segment dynamic background above is also on. Extends that same gradient mesh to the logo segment and the entire narrow column, composited so all three read as one continuous field instead of three separate flat/gradient treatments stacked on top of each other. Off (default): only the nav segment gets the gradient, matching today\'s behavior.',
       visibleWhen: config => config.topSegmentDynamicBackgroundEnabled,
     },
+    {
+      kind: 'boolean',
+      key: 'narrowColumnContentWidthDecoupledEnabled',
+      label: 'Narrow column width decoupled from wordmark',
+      description: 'Off (default): the narrow column\'s left padding is live-measured from the header wordmark\'s own rendered left edge, so its available content width silently tracks wherever the wordmark renders, and the Polymorphic Layout panel\'s own narrow column padding-left fields never take effect. On: left padding comes from those fields alone, so the column\'s width stops depending on the wordmark, matching /abstract\'s narrow column.',
+    },
   ],
   copy: {
     targetFile: 'pages/about.config.ts',

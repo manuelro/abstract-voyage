@@ -55,8 +55,8 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnClearsFloatingHeaderWide: true,
   narrowColumnClearsFloatingHeaderLg: true,
   colorSource: 'custom',
-  wideColumnCustomColor: '#2f2f3d',
-  narrowColumnCustomColor: '#2f2f3d',
+  wideColumnCustomColor: '#191929',
+  narrowColumnCustomColor: '#191929',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
   headerSplitBandEnabled: true,
@@ -97,7 +97,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnContentAlignLg: 'items-end',
   narrowColumnContentWidth: 'auto',
   narrowColumnContentWidthWide: 'md:max-w-[100%]',
-  narrowColumnContentWidthLg: 'lg:max-w-[100%]',
+  narrowColumnContentWidthLg: 'lg:max-w-[80%]',
   narrowColumnTextAlign: 'text-left',
   narrowColumnTextAlignWide: 'md:text-right',
   narrowColumnTextAlignLg: 'lg:text-right',
@@ -247,10 +247,10 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   bodyGutterPaddingRightLg: 'lg:pr-0',
   colorSourceWide: 'custom',
   colorSourceLg: 'custom',
-  wideColumnCustomColorWide: '#333342',
-  wideColumnCustomColorLg: '#333342',
-  narrowColumnCustomColorWide: '#2f2f3d',
-  narrowColumnCustomColorLg: '#2f2f3d',
+  wideColumnCustomColorWide: '#191929',
+  wideColumnCustomColorLg: '#191929',
+  narrowColumnCustomColorWide: '#2c2c3f',
+  narrowColumnCustomColorLg: '#2c2c3f',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
@@ -292,8 +292,8 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // '#0e1230' placeholder this scope's colorSource: 'surface' had made
   // permanently inert.
   colorSource: 'custom',
-  wideColumnCustomColor: '#32323e',
-  narrowColumnCustomColor: '#32323e',
+  wideColumnCustomColor: '#191929',
+  narrowColumnCustomColor: '#191929',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
   headerSplitBandEnabled: true,
@@ -318,8 +318,8 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnContentWidthWide: 'md:max-w-[100%]',
   narrowColumnContentWidthLg: 'lg:max-w-[100%]',
   narrowColumnTextAlign: 'text-left',
-  narrowColumnTextAlignWide: 'md:text-left',
-  narrowColumnTextAlignLg: 'lg:text-left',
+  narrowColumnTextAlignWide: 'md:text-right',
+  narrowColumnTextAlignLg: 'lg:text-right',
   wideColumnContentAlign: 'items-start',
   wideColumnContentAlignWide: 'items-start',
   wideColumnContentAlignLg: 'items-start',
@@ -339,8 +339,19 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   wideColumnContentMinHeight: 'min-h-0',
   narrowColumnMobileAlignOffsetPx: 0,
   narrowColumnContentPaddingLeft: 'pl-7',
-  narrowColumnContentPaddingLeftWide: 'md:pl-4',
-  narrowColumnContentPaddingLeftLg: 'lg:pl-0',
+  // md:pl-7/lg:pl-14 — was md:pl-4/lg:pl-0, both silently dead at every
+  // viewport ≥768px: about.module.css's own .splitLeft padding-left rule
+  // (live-measured from the header wordmark's own position) always won the
+  // cascade over these regardless of their value, so this field never
+  // actually painted anything at md/lg (see narrowColumnContentWidth-
+  // DecoupledEnabled's own doc comment, about.config.ts, for the fix that
+  // makes this field the real source again once an operator opts in).
+  // Retuned to /abstract's own exact values (ABSTRACT_POLYMORPHIC_LAYOUT_
+  // CONFIG above) rather than left at 0 — a literal 0 read as content
+  // flush against the true viewport edge once this field went live, which
+  // /abstract's own narrow column (no such dead-field history) never does.
+  narrowColumnContentPaddingLeftWide: 'md:pl-7',
+  narrowColumnContentPaddingLeftLg: 'lg:pl-14',
   narrowColumnContentPaddingRightWide: 'md:pr-7',
   narrowColumnContentPaddingRightLg: 'lg:pr-14',
   narrowColumnContentPaddingRight: 'pr-14',
@@ -485,12 +496,12 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // pages/about.tsx's own wideColumnStyle doc comment for the OTHER half of
   // this incident — this value was also, independently, never actually
   // painted anywhere on the page at all until that fix.
-  wideColumnCustomColorWide: '#32323e',
-  wideColumnCustomColorLg: '#32323e',
+  wideColumnCustomColorWide: '#191929',
+  wideColumnCustomColorLg: '#191929',
   // Was '#dadbe2' — parity fix, same reason as wideColumnCustomColorWide
   // above (colorSourceWide's own doc comment).
-  narrowColumnCustomColorWide: '#32323e',
-  narrowColumnCustomColorLg: '#2f2f3d',
+  narrowColumnCustomColorWide: '#191929',
+  narrowColumnCustomColorLg: '#191929',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,

@@ -36,23 +36,6 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  /* Left inset matches the header logo's own measured left edge
-     (--about-left-align-px, set inline once about.tsx measures it — see the
-     logoAnchorRef effect) so the two starting points line up exactly; the
-     clamp() is only the pre-measurement/no-JS fallback. Right padding is
-     intentionally absent here: ABOUT_POLYMORPHIC_LAYOUT_CONFIG owns it at
-     every tier so the navigation no-content zone remains live in the page's
-     registered Polymorphic Layout panel.
-     padding-top/-bottom deliberately absent too (BUGS-AUDIT-POLYMORPHIC-
-     LAYOUT-CARD-STACK.md BUG-006) — a former `padding-top: clamp(2rem, 6vh,
-     4rem)` here had no live-measurement justification (unlike padding-left
-     above) and simply out-ranked ABOUT_POLYMORPHIC_LAYOUT_CONFIG's own
-     narrowColumnContentPaddingTop/-Bottom fields at every breakpoint via
-     equal-specificity/later-cascade-order, the exact same class of bug
-     found independently on AbstractEditorialHero (BUG-004). Removed so
-     those panel fields (already correctly emitting pt-0/md:pt-14/lg:pt-0
-     etc. into the DOM) are the sole, working source of vertical padding. */
-  padding-left: var(--about-left-align-px, clamp(1.5rem, 4vw, 4rem));
   /* The page sets --about-left-panel-color inline from live palette state
      (see resolveAboutAccent in about.tsx) — same custom-property hookup
      pattern as --about-nav-h-*. Forced to transparent (still via this same
@@ -60,6 +43,36 @@
      backgroundColor becomes this panel's real background then, painted by
      a layer behind it rather than this element's own background-color. */
   background-color: var(--about-left-panel-color);
+}
+
+/* Left inset matches the header logo's own measured left edge
+   (--about-left-align-px, set inline once about.tsx measures it — see the
+   logoAnchorRef effect) so the two starting points line up exactly; the
+   clamp() is only the pre-measurement/no-JS fallback. Right padding is
+   intentionally absent here: ABOUT_POLYMORPHIC_LAYOUT_CONFIG owns it at
+   every tier so the navigation no-content zone remains live in the page's
+   registered Polymorphic Layout panel.
+   padding-top/-bottom deliberately absent too (BUGS-AUDIT-POLYMORPHIC-
+   LAYOUT-CARD-STACK.md BUG-006) — a former `padding-top: clamp(2rem, 6vh,
+   4rem)` here had no live-measurement justification (unlike padding-left
+   above) and simply out-ranked ABOUT_POLYMORPHIC_LAYOUT_CONFIG's own
+   narrowColumnContentPaddingTop/-Bottom fields at every breakpoint via
+   equal-specificity/later-cascade-order, the exact same class of bug found
+   independently on AbstractEditorialHero (BUG-004). Removed so those panel
+   fields (already correctly emitting pt-0/md:pt-14/lg:pt-0 etc. into the
+   DOM) are the sole, working source of vertical padding.
+   Split into its own rule (was folded into .splitLeft above), gated on
+   :not(.splitLeftWidthDecoupled) — narrowColumnContentWidthDecoupledEnabled
+   (about.config.ts) toggles that modifier class on, which drops this whole
+   declaration out of the cascade for this element, so
+   narrowColumnContentPaddingLeft/-Wide/-Lg (already live in this page's own
+   Polymorphic Layout panel) stop losing to it on equal-specificity/later-
+   cascade-order and become the real, working source of left padding — the
+   exact same class of bug the padding-top/-bottom removal above already
+   fixed, still live here for left because the live-measurement behavior is
+   the default, opt-out via this modifier rather than opt-in. */
+.splitLeft:not(.splitLeftWidthDecoupled) {
+  padding-left: var(--about-left-align-px, clamp(1.5rem, 4vw, 4rem));
 }
 
 /* AbstractPostDock's own wrapping <section> has no explicit height of its

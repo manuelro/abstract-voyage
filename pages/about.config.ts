@@ -106,6 +106,32 @@ export type AboutPageLayoutConfig = {
    * on — this field only extends that one's reach, it never substitutes for
    * it. */
   mobileUnifiedNarrowColumnGradientEnabled: boolean;
+  /** Off (default): the narrow column's own outer box (about.module.css's
+   * `.splitLeft`, both the header logo strip and the headline/paragraphs
+   * sit inside it) gets its `padding-left` from `--about-left-align-px` —
+   * live-measured from the header logo/wordmark's own rendered left edge
+   * (`logoAnchorRect.left`, this page's own `leftAlignPx`) so the headline's
+   * left edge lines up with the wordmark's. That padding eats directly into
+   * the column's available content width, so the narrow column content
+   * box's real rendered width ends up governed by wherever the wordmark
+   * happens to render, not by narrowColumnContentWidth/-Wide/-Lg's own
+   * configured percentage (Polymorphic Layout panel) — confirmed live: with
+   * the wordmark's own measured position removed, the same box immediately
+   * gains ~100px of width it otherwise never got. The same `.splitLeft` rule
+   * also always wins the padding-left cascade over this page's own
+   * narrowColumnContentPaddingLeft/-Wide/-Lg fields regardless of their
+   * value (equal-specificity, later source order) — the exact class of bug
+   * already fixed for padding-top/-bottom (BUGS-AUDIT-POLYMORPHIC-LAYOUT-
+   * CARD-STACK.md BUG-006), still live here for left because the
+   * wordmark-alignment behavior is a deliberate default, not an oversight.
+   * On: `leftAlignPx` is treated as always unset AND `.splitLeft`'s own
+   * padding-left rule is skipped entirely for this element (the
+   * `splitLeftWidthDecoupled` modifier class, about.module.css) — this
+   * column's real left padding becomes narrowColumnContentPaddingLeft/-Wide/
+   * -Lg alone, and its available content width stops depending on the
+   * wordmark's position, the same independent behavior /abstract's own
+   * narrow column (no such live-measured padding at all) already has. */
+  narrowColumnContentWidthDecoupledEnabled: boolean;
 };
 
 export const DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG = {
@@ -125,6 +151,7 @@ export const DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG = {
   pageEntranceEasing: 'viscous',
   topSegmentDynamicBackgroundEnabled: true,
   mobileUnifiedNarrowColumnGradientEnabled: true,
+  narrowColumnContentWidthDecoupledEnabled: true,
 } satisfies AboutPageLayoutConfig;
 
 const TEXT_TONES: ReadonlyArray<AboutPageLeftPanelTextTone> = ['light', 'dark', 'column'];
@@ -189,6 +216,7 @@ export function normalizeAboutPageLayoutConfig(
     ),
     topSegmentDynamicBackgroundEnabled: Boolean(base.topSegmentDynamicBackgroundEnabled),
     mobileUnifiedNarrowColumnGradientEnabled: Boolean(base.mobileUnifiedNarrowColumnGradientEnabled),
+    narrowColumnContentWidthDecoupledEnabled: Boolean(base.narrowColumnContentWidthDecoupledEnabled),
   };
 }
 
