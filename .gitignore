@@ -19,6 +19,11 @@
 # server's own build cache.
 /.next-verify/
 /out-verify/
+# A local ad-hoc `next build && next export` preview dir, distinct from the
+# gate's own /out-verify/ above — recurs as untracked noise in every git
+# status this repo's own operators/agents run locally; never meant to be
+# tracked.
+/out-local-preview/
 
 # production
 /build
