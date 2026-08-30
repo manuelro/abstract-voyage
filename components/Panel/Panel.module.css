@@ -54,6 +54,13 @@
   --panel-motion-disclosure: 320ms;
   --panel-motion-disclosure-close: 240ms;
   --panel-easing: cubic-bezier(0.16, 1, 0.3, 1);
+  /* PanelShellConfig.shellEasing — the shell's own launcher<->panel swap
+     (panelEnter/launcherEnter below), kept independent from --panel-easing
+     (disclosureEasing's own property, row-level only) so tuning one can
+     never retune the other. Same default value as --panel-easing purely by
+     coincidence (both trace back to this file's original single shared
+     easing before either was split into its own configurable field). */
+  --panel-shell-motion-easing: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .panelFrame {
@@ -132,13 +139,18 @@
 .panel {
   box-sizing: border-box;
   width: 100%;
-  max-height: calc(
+  /* usePanelVerticalAnchor.ts computes --panel-max-height explicitly on
+     every open (both 'up' and 'down' anchor modes) — the calc() here is
+     only a defensive fallback for the (never expected in practice) case
+     where that JS-computed value is somehow absent, kept identical to this
+     rule's own pre-existing formula so nothing changes if it's ever hit. */
+  max-height: var(--panel-max-height, calc(
     100dvh
     - max(24px, env(safe-area-inset-bottom))
     - 12px
     - var(--panel-elevation-px, 0px)
     - var(--panel-shadow-clearance-px, 0px)
-  );
+  ));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -149,8 +161,17 @@
   border-radius: var(--panel-radius);
   color: var(--panel-text);
   font-family: var(--panel-font);
-  animation: panelEnter var(--panel-motion-standard) var(--panel-easing) both;
+  animation: panelEnter var(--panel-shell-open-duration, 280ms) var(--panel-shell-motion-easing) both;
   transform-origin: right bottom;
+}
+
+/* PanelShell.tsx's usePanelVerticalAnchor 'down' mode — the collapsed
+   launcher sat too close to the viewport's top edge to grow upward without
+   clipping, so .panelFrame pins `top` instead of `bottom` and this section
+   grows downward. Scale/fade should originate from the pinned edge, not
+   the opposite one. */
+.panel[data-anchor='down'] {
+  transform-origin: right top;
 }
 
 .panelLauncher {
@@ -168,7 +189,7 @@
   color: var(--panel-text);
   font-family: var(--panel-font);
   cursor: pointer;
-  animation: launcherEnter 220ms var(--panel-easing) both;
+  animation: launcherEnter var(--panel-shell-close-duration, 220ms) var(--panel-shell-motion-easing) both;
   transform-origin: right bottom;
   transition:
     background-color var(--panel-motion-fast) ease,
@@ -250,7 +271,13 @@
 }
 
 @keyframes panelEnter {
-  from { opacity: 0; transform: translateY(6px) scale(0.992); transform-origin: right bottom; }
+  /* transform-origin deliberately not set per-keyframe (it was previously
+     hardcoded to `right bottom` here, which fought the element-level
+     `.panel[data-anchor='down']` override above during the down-mode
+     animation) — the element's own transform-origin governs the whole
+     animation instead, so the 'down' anchor mode's `right top` origin
+     actually takes effect. */
+  from { opacity: 0; transform: translateY(6px) scale(0.992); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -270,6 +297,32 @@
 .backdrop[data-blur='true'] {
   backdrop-filter: blur(var(--panel-background-blur-px)) saturate(0.9);
   -webkit-backdrop-filter: blur(var(--panel-background-blur-px)) saturate(0.9);
+}
+
+/* Opt-in drag-time frosted glass (PanelShellConfig.dragBackdropBlurEnabled) —
+   applies identically to every surface that otherwise paints its own opaque
+   fill (this .backdrop, .scopeListToolbar's sticky header, .panelLauncher
+   when collapsed), so the whole shell reads as one frosted material during a
+   drag rather than a patchwork of differently-opaque rectangles (the sticky
+   toolbar previously stayed a flat --panel-bg-effective the whole time,
+   visibly mismatched against the rest of the panel once dragging began).
+   --panel-drag-frost-bg is a plain rgba() string precomputed in index.tsx
+   via colord (PanelShell's own resolved surface color at
+   dragOpacityWhileDragging's alpha) rather than a CSS color-mix()/calc()
+   expression — deliberately reduces THIS element's own background alpha
+   rather than relying on an ancestor's `opacity`: an ancestor fade
+   re-composites this already-opaque surface against the raw page *after*
+   any backdrop-filter has run, which reveals the sharp page, not a blurred
+   one (see usePanelDrag.ts's own frameStyle doc comment for the full
+   compositing-order explanation). Lowering this element's own alpha instead
+   lets the blurred backdrop sample dominate the local composite. */
+.backdrop[data-drag-frost='true'],
+.scopeListToolbar[data-drag-frost='true'],
+.panelLauncher[data-drag-frost='true'] {
+  background: var(--panel-drag-frost-bg, var(--panel-bg));
+  backdrop-filter: blur(var(--panel-drag-blur-px, 0px));
+  -webkit-backdrop-filter: blur(var(--panel-drag-blur-px, 0px));
+  transition: var(--panel-drag-frost-transition, none);
 }
 
 .panelHeader {
@@ -332,6 +385,16 @@
   position: relative;
   box-sizing: border-box;
   width: 100%;
+  opacity: 1;
+  transition: opacity var(--panel-inactive-dim-duration, 140ms) var(--panel-inactive-dim-easing, ease);
+}
+
+/* PanelShellConfig.inactiveSectionDimEnabled/inactiveSectionOpacity — the
+   shell writes --panel-inactive-dim-opacity to 1 whenever the feature is
+   off, so this rule is a no-op in that state rather than needing its own
+   separate enabled/disabled selector. */
+.componentSection[data-open='false'] {
+  opacity: var(--panel-inactive-dim-opacity, 1);
 }
 
 /* Progressive depth shading (PLAN-POSTS-LAB-PANEL-TABS.md §13) — a
@@ -626,6 +689,15 @@
   position: relative;
   box-sizing: border-box;
   width: 100%;
+  opacity: 1;
+  transition: opacity var(--panel-inactive-dim-duration, 140ms) var(--panel-inactive-dim-easing, ease);
+}
+
+/* Same PanelShellConfig.inactiveSectionDimEnabled/inactiveSectionOpacity
+   dimming as .componentSection above, applied at the nested-subgroup level
+   too so a collapsed Sect reads consistently with a collapsed scope. */
+.section[data-open='false'] {
+  opacity: var(--panel-inactive-dim-opacity, 1);
 }
 
 .sectionToggle {

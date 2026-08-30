@@ -1,7 +1,10 @@
+import type { CtaButtonMotionEasing } from '../../CtaButton/config/registered';
+
 export type PanelShellSurfaceMode = 'inherited' | 'custom';
 export type PanelShellTextMode = 'auto' | 'custom';
 export type PanelShellDerivedColorMode = 'text' | 'custom';
 export type PanelShellShadowColorMode = 'surface' | 'custom';
+export type PanelShellDragCursor = 'grab-grabbing' | 'move' | 'none';
 
 /**
  * Authoritative appearance and elevation contract for PanelShell. The
@@ -78,6 +81,95 @@ export type PanelShellConfig = {
   shadowColorMode: PanelShellShadowColorMode;
   shadowColor: string;
   shadowSurfaceDarkenAmount: number;
+  /** Master toggle — dragging the shell by its header to any screen
+   * position, persisted across reloads. Off restores today's fixed
+   * bottom-right-only behavior exactly. */
+  dragEnabled: boolean;
+  /** Cursor shown over the drag handle at rest / while dragging.
+   * 'grab-grabbing' is the conventional open/closed-hand pair; 'move' is
+   * the plain four-way arrow some operators may prefer; 'none' leaves the
+   * default pointer for a low-chrome feel. */
+  dragCursor: PanelShellDragCursor;
+  /** Shell opacity for the duration of an active drag — regained on
+   * release. */
+  dragOpacityWhileDragging: number;
+  /** Duration of the opacity fade both into dragOpacityWhileDragging (drag
+   * start) and back to full opacity (drag end) — a plain CSS transition,
+   * unlike the position settle below (a real integrated spring has no
+   * single "duration" to assign a scalar fade). */
+  dragOpacityTransitionMs: number;
+  /** Reuses CtaButton's shared easing vocabulary (CTA_BUTTON_MOTION_EASINGS)
+   * for the opacity fade above. */
+  dragOpacityTransitionEasing: CtaButtonMotionEasing;
+  /** Opt-in — blurs whatever shows through the shell's own reduced
+   * dragOpacityWhileDragging translucency for the duration of an active
+   * drag, distinct from backdropBlurEnabled above (that one is a static,
+   * always-on halo beyond the panel edge; this one only applies mid-drag,
+   * to the panel's own surface). Off by default: a live backdrop-filter
+   * blur is a real, continuous paint cost while dragging, not free chrome
+   * an operator should get without asking for it. */
+  dragBackdropBlurEnabled: boolean;
+  dragBackdropBlurPx: number;
+  /** A real damped-spring integration (unit mass, x'' = -stiffness*x -
+   * damping*x') drives the release-snap — same "physically integrated edge
+   * settle rather than a cubic-bezier alias" approach and same stiffness/
+   * damping vocabulary as SplitColumnCardStackConfig's own
+   * verticalEdgeSpringStiffness/-Damping (useStackGestureNavigation.ts's
+   * startEdgeSpringForAxis). Higher stiffness settles faster; lower damping
+   * lets it overshoot and oscillate before stopping — the "damping on
+   * release" quality requested, not just an eased duration. */
+  dragSettleStiffness: number;
+  dragSettleDamping: number;
+  /** Safety cutoff, not a normal exit path — a positive damping value
+   * converges well within this window on its own; only guards against a
+   * misconfigured near-zero damping value ringing indefinitely. */
+  dragSettleMaxDurationMs: number;
+  /** Replaces the shell's own previously-hardcoded --panel-motion-disclosure
+   * CSS custom property. */
+  disclosureOpenDurationMs: number;
+  /** Replaces --panel-motion-disclosure-close. */
+  disclosureCloseDurationMs: number;
+  /** Replaces --panel-easing. 'viscous' is byte-identical to the value that
+   * property was hardcoded to before this field existed, so the default
+   * here is a pure config-ification with no visual change. */
+  disclosureEasing: CtaButtonMotionEasing;
+  /** The shell's own launcher-to-panel swap (PanelShell.tsx's `isOpen`
+   * early return, .panel's `panelEnter` keyframe) — distinct from
+   * disclosureOpenDurationMs/-CloseDurationMs above, which govern each
+   * individual scope/subgroup row's own reveal, not the overall shell
+   * mount/unmount fade+scale. Replaces the previously-hardcoded
+   * `--panel-motion-standard` (280ms) used by that keyframe. */
+  shellOpenDurationMs: number;
+  /** The launcher's own `launcherEnter` keyframe (plays when the shell
+   * collapses back to its launcher button) — replaces the previously-
+   * hardcoded 220ms literal. */
+  shellCloseDurationMs: number;
+  /** Shared by both keyframes above via a dedicated
+   * --panel-shell-motion-easing custom property, kept separate from
+   * --panel-easing (disclosureEasing's own property, which continues to
+   * govern only the row-level disclosure) so tuning one can never
+   * accidentally retune the other. 'viscous' is byte-identical to the
+   * value both keyframes were hardcoded to before this field existed. */
+  shellEasing: CtaButtonMotionEasing;
+  /** Master toggle — dims a scope/subgroup row while it's collapsed, so an
+   * expanded row reads as visually foregrounded against its idle siblings. */
+  inactiveSectionDimEnabled: boolean;
+  /** Opacity applied to a collapsed row when the toggle above is on. */
+  inactiveSectionOpacity: number;
+  /** Duration of the fade between full opacity and inactiveSectionOpacity,
+   * in either direction. */
+  inactiveSectionDimDurationMs: number;
+  /** Reuses CtaButton's shared easing vocabulary for the fade above. */
+  inactiveSectionDimEasing: CtaButtonMotionEasing;
+  /** Master toggle — hovering an unexpanded scope/subgroup row for
+   * hoverIntentDelayMs auto-expands it, inferring intent from dwell time
+   * rather than requiring a click. Off by default: auto-expanding on mere
+   * hover is a real behavior change an operator should opt into, not a
+   * silent default. */
+  hoverIntentExpandEnabled: boolean;
+  /** Dwell time, in ms, before an unexpanded row under the pointer
+   * auto-expands. Only consulted when hoverIntentExpandEnabled is true. */
+  hoverIntentDelayMs: number;
 };
 
 export const DEFAULT_PANEL_SHELL_CONFIG = {
@@ -130,7 +222,42 @@ export const DEFAULT_PANEL_SHELL_CONFIG = {
   shadowColorMode: 'surface',
   shadowColor: '#0d0d10',
   shadowSurfaceDarkenAmount: 0.24,
+  dragEnabled: true,
+  dragCursor: 'grab-grabbing',
+  dragOpacityWhileDragging: 0.5,
+  dragOpacityTransitionMs: 160,
+  dragOpacityTransitionEasing: 'gentle',
+  dragBackdropBlurEnabled: false,
+  dragBackdropBlurPx: 12,
+  // Same stiffness/damping vocabulary and defaults as
+  // SplitColumnCardStackConfig.verticalEdgeSpringStiffness/-Damping.
+  dragSettleStiffness: 220,
+  dragSettleDamping: 20,
+  dragSettleMaxDurationMs: 900,
+  disclosureOpenDurationMs: 320,
+  disclosureCloseDurationMs: 240,
+  disclosureEasing: 'viscous',
+  shellOpenDurationMs: 280,
+  shellCloseDurationMs: 220,
+  shellEasing: 'viscous',
+  inactiveSectionDimEnabled: true,
+  inactiveSectionOpacity: 0.7,
+  inactiveSectionDimDurationMs: 140,
+  inactiveSectionDimEasing: 'standard',
+  hoverIntentExpandEnabled: false,
+  hoverIntentDelayMs: 500,
 } satisfies PanelShellConfig;
+
+const MOTION_EASING_VALUES: readonly CtaButtonMotionEasing[] = [
+  'linear', 'standard', 'expressive', 'viscous', 'gentle', 'gaussian',
+];
+
+const motionEasing = (
+  value: CtaButtonMotionEasing,
+  fallback: CtaButtonMotionEasing,
+): CtaButtonMotionEasing => (
+  MOTION_EASING_VALUES.includes(value) ? value : fallback
+);
 
 const clamp = (value: number, min: number, max: number, fallback: number) => (
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : fallback))
@@ -310,6 +437,82 @@ export function normalizePanelShellConfig(
       0,
       1,
       DEFAULT_PANEL_SHELL_CONFIG.shadowSurfaceDarkenAmount,
+    ),
+    dragEnabled: base.dragEnabled !== false,
+    dragCursor: base.dragCursor === 'move' || base.dragCursor === 'none'
+      ? base.dragCursor
+      : 'grab-grabbing',
+    dragOpacityWhileDragging: clamp(
+      base.dragOpacityWhileDragging,
+      0,
+      1,
+      DEFAULT_PANEL_SHELL_CONFIG.dragOpacityWhileDragging,
+    ),
+    dragOpacityTransitionMs: clamp(
+      base.dragOpacityTransitionMs,
+      0,
+      2000,
+      DEFAULT_PANEL_SHELL_CONFIG.dragOpacityTransitionMs,
+    ),
+    dragOpacityTransitionEasing: motionEasing(
+      base.dragOpacityTransitionEasing, DEFAULT_PANEL_SHELL_CONFIG.dragOpacityTransitionEasing,
+    ),
+    dragBackdropBlurEnabled: base.dragBackdropBlurEnabled === true,
+    dragBackdropBlurPx: clamp(
+      base.dragBackdropBlurPx, 0, 48, DEFAULT_PANEL_SHELL_CONFIG.dragBackdropBlurPx,
+    ),
+    dragSettleStiffness: clamp(
+      base.dragSettleStiffness, 40, 800, DEFAULT_PANEL_SHELL_CONFIG.dragSettleStiffness,
+    ),
+    dragSettleDamping: clamp(
+      base.dragSettleDamping, 2, 120, DEFAULT_PANEL_SHELL_CONFIG.dragSettleDamping,
+    ),
+    dragSettleMaxDurationMs: clamp(
+      base.dragSettleMaxDurationMs, 0, 3000, DEFAULT_PANEL_SHELL_CONFIG.dragSettleMaxDurationMs,
+    ),
+    disclosureOpenDurationMs: clamp(
+      base.disclosureOpenDurationMs,
+      0,
+      2000,
+      DEFAULT_PANEL_SHELL_CONFIG.disclosureOpenDurationMs,
+    ),
+    disclosureCloseDurationMs: clamp(
+      base.disclosureCloseDurationMs,
+      0,
+      2000,
+      DEFAULT_PANEL_SHELL_CONFIG.disclosureCloseDurationMs,
+    ),
+    disclosureEasing: motionEasing(
+      base.disclosureEasing, DEFAULT_PANEL_SHELL_CONFIG.disclosureEasing,
+    ),
+    shellOpenDurationMs: clamp(
+      base.shellOpenDurationMs, 0, 2000, DEFAULT_PANEL_SHELL_CONFIG.shellOpenDurationMs,
+    ),
+    shellCloseDurationMs: clamp(
+      base.shellCloseDurationMs, 0, 2000, DEFAULT_PANEL_SHELL_CONFIG.shellCloseDurationMs,
+    ),
+    shellEasing: motionEasing(
+      base.shellEasing, DEFAULT_PANEL_SHELL_CONFIG.shellEasing,
+    ),
+    inactiveSectionDimEnabled: base.inactiveSectionDimEnabled !== false,
+    inactiveSectionOpacity: clamp(
+      base.inactiveSectionOpacity,
+      0,
+      1,
+      DEFAULT_PANEL_SHELL_CONFIG.inactiveSectionOpacity,
+    ),
+    inactiveSectionDimDurationMs: clamp(
+      base.inactiveSectionDimDurationMs,
+      0,
+      2000,
+      DEFAULT_PANEL_SHELL_CONFIG.inactiveSectionDimDurationMs,
+    ),
+    inactiveSectionDimEasing: motionEasing(
+      base.inactiveSectionDimEasing, DEFAULT_PANEL_SHELL_CONFIG.inactiveSectionDimEasing,
+    ),
+    hoverIntentExpandEnabled: base.hoverIntentExpandEnabled === true,
+    hoverIntentDelayMs: clamp(
+      base.hoverIntentDelayMs, 0, 5000, DEFAULT_PANEL_SHELL_CONFIG.hoverIntentDelayMs,
     ),
   };
 }

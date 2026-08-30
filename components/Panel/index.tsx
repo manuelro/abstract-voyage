@@ -20,6 +20,9 @@ import {
 import type { ConfigScopeBinding } from './config/types';
 import styles from './Panel.module.css';
 import { clamp, getStepPrecision, formatKnobValue } from '../mathUtils';
+import { CTA_BUTTON_MOTION_EASINGS } from '../CtaButton/config/registered';
+import { usePanelDrag } from './usePanelDrag';
+import { usePanelVerticalAnchor } from './usePanelVerticalAnchor';
 
 export {
   DEFAULT_PANEL_SHELL_CONFIG,
@@ -407,6 +410,21 @@ export function Select<T extends string>({
 type PanelNestingState = { color: string; step: number } | null;
 export const PanelNestingContext = createContext<PanelNestingState>(null);
 
+/**
+ * Whether PanelShell's drag-time frosted-glass treatment
+ * (PanelShellConfig.dragBackdropBlurEnabled, `[data-drag-frost]` in
+ * Panel.module.css) is currently active — `false` by default so any
+ * consumer rendered outside a `PanelShell` (unit tests, Storybook
+ * fixtures) behaves exactly as before this feature existed. Only
+ * `ConfigScopeList`'s own sticky `.scopeListToolbar` consumes this today:
+ * that toolbar must stay fully opaque the rest of the time (it occludes
+ * whatever scrolls underneath it while pinned), but should switch to the
+ * exact same frosted fill as `.backdrop`/`.panelLauncher` while dragging,
+ * so the whole shell reads as one material instead of a toolbar-shaped
+ * solid rectangle sitting on top of a blurred body.
+ */
+export const PanelDragFrostContext = createContext(false);
+
 export function ComponentConfigSection({
   component,
   title,
@@ -415,6 +433,8 @@ export function ComponentConfigSection({
   open,
   onToggle,
   isGlobal = false,
+  onHoverIntentStart,
+  onHoverIntentCancel,
   children,
 }: {
   component: string;
@@ -429,12 +449,25 @@ export function ComponentConfigSection({
    * component-owner tag, this never expands into a label on hover/open —
    * see createConfigScopeBinding's own `global` param for how it's set. */
   isGlobal?: boolean;
+  /** PanelShellConfig.hoverIntentExpandEnabled — starts/cancels the caller's
+   * own dwell timer (ConfigScopeRenderer owns it, not this component, so a
+   * single timer implementation isn't duplicated per section instance).
+   * Optional: a caller that never passes these (unit tests, other Sect/
+   * ComponentConfigSection consumers) gets no hover behavior, unchanged
+   * from before this feature existed. */
+  onHoverIntentStart?: () => void;
+  onHoverIntentCancel?: () => void;
   children: ReactNode;
 }) {
   const contentId = useId();
 
   return (
-    <section className={styles.componentSection} data-open={open ? 'true' : 'false'}>
+    <section
+      className={styles.componentSection}
+      data-open={open ? 'true' : 'false'}
+      onPointerEnter={onHoverIntentStart}
+      onPointerLeave={onHoverIntentCancel}
+    >
       <button
         type="button"
         className={styles.componentSectionToggle}
@@ -655,6 +688,45 @@ export function PanelShell({
     applyElevation(activeElevationPx);
   }, [activeElevationPx, applyElevation, elevationShadowOptions, shadowActive]);
 
+  const {
+    frameRef: dragFrameRef,
+    frameStyle: dragFrameStyle,
+    isDragging,
+    handleProps: dragHandleProps,
+    backgroundHandleProps: dragBackgroundHandleProps,
+    offsetX: dragOffsetX,
+    offsetY: dragOffsetY,
+  } = usePanelDrag({
+      enabled: panelConfig.dragEnabled,
+      isOpen,
+      settleStiffness: panelConfig.dragSettleStiffness,
+      settleDamping: panelConfig.dragSettleDamping,
+      settleMaxDurationMs: panelConfig.dragSettleMaxDurationMs,
+      opacityWhileDragging: panelConfig.dragOpacityWhileDragging,
+      opacityTransitionMs: panelConfig.dragOpacityTransitionMs,
+      opacityTransitionEasing: panelConfig.dragOpacityTransitionEasing,
+      backdropBlurEnabled: panelConfig.dragBackdropBlurEnabled,
+    });
+  // Drives Panel.module.css's `[data-drag-frost]` rules — see
+  // usePanelDrag's own frameStyle doc comment for why this frosted-glass
+  // translucency (surface background-color alpha + backdrop-filter, both
+  // applied directly to `.backdrop`/`.panelLauncher`) is a different
+  // mechanism from, and mutually exclusive with, that hook's whole-panel
+  // opacity fade: only one can actually reveal a *blurred* view of what's
+  // behind, and it isn't the ancestor-opacity one.
+  const dragFrostActive = isDragging && panelConfig.dragBackdropBlurEnabled;
+  const verticalAnchor = usePanelVerticalAnchor({
+    frameRef: dragFrameRef,
+    isOpen,
+    offsetX: dragOffsetX,
+    offsetY: dragOffsetY,
+  });
+  const dragHandleCursor = !panelConfig.dragEnabled || panelConfig.dragCursor === 'none'
+    ? undefined
+    : isDragging
+      ? 'grabbing'
+      : panelConfig.dragCursor === 'move' ? 'move' : 'grab';
+
   const resolvedInk = resolvedForegroundColor ? colord(resolvedForegroundColor) : null;
   const inkWithAlpha = (alpha: number) => resolvedInk?.alpha(alpha).toRgbString();
   const separatorInk = panelConfig.separatorColorMode === 'custom'
@@ -680,6 +752,49 @@ export function PanelShell({
     } : {}),
     '--panel-elevation-px': `${activeElevationPx}px`,
     '--panel-shadow-clearance-px': `${activeShadowClearancePx}px`,
+    '--panel-motion-disclosure': `${panelConfig.disclosureOpenDurationMs}ms`,
+    '--panel-motion-disclosure-close': `${panelConfig.disclosureCloseDurationMs}ms`,
+    '--panel-easing': CTA_BUTTON_MOTION_EASINGS[panelConfig.disclosureEasing],
+    '--panel-shell-open-duration': `${panelConfig.shellOpenDurationMs}ms`,
+    '--panel-shell-close-duration': `${panelConfig.shellCloseDurationMs}ms`,
+    '--panel-shell-motion-easing': CTA_BUTTON_MOTION_EASINGS[panelConfig.shellEasing],
+    // usePanelVerticalAnchor's own live-measured budget, for BOTH 'up' and
+    // 'down' mode — a static viewport formula (this property's own
+    // pre-existing fallback below) only budgets correctly when the frame
+    // still sits at its default, undragged bottom-right corner. Confirmed
+    // live: dragging the collapsed launcher to the vertical *middle* of the
+    // viewport still correctly picked 'up' mode (more room above than
+    // below there), but a static formula assuming "almost a full viewport
+    // of room above" let the expanded content grow tall enough to clip
+    // above y=0 anyway — the live-measured `maxHeightPx` is capped to
+    // whatever room the frame's own actual current position really has.
+    '--panel-max-height': verticalAnchor.maxHeightPx !== null
+      ? `${verticalAnchor.maxHeightPx}px`
+      : `calc(100dvh - max(24px, env(safe-area-inset-bottom)) - 12px - var(--panel-elevation-px, 0px) - var(--panel-shadow-clearance-px, 0px))`,
+    '--panel-inactive-dim-opacity': panelConfig.inactiveSectionDimEnabled
+      ? panelConfig.inactiveSectionOpacity
+      : 1,
+    '--panel-inactive-dim-duration': `${panelConfig.inactiveSectionDimDurationMs}ms`,
+    '--panel-inactive-dim-easing': CTA_BUTTON_MOTION_EASINGS[panelConfig.inactiveSectionDimEasing],
+    // [data-drag-frost] rules only (Panel.module.css) — every surface that
+    // paints its own opaque fill (.backdrop, .scopeListToolbar's sticky
+    // header, .panelLauncher) switches to this ONE precomputed translucent
+    // color plus a shared blur while dragging, so the whole shell reads as
+    // a single frosted material instead of a patchwork of differently-
+    // opaque rectangles. A plain rgba() string computed here via colord —
+    // not a CSS color-mix()/calc() expression — sidesteps any doubt about
+    // browser support for calc() inside a color-mix() percentage argument,
+    // and reuses dragOpacityWhileDragging as the frost's own alpha (rather
+    // than a separate knob) so "how see-through while dragging" still has
+    // exactly one answer regardless of which translucency strategy (this
+    // one, or the plain whole-panel opacity fade) is actually active.
+    ...(resolvedBackgroundColor ? {
+      '--panel-drag-frost-bg': colord(resolvedBackgroundColor)
+        .alpha(panelConfig.dragOpacityWhileDragging)
+        .toRgbString(),
+    } : {}),
+    '--panel-drag-blur-px': `${panelConfig.dragBackdropBlurPx}px`,
+    '--panel-drag-frost-transition': `background-color ${panelConfig.dragOpacityTransitionMs}ms ${CTA_BUTTON_MOTION_EASINGS[panelConfig.dragOpacityTransitionEasing]}, backdrop-filter ${panelConfig.dragOpacityTransitionMs}ms ${CTA_BUTTON_MOTION_EASINGS[panelConfig.dragOpacityTransitionEasing]}`,
     ...(separatorInk?.isValid() ? {
       '--panel-divider': separatorInk.alpha(panelConfig.separatorOpacity).toRgbString(),
       '--panel-divider-internal': separatorInk
@@ -702,15 +817,26 @@ export function PanelShell({
       '--panel-surface-selected': inkWithAlpha(0.16),
     } : {}),
   } as CSSProperties;
+  const frameStyle = {
+    ...shellStyle,
+    ...dragFrameStyle,
+    // usePanelVerticalAnchor's 'down' mode — only ever applied while open;
+    // the collapsed launcher always keeps the default bottom/right anchor
+    // regardless of which way the panel last expanded.
+    ...(isOpen && verticalAnchor.mode === 'down'
+      ? { top: `${verticalAnchor.topPx}px`, bottom: 'auto' }
+      : {}),
+  } as CSSProperties;
 
   if (!isOpen) {
     return (
       <div
+        ref={dragFrameRef}
         className={styles.panelFrame}
         data-open="false"
         data-appearance={resolvedAppearance}
         data-icon={panelConfig.launcherIconVisible ? 'visible' : 'hidden'}
-        style={shellStyle}
+        style={frameStyle}
       >
         {panelConfig.backdropBlurEnabled && panelConfig.backdropBlurPx > 0 ? (
           <div className={styles.blurSafeArea} aria-hidden="true" />
@@ -723,11 +849,13 @@ export function PanelShell({
           data-appearance={resolvedAppearance}
           data-elevation="rest"
           data-icon={panelConfig.launcherIconVisible ? 'visible' : 'hidden'}
-          style={shellStyle}
+          data-drag-frost={dragFrostActive ? 'true' : undefined}
+          style={dragHandleCursor ? { ...shellStyle, cursor: dragHandleCursor } : shellStyle}
           onClick={onToggle}
           aria-label={`Open ${title} settings`}
           aria-expanded={false}
           aria-controls={contentId}
+          {...dragHandleProps}
         >
           <span className={styles.launcherLabel}>SETTINGS</span>
           {panelConfig.launcherIconVisible ? <SettingsTuneIcon /> : null}
@@ -738,10 +866,11 @@ export function PanelShell({
 
   return (
     <div
+      ref={dragFrameRef}
       className={styles.panelFrame}
       data-open="true"
       data-appearance={resolvedAppearance}
-      style={shellStyle}
+      style={frameStyle}
     >
       {panelConfig.backdropBlurEnabled && panelConfig.backdropBlurPx > 0 ? (
         <div className={styles.blurSafeArea} aria-hidden="true" />
@@ -752,16 +881,23 @@ export function PanelShell({
         data-open="true"
         data-appearance={resolvedAppearance}
         data-elevation="expanded"
-        style={shellStyle}
+        data-anchor={verticalAnchor.mode}
+        style={dragHandleCursor ? { ...shellStyle, cursor: dragHandleCursor } : shellStyle}
         aria-label={`${title} settings`}
+        {...dragBackgroundHandleProps}
       >
         {/* The surface blurs its own underlay; the optional halo remains a frame sibling. */}
         <div
           className={styles.backdrop}
           data-blur={panelConfig.backgroundBlurEnabled && panelConfig.backgroundBlurPx > 0 ? 'true' : 'false'}
+          data-drag-frost={dragFrostActive ? 'true' : undefined}
           aria-hidden="true"
         />
-        <div className={styles.panelHeader}>
+        <div
+          className={styles.panelHeader}
+          style={dragHandleCursor ? { cursor: dragHandleCursor } : undefined}
+          {...dragHandleProps}
+        >
           <button
             type="button"
             className={styles.panelTitle}
@@ -776,14 +912,21 @@ export function PanelShell({
             <div className={styles.headerActions}>{headerActions}</div>
           )}
         </div>
-        <div id={contentId} className={styles.scrollArea}>
+        <div
+          id={contentId}
+          className={styles.scrollArea}
+          style={dragHandleCursor ? { cursor: dragHandleCursor } : undefined}
+          {...dragBackgroundHandleProps}
+        >
           <PanelNestingContext.Provider
             value={resolvedBackgroundColor ? {
               color: resolvedBackgroundColor,
               step: panelConfig.nestedSurfaceLightnessStep,
             } : null}
           >
-            {children}
+            <PanelDragFrostContext.Provider value={dragFrostActive}>
+              {children}
+            </PanelDragFrostContext.Provider>
           </PanelNestingContext.Provider>
         </div>
       </section>

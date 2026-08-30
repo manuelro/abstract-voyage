@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { SubLabel } from '../index';
+import React, { useContext, useMemo, useState } from 'react';
+import { PanelDragFrostContext, SubLabel } from '../index';
 import styles from '../Panel.module.css';
 import { ConfigScopeRenderer } from './ConfigScopeRenderer';
 import type { ConfigScopeBinding } from './types';
@@ -67,6 +67,7 @@ function compareBindings(a: ConfigScopeBinding, b: ConfigScopeBinding, sort: Con
  * that pre-existing double-render must keep working unchanged.
  */
 export function ConfigScopeList({ bindings }: { bindings: ReadonlyArray<ConfigScopeBinding> }) {
+  const dragFrostActive = useContext(PanelDragFrostContext);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useConfigScopeSortPreference();
   const [globalOnly, setGlobalOnly] = useConfigScopeGlobalFilter();
@@ -127,7 +128,10 @@ export function ConfigScopeList({ bindings }: { bindings: ReadonlyArray<ConfigSc
           longer waits behind the Frequently Used strip. .scopeListToolbar's
           own position: sticky/top: 0 now pins it there from the very start
           of the scroll, not just once you've scrolled past that strip. */}
-      <div className={styles.scopeListToolbar}>
+      <div
+        className={styles.scopeListToolbar}
+        data-drag-frost={dragFrostActive ? 'true' : undefined}
+      >
         <div className={styles.scopeListSearch}>
           <input
             type="text"
