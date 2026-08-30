@@ -9,11 +9,39 @@ import {
 } from '../../../components/tailwindSpacingScale';
 import {
   DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
+  FONT_SIZE_TOKENS,
+  FONT_SIZE_TOKEN_LABELS,
   type AbstractEditorialHeroConfig,
+  type AbstractEditorialHeroHeadlineFontSizeNarrow,
+  type AbstractEditorialHeroHeadlineFontSizeMid,
+  type AbstractEditorialHeroHeadlineFontSizeWide,
 } from './AbstractEditorialHero.config';
 
 export const ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID =
   'AbstractEditorialHero/layout' as const;
+
+/** One canonical option list per breakpoint prefix — the full Tailwind
+ * font-size scale, shared by both the Heading size and Body size fields at
+ * that breakpoint (their value types are structurally identical) instead of
+ * each being a separately hand-typed, easily-drifting subset. */
+const NARROW_FONT_SIZE_OPTIONS: ReadonlyArray<
+  { label: string; value: AbstractEditorialHeroHeadlineFontSizeNarrow }
+> = FONT_SIZE_TOKENS.map(sizeToken => ({
+  label: FONT_SIZE_TOKEN_LABELS[sizeToken],
+  value: `text-${sizeToken}`,
+}));
+const MID_FONT_SIZE_OPTIONS: ReadonlyArray<
+  { label: string; value: AbstractEditorialHeroHeadlineFontSizeMid }
+> = FONT_SIZE_TOKENS.map(sizeToken => ({
+  label: FONT_SIZE_TOKEN_LABELS[sizeToken],
+  value: `md:text-${sizeToken}`,
+}));
+const WIDE_FONT_SIZE_OPTIONS: ReadonlyArray<
+  { label: string; value: AbstractEditorialHeroHeadlineFontSizeWide }
+> = FONT_SIZE_TOKENS.map(sizeToken => ({
+  label: FONT_SIZE_TOKEN_LABELS[sizeToken],
+  value: `lg:text-${sizeToken}`,
+}));
 
 const ALL_SIZES_FIELDS = [
   {
@@ -202,48 +230,6 @@ const ALL_SIZES_FIELDS = [
       },
       {
         kind: 'enum',
-        key: 'headlineFontSizeNarrow',
-        label: 'Heading size · narrow',
-        visibleWhen: config => !config.headlineMatchesBodySize,
-        options: [
-          { label: 'SM', value: 'text-sm' },
-          { label: 'LG', value: 'text-lg' },
-          { label: '2XL', value: 'text-2xl' },
-          { label: '3XL', value: 'text-3xl' },
-          { label: '4XL', value: 'text-4xl' },
-          { label: '5XL', value: 'text-5xl' },
-        ],
-      },
-      {
-        kind: 'enum',
-        key: 'headlineFontSizeMid',
-        label: 'Heading size · mid',
-        visibleWhen: config => !config.headlineMatchesBodySize,
-        options: [
-          { label: 'SM', value: 'md:text-sm' },
-          { label: '2XL', value: 'md:text-2xl' },
-          { label: '4XL', value: 'md:text-4xl' },
-          { label: '5XL', value: 'md:text-5xl' },
-          { label: '6XL', value: 'md:text-6xl' },
-          { label: '7XL', value: 'md:text-7xl' },
-        ],
-      },
-      {
-        kind: 'enum',
-        key: 'headlineFontSizeWide',
-        label: 'Heading size · wide',
-        visibleWhen: config => !config.headlineMatchesBodySize,
-        options: [
-          { label: 'SM', value: 'lg:text-sm' },
-          { label: '2XL', value: 'lg:text-2xl' },
-          { label: '5XL', value: 'lg:text-5xl' },
-          { label: '6XL', value: 'lg:text-6xl' },
-          { label: '7XL', value: 'lg:text-7xl' },
-          { label: '8XL', value: 'lg:text-8xl' },
-        ],
-      },
-      {
-        kind: 'enum',
         key: 'headlineMaxWidth',
         label: 'Heading width',
         description: 'Maximum width of the headline itself, independent from the paragraph copy below. Defaults to FULL (100% of the row) — narrow this down for a more traditional display-headline measure.',
@@ -254,41 +240,6 @@ const ALL_SIZES_FIELDS = [
           { label: '5XL (64rem)', value: 'max-w-5xl' },
           { label: '4XL (56rem)', value: 'max-w-4xl' },
           { label: '18 CHARACTERS', value: 'max-w-[18ch]' },
-        ],
-      },
-      {
-        kind: 'enum',
-        key: 'bodyFontSizeNarrow',
-        label: 'Body size · narrow',
-        options: [
-          { label: 'SM', value: 'text-sm' },
-          { label: 'BASE', value: 'text-base' },
-          { label: 'LG', value: 'text-lg' },
-          { label: 'XL', value: 'text-xl' },
-        ],
-      },
-      {
-        kind: 'enum',
-        key: 'bodyFontSizeMid',
-        label: 'Body size · mid',
-        options: [
-          { label: 'SM', value: 'md:text-sm' },
-          { label: 'BASE', value: 'md:text-base' },
-          { label: 'LG', value: 'md:text-lg' },
-          { label: 'XL', value: 'md:text-xl' },
-          { label: '2XL', value: 'md:text-2xl' },
-        ],
-      },
-      {
-        kind: 'enum',
-        key: 'bodyFontSizeWide',
-        label: 'Body size · wide',
-        options: [
-          { label: 'SM', value: 'lg:text-sm' },
-          { label: 'BASE', value: 'lg:text-base' },
-          { label: 'LG', value: 'lg:text-lg' },
-          { label: 'XL', value: 'lg:text-xl' },
-          { label: '2XL', value: 'lg:text-2xl' },
         ],
       },
       {
@@ -481,6 +432,25 @@ export const ABSTRACT_EDITORIAL_HERO_LAYOUT_PANEL =
             label: 'MOBILE (< 768px)',
             fields: [
               {
+                kind: 'group',
+                label: 'Typography',
+                fields: [
+                  {
+                    kind: 'select',
+                    key: 'headlineFontSizeNarrow',
+                    label: 'Heading size',
+                    visibleWhen: config => !config.headlineMatchesBodySize,
+                    options: NARROW_FONT_SIZE_OPTIONS,
+                  },
+                  {
+                    kind: 'select',
+                    key: 'bodyFontSizeNarrow',
+                    label: 'Body size',
+                    options: NARROW_FONT_SIZE_OPTIONS,
+                  },
+                ],
+              },
+              {
                 kind: 'select',
                 key: 'leadGap',
                 label: 'Lead gap',
@@ -494,6 +464,25 @@ export const ABSTRACT_EDITORIAL_HERO_LAYOUT_PANEL =
             label: 'TABLET (≥ 768px)',
             fields: [
               {
+                kind: 'group',
+                label: 'Typography',
+                fields: [
+                  {
+                    kind: 'select',
+                    key: 'headlineFontSizeMid',
+                    label: 'Heading size',
+                    visibleWhen: config => !config.headlineMatchesBodySize,
+                    options: MID_FONT_SIZE_OPTIONS,
+                  },
+                  {
+                    kind: 'select',
+                    key: 'bodyFontSizeMid',
+                    label: 'Body size',
+                    options: MID_FONT_SIZE_OPTIONS,
+                  },
+                ],
+              },
+              {
                 kind: 'select',
                 key: 'leadGapWide',
                 label: 'Lead gap',
@@ -506,6 +495,25 @@ export const ABSTRACT_EDITORIAL_HERO_LAYOUT_PANEL =
             id: 'desktop',
             label: 'DESKTOP (≥ 1024px)',
             fields: [
+              {
+                kind: 'group',
+                label: 'Typography',
+                fields: [
+                  {
+                    kind: 'select',
+                    key: 'headlineFontSizeWide',
+                    label: 'Heading size',
+                    visibleWhen: config => !config.headlineMatchesBodySize,
+                    options: WIDE_FONT_SIZE_OPTIONS,
+                  },
+                  {
+                    kind: 'select',
+                    key: 'bodyFontSizeWide',
+                    label: 'Body size',
+                    options: WIDE_FONT_SIZE_OPTIONS,
+                  },
+                ],
+              },
               {
                 kind: 'select',
                 key: 'leadGapLg',

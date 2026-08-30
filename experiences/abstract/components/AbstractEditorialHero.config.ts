@@ -46,44 +46,28 @@ export const NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG: Record<
   'items-center': 'lg:justify-center',
   'items-end': 'lg:justify-end',
 };
-export type AbstractEditorialHeroHeadlineFontSizeNarrow =
-  | 'text-sm'
-  | 'text-lg'
-  | 'text-2xl'
-  | 'text-3xl'
-  | 'text-4xl'
-  | 'text-5xl';
-export type AbstractEditorialHeroHeadlineFontSizeMid =
-  | 'md:text-sm'
-  | 'md:text-2xl'
-  | 'md:text-4xl'
-  | 'md:text-5xl'
-  | 'md:text-6xl'
-  | 'md:text-7xl';
-export type AbstractEditorialHeroHeadlineFontSizeWide =
-  | 'lg:text-sm'
-  | 'lg:text-2xl'
-  | 'lg:text-5xl'
-  | 'lg:text-6xl'
-  | 'lg:text-7xl'
-  | 'lg:text-8xl';
-export type AbstractEditorialHeroBodyFontSizeNarrow =
-  | 'text-sm'
-  | 'text-base'
-  | 'text-lg'
-  | 'text-xl';
-export type AbstractEditorialHeroBodyFontSizeMid =
-  | 'md:text-sm'
-  | 'md:text-base'
-  | 'md:text-lg'
-  | 'md:text-xl'
-  | 'md:text-2xl';
-export type AbstractEditorialHeroBodyFontSizeWide =
-  | 'lg:text-sm'
-  | 'lg:text-base'
-  | 'lg:text-lg'
-  | 'lg:text-xl'
-  | 'lg:text-2xl';
+/** Full Tailwind default font-size scale (theme.fontSize is unmodified in
+ * tailwind.config.js) — the single source every heading/body size field
+ * below derives its per-breakpoint options from, so all three breakpoints
+ * expose the identical range instead of each being hand-typed to a
+ * different arbitrary subset (the bug that silently dropped 3XL from Mid
+ * and 3XL/4XL from Wide's heading-size row). */
+export type AbstractEditorialHeroFontSizeToken =
+  | 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl'
+  | '6xl' | '7xl' | '8xl' | '9xl';
+export const FONT_SIZE_TOKENS: ReadonlyArray<AbstractEditorialHeroFontSizeToken> = [
+  'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl', '7xl', '8xl', '9xl',
+];
+export const FONT_SIZE_TOKEN_LABELS: Record<AbstractEditorialHeroFontSizeToken, string> = {
+  xs: 'XS', sm: 'SM', base: 'BASE', lg: 'LG', xl: 'XL', '2xl': '2XL', '3xl': '3XL',
+  '4xl': '4XL', '5xl': '5XL', '6xl': '6XL', '7xl': '7XL', '8xl': '8XL', '9xl': '9XL',
+};
+export type AbstractEditorialHeroHeadlineFontSizeNarrow = `text-${AbstractEditorialHeroFontSizeToken}`;
+export type AbstractEditorialHeroHeadlineFontSizeMid = `md:text-${AbstractEditorialHeroFontSizeToken}`;
+export type AbstractEditorialHeroHeadlineFontSizeWide = `lg:text-${AbstractEditorialHeroFontSizeToken}`;
+export type AbstractEditorialHeroBodyFontSizeNarrow = `text-${AbstractEditorialHeroFontSizeToken}`;
+export type AbstractEditorialHeroBodyFontSizeMid = `md:text-${AbstractEditorialHeroFontSizeToken}`;
+export type AbstractEditorialHeroBodyFontSizeWide = `lg:text-${AbstractEditorialHeroFontSizeToken}`;
 /**
  * Independent Tailwind max-width tokens for the headline and the paragraph
  * copy — previously both were bound to one shared contentMaxWidthPx cap on
@@ -279,18 +263,18 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   headlineShadowElevatedEnabled: true,
   headlineShadowScale: 1,
   headlineFontSizeNarrow: 'text-3xl',
-  headlineFontSizeMid: 'md:text-4xl',
-  headlineFontSizeWide: 'lg:text-5xl',
+  headlineFontSizeMid: 'md:text-3xl',
+  headlineFontSizeWide: 'lg:text-4xl',
   headlineFontFamily: 'inherit',
   headlineMatchesBodySize: false,
   headlineMaxWidth: 'max-w-full',
   bodyFontSizeNarrow: 'text-lg',
-  bodyFontSizeMid: 'md:text-lg',
+  bodyFontSizeMid: 'md:text-base',
   bodyFontSizeWide: 'lg:text-lg',
   paragraphMaxWidth: 'max-w-xl',
   leadGap: 'mt-7',
   leadGapWide: 'md:mt-10',
-  leadGapLg: 'lg:mt-10',
+  leadGapLg: 'lg:mt-7',
   copyLineHeight: 1.7,
   copyLetterSpacingEm: -0.03,
   emphasisDimOpacity: 0.5,
@@ -318,24 +302,18 @@ const EMPHASIS_FONT_WEIGHTS: ReadonlyArray<AbstractEditorialHeroEmphasisFontWeig
   'font-normal', 'font-medium', 'font-semibold', 'font-bold',
 ];
 const FONT_FAMILIES: ReadonlyArray<AbstractEditorialHeroFontFamily> = ['inherit', 'sans', 'serif'];
-const HEADLINE_FONT_SIZE_NARROW: ReadonlyArray<AbstractEditorialHeroHeadlineFontSizeNarrow> = [
-  'text-sm', 'text-lg', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl',
-];
-const HEADLINE_FONT_SIZE_MID: ReadonlyArray<AbstractEditorialHeroHeadlineFontSizeMid> = [
-  'md:text-sm', 'md:text-2xl', 'md:text-4xl', 'md:text-5xl', 'md:text-6xl', 'md:text-7xl',
-];
-const HEADLINE_FONT_SIZE_WIDE: ReadonlyArray<AbstractEditorialHeroHeadlineFontSizeWide> = [
-  'lg:text-sm', 'lg:text-2xl', 'lg:text-5xl', 'lg:text-6xl', 'lg:text-7xl', 'lg:text-8xl',
-];
-const BODY_FONT_SIZE_NARROW: ReadonlyArray<AbstractEditorialHeroBodyFontSizeNarrow> = [
-  'text-sm', 'text-base', 'text-lg', 'text-xl',
-];
-const BODY_FONT_SIZE_MID: ReadonlyArray<AbstractEditorialHeroBodyFontSizeMid> = [
-  'md:text-sm', 'md:text-base', 'md:text-lg', 'md:text-xl', 'md:text-2xl',
-];
-const BODY_FONT_SIZE_WIDE: ReadonlyArray<AbstractEditorialHeroBodyFontSizeWide> = [
-  'lg:text-sm', 'lg:text-base', 'lg:text-lg', 'lg:text-xl', 'lg:text-2xl',
-];
+const HEADLINE_FONT_SIZE_NARROW: ReadonlyArray<AbstractEditorialHeroHeadlineFontSizeNarrow> =
+  FONT_SIZE_TOKENS.map((sizeToken): AbstractEditorialHeroHeadlineFontSizeNarrow => `text-${sizeToken}`);
+const HEADLINE_FONT_SIZE_MID: ReadonlyArray<AbstractEditorialHeroHeadlineFontSizeMid> =
+  FONT_SIZE_TOKENS.map((sizeToken): AbstractEditorialHeroHeadlineFontSizeMid => `md:text-${sizeToken}`);
+const HEADLINE_FONT_SIZE_WIDE: ReadonlyArray<AbstractEditorialHeroHeadlineFontSizeWide> =
+  FONT_SIZE_TOKENS.map((sizeToken): AbstractEditorialHeroHeadlineFontSizeWide => `lg:text-${sizeToken}`);
+const BODY_FONT_SIZE_NARROW: ReadonlyArray<AbstractEditorialHeroBodyFontSizeNarrow> =
+  HEADLINE_FONT_SIZE_NARROW;
+const BODY_FONT_SIZE_MID: ReadonlyArray<AbstractEditorialHeroBodyFontSizeMid> =
+  HEADLINE_FONT_SIZE_MID;
+const BODY_FONT_SIZE_WIDE: ReadonlyArray<AbstractEditorialHeroBodyFontSizeWide> =
+  HEADLINE_FONT_SIZE_WIDE;
 const HEADLINE_MAX_WIDTHS: ReadonlyArray<AbstractEditorialHeroHeadlineMaxWidth> = [
   'max-w-full', 'max-w-7xl', 'max-w-6xl', 'max-w-5xl', 'max-w-4xl', 'max-w-[18ch]',
 ];
