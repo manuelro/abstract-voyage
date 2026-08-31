@@ -50,6 +50,7 @@ const whenCustomMarkerColor = (config: Readonly<AboutTimelineConfig>) => (
   config.markerColorMode === 'custom'
 );
 const whenRuleVisible = (config: Readonly<AboutTimelineConfig>) => config.ruleVisible;
+const whenMarkerGradientEnabled = (config: Readonly<AboutTimelineConfig>) => config.markerGradientEnabled;
 
 /**
  * CMP-04 (about-IA-timeline-copy-rework) — same scope/registry pattern as
@@ -144,6 +145,22 @@ export const ABOUT_TIMELINE_PANEL = defineConfigScope<AboutTimelineConfig>({
       min: 0,
       max: 1,
       step: 0.01,
+    },
+    {
+      kind: 'boolean',
+      key: 'markerGradientEnabled',
+      label: 'Marker gradient mesh',
+      description: 'Off (default): the marker fill is the flat marker-color behavior above. On: the marker fill renders the same WebGL gradient mesh the active dock slide / expanded accordion item already use, clipped to the marker\'s own circle. Desktop-only.',
+    },
+    {
+      kind: 'number',
+      key: 'markerGradientScale',
+      label: 'Marker gradient scale',
+      description: 'Only used while "Marker gradient mesh" is on. Counterintuitively, HIGH values (near the max) read as a clean, legible color sweep at the marker\'s small size — LOW values wash out to a flat averaged color instead. Independent of the dock\'s own gradient scale.',
+      min: 0.5,
+      max: 4,
+      step: 0.01,
+      visibleWhen: whenMarkerGradientEnabled,
     },
     {
       kind: 'enum',

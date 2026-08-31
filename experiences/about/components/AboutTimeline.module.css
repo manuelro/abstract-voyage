@@ -74,6 +74,11 @@
   position: relative;
   z-index: 1;
   flex-shrink: 0;
+  /* Only meaningful once markerGradientEnabled mounts a LiquidGradientAdapter
+     canvas as a child (AboutTimelineRow.tsx) — clips its own self-centering
+     `position: absolute; left/top: 50%` layout (GradientRenderer.tsx) down
+     to this element's own circle. No effect on the flat-fill path. */
+  overflow: hidden;
   width: var(--about-timeline-marker-size, 9px);
   height: var(--about-timeline-marker-size, 9px);
   /* Centers the marker against the title's own line box (font-size 0.95rem,

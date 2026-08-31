@@ -1,6 +1,28 @@
+import { useRef } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { AboutTimelineAlignment } from './AboutTimeline.config';
 import styles from './AboutTimeline.module.css';
+import {
+  LiquidGradientAdapter,
+  type DeckPaletteState,
+} from '../../abstract/components/AbstractPostDock/components/GradientRenderer';
+import type { SliderContentSlide } from '../../../helpers/postContent';
+import type { LiquidSliderConfig } from '../../abstract/components/AbstractPostDock/config/legacy';
+import type { useLiquidSliderMotion } from '../../abstract/components/AbstractPostDock/hooks/motion';
+import { useDockGradientAvailability } from '../../abstract/components/AbstractPostDock/hooks/browserState';
+import { resolveAbstractPostDockGradientActivity } from '../../abstract/components/AbstractPostDock/helpers/gradientActivity';
+
+// Same single-render-per-change policy AboutMobileAccordionItem.tsx's own
+// STATIC_GRADIENT_PERFORMANCE_CONFIG already uses one file over — the
+// marker's own gradient must never run a continuous idle-drift/noise loop
+// either; 'static' resolves to 'frozen' in resolveAbstractPostDockGradient-
+// Activity before that helper even looks at which row is "active" — a
+// single render per relevant prop change (row selection, palette edit),
+// never a per-frame recalculation.
+const STATIC_MARKER_GRADIENT_PERFORMANCE_CONFIG = {
+  activityPolicy: 'static' as const,
+  pauseWhenOffscreen: true,
+};
 
 export interface AboutTimelineRowProps {
   id: string;
@@ -58,6 +80,21 @@ export interface AboutTimelineRowProps {
   /** Pointer-hover end — always immediate, no delay on the way out. */
   onPointerLeave: () => void;
   rowRef: (element: HTMLButtonElement | null) => void;
+  /** `config.markerGradientEnabled` — see that field's own doc comment
+   * (`AboutTimeline.config.ts`). Only ever actually mounts the WebGL
+   * gradient while this AND `active` are both true — the marker's flat
+   * fill (`.markerActive`, `background-color: currentColor`) already only
+   * ever applies to the one active row, so there is never more than one
+   * gradient instance mounted across all rows at once; every inactive row
+   * stays exactly as hollow as it does today, gradient mode or not. */
+  gradientEnabled: boolean;
+  /** This row's own slide — `undefined` whenever the page hasn't wired
+   * gradient data through (e.g. `gradientEnabled` off), matching every
+   * other optional prop here. */
+  gradientSlide?: SliderContentSlide;
+  gradientPalette?: DeckPaletteState | null;
+  gradientMotion?: ReturnType<typeof useLiquidSliderMotion>;
+  gradientConfig?: LiquidSliderConfig;
 }
 
 /**
@@ -104,7 +141,30 @@ export function AboutTimelineRow({
   onPointerEnter,
   onPointerLeave,
   rowRef,
+  gradientEnabled,
+  gradientSlide,
+  gradientPalette,
+  gradientMotion,
+  gradientConfig,
 }: AboutTimelineRowProps) {
+  const markerRef = useRef<HTMLSpanElement | null>(null);
+  // Always called (rules of hooks), same as AboutMobileAccordionItem.tsx's
+  // own identical call — cheap (a visibilitychange listener + an
+  // IntersectionObserver) and inert whenever gradientEnabled is off, since
+  // `showMarkerGradient` below gates the actual WebGL mount, not this hook.
+  const { isDockVisible, isDocumentVisible } = useDockGradientAvailability(markerRef, true);
+  // Only the active row's marker is ever filled at all (.markerActive below,
+  // unchanged) — mounting the gradient for any other row would render a
+  // canvas nobody can see (fill is 0 while inactive), so this is never more
+  // than one concurrent WebGL instance across all five rows, not one per
+  // row.
+  const showMarkerGradient = gradientEnabled && active && Boolean(gradientSlide) && Boolean(gradientMotion) && Boolean(gradientConfig);
+  const markerGradientActivity = resolveAbstractPostDockGradientActivity({
+    config: STATIC_MARKER_GRADIENT_PERFORMANCE_CONFIG,
+    isActive: false,
+    isDockVisible,
+    isDocumentVisible,
+  });
   return (
     <li className={styles.item}>
       <button
@@ -128,13 +188,24 @@ export function AboutTimelineRow({
       >
         {ruleVisible ? <span aria-hidden="true" className={styles.rule} /> : null}
         <span
+          ref={markerRef}
           aria-hidden="true"
           className={`${styles.marker} ${active ? styles.markerActive : ''}`}
           style={{
             color: markerColor,
             opacity: markerOpacity,
           }}
-        />
+        >
+          {showMarkerGradient && gradientSlide && gradientMotion && gradientConfig ? (
+            <LiquidGradientAdapter
+              slide={gradientSlide}
+              motion={gradientMotion}
+              config={gradientConfig}
+              palette={gradientPalette ?? null}
+              activity={markerGradientActivity}
+            />
+          ) : null}
+        </span>
         <span className={styles.content}>
           <span
             className={`${styles.caption} ${titleClassName}`}

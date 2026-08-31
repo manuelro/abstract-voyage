@@ -195,6 +195,46 @@ export type AboutTimelineConfig = {
   /** Opacity of the active (filled) marker — paired with the fill itself
    * switching on, never color alone (A11Y-04). */
   markerActiveOpacity: number;
+  /** Off (default): the marker's fill is the flat `markerColor`/
+   * `markerColorMode` behavior above, unchanged. On: the marker's fill
+   * renders the same `LiquidGradientAdapter` WebGL gradient mesh the active
+   * dock slide (desktop) / expanded accordion item (mobile) already use,
+   * clipped to the marker's own circle, instead of a flat color — one
+   * frozen (`activity: 'frozen'`, no continuous render loop; see
+   * `AboutMobileAccordionItem.tsx`'s own `STATIC_GRADIENT_PERFORMANCE_CONFIG`
+   * for the identical single-render-per-change pattern already used one
+   * file over) WebGL instance per row. `markerColorMode`/`markerCustomColor`
+   * keep applying to the ring/outline either way — this only changes what
+   * fills the inside, so active-vs-inactive still reads via the same
+   * fill-toggle mechanism (A11Y-04). Desktop-only, matching this component's
+   * own existing desktop-only scope. See PLAN-ABOUT-TIMELINE-GRADIENT-
+   * MARKER.md for the full feasibility writeup. */
+  markerGradientEnabled: boolean;
+  /** Only read while `markerGradientEnabled` is on. Overrides the shader's
+   * own spatial-frequency (`uScale`) uniform for marker instances only, via
+   * `applySliderGradientUniforms`'s existing `paletteScale` override
+   * parameter (`AbstractPostDock/helpers/webgl.ts`) — independent of the
+   * dock's own `shaderColorScale`, never written back to the shared dock
+   * config. Counterintuitively (confirmed via live visual check at this
+   * component's actual marker size, not assumed from the shader math alone):
+   * LOW values (toward this field's own floor) sample so much of the
+   * pattern's spatial frequency per marker-sized pixel that it aliases into
+   * a flat, near-uniform averaged color once combined with the canvas's own
+   * softness blur — no visible structure at all, the opposite of "denser."
+   * Values toward the HIGH end (this field's own ceiling, which matches the
+   * dock's own existing `uScale` ceiling — see below) instead sample a much
+   * narrower, smoother slice of the mesh, which reads as a clean, legible
+   * two-tone color sweep across the marker's small circle — the useful
+   * range for THIS component sits opposite of where it would for a
+   * full-size canvas. Clamped `[0.5, 4]` in `normalizeAboutTimelineConfig`
+   * — deliberately the same range as the dock's own `uScale` clamp
+   * (`AbstractPostDock/helpers/webgl.ts`, untouched by this feature): values
+   * below 0.5 are clamped there regardless of what this field says, so
+   * offering a wider range here would silently mislead an operator into
+   * thinking a lower value does something it doesn't. Retune the default
+   * here (never in `webgl.ts`, and never `shaderColorScale`) if
+   * `markerSizeClassName` changes enough to change what reads well. */
+  markerGradientScale: number;
   /** See `AboutTimelineAlignment`'s own doc comment. */
   alignment: AboutTimelineAlignment;
   /** WCAG contrast ratio the row's own title (caption) text must clear
@@ -439,6 +479,16 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   markerCustomColor: '#6c5351',
   markerIdleOpacity: 0.11,
   markerActiveOpacity: 0.9,
+  // Opt-in: off by default, zero visual change until an operator turns
+  // this on (PLAN-ABOUT-TIMELINE-GRADIENT-MARKER.md).
+  markerGradientEnabled: true,
+  // Prototype-tuned (PLAN-ABOUT-TIMELINE-GRADIENT-MARKER.md §6, confirmed
+  // via live screenshot at the default 24px `w-6 h-6` marker size): a clean,
+  // legible two-tone color sweep — the dock's own 0.5 default washes out to
+  // a flat averaged color at this small a canvas (see markerGradientScale's
+  // own doc comment for why the useful direction is inverted from what the
+  // shader math alone would suggest).
+  markerGradientScale: 4,
   alignment: 'left',
   rowTitleMinContrastActive: 5.1,
   rowTitleMinContrastInactive: 4,
@@ -629,6 +679,8 @@ export function normalizeAboutTimelineConfig(
       : D.markerCustomColor,
     markerIdleOpacity: clampRange(base.markerIdleOpacity, 0, 1, D.markerIdleOpacity),
     markerActiveOpacity: clampRange(base.markerActiveOpacity, 0, 1, D.markerActiveOpacity),
+    markerGradientEnabled: base.markerGradientEnabled === true,
+    markerGradientScale: clampRange(base.markerGradientScale, 0.5, 4, D.markerGradientScale),
     alignment: token(base.alignment, ALIGNMENTS, D.alignment),
     rowTitleMinContrastActive: clampRange(
       base.rowTitleMinContrastActive, 1, 21, D.rowTitleMinContrastActive,

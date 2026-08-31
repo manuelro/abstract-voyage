@@ -6,6 +6,10 @@ import { resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDeri
 import { AboutTimelineRow } from './AboutTimelineRow';
 import type { AboutTimelineConfig } from './AboutTimeline.config';
 import styles from './AboutTimeline.module.css';
+import type { DeckPaletteState } from '../../abstract/components/AbstractPostDock/components/GradientRenderer';
+import type { SliderContentSlide } from '../../../helpers/postContent';
+import type { LiquidSliderConfig } from '../../abstract/components/AbstractPostDock/config/legacy';
+import type { useLiquidSliderMotion } from '../../abstract/components/AbstractPostDock/hooks/motion';
 
 export type AboutTimelineRowData = {
   caption: string;
@@ -51,6 +55,28 @@ export interface AboutTimelineProps {
    * pages/about.tsx's own `role="tabpanel"` wrapper around the desktop
    * dock). */
   panelId: string;
+  /** Only read while `config.markerGradientEnabled` is on — see that
+   * field's own doc comment. Index-aligned with `rows[n].slideIndex`
+   * (`aboutSlides`, pages/about.tsx — the same array `accentColor` above is
+   * already sourced from), so `gradientSlides[row.slideIndex]` is that
+   * row's own slide. Every field below is optional and simply renders the
+   * existing flat marker fill when absent, matching every other prop this
+   * component already treats this way. */
+  gradientSlides?: ReadonlyArray<SliderContentSlide>;
+  /** Same index alignment as `gradientSlides` above. `null` (not just
+   * absent) is a normal, expected value here — `pages/about.tsx`'s own
+   * `buildDeckPaletteStates` call returns `null` whenever the page's
+   * directed-palette feature is off, in which case every row's marker
+   * gradient falls back to the dock's own base `shaderColorScale` (INT-04:
+   * no new palette math here, the same fallback `applySliderGradientUniforms`
+   * already gives every other caller with no palette). */
+  gradientPaletteStates?: ReadonlyArray<DeckPaletteState> | null;
+  /** A single shared motion instance across every row's own marker gradient
+   * — not one per row, matching this component's own single-instance-at-
+   * once reality (only the active row's marker is ever filled, see
+   * `AboutTimelineRow.tsx`'s own `showMarkerGradient`). */
+  gradientMotion?: ReturnType<typeof useLiquidSliderMotion>;
+  gradientConfig?: LiquidSliderConfig;
 }
 
 const TAB_ID_PREFIX = 'about-timeline-tab';
@@ -74,6 +100,10 @@ export function AboutTimeline({
   config,
   prefersReducedMotion,
   panelId,
+  gradientSlides,
+  gradientPaletteStates,
+  gradientMotion,
+  gradientConfig,
 }: AboutTimelineProps) {
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const transitionEasingCss = CTA_BUTTON_MOTION_EASINGS[config.transitionEasing];
@@ -242,6 +272,11 @@ export function AboutTimeline({
         onPointerEnter={() => handleRowPointerEnter(row.slideIndex)}
         onPointerLeave={() => handleRowPointerLeave(row.slideIndex)}
         rowRef={element => { rowRefs.current[index] = element; }}
+        gradientEnabled={config.markerGradientEnabled}
+        gradientSlide={gradientSlides?.[row.slideIndex]}
+        gradientPalette={gradientPaletteStates?.[row.slideIndex]}
+        gradientMotion={gradientMotion}
+        gradientConfig={gradientConfig}
       />
     );
   }), [
@@ -254,6 +289,8 @@ export function AboutTimeline({
     config.hoverTitleOpacity, config.hoverMarkerOpacity,
     titleClassName, rowDescriptionClassName,
     config.markerIdleOpacity, config.markerActiveOpacity,
+    config.markerGradientEnabled, gradientSlides, gradientPaletteStates,
+    gradientMotion, gradientConfig,
     transitionDurationMs, transitionEasingCss, onSelect, handleKeyDown,
     handleRowPointerEnter, handleRowPointerLeave, panelId,
   ]);

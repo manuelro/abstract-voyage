@@ -808,6 +808,45 @@ function AboutPageContent() {
   // shader's idle/continuous animation, which this hook still drives on
   // its own regardless of whether anything ever drags it.
   const topSegmentMotion = useLiquidSliderMotion(dockSliderConfig);
+  // AboutTimeline's own marker gradient (PLAN-ABOUT-TIMELINE-GRADIENT-
+  // MARKER.md) — a third, genuinely separate LiquidSliderMotion instance
+  // alongside the dock's own internal one (View.tsx) and topSegmentMotion
+  // above, same reasoning as that field's own doc comment: never more than
+  // one marker is ever filled at a time (AboutTimelineRow.tsx's own
+  // showMarkerGradient), so this single shared instance is never actually
+  // driving more than one concurrent WebGL canvas, but it still needs to
+  // exist independently of the dock's own drag/slide-transition state.
+  // Always called (rules of hooks) — inert whenever
+  // aboutTimelineConfig.markerGradientEnabled is off, same as
+  // topSegmentMotion while topSegmentBackgroundEnabled is off.
+  const timelineMarkerMotion = useLiquidSliderMotion(dockSliderConfig);
+  // Same buildDeckPaletteStates(...) call topSegmentPaletteState above makes
+  // — INT-04: no new palette math here. paletteScale is then overridden per
+  // state to markerGradientScale (the ONE marker-specific value this
+  // feature adds) via the exact override mechanism DeckPaletteState.
+  // paletteScale already exists for (applySliderGradientUniforms's own
+  // `paletteScale ?? config.shaderColorScale`, AbstractPostDock/helpers/
+  // webgl.ts) — never touches dockPaletteConfig/dockSliderConfig.shaderColorScale,
+  // so the real dock's own gradient scale is completely unaffected. Falls
+  // back to `null` (AboutTimelineRow.tsx's own `gradientPalette ?? null`
+  // already handles this, same fallback GradientRenderer.tsx gives every
+  // other caller with no palette) if buildDeckPaletteStates itself returns
+  // null — only possible if an operator turns dockPaletteConfig.enabled AND
+  // hue influence both off, in which case markers fall back to the dock's
+  // own base shaderColorScale rather than markerGradientScale; a graceful
+  // degradation, not a broken state.
+  const timelineMarkerPaletteStates = useMemo(() => {
+    if (!aboutTimelineConfig.markerGradientEnabled) return null;
+    const states = buildDeckPaletteStates({
+      slides: aboutSlides, paletteConfig: dockPaletteConfig, activeIndex: null,
+      tier: gradientBreakpointTier,
+    });
+    if (!states) return null;
+    return states.map(state => ({ ...state, paletteScale: aboutTimelineConfig.markerGradientScale }));
+  }, [
+    aboutTimelineConfig.markerGradientEnabled, aboutTimelineConfig.markerGradientScale,
+    aboutSlides, dockPaletteConfig, gradientBreakpointTier,
+  ]);
   // Every breakpoint-tiered column/split-band color computation this page
   // used to hand-roll (leftPanelColor's own colorSource switch) now lives
   // once inside usePolymorphicLayoutColors (components/PolymorphicLayout.tsx)
@@ -1564,6 +1603,10 @@ function AboutPageContent() {
                   config={aboutTimelineConfig}
                   prefersReducedMotion={prefersReducedMotion}
                   panelId={ABOUT_TIMELINE_PANEL_ID}
+                  gradientSlides={aboutSlides}
+                  gradientPaletteStates={timelineMarkerPaletteStates}
+                  gradientMotion={timelineMarkerMotion}
+                  gradientConfig={dockSliderConfig}
                 />
               ) : null}
             </NarrowColumnContent>
