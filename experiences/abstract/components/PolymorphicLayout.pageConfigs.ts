@@ -72,7 +72,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnClearsFloatingHeaderWide: true,
   narrowColumnClearsFloatingHeaderLg: true,
   colorSource: 'custom',
-  wideColumnCustomColor: '#cbcbe1',
+  wideColumnCustomColor: '#191929',
   narrowColumnCustomColor: '#cbcbe1',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
@@ -81,8 +81,8 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   splitBandLeftCustomColor: '#0e1230',
   splitBandLeftModeWide: 'custom',
   splitBandLeftModeLg: 'custom',
-  splitBandRightMode: 'syncWithColumnBelow',
-  splitBandRightCustomColor: '#0e1230',
+  splitBandRightMode: 'custom',
+  splitBandRightCustomColor: '#cbcbe1',
   // Regression history (nav text rendering as washed-out gray/near-
   // invisible on wider devices — BUG-012, BUGS-AUDIT-POLYMORPHIC-LAYOUT-
   // CARD-STACK.md): the actual defect was never these mode values
@@ -115,9 +115,36 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnContentWidth: 'auto',
   narrowColumnContentWidthWide: 'md:max-w-[100%]',
   narrowColumnContentWidthLg: 'lg:max-w-[100%]',
+  // 'none' below md — this page renders AbstractEditorialHero unchanged at
+  // every breakpoint (no separate mobile component swap the way /about's
+  // narrow-viewport accordion has), but below md the narrow column is
+  // already a single full-width stacked column (stackedColumnOrder), so
+  // there's no column edge for the headline/paragraph to overflow past in
+  // the first place — matches ABOUT_POLYMORPHIC_LAYOUT_CONFIG's own choice
+  // to leave the base tier alone. md/lg: was 'none' at every tier (no cap
+  // at all) — the narrow column's own real width here comes from
+  // narrowColumnContentWidthWide/-Lg above (100% of whatever
+  // narrowColumnWidthTierMd/Lg = '38/62' resolves to), not from this field,
+  // so a genuinely unconstrained AbstractEditorialHero headline
+  // (headlineMaxWidth: 'max-w-full', AbstractEditorialHero.config.ts's own
+  // default — that component's own inner cap was never meant to replace
+  // this outer one) could render wider than that column and spill past its
+  // own "NARROW COLUMN CONTENT" box edge with nothing to stop it. Same
+  // reusable container-level primitive /about's own AboutTimeline already
+  // uses (PolymorphicLayoutConfig.narrowColumnContentMaxWidth*,
+  // PLAN-ABOUT-TIMELINE-GRADIENT-MARKER.md's own sibling PLAN-ABOUT-
+  // TIMELINE-... narrow-column-align work) — no new mechanism, already
+  // wired into this page's own PolymorphicLayout 'bounded' path and its own
+  // shared "Polymorphic Layout" panel (pages/abstract.panel.ts's
+  // POLYMORPHIC_LAYOUT_FIELDS), so this is a config-value change only.
+  // max-w-xl (36rem) matches this page's own AbstractEditorialHero
+  // paragraphMaxWidth default exactly (that component's own already-tuned
+  // value, not a new number) — the container now caps at least as wide as
+  // what the paragraph already targets, and for the first time also reins
+  // in the previously fully-unconstrained headline to that same measure.
   narrowColumnContentMaxWidth: 'none',
   narrowColumnContentMaxWidthWide: 'none',
-  narrowColumnContentMaxWidthLg: 'none',
+  narrowColumnContentMaxWidthLg: 'lg:max-w-lg',
   narrowColumnTextAlign: 'text-left',
   narrowColumnTextAlignWide: 'md:text-right',
   narrowColumnTextAlignLg: 'lg:text-right',
@@ -144,9 +171,9 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnMobileAlignOffsetPx: 0,
   narrowColumnContentPaddingLeft: 'pl-7',
   narrowColumnContentPaddingLeftWide: 'md:pl-7',
-  narrowColumnContentPaddingLeftLg: 'lg:pl-0',
+  narrowColumnContentPaddingLeftLg: 'lg:pl-10',
   narrowColumnContentPaddingRightWide: 'md:pr-7',
-  narrowColumnContentPaddingRightLg: 'lg:pr-0',
+  narrowColumnContentPaddingRightLg: 'lg:pr-14',
   narrowColumnContentPaddingRight: 'pr-7',
   narrowColumnContentPaddingTop: 'pt-10',
   narrowColumnContentPaddingTopWide: 'md:pt-16',
@@ -272,13 +299,13 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   colorSourceLg: 'custom',
   wideColumnCustomColorWide: '#191929',
   wideColumnCustomColorLg: '#191929',
-  narrowColumnCustomColorWide: '#2c2c3f',
+  narrowColumnCustomColorWide: '#cbcbe1',
   narrowColumnCustomColorLg: '#cbcbe1',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
   narrowColumnSurfaceOffsetLg: 0,
-  splitBandLeftCustomColorWide: '#0e1230',
+  splitBandLeftCustomColorWide: '#d1d1e6',
   splitBandLeftCustomColorLg: '#d1d1e6',
   splitBandRightCustomColorWide: '#0e1230',
   splitBandRightCustomColorLg: '#0e1230',
