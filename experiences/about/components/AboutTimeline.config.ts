@@ -429,7 +429,7 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowDescriptionMinContrastActive: 5,
   rowDescriptionMinContrastInactive: 4,
   rowTitleFontWeightClassName: 'font-medium',
-  rowTitleFontSizeClassName: 'text-base',
+  rowTitleFontSizeClassName: 'text-sm',
   rowDescriptionFontSizeClassName: 'text-sm',
   rowTitleOpacityActive: 1,
   rowTitleOpacityInactive: 0.7,
