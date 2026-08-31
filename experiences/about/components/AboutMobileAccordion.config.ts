@@ -64,9 +64,29 @@ export type AboutMobileAccordionConfig = {
    * waits until the closing item's `transitionMs` is this fraction
    * complete first. `0` starts both at once (no stagger); `1` waits for the
    * closing item's transition to fully finish before the new one begins.
-   * Purely cosmetic sequencing — has no effect when nothing is being
-   * evicted (e.g. the first item ever opened, or `maxExpandedItems: 0`
-   * with room to spare). */
+   * Has no effect when nothing is being evicted (e.g. the first item ever
+   * opened, or `maxExpandedItems: 0` with room to spare).
+   *
+   * NOT purely cosmetic (bug fix, operator report: "items below the
+   * expanding item are pushed down by a tiny amount, spring-like, during
+   * the transition"): each expanded item's own content height is capped to
+   * a SHARE of the accordion's fixed remaining space
+   * (AboutMobileAccordion.tsx's own maxContentHeightPx, sized assuming
+   * exactly one item is visibly occupying it at a time under the default
+   * `maxExpandedItems: 1`). While the closing and opening items animate
+   * SIMULTANEOUSLY (this fraction at `0`), BOTH are transiently non-zero at
+   * once, and their combined height briefly exceeds that single-item
+   * budget — every row below is pushed further down than either item's own
+   * steady-state position, then springs back up once the closing item
+   * finishes collapsing. Confirmed live (frame-by-frame `getBoundingClientRect`
+   * sampling of a below-fold header during a swap): `0` produced 15
+   * non-monotonic (upward-then-downward) frames out of 90; `1` produced
+   * zero, at any sample rate. This is why the default below is `1`, not
+   * `0` — `0` is still a legitimate, supported value (e.g. for a future
+   * `maxExpandedItems` > 1 config where multiple items are EXPECTED to
+   * share space concurrently, not swap one-for-one), but it is not safe as
+   * the default under the single-open configuration this component ships
+   * with. */
   collapseLeadFraction: number;
   /** Duration of the `grid-template-rows` height expand/collapse itself —
    * shared with the desktop accordion's own resize transition
@@ -140,7 +160,10 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   enabled: true,
   previewMinHeight: 'min-h-14',
   maxExpandedItems: 1,
-  collapseLeadFraction: 0,
+  // Was 0 (simultaneous close+open) — see collapseLeadFraction's own doc
+  // comment above for the live-confirmed spring/overshoot bug that default
+  // caused under maxExpandedItems: 1.
+  collapseLeadFraction: 1,
   transitionMs: 700,
   transitionEasing: 'settle',
   contentSettleMs: 0,
