@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { CTA_BUTTON_MOTION_EASINGS } from '../../../components/CtaButton/config/registered';
+import { useExpandableHeight } from '../../../components/useExpandableHeight';
 import { resolveAbstractPostDockEasing } from '../../abstract/components/AbstractPostDock/config/registered';
 import { abstractPostDockActiveOpacityStyle } from '../../abstract/components/AbstractPostDock/helpers/activeOpacityReveal';
 import { renderEmphasisText } from '../../../helpers/textEmphasis';
@@ -104,6 +105,8 @@ export function AboutMobileAccordionItem({
   // both states) — only opacity does, same as the real emphasis markup.
   const previewTextOpacity = expanded ? emphasisOpacity : dimOpacity;
 
+  const { contentRef, wrapperStyle } = useExpandableHeight(expanded, heightTransitionMs, heightEasing);
+
   return (
     <div ref={sectionRef} className="relative w-full overflow-hidden" style={{ backgroundColor: slide.accent }}>
       {/* inset-0, not a fixed reference-height box — the gradient must
@@ -187,15 +190,8 @@ export function AboutMobileAccordionItem({
         />
       </button>
 
-      <div
-        className="relative z-10 overflow-hidden"
-        style={{
-          display: 'grid',
-          gridTemplateRows: expanded ? '1fr' : '0fr',
-          transition: `grid-template-rows ${heightTransitionMs}ms ${heightEasing}`,
-        }}
-      >
-        <div className="min-h-0 overflow-hidden">
+      <div className="relative z-10" style={wrapperStyle}>
+        <div ref={contentRef}>
           <div
             // Same horizontal padding as the header button
             // (config.affordancePadding) — pt-0 only, so the expanded
@@ -207,14 +203,11 @@ export function AboutMobileAccordionItem({
             // the desktop accordion's own audited mechanism exactly
             // (View.tsx's minimal-mode branch): opacity is a direct,
             // ungated function of `expanded`, animated over the *same*
-            // duration/easing as the row's own grid-template-rows
-            // transition — no settle delay, no separate fade duration, and
-            // (per that same audit) no transform at all. The paragraph
-            // stays anchored in place and fades in/out in lockstep with its
-            // own row growing/shrinking around it, which is also what
-            // fixes the original clipping bug: nothing ever translates
-            // through the shrinking clip boundary because nothing
-            // translates, period.
+            // duration/easing as the row's own height transition above —
+            // no settle delay, no separate fade duration, and (per that
+            // same audit) no transform at all. The paragraph stays
+            // anchored in place and fades in/out in lockstep with its own
+            // row growing/shrinking around it.
             style={abstractPostDockActiveOpacityStyle({
               isActive: expanded,
               transitionMs: heightTransitionMs,
