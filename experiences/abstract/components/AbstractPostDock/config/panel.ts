@@ -1,5 +1,18 @@
 import { defineConfigScope } from '../../../../../components/Panel/config';
-import { PADDING_OPTIONS } from '../../../../../components/tailwindSpacingScale';
+import {
+  PADDING_TOP_OPTIONS,
+  PADDING_TOP_WIDE_OPTIONS,
+  PADDING_TOP_LG_OPTIONS,
+  PADDING_RIGHT_OPTIONS,
+  PADDING_RIGHT_WIDE_OPTIONS,
+  PADDING_RIGHT_LG_OPTIONS,
+  PADDING_BOTTOM_OPTIONS,
+  PADDING_BOTTOM_WIDE_OPTIONS,
+  PADDING_BOTTOM_LG_OPTIONS,
+  PADDING_LEFT_OPTIONS,
+  PADDING_LEFT_WIDE_OPTIONS,
+  PADDING_LEFT_LG_OPTIONS,
+} from '../../../../../components/tailwindSpacingScale';
 import {
   DEFAULT_ABSTRACT_POST_DOCK_INTRODUCTION_CONFIG,
   DEFAULT_ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_CONFIG,
@@ -1150,21 +1163,95 @@ export const ABSTRACT_POST_DOCK_LAYOUT_PANEL =
         description: 'Slider minimal mode only: replaces the flat accent-color fill with the same dynamic procedural gradient the full article cards use, sliced across the slides via the palette\'s window-mode index offsets. Off keeps the flat color.',
         visibleWhen: config => config.mode === 'slider' && config.minimalModeEnabled,
       },
+      // Minimal mode text size + content padding, tiered by breakpoint
+      // (operator ask) — same MOBILE/TABLET/DESKTOP tabbed device-size
+      // switcher the palette panel's own gradientScale/gradientNoise tabs
+      // already established (AbstractPostDockPaletteConfig, this same
+      // config-panel system), applied here to just these two properties
+      // rather than restructuring this whole flat panel into tabs: every
+      // other field in this scope stays untiered. No "ALL SIZES" tab (same
+      // reasoning as the palette panel's own gradient tabs) — there's no
+      // untiered content to house there once both properties are split.
       {
-        kind: 'select',
-        key: 'minimalModeFontSize',
-        label: 'Minimal mode text size',
-        description: 'Slider minimal mode only — Tailwind\'s own text-size scale.',
-        options: [
-          { label: 'text-sm', value: 'text-sm' },
-          { label: 'text-base', value: 'text-base' },
-          { label: 'text-lg', value: 'text-lg' },
-          { label: 'text-xl', value: 'text-xl' },
-          { label: 'text-2xl', value: 'text-2xl' },
-          { label: 'text-3xl', value: 'text-3xl' },
-          { label: 'text-4xl', value: 'text-4xl' },
-        ],
+        kind: 'tabs',
         visibleWhen: config => config.mode === 'slider' && config.minimalModeEnabled,
+        tabs: [
+          {
+            id: 'mobile',
+            label: 'MOBILE (< 768px)',
+            fields: [
+              {
+                kind: 'select',
+                key: 'minimalModeFontSize',
+                label: 'Text size',
+                description: 'Slider minimal mode only — Tailwind\'s own text-size scale. This branch never renders below 768px (narrow viewports route to AbstractDeckSwiper instead) — this tier is the floor TABLET/DESKTOP inherit from unless they override it.',
+                options: [
+                  { label: 'text-sm', value: 'text-sm' },
+                  { label: 'text-base', value: 'text-base' },
+                  { label: 'text-lg', value: 'text-lg' },
+                  { label: 'text-xl', value: 'text-xl' },
+                  { label: 'text-2xl', value: 'text-2xl' },
+                  { label: 'text-3xl', value: 'text-3xl' },
+                  { label: 'text-4xl', value: 'text-4xl' },
+                ],
+              },
+              { kind: 'select', key: 'minimalModeContentPaddingTop', label: 'Content padding top', options: PADDING_TOP_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingRight', label: 'Content padding right', options: PADDING_RIGHT_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingBottom', label: 'Content padding bottom', options: PADDING_BOTTOM_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingLeft', label: 'Content padding left', options: PADDING_LEFT_OPTIONS },
+            ],
+          },
+          {
+            id: 'tablet',
+            label: 'TABLET (≥ 768px)',
+            fields: [
+              {
+                kind: 'select',
+                key: 'minimalModeFontSizeWide',
+                label: 'Text size',
+                description: 'Same as the Mobile tab\'s own Text size, applied ≥ 768px.',
+                options: [
+                  { label: 'md:text-sm', value: 'md:text-sm' },
+                  { label: 'md:text-base', value: 'md:text-base' },
+                  { label: 'md:text-lg', value: 'md:text-lg' },
+                  { label: 'md:text-xl', value: 'md:text-xl' },
+                  { label: 'md:text-2xl', value: 'md:text-2xl' },
+                  { label: 'md:text-3xl', value: 'md:text-3xl' },
+                  { label: 'md:text-4xl', value: 'md:text-4xl' },
+                ],
+              },
+              { kind: 'select', key: 'minimalModeContentPaddingTopWide', label: 'Content padding top', options: PADDING_TOP_WIDE_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingRightWide', label: 'Content padding right', options: PADDING_RIGHT_WIDE_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingBottomWide', label: 'Content padding bottom', options: PADDING_BOTTOM_WIDE_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingLeftWide', label: 'Content padding left', options: PADDING_LEFT_WIDE_OPTIONS },
+            ],
+          },
+          {
+            id: 'desktop',
+            label: 'DESKTOP (≥ 1024px)',
+            fields: [
+              {
+                kind: 'select',
+                key: 'minimalModeFontSizeLg',
+                label: 'Text size',
+                description: 'Same as the Mobile tab\'s own Text size, applied ≥ 1024px.',
+                options: [
+                  { label: 'lg:text-sm', value: 'lg:text-sm' },
+                  { label: 'lg:text-base', value: 'lg:text-base' },
+                  { label: 'lg:text-lg', value: 'lg:text-lg' },
+                  { label: 'lg:text-xl', value: 'lg:text-xl' },
+                  { label: 'lg:text-2xl', value: 'lg:text-2xl' },
+                  { label: 'lg:text-3xl', value: 'lg:text-3xl' },
+                  { label: 'lg:text-4xl', value: 'lg:text-4xl' },
+                ],
+              },
+              { kind: 'select', key: 'minimalModeContentPaddingTopLg', label: 'Content padding top', options: PADDING_TOP_LG_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingRightLg', label: 'Content padding right', options: PADDING_RIGHT_LG_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingBottomLg', label: 'Content padding bottom', options: PADDING_BOTTOM_LG_OPTIONS },
+              { kind: 'select', key: 'minimalModeContentPaddingLeftLg', label: 'Content padding left', options: PADDING_LEFT_LG_OPTIONS },
+            ],
+          },
+        ],
       },
       {
         kind: 'number',
@@ -1200,14 +1287,6 @@ export const ABSTRACT_POST_DOCK_LAYOUT_PANEL =
           { label: 'max-w-prose', value: 'max-w-prose' },
           { label: 'none', value: 'max-w-none' },
         ],
-        visibleWhen: config => config.mode === 'slider' && config.minimalModeEnabled,
-      },
-      {
-        kind: 'select',
-        key: 'minimalModeContentPadding',
-        label: 'Minimal mode content padding',
-        description: 'Slider minimal mode only: the slide\'s own content padding on wide screens — Tailwind\'s own padding scale. Narrow viewports render an entirely different presentation (AbstractDeckSwiper), so there is no separate narrow value to set here.',
-        options: PADDING_OPTIONS,
         visibleWhen: config => config.mode === 'slider' && config.minimalModeEnabled,
       },
       {

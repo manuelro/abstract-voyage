@@ -429,6 +429,8 @@ export const ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG: AbstractPostDockLayoutConfig = {
   minimalModeEnabled: true,
   minimalModeGradientEnabled: true,
   minimalModeFontSize: 'text-3xl',
+  minimalModeFontSizeWide: 'md:text-2xl',
+  minimalModeContentPaddingLeftLg: 'lg:pl-14',
   minimalModeTextDimOpacity: 0.45,
   // component-config-update/v1 (operator-applied): lowered from 0.95 — the
   // emphasized run inside the dock's own narrative text was reading too

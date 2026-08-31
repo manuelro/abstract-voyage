@@ -474,7 +474,12 @@ export function AbstractPostDockView({
           ref={gaussianProximityDomRefs?.[index] ?? undefined}
           className={[
             'relative flex h-full w-full flex-col justify-start overflow-hidden',
-            layoutConfig.minimalModeContentPadding,
+            layoutConfig.minimalModeContentPaddingTop, layoutConfig.minimalModeContentPaddingRight,
+            layoutConfig.minimalModeContentPaddingBottom, layoutConfig.minimalModeContentPaddingLeft,
+            layoutConfig.minimalModeContentPaddingTopWide, layoutConfig.minimalModeContentPaddingRightWide,
+            layoutConfig.minimalModeContentPaddingBottomWide, layoutConfig.minimalModeContentPaddingLeftWide,
+            layoutConfig.minimalModeContentPaddingTopLg, layoutConfig.minimalModeContentPaddingRightLg,
+            layoutConfig.minimalModeContentPaddingBottomLg, layoutConfig.minimalModeContentPaddingLeftLg,
           ].join(' ')}
           style={{ backgroundColor: item.accent }}
         >
@@ -494,6 +499,8 @@ export function AbstractPostDockView({
             className={[
               'relative z-10 m-0 text-white [text-wrap:balance] transition-opacity',
               layoutConfig.minimalModeFontSize,
+              layoutConfig.minimalModeFontSizeWide,
+              layoutConfig.minimalModeFontSizeLg,
               layoutConfig.minimalModeTextMaxWidth,
             ].join(' ')}
             style={{

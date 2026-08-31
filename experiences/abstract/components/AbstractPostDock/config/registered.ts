@@ -10,7 +10,20 @@ import type {
   HologramSweepEnvelopeShape,
   HologramSweepGeometry,
 } from '../../../../../helpers/hologramExciteSweep';
-import { PADDING_OPTIONS, type PaddingClass } from '../../../../../components/tailwindSpacingScale';
+import type {
+  PaddingTopClass,
+  PaddingTopWideClass,
+  PaddingTopLgClass,
+  PaddingRightClass,
+  PaddingRightWideClass,
+  PaddingRightLgClass,
+  PaddingBottomClass,
+  PaddingBottomWideClass,
+  PaddingBottomLgClass,
+  PaddingLeftClass,
+  PaddingLeftWideClass,
+  PaddingLeftLgClass,
+} from '../../../../../components/tailwindSpacingScale';
 
 export type AbstractPostDockEasingPreset =
   | 'standard'
@@ -137,6 +150,28 @@ export type AbstractPostDockMinimalTextSize =
   | 'text-3xl'
   | 'text-4xl';
 
+/** Same scale as `AbstractPostDockMinimalTextSize`, `md:`-prefixed — applied
+ * ≥ 768px (the panel's own TABLET tab). */
+export type AbstractPostDockMinimalTextSizeWide =
+  | 'md:text-sm'
+  | 'md:text-base'
+  | 'md:text-lg'
+  | 'md:text-xl'
+  | 'md:text-2xl'
+  | 'md:text-3xl'
+  | 'md:text-4xl';
+
+/** Same scale, `lg:`-prefixed — applied ≥ 1024px (the panel's own DESKTOP
+ * tab). */
+export type AbstractPostDockMinimalTextSizeLg =
+  | 'lg:text-sm'
+  | 'lg:text-base'
+  | 'lg:text-lg'
+  | 'lg:text-xl'
+  | 'lg:text-2xl'
+  | 'lg:text-3xl'
+  | 'lg:text-4xl';
+
 /** Slider minimal mode only — Tailwind's own max-width scale (a literal
  * class, same Tailwind-only rule as the font-size field above). Bounds a
  * slide's own line length to a readable measure rather than letting it run
@@ -210,8 +245,22 @@ export type AbstractPostDockLayoutConfig = {
   minimalModeGradientEnabled: boolean;
   /** Slider minimal mode only: font size for every slide's title text (both
    * active and inactive render at the same size — only opacity/visibility
-   * differs between them, see minimalModeTextDimOpacity). */
+   * differs between them, see minimalModeTextDimOpacity). Tiered by
+   * breakpoint (operator ask) — same MOBILE/TABLET/DESKTOP tabbed
+   * device-size switcher `gradientScale`/`gradientNoise` above already use;
+   * this field is the mobile/base tier. Note this branch itself never
+   * renders below 768px (narrow viewports route to AbstractDeckSwiper
+   * instead, see minimalModeContentPaddingTop's own doc comment below), so
+   * this tier's practical effect is "the floor `Wide`/`Lg` inherit from
+   * unless they override it" rather than a true mobile-only value — kept
+   * as its own tier anyway for the same tab-shape consistency the
+   * gradient fields already established, and because Tailwind's own
+   * mobile-first cascade needs an unprefixed base class regardless. */
   minimalModeFontSize: AbstractPostDockMinimalTextSize;
+  /** Same as `minimalModeFontSize` above, `md:`-prefixed — applied ≥ 768px. */
+  minimalModeFontSizeWide: AbstractPostDockMinimalTextSizeWide;
+  /** Same as `minimalModeFontSize` above, `lg:`-prefixed — applied ≥ 1024px. */
+  minimalModeFontSizeLg: AbstractPostDockMinimalTextSizeLg;
   /** Slider minimal mode only: opacity for a slide's title text outside
    * `**emphasized**` runs, while active. Inactive slides are fully hidden
    * (opacity 0) regardless of this value — see minimalModeTextEmphasisOpacity
@@ -224,12 +273,28 @@ export type AbstractPostDockLayoutConfig = {
   /** Slider minimal mode only: caps a slide's title text to a readable line
    * length instead of letting it run the slide's full rendered width. */
   minimalModeTextMaxWidth: AbstractPostDockMinimalTextMaxWidth;
-  /** Slider minimal mode only: the slide's own content padding — applies on
-   * wide screens (the only ones this branch ever renders on; narrow
-   * viewports route to the deck's own AbstractDeckSwiper presentation
-   * entirely, with its own unrelated inset config, so there is no separate
-   * narrow-breakpoint value here to configure). */
-  minimalModeContentPadding: PaddingClass;
+  /** Slider minimal mode only: the slide's own content padding, per side —
+   * four independent literal Tailwind classes, tiered by breakpoint the
+   * same MOBILE/TABLET/DESKTOP way `minimalModeFontSize` above is (see that
+   * field's own doc comment on why the "mobile" tier is a floor rather
+   * than a true mobile-only value: narrow viewports route to the deck's
+   * own AbstractDeckSwiper presentation entirely, with its own unrelated
+   * inset config). Supersedes an earlier single `minimalModeContentPadding`
+   * uniform-all-sides field. */
+  minimalModeContentPaddingTop: PaddingTopClass;
+  minimalModeContentPaddingRight: PaddingRightClass;
+  minimalModeContentPaddingBottom: PaddingBottomClass;
+  minimalModeContentPaddingLeft: PaddingLeftClass;
+  /** Same as the four fields above, `md:`-prefixed — applied ≥ 768px. */
+  minimalModeContentPaddingTopWide: PaddingTopWideClass;
+  minimalModeContentPaddingRightWide: PaddingRightWideClass;
+  minimalModeContentPaddingBottomWide: PaddingBottomWideClass;
+  minimalModeContentPaddingLeftWide: PaddingLeftWideClass;
+  /** Same as the four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  minimalModeContentPaddingTopLg: PaddingTopLgClass;
+  minimalModeContentPaddingRightLg: PaddingRightLgClass;
+  minimalModeContentPaddingBottomLg: PaddingBottomLgClass;
+  minimalModeContentPaddingLeftLg: PaddingLeftLgClass;
   /** Scattered mode: shows the excerpt below the title. Defaults to true —
    * the excerpt element still renders and reserves its own layout space
    * either way, so the title's own position within the card never shifts
@@ -286,10 +351,23 @@ export const DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG = {
   minimalModeEnabled: true,
   minimalModeGradientEnabled: true,
   minimalModeFontSize: 'text-3xl',
+  minimalModeFontSizeWide: 'md:text-3xl',
+  minimalModeFontSizeLg: 'lg:text-3xl',
   minimalModeTextDimOpacity: 0.45,
   minimalModeTextEmphasisOpacity: 0.95,
   minimalModeTextMaxWidth: 'max-w-prose',
-  minimalModeContentPadding: 'p-8',
+  minimalModeContentPaddingTop: 'pt-8',
+  minimalModeContentPaddingRight: 'pr-8',
+  minimalModeContentPaddingBottom: 'pb-8',
+  minimalModeContentPaddingLeft: 'pl-8',
+  minimalModeContentPaddingTopWide: 'md:pt-8',
+  minimalModeContentPaddingRightWide: 'md:pr-8',
+  minimalModeContentPaddingBottomWide: 'md:pb-8',
+  minimalModeContentPaddingLeftWide: 'md:pl-8',
+  minimalModeContentPaddingTopLg: 'lg:pt-8',
+  minimalModeContentPaddingRightLg: 'lg:pr-8',
+  minimalModeContentPaddingBottomLg: 'lg:pb-8',
+  minimalModeContentPaddingLeftLg: 'lg:pl-8',
   descriptionVisible: true,
   descriptionHoverReveal: true,
   cardRadius: 'rounded-2xl',
