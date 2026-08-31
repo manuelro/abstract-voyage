@@ -526,6 +526,26 @@ export type SplitColumnCardStackConfig = {
    * suppressed entirely under prefers-reduced-motion — click-to-promote
    * still works instantly either way. */
   dwellThresholdMs: number;
+
+  /** Active (gradient-appearance) card only — a 0-1 multiplier applied on
+   * top of ArticleCard.module.css's own already-tuned per-element header
+   * opacities (label 0.6, meta 0.6, topic 0.7, separator 0.4 — see that
+   * module's `.card` block), not a single flat value replacing all four.
+   * 1 (default) reproduces those hardcoded values byte-for-byte; below 1
+   * dims the whole topic-pill/date/reading-time row together, keeping their
+   * existing relative weighting. Read through
+   * `--article-card-header-opacity` (AbstractJournalLabCollection.tsx's own
+   * stackAppearanceStyle), which the module's own [data-appearance='neutral']
+   * block never references — a settled neighbor card's own unified ink
+   * (neighborTextColor et al.) is unaffected by this field regardless of its
+   * value. */
+  activeHeaderOpacity: number;
+  /** Same multiplier mechanism as activeHeaderOpacity above, applied to the
+   * title (0.9) and excerpt (0.7) instead of the header row — operator ask:
+   * the active card's title renders too bright against the gradient at full
+   * opacity. Independent field so an operator can dim the meta chrome
+   * without touching the actual headline/summary text, or vice versa. */
+  activeTextOpacity: number;
 };
 
 export const DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG = {
@@ -606,6 +626,8 @@ export const DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG = {
   neighborSettleOpacityTransitionMs: 540,
   neighborSettleOpacityEasing: 'gentle',
   dwellThresholdMs: 1000,
+  activeHeaderOpacity: 1,
+  activeTextOpacity: 0.85,
 } satisfies SplitColumnCardStackConfig;
 
 const WIDTH_VALUES: ReadonlyArray<WidthClass> = WIDTH_OPTIONS.map(option => option.value);
@@ -774,6 +796,8 @@ export function normalizeSplitColumnCardStackConfig(
       base.neighborSettleOpacityEasing, MOTION_EASINGS, D.neighborSettleOpacityEasing,
     ),
     dwellThresholdMs: clamp(base.dwellThresholdMs, 150, 3000, D.dwellThresholdMs),
+    activeHeaderOpacity: clamp(base.activeHeaderOpacity, 0, 1, D.activeHeaderOpacity),
+    activeTextOpacity: clamp(base.activeTextOpacity, 0, 1, D.activeTextOpacity),
   };
 }
 

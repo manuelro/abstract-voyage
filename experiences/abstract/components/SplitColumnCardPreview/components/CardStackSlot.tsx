@@ -28,6 +28,14 @@ export type CardStackSlotPresentation = {
    * small topic-pill's own border) is. See CardStack.tsx's own
    * resolvedNeighborCardBorderColor doc comment. */
   cardBorderColor: string;
+  /** Active (gradient-appearance) card only — see
+   * SplitColumnCardStackConfig.activeHeaderOpacity's own doc comment. A
+   * settled neighbor's own header row already renders via textColor above
+   * instead, so this is simply unread there. */
+  headerOpacity: number;
+  /** Active (gradient-appearance) card only — see
+   * SplitColumnCardStackConfig.activeTextOpacity's own doc comment. */
+  textOpacity: number;
   transitionDurationMs: number;
   transitionEasingCss: string;
   transitionDelayMs: number;
@@ -569,6 +577,8 @@ export function CardStackSlot<TItem>({
             cardBorderColor: hoverBorderActive
               ? resolvedNeighborCardBorderHoverColor
               : resolvedNeighborCardBorderColor,
+            headerOpacity: stackConfig.activeHeaderOpacity,
+            textOpacity: stackConfig.activeTextOpacity,
             transitionDurationMs: prefersReducedMotion ? 0 : stackConfig.stepTiltDurationMs,
             transitionEasingCss: tiltEasingCss,
             transitionDelayMs: prefersReducedMotion ? 0 : staggerMs,

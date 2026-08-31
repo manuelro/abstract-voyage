@@ -14,12 +14,24 @@
  */
 .card {
   container-type: size;
-  --article-card-label-color: rgba(255, 255, 255, 0.6);
-  --article-card-meta-color: rgba(255, 255, 255, 0.6);
-  --article-card-topic-color: rgba(255, 255, 255, 0.7);
-  --article-card-title-color: rgba(255, 255, 255, 0.9);
-  --article-card-excerpt-color: rgba(255, 255, 255, 0.7);
-  --article-card-separator-color: rgba(255, 255, 255, 0.4);
+  /* Active (gradient-appearance) card only — multipliers on top of each
+     element's own already-tuned opacity below, not a flat replacement
+     value: 1 (default, set here so an operator who never touches the panel
+     sees byte-for-byte today's look) is a no-op; below 1 dims the whole
+     header row (label/meta/topic/separator) or title+excerpt together,
+     keeping their existing relative weighting. Set from
+     SplitColumnCardStackConfig.activeHeaderOpacity/-TextOpacity via
+     AbstractJournalLabCollection.tsx's own stackAppearanceStyle — a settled
+     neighbor's [data-appearance='neutral'] block below never references
+     either variable, so both are inert there regardless of value. */
+  --article-card-header-opacity: 1;
+  --article-card-text-opacity: 1;
+  --article-card-label-color: rgba(255, 255, 255, calc(0.6 * var(--article-card-header-opacity)));
+  --article-card-meta-color: rgba(255, 255, 255, calc(0.6 * var(--article-card-header-opacity)));
+  --article-card-topic-color: rgba(255, 255, 255, calc(0.7 * var(--article-card-header-opacity)));
+  --article-card-title-color: rgba(255, 255, 255, calc(0.9 * var(--article-card-text-opacity)));
+  --article-card-excerpt-color: rgba(255, 255, 255, calc(0.7 * var(--article-card-text-opacity)));
+  --article-card-separator-color: rgba(255, 255, 255, calc(0.4 * var(--article-card-header-opacity)));
   --article-card-graphic-border-color: rgba(255, 255, 255, 0.25);
   --article-card-cta-color: rgba(255, 255, 255, 0.8);
   --article-card-cta-border-color: rgba(255, 255, 255, 0.3);

@@ -666,6 +666,10 @@ export type HueFadeCardProps = {
      * (CardStackSlot.tsx). Distinct from topicBorderColor above (the small
      * topic-pill's own border). */
     cardBorderColor: string;
+    /** Active-only — see CardStackSlotPresentation.headerOpacity/-TextOpacity's
+     * own doc comments (CardStackSlot.tsx). */
+    headerOpacity: number;
+    textOpacity: number;
     transitionDurationMs: number;
     transitionEasingCss: string;
     transitionDelayMs: number;
@@ -1189,6 +1193,15 @@ export function AbstractJournalLabHueFadeCard({
     '--article-card-gradient-reveal-easing': stackPresentation.gradientRevealEasingCss,
     '--article-card-gradient-reveal-delay': `${stackPresentation.transitionDelayMs}ms`,
     '--article-card-gradient-reveal-blur': `${stackPresentation.gradientRevealBlurPx}px`,
+    // Active (gradient) card only — a multiplier on top of
+    // ArticleCard.module.css's own already-tuned per-element header/text
+    // opacities (see SplitColumnCardStackConfig.activeHeaderOpacity/
+    // -TextOpacity's own doc comments). Set unconditionally: the
+    // [data-appearance='neutral'] block a settled neighbor renders under
+    // never references either variable (its own color declarations are flat
+    // hex, not calc()-driven), so these are simply inert there regardless.
+    '--article-card-header-opacity': stackPresentation.headerOpacity,
+    '--article-card-text-opacity': stackPresentation.textOpacity,
     // Overrides ArticleCard.module.css's own [data-appearance='neutral']
     // block's fixed label/meta/title/excerpt/separator/CTA color and topic-
     // tag border-color, making both operator-tunable instead of the two
