@@ -289,6 +289,7 @@ export function AboutTimeline({
   return (
     <div
       className={[
+        config.maxWidthClassName,
         config.paddingTopClassName, config.paddingRightClassName,
         config.paddingBottomClassName, config.paddingLeftClassName,
         config.paddingTopWideClassName, config.paddingRightWideClassName,

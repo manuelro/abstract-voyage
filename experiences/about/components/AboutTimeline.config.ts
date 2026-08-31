@@ -54,8 +54,10 @@ import {
 import {
   FONT_SIZE_OPTIONS,
   FONT_WEIGHT_OPTIONS,
+  MAX_WIDTH_OPTIONS,
   type FontSizeClass,
   type FontWeightClass,
+  type MaxWidthClass,
 } from '../../../components/tailwindTypographyScale';
 
 /** 'accent' (default): the marker's fill/outline color tracks the active
@@ -160,6 +162,19 @@ export type AboutTimelineRuleWeightClass = typeof RULE_WEIGHT_OPTIONS[number]['v
  * value borrowed from the page's own column config.
  */
 export type AboutTimelineConfig = {
+  /** Caps the whole block's (description + rows together) own width — a
+   * time-navigation device reads worse the wider its text lines run, so
+   * this stops it stretching edge-to-edge on wide viewports/columns rather
+   * than relying on the page's own column width alone. Literal Tailwind
+   * `max-w-*` class, this repo's shared rem-based legibility scale
+   * (`tailwindTypographyScale.ts`'s own `MAX_WIDTH_OPTIONS` — the same
+   * catalog `AbstractEditorialHero.config.ts`'s `paragraphMaxWidth` already
+   * draws from) rather than a raw px value or a percentage: rem tracks the
+   * reader's own root font size, which is what keeps a measure legible
+   * across zoom levels/user font-size overrides, unlike a fixed px cap or a
+   * percentage-of-parent (`tailwindWidthScale.ts`'s own catalog, sized for
+   * column-relative siblings, not an absolute reading-width cap). */
+  maxWidthClassName: MaxWidthClass;
   /** Vertical gap between rows — literal Tailwind class, this repo's shared
    * spacing scale. */
   rowGap: GapClass;
@@ -415,6 +430,7 @@ export type AboutTimelineConfig = {
 };
 
 export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
+  maxWidthClassName: 'max-w-sm',
   rowGap: 'gap-8',
   markerSizeClassName: 'w-6 h-6',
   ruleVisible: false,
@@ -580,6 +596,7 @@ const MARGIN_LEFT_VALUES: ReadonlyArray<MarginLeftClass> = MARGIN_LEFT_OPTIONS.m
 const MARGIN_LEFT_WIDE_VALUES: ReadonlyArray<MarginLeftWideClass> =
   MARGIN_LEFT_WIDE_OPTIONS.map(option => option.value);
 const MARGIN_LEFT_LG_VALUES: ReadonlyArray<MarginLeftLgClass> = MARGIN_LEFT_LG_OPTIONS.map(option => option.value);
+const MAX_WIDTH_VALUES: ReadonlyArray<MaxWidthClass> = MAX_WIDTH_OPTIONS.map(option => option.value);
 const FONT_SIZE_VALUES: ReadonlyArray<FontSizeClass> = FONT_SIZE_OPTIONS.map(option => option.value);
 const FONT_WEIGHT_VALUES: ReadonlyArray<FontWeightClass> = FONT_WEIGHT_OPTIONS.map(option => option.value);
 const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
@@ -601,6 +618,7 @@ export function normalizeAboutTimelineConfig(
   const base = { ...DEFAULT_ABOUT_TIMELINE_CONFIG, ...(config ?? {}) };
   const D = DEFAULT_ABOUT_TIMELINE_CONFIG;
   return {
+    maxWidthClassName: token(base.maxWidthClassName, MAX_WIDTH_VALUES, D.maxWidthClassName),
     rowGap: token(base.rowGap, GAP_VALUES, D.rowGap),
     markerSizeClassName: token(base.markerSizeClassName, MARKER_SIZE_VALUES, D.markerSizeClassName),
     ruleVisible: base.ruleVisible !== false,

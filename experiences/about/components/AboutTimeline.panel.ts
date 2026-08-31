@@ -26,7 +26,7 @@ import {
   MARGIN_LEFT_WIDE_OPTIONS,
   MARGIN_LEFT_LG_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
-import { FONT_SIZE_OPTIONS, FONT_WEIGHT_OPTIONS } from '../../../components/tailwindTypographyScale';
+import { FONT_SIZE_OPTIONS, FONT_WEIGHT_OPTIONS, MAX_WIDTH_OPTIONS } from '../../../components/tailwindTypographyScale';
 import {
   DEFAULT_ABOUT_TIMELINE_CONFIG,
   MARKER_SIZE_OPTIONS,
@@ -77,6 +77,13 @@ export const ABOUT_TIMELINE_PANEL = defineConfigScope<AboutTimelineConfig>({
   defaultOpen: false,
   defaultValue: DEFAULT_ABOUT_TIMELINE_CONFIG,
   fields: [
+    {
+      kind: 'select',
+      key: 'maxWidthClassName',
+      label: 'Max width',
+      description: 'Caps the whole block\'s own width (description + rows) so it stays legible instead of stretching edge-to-edge on wide viewports/columns.',
+      options: MAX_WIDTH_OPTIONS,
+    },
     {
       kind: 'select',
       key: 'rowGap',
