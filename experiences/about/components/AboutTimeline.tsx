@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { CTA_BUTTON_MOTION_EASINGS } from '../../../components/CtaButton/config/registered';
 import { tailwindSpacingTokenToPx } from '../../../components/tailwindSpacingScale';
@@ -79,6 +79,40 @@ export function AboutTimeline({
   const transitionEasingCss = CTA_BUTTON_MOTION_EASINGS[config.transitionEasing];
   const transitionDurationMs = prefersReducedMotion ? 0 : config.transitionDurationMs;
 
+  // Pointer-hover state, independent of `activeIndex` (real selection):
+  // while a row is hovered (post-delay), it reads as the sole "visually
+  // active" row — see `isHoveredRow`/`visuallyActive` below — regardless of
+  // which row is actually selected. Only entering has a delay; leaving
+  // (or the pointer moving to another row) clears it immediately.
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHoverTimeout = useCallback(() => {
+    if (hoverTimeoutRef.current !== null) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleRowPointerEnter = useCallback((slideIndex: number) => {
+    clearHoverTimeout();
+    if (config.hoverDelayMs <= 0) {
+      setHoveredIndex(slideIndex);
+      return;
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      hoverTimeoutRef.current = null;
+      setHoveredIndex(slideIndex);
+    }, config.hoverDelayMs);
+  }, [clearHoverTimeout, config.hoverDelayMs]);
+
+  const handleRowPointerLeave = useCallback((slideIndex: number) => {
+    clearHoverTimeout();
+    setHoveredIndex(current => (current === slideIndex ? null : current));
+  }, [clearHoverTimeout]);
+
+  useEffect(() => clearHoverTimeout, [clearHoverTimeout]);
+
   // Every row's own title/description color pair, resolved once here (not
   // per-row, not per-render-of-a-single-row) since they're identical for
   // every row — only which pair (active vs. inactive) a given row reads
@@ -141,12 +175,14 @@ export function AboutTimeline({
   }, [rows, onSelect, focusRow]);
 
   const titleClassName = [
+    config.rowTitleFontWeightClassName, config.rowTitleFontSizeClassName,
     config.rowTitlePaddingTopClassName, config.rowTitlePaddingRightClassName,
     config.rowTitlePaddingBottomClassName, config.rowTitlePaddingLeftClassName,
     config.rowTitleMarginTopClassName, config.rowTitleMarginRightClassName,
     config.rowTitleMarginBottomClassName, config.rowTitleMarginLeftClassName,
   ].join(' ');
   const rowDescriptionClassName = [
+    config.rowDescriptionFontSizeClassName,
     config.rowDescriptionPaddingTopClassName, config.rowDescriptionPaddingRightClassName,
     config.rowDescriptionPaddingBottomClassName, config.rowDescriptionPaddingLeftClassName,
     config.rowDescriptionMarginTopClassName, config.rowDescriptionMarginRightClassName,
@@ -154,7 +190,12 @@ export function AboutTimeline({
   ].join(' ');
 
   const rowElements = useMemo(() => rows.map((row, index) => {
-    const active = row.slideIndex === activeIndex;
+    const selected = row.slideIndex === activeIndex;
+    // Hover only ever touches the hovered row's own marker/title opacity —
+    // every other row (and every other property of the hovered row itself:
+    // color, description, marker fill) stays exactly whatever its real
+    // selection state already made it, completely untouched by hover.
+    const isHoveredRow = row.slideIndex === hoveredIndex;
     return (
       <AboutTimelineRow
         key={row.slideIndex}
@@ -162,36 +203,43 @@ export function AboutTimeline({
         panelId={panelId}
         caption={row.caption}
         line={row.line}
-        active={active}
-        tabIndex={active ? 0 : -1}
+        active={selected}
+        tabIndex={selected ? 0 : -1}
         markerColor={resolvedMarkerColor}
-        titleColor={active ? resolvedRowTitleColorActive : resolvedRowTitleColorInactive}
-        descriptionColor={active ? resolvedRowDescriptionColorActive : resolvedRowDescriptionColorInactive}
-        descriptionOpacity={active ? config.rowDescriptionOpacityActive : config.rowDescriptionOpacityInactive}
+        titleColor={selected ? resolvedRowTitleColorActive : resolvedRowTitleColorInactive}
+        descriptionColor={selected ? resolvedRowDescriptionColorActive : resolvedRowDescriptionColorInactive}
+        descriptionOpacity={selected ? config.rowDescriptionOpacityActive : config.rowDescriptionOpacityInactive}
         ruleVisible={config.ruleVisible}
         alignment={config.alignment}
-        titleOpacity={active ? config.rowTitleOpacityActive : config.rowTitleOpacityInactive}
+        titleOpacity={isHoveredRow
+          ? config.hoverTitleOpacity
+          : (selected ? config.rowTitleOpacityActive : config.rowTitleOpacityInactive)}
+        markerOpacity={isHoveredRow
+          ? config.hoverMarkerOpacity
+          : (selected ? config.markerActiveOpacity : config.markerIdleOpacity)}
         titleClassName={titleClassName}
         descriptionClassName={rowDescriptionClassName}
-        markerIdleOpacity={config.markerIdleOpacity}
-        markerActiveOpacity={config.markerActiveOpacity}
         transitionDurationMs={transitionDurationMs}
         transitionEasingCss={transitionEasingCss}
         onSelect={() => onSelect(row.slideIndex)}
         onKeyDown={keyboardEvent => handleKeyDown(keyboardEvent, index)}
+        onPointerEnter={() => handleRowPointerEnter(row.slideIndex)}
+        onPointerLeave={() => handleRowPointerLeave(row.slideIndex)}
         rowRef={element => { rowRefs.current[index] = element; }}
       />
     );
   }), [
-    rows, activeIndex, resolvedMarkerColor,
+    rows, activeIndex, resolvedMarkerColor, hoveredIndex,
     resolvedRowTitleColorActive, resolvedRowTitleColorInactive,
     resolvedRowDescriptionColorActive, resolvedRowDescriptionColorInactive,
     config.rowDescriptionOpacityActive, config.rowDescriptionOpacityInactive,
     config.ruleVisible, config.alignment,
     config.rowTitleOpacityActive, config.rowTitleOpacityInactive,
+    config.hoverTitleOpacity, config.hoverMarkerOpacity,
     titleClassName, rowDescriptionClassName,
     config.markerIdleOpacity, config.markerActiveOpacity,
-    transitionDurationMs, transitionEasingCss, onSelect, handleKeyDown, panelId,
+    transitionDurationMs, transitionEasingCss, onSelect, handleKeyDown,
+    handleRowPointerEnter, handleRowPointerLeave, panelId,
   ]);
 
   const markerSizePx = tailwindSpacingTokenToPx(config.markerSizeClassName.split(' ')[0], 24);

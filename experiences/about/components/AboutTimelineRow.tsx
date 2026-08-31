@@ -7,12 +7,23 @@ export interface AboutTimelineRowProps {
   panelId: string;
   caption: string;
   line: string;
+  /** Real selection state (`row.slideIndex === activeIndex`) — drives ARIA
+   * (`aria-selected`) and the marker's own fill class. Hover never touches
+   * this — only a row's own marker/title opacity change on hover (see
+   * `markerOpacity`/`titleOpacity` below); every other row, and every other
+   * property of the hovered row itself, stays exactly as its real selection
+   * state already made it. */
   active: boolean;
   tabIndex: number;
   /** Resolved marker fill/outline color — either the active slide's own
    * accent, a fixed custom color, or the row title's own active color, see
    * `AboutTimeline.tsx`'s own `resolvedMarkerColor`. */
   markerColor: string;
+  /** Opacity of the marker — already resolved by `AboutTimeline.tsx`:
+   * `config.hoverMarkerOpacity` while this row is the hovered one, else
+   * `markerActiveOpacity`/`-IdleOpacity` per `active` — hovering a row never
+   * changes any other row's own opacity. */
+  markerOpacity: number;
   /** Resolved, contrast-aware color for this row's own title (caption) —
    * already picked for this row's current active/inactive state by
    * `AboutTimeline.tsx` (`config.rowTitleMinContrastActive`/`-Inactive`). */
@@ -37,12 +48,15 @@ export interface AboutTimelineRowProps {
   descriptionClassName: string;
   ruleVisible: boolean;
   alignment: AboutTimelineAlignment;
-  markerIdleOpacity: number;
-  markerActiveOpacity: number;
   transitionDurationMs: number;
   transitionEasingCss: string;
   onSelect: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
+  /** Pointer-hover start — `AboutTimeline.tsx`'s own delay timer decides
+   * whether/when this actually flips `visuallyActive` for this row. */
+  onPointerEnter: () => void;
+  /** Pointer-hover end — always immediate, no delay on the way out. */
+  onPointerLeave: () => void;
   rowRef: (element: HTMLButtonElement | null) => void;
 }
 
@@ -74,6 +88,7 @@ export function AboutTimelineRow({
   active,
   tabIndex,
   markerColor,
+  markerOpacity,
   titleColor,
   titleOpacity,
   titleClassName,
@@ -82,12 +97,12 @@ export function AboutTimelineRow({
   descriptionClassName,
   ruleVisible,
   alignment,
-  markerIdleOpacity,
-  markerActiveOpacity,
   transitionDurationMs,
   transitionEasingCss,
   onSelect,
   onKeyDown,
+  onPointerEnter,
+  onPointerLeave,
   rowRef,
 }: AboutTimelineRowProps) {
   return (
@@ -102,6 +117,8 @@ export function AboutTimelineRow({
         tabIndex={tabIndex}
         onClick={onSelect}
         onKeyDown={onKeyDown}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
         data-alignment={alignment}
         className={styles.row}
         style={{
@@ -115,7 +132,7 @@ export function AboutTimelineRow({
           className={`${styles.marker} ${active ? styles.markerActive : ''}`}
           style={{
             color: markerColor,
-            opacity: active ? markerActiveOpacity : markerIdleOpacity,
+            opacity: markerOpacity,
           }}
         />
         <span className={styles.content}>

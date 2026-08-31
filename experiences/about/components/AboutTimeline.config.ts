@@ -19,7 +19,12 @@ import {
   type MarginBottomClass,
   type MarginLeftClass,
 } from '../../../components/tailwindSpacingScale';
-import { FONT_SIZE_OPTIONS, type FontSizeClass } from '../../../components/tailwindTypographyScale';
+import {
+  FONT_SIZE_OPTIONS,
+  FONT_WEIGHT_OPTIONS,
+  type FontSizeClass,
+  type FontWeightClass,
+} from '../../../components/tailwindTypographyScale';
 
 /** 'accent' (default): the marker's fill/outline color tracks the active
  * slide's own resolved palette accent (INT-04, unchanged). 'custom' pins it
@@ -109,6 +114,9 @@ export type AboutTimelineRuleWeightClass = typeof RULE_WEIGHT_OPTIONS[number]['v
  * (operator fix): the only thing that tells an end user which row is
  * active is color/opacity (marker fill switching on, row text brightening)
  * — every row renders at one fixed weight regardless of active state.
+ * `rowTitleFontWeightClassName` (opt-in, default `font-normal`) picks what
+ * that one fixed weight is — a static appearance choice applied identically
+ * to every row, not a per-state signal, so this rule still holds.
  *
  * `alignment` supersedes the page-driven text-align wiring an earlier pass
  * threaded in from `splitColumnLayoutConfig.narrowColumnTextAlign*`
@@ -158,6 +166,20 @@ export type AboutTimelineConfig = {
    * its title. */
   rowDescriptionMinContrastActive: number;
   rowDescriptionMinContrastInactive: number;
+  /** Font weight of a row's own title (caption) — literal Tailwind
+   * `font-*` class, applied identically regardless of active/inactive state
+   * (see this type's own doc comment on font weight never being a state
+   * signal). Opt-in: defaults to `font-normal`, the same weight this
+   * component always rendered at before this field existed. */
+  rowTitleFontWeightClassName: FontWeightClass;
+  /** Font size of a row's own title (caption) — literal Tailwind `text-*`
+   * class, independent of the supporting line's own size below and of the
+   * lead-in `descriptionFontSizeClassName` further down (a different kind of
+   * object, see that field's own doc comment). */
+  rowTitleFontSizeClassName: FontSizeClass;
+  /** Font size of a row's own supporting line — independent of the title's
+   * own size above. */
+  rowDescriptionFontSizeClassName: FontSizeClass;
   /** Opacity of a row's own title (caption) while its row is active —
    * independent of the supporting line's own opacity below. */
   rowTitleOpacityActive: number;
@@ -170,6 +192,22 @@ export type AboutTimelineConfig = {
   /** Same as `rowDescriptionOpacityActive` above, applied while the row is
    * inactive. */
   rowDescriptionOpacityInactive: number;
+  /** Opacity the hovered row's own marker rises to during pointer hover
+   * (after `hoverDelayMs` elapses) — independent of `markerActiveOpacity`
+   * above, so the hover pop can be tuned separately from the plain
+   * "this row is selected" fill opacity. Every OTHER row (not the hovered
+   * one, including the actually-selected row if it isn't what's being
+   * hovered) falls back to its full inactive bundle — color and opacity,
+   * title/description/marker alike — for the duration of the hover; see
+   * `AboutTimeline.tsx`'s own `isHoveredRow`/`visuallyActive` derivation. */
+  hoverMarkerOpacity: number;
+  /** Same hover-pop treatment as `hoverMarkerOpacity` above, applied to the
+   * hovered row's own title (caption) opacity instead. */
+  hoverTitleOpacity: number;
+  /** Delay, in milliseconds, between the pointer entering a row and that
+   * row's hover state actually taking effect — leaving before this elapses
+   * cancels it outright (no delay on the way out, only on the way in). */
+  hoverDelayMs: number;
   /** Padding/margin around a row's own title (caption) specifically — four
    * independent literal Tailwind classes per property, this repo's shared
    * per-side spacing catalogs. */
@@ -214,9 +252,9 @@ export type AboutTimelineConfig = {
   descriptionMarginBottomClassName: MarginBottomClass;
   descriptionMarginLeftClassName: MarginLeftClass;
   /** Font size of the description text — literal Tailwind `text-*` class,
-   * independent of the rows' own caption/line sizes (fixed in
-   * `AboutTimeline.module.css`), since the description is a different kind
-   * of object (a lead-in sentence, not a row). */
+   * independent of `rowTitleFontSizeClassName`/`rowDescriptionFontSizeClassName`
+   * above, since the description is a different kind of object (a lead-in
+   * sentence, not a row). */
   descriptionFontSizeClassName: FontSizeClass;
   /** Opacity of the lead-in description text — this element has no active/
    * inactive state of its own, so a single value (unlike the per-row title/
@@ -250,10 +288,16 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowTitleMinContrastInactive: 4,
   rowDescriptionMinContrastActive: 5,
   rowDescriptionMinContrastInactive: 4,
+  rowTitleFontWeightClassName: 'font-medium',
+  rowTitleFontSizeClassName: 'text-base',
+  rowDescriptionFontSizeClassName: 'text-sm',
   rowTitleOpacityActive: 1,
   rowTitleOpacityInactive: 0.7,
   rowDescriptionOpacityActive: 0.8,
   rowDescriptionOpacityInactive: 0.6,
+  hoverMarkerOpacity: 1,
+  hoverTitleOpacity: 1,
+  hoverDelayMs: 150,
   rowTitlePaddingTopClassName: 'pt-0',
   rowTitlePaddingRightClassName: 'pr-0',
   rowTitlePaddingBottomClassName: 'pb-0',
@@ -307,6 +351,7 @@ const MARGIN_RIGHT_VALUES: ReadonlyArray<MarginRightClass> = MARGIN_RIGHT_OPTION
 const MARGIN_BOTTOM_VALUES: ReadonlyArray<MarginBottomClass> = MARGIN_BOTTOM_OPTIONS.map(option => option.value);
 const MARGIN_LEFT_VALUES: ReadonlyArray<MarginLeftClass> = MARGIN_LEFT_OPTIONS.map(option => option.value);
 const FONT_SIZE_VALUES: ReadonlyArray<FontSizeClass> = FONT_SIZE_OPTIONS.map(option => option.value);
+const FONT_WEIGHT_VALUES: ReadonlyArray<FontWeightClass> = FONT_WEIGHT_OPTIONS.map(option => option.value);
 const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
   'linear', 'standard', 'expressive', 'viscous', 'gentle',
 ];
@@ -349,6 +394,15 @@ export function normalizeAboutTimelineConfig(
     rowDescriptionMinContrastInactive: clampRange(
       base.rowDescriptionMinContrastInactive, 1, 21, D.rowDescriptionMinContrastInactive,
     ),
+    rowTitleFontWeightClassName: token(
+      base.rowTitleFontWeightClassName, FONT_WEIGHT_VALUES, D.rowTitleFontWeightClassName,
+    ),
+    rowTitleFontSizeClassName: token(
+      base.rowTitleFontSizeClassName, FONT_SIZE_VALUES, D.rowTitleFontSizeClassName,
+    ),
+    rowDescriptionFontSizeClassName: token(
+      base.rowDescriptionFontSizeClassName, FONT_SIZE_VALUES, D.rowDescriptionFontSizeClassName,
+    ),
     rowTitleOpacityActive: clampRange(base.rowTitleOpacityActive, 0, 1, D.rowTitleOpacityActive),
     rowTitleOpacityInactive: clampRange(base.rowTitleOpacityInactive, 0, 1, D.rowTitleOpacityInactive),
     rowDescriptionOpacityActive: clampRange(
@@ -357,6 +411,9 @@ export function normalizeAboutTimelineConfig(
     rowDescriptionOpacityInactive: clampRange(
       base.rowDescriptionOpacityInactive, 0, 1, D.rowDescriptionOpacityInactive,
     ),
+    hoverMarkerOpacity: clampRange(base.hoverMarkerOpacity, 0, 1, D.hoverMarkerOpacity),
+    hoverTitleOpacity: clampRange(base.hoverTitleOpacity, 0, 1, D.hoverTitleOpacity),
+    hoverDelayMs: clampRange(base.hoverDelayMs, 0, 2000, D.hoverDelayMs),
     rowTitlePaddingTopClassName: token(
       base.rowTitlePaddingTopClassName, PADDING_TOP_VALUES, D.rowTitlePaddingTopClassName,
     ),

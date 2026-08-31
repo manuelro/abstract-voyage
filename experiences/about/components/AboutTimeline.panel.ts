@@ -10,7 +10,7 @@ import {
   MARGIN_BOTTOM_OPTIONS,
   MARGIN_LEFT_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
-import { FONT_SIZE_OPTIONS } from '../../../components/tailwindTypographyScale';
+import { FONT_SIZE_OPTIONS, FONT_WEIGHT_OPTIONS } from '../../../components/tailwindTypographyScale';
 import {
   DEFAULT_ABOUT_TIMELINE_CONFIG,
   MARKER_SIZE_OPTIONS,
@@ -168,6 +168,25 @@ export const ABOUT_TIMELINE_PANEL = defineConfigScope<AboutTimelineConfig>({
       step: 0.1,
     },
     {
+      kind: 'select',
+      key: 'rowTitleFontWeightClassName',
+      label: 'Row title font weight',
+      description: 'Opt-in — off (font-normal) by default. Applied identically to every row regardless of active/inactive state; never a state signal on its own.',
+      options: FONT_WEIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitleFontSizeClassName',
+      label: 'Row title font size',
+      options: FONT_SIZE_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionFontSizeClassName',
+      label: 'Row description font size',
+      options: FONT_SIZE_OPTIONS,
+    },
+    {
       kind: 'number',
       key: 'rowTitleOpacityActive',
       label: 'Row title opacity (active)',
@@ -200,6 +219,35 @@ export const ABOUT_TIMELINE_PANEL = defineConfigScope<AboutTimelineConfig>({
       min: 0,
       max: 1,
       step: 0.01,
+    },
+    {
+      kind: 'number',
+      key: 'hoverMarkerOpacity',
+      label: 'Hover marker opacity',
+      description: 'Opacity the hovered row\'s own marker rises to during pointer hover, once "Hover delay" elapses.',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'number',
+      key: 'hoverTitleOpacity',
+      label: 'Hover title opacity',
+      description: 'Opacity the hovered row\'s own title rises to during pointer hover.',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'number',
+      key: 'hoverDelayMs',
+      label: 'Hover delay',
+      description: 'Time the pointer must stay over a row before its hover state takes effect. Leaving early cancels it — no delay on the way out.',
+      min: 0,
+      max: 2000,
+      step: 10,
+      unit: 'ms',
+      integer: true,
     },
     {
       kind: 'select',
