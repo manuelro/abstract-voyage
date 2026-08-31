@@ -138,9 +138,9 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnMobileAlignOffsetPx: 0,
   narrowColumnContentPaddingLeft: 'pl-7',
   narrowColumnContentPaddingLeftWide: 'md:pl-7',
-  narrowColumnContentPaddingLeftLg: 'lg:pl-14',
+  narrowColumnContentPaddingLeftLg: 'lg:pl-0',
   narrowColumnContentPaddingRightWide: 'md:pr-7',
-  narrowColumnContentPaddingRightLg: 'lg:pr-14',
+  narrowColumnContentPaddingRightLg: 'lg:pr-0',
   narrowColumnContentPaddingRight: 'pr-7',
   narrowColumnContentPaddingTop: 'pt-10',
   narrowColumnContentPaddingTopWide: 'md:pt-16',
@@ -375,10 +375,10 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // CONFIG above) rather than left at 0 — a literal 0 read as content
   // flush against the true viewport edge once this field went live, which
   // /abstract's own narrow column (no such dead-field history) never does.
-  narrowColumnContentPaddingLeftWide: 'md:pl-7',
-  narrowColumnContentPaddingLeftLg: 'lg:pl-14',
+  narrowColumnContentPaddingLeftWide: 'md:pl-0',
+  narrowColumnContentPaddingLeftLg: 'lg:pl-0',
   narrowColumnContentPaddingRightWide: 'md:pr-7',
-  narrowColumnContentPaddingRightLg: 'lg:pr-14',
+  narrowColumnContentPaddingRightLg: 'lg:pr-0',
   narrowColumnContentPaddingRight: 'pr-14',
   narrowColumnContentPaddingTop: 'pt-10',
   narrowColumnContentPaddingTopWide: 'md:pt-9',
