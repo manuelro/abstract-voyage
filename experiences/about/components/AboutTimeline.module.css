@@ -124,16 +124,20 @@
 /* Plain lead-in text above the rows (AboutTimeline.tsx's own `description`
    prop) — indented to start at the exact same x-position a row's own
    caption text starts at, so the marker/rule column's horizontal space
-   above it reads as deliberately empty rather than misaligned. The indent
-   side's own left/right padding is computed and applied inline
-   (AboutTimeline.tsx's own `descriptionIndentStyle`) since it must combine
-   the structural marker-offset with the operator's own configurable
-   `descriptionPaddingLeft/-RightClassName` on that same side — top/bottom
-   padding and all four margin sides have no such structural offset to
-   combine with, so those apply as plain Tailwind classes instead
-   (AboutTimeline.tsx's own className list). font-size/color/opacity come
-   from config too; text-align mirrors `.row`'s own alignment via the shared
-   `data-alignment` attribute. */
+   above it reads as deliberately empty rather than misaligned, at every
+   breakpoint tier. The indent side's own left/right padding is computed
+   HERE (not inline) since it must combine the structural marker-offset
+   with the operator's own configurable `descriptionPaddingLeft/
+   -RightClassName` (and its `-Wide`/`-Lg` tiers) on that same side — a
+   plain Tailwind class on that side would silently collide with this same
+   property. AboutTimeline.tsx only supplies the "extra" operator-
+   configured amount per tier, as the `--about-timeline-description-
+   indent-extra(-wide|-lg)` custom properties below; top/bottom padding and
+   all four margin sides have no such structural offset to combine with, so
+   those apply as plain Tailwind classes instead (AboutTimeline.tsx's own
+   className list). font-size/color/opacity come from config too;
+   text-align mirrors `.row`'s own alignment via the shared `data-alignment`
+   attribute. */
 .description {
   line-height: 1.4;
   text-align: left;
@@ -141,6 +145,46 @@
 
 .description[data-alignment='right'] {
   text-align: right;
+}
+
+.description[data-alignment='left'] {
+  padding-left: calc(
+    var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra, 0px)
+  );
+}
+
+.description[data-alignment='right'] {
+  padding-right: calc(
+    var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra, 0px)
+  );
+}
+
+@media (min-width: 768px) {
+  .description[data-alignment='left'] {
+    padding-left: calc(
+      var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-wide, 0px)
+    );
+  }
+
+  .description[data-alignment='right'] {
+    padding-right: calc(
+      var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-wide, 0px)
+    );
+  }
+}
+
+@media (min-width: 1024px) {
+  .description[data-alignment='left'] {
+    padding-left: calc(
+      var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-lg, 0px)
+    );
+  }
+
+  .description[data-alignment='right'] {
+    padding-right: calc(
+      var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-lg, 0px)
+    );
+  }
 }
 
 /* Height constraint (about-IA-timeline-copy-rework §4.5): .splitLeft is

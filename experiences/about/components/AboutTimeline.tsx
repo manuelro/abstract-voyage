@@ -178,15 +178,31 @@ export function AboutTimeline({
     config.rowTitleFontWeightClassName, config.rowTitleFontSizeClassName,
     config.rowTitlePaddingTopClassName, config.rowTitlePaddingRightClassName,
     config.rowTitlePaddingBottomClassName, config.rowTitlePaddingLeftClassName,
+    config.rowTitlePaddingTopWideClassName, config.rowTitlePaddingRightWideClassName,
+    config.rowTitlePaddingBottomWideClassName, config.rowTitlePaddingLeftWideClassName,
+    config.rowTitlePaddingTopLgClassName, config.rowTitlePaddingRightLgClassName,
+    config.rowTitlePaddingBottomLgClassName, config.rowTitlePaddingLeftLgClassName,
     config.rowTitleMarginTopClassName, config.rowTitleMarginRightClassName,
     config.rowTitleMarginBottomClassName, config.rowTitleMarginLeftClassName,
+    config.rowTitleMarginTopWideClassName, config.rowTitleMarginRightWideClassName,
+    config.rowTitleMarginBottomWideClassName, config.rowTitleMarginLeftWideClassName,
+    config.rowTitleMarginTopLgClassName, config.rowTitleMarginRightLgClassName,
+    config.rowTitleMarginBottomLgClassName, config.rowTitleMarginLeftLgClassName,
   ].join(' ');
   const rowDescriptionClassName = [
     config.rowDescriptionFontSizeClassName,
     config.rowDescriptionPaddingTopClassName, config.rowDescriptionPaddingRightClassName,
     config.rowDescriptionPaddingBottomClassName, config.rowDescriptionPaddingLeftClassName,
+    config.rowDescriptionPaddingTopWideClassName, config.rowDescriptionPaddingRightWideClassName,
+    config.rowDescriptionPaddingBottomWideClassName, config.rowDescriptionPaddingLeftWideClassName,
+    config.rowDescriptionPaddingTopLgClassName, config.rowDescriptionPaddingRightLgClassName,
+    config.rowDescriptionPaddingBottomLgClassName, config.rowDescriptionPaddingLeftLgClassName,
     config.rowDescriptionMarginTopClassName, config.rowDescriptionMarginRightClassName,
     config.rowDescriptionMarginBottomClassName, config.rowDescriptionMarginLeftClassName,
+    config.rowDescriptionMarginTopWideClassName, config.rowDescriptionMarginRightWideClassName,
+    config.rowDescriptionMarginBottomWideClassName, config.rowDescriptionMarginLeftWideClassName,
+    config.rowDescriptionMarginTopLgClassName, config.rowDescriptionMarginRightLgClassName,
+    config.rowDescriptionMarginBottomLgClassName, config.rowDescriptionMarginLeftLgClassName,
   ].join(' ');
 
   const rowElements = useMemo(() => rows.map((row, index) => {
@@ -247,27 +263,44 @@ export function AboutTimeline({
 
   // The indent side (left while alignment is 'left', right while 'right')
   // combines the structural marker-offset with the operator's own
-  // configured padding on that same side — a plain Tailwind class on that
-  // side would silently collide with AboutTimeline.module.css's own
-  // structural padding rule, so the combined value is computed here and
-  // applied inline instead. The opposite side has no structural offset, so
-  // it's applied as a plain Tailwind class alongside the other three
-  // padding/margin sides (see the <p>'s own className below).
-  const descriptionIndentPaddingPx = tailwindSpacingTokenToPx(
+  // configured padding on that same side, at every breakpoint tier — a
+  // plain Tailwind class on that side would silently collide with
+  // AboutTimeline.module.css's own structural padding rule on the same
+  // property, so only the "extra" operator-configured amount is computed
+  // here (per tier) and handed to the CSS module as custom properties;
+  // AboutTimeline.module.css's own `.description[data-alignment]` media-
+  // query rules own the actual combined calc() formula at each tier. The
+  // opposite side has no structural offset at any tier, so it's applied as
+  // a plain Tailwind class per tier alongside the other padding/margin
+  // sides instead (see the <p>'s own className below).
+  const descriptionIndentExtraPx = tailwindSpacingTokenToPx(
     config.alignment === 'right' ? config.descriptionPaddingRightClassName : config.descriptionPaddingLeftClassName,
     0,
   );
-  const descriptionIndentStyle: CSSProperties = config.alignment === 'right'
-    ? { paddingRight: `calc(var(--about-timeline-marker-size, 9px) + 0.9rem + ${descriptionIndentPaddingPx}px)` }
-    : { paddingLeft: `calc(var(--about-timeline-marker-size, 9px) + 0.9rem + ${descriptionIndentPaddingPx}px)` };
+  const descriptionIndentExtraWidePx = tailwindSpacingTokenToPx(
+    config.alignment === 'right' ? config.descriptionPaddingRightWideClassName : config.descriptionPaddingLeftWideClassName,
+    0,
+  );
+  const descriptionIndentExtraLgPx = tailwindSpacingTokenToPx(
+    config.alignment === 'right' ? config.descriptionPaddingRightLgClassName : config.descriptionPaddingLeftLgClassName,
+    0,
+  );
 
   return (
     <div
       className={[
         config.paddingTopClassName, config.paddingRightClassName,
         config.paddingBottomClassName, config.paddingLeftClassName,
+        config.paddingTopWideClassName, config.paddingRightWideClassName,
+        config.paddingBottomWideClassName, config.paddingLeftWideClassName,
+        config.paddingTopLgClassName, config.paddingRightLgClassName,
+        config.paddingBottomLgClassName, config.paddingLeftLgClassName,
         config.marginTopClassName, config.marginRightClassName,
         config.marginBottomClassName, config.marginLeftClassName,
+        config.marginTopWideClassName, config.marginRightWideClassName,
+        config.marginBottomWideClassName, config.marginLeftWideClassName,
+        config.marginTopLgClassName, config.marginRightLgClassName,
+        config.marginBottomLgClassName, config.marginLeftLgClassName,
       ].join(' ')}
       style={{
         '--about-timeline-marker-size': `${markerSizePx}px`,
@@ -279,19 +312,35 @@ export function AboutTimeline({
           className={[
             styles.description,
             config.descriptionPaddingTopClassName, config.descriptionPaddingBottomClassName,
-            // The indent side (left or right, whichever matches config.alignment)
-            // is applied inline instead — see descriptionIndentStyle above.
+            config.descriptionPaddingTopWideClassName, config.descriptionPaddingBottomWideClassName,
+            config.descriptionPaddingTopLgClassName, config.descriptionPaddingBottomLgClassName,
+            // The indent side (left or right, whichever matches
+            // config.alignment) is applied via CSS custom properties +
+            // AboutTimeline.module.css's own media-query rules instead, at
+            // every tier — see the style prop below.
             config.alignment === 'right' ? config.descriptionPaddingLeftClassName : config.descriptionPaddingRightClassName,
+            config.alignment === 'right'
+              ? config.descriptionPaddingLeftWideClassName
+              : config.descriptionPaddingRightWideClassName,
+            config.alignment === 'right'
+              ? config.descriptionPaddingLeftLgClassName
+              : config.descriptionPaddingRightLgClassName,
             config.descriptionMarginTopClassName, config.descriptionMarginRightClassName,
             config.descriptionMarginBottomClassName, config.descriptionMarginLeftClassName,
+            config.descriptionMarginTopWideClassName, config.descriptionMarginRightWideClassName,
+            config.descriptionMarginBottomWideClassName, config.descriptionMarginLeftWideClassName,
+            config.descriptionMarginTopLgClassName, config.descriptionMarginRightLgClassName,
+            config.descriptionMarginBottomLgClassName, config.descriptionMarginLeftLgClassName,
             config.descriptionFontSizeClassName,
           ].join(' ')}
           data-alignment={config.alignment}
           style={{
             color: resolvedDescriptionColor,
             opacity: config.descriptionOpacity,
-            ...descriptionIndentStyle,
-          }}
+            '--about-timeline-description-indent-extra': `${descriptionIndentExtraPx}px`,
+            '--about-timeline-description-indent-extra-wide': `${descriptionIndentExtraWidePx}px`,
+            '--about-timeline-description-indent-extra-lg': `${descriptionIndentExtraLgPx}px`,
+          } as CSSProperties}
         >
           {description}
         </p>

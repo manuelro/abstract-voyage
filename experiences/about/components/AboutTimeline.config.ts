@@ -2,22 +2,54 @@ import type { CtaButtonMotionEasing } from '../../../components/CtaButton/config
 import {
   GAP_OPTIONS,
   PADDING_TOP_OPTIONS,
+  PADDING_TOP_WIDE_OPTIONS,
+  PADDING_TOP_LG_OPTIONS,
   PADDING_RIGHT_OPTIONS,
+  PADDING_RIGHT_WIDE_OPTIONS,
+  PADDING_RIGHT_LG_OPTIONS,
   PADDING_BOTTOM_OPTIONS,
+  PADDING_BOTTOM_WIDE_OPTIONS,
+  PADDING_BOTTOM_LG_OPTIONS,
   PADDING_LEFT_OPTIONS,
+  PADDING_LEFT_WIDE_OPTIONS,
+  PADDING_LEFT_LG_OPTIONS,
   MARGIN_TOP_OPTIONS,
+  MARGIN_TOP_WIDE_OPTIONS,
+  MARGIN_TOP_LG_OPTIONS,
   MARGIN_RIGHT_OPTIONS,
+  MARGIN_RIGHT_WIDE_OPTIONS,
+  MARGIN_RIGHT_LG_OPTIONS,
   MARGIN_BOTTOM_OPTIONS,
+  MARGIN_BOTTOM_WIDE_OPTIONS,
+  MARGIN_BOTTOM_LG_OPTIONS,
   MARGIN_LEFT_OPTIONS,
+  MARGIN_LEFT_WIDE_OPTIONS,
+  MARGIN_LEFT_LG_OPTIONS,
   type GapClass,
   type PaddingTopClass,
+  type PaddingTopWideClass,
+  type PaddingTopLgClass,
   type PaddingRightClass,
+  type PaddingRightWideClass,
+  type PaddingRightLgClass,
   type PaddingBottomClass,
+  type PaddingBottomWideClass,
+  type PaddingBottomLgClass,
   type PaddingLeftClass,
+  type PaddingLeftWideClass,
+  type PaddingLeftLgClass,
   type MarginTopClass,
+  type MarginTopWideClass,
+  type MarginTopLgClass,
   type MarginRightClass,
+  type MarginRightWideClass,
+  type MarginRightLgClass,
   type MarginBottomClass,
+  type MarginBottomWideClass,
+  type MarginBottomLgClass,
   type MarginLeftClass,
+  type MarginLeftWideClass,
+  type MarginLeftLgClass,
 } from '../../../components/tailwindSpacingScale';
 import {
   FONT_SIZE_OPTIONS,
@@ -208,49 +240,157 @@ export type AboutTimelineConfig = {
    * row's hover state actually taking effect — leaving before this elapses
    * cancels it outright (no delay on the way out, only on the way in). */
   hoverDelayMs: number;
-  /** Padding/margin around a row's own title (caption) specifically — four
+  /** Padding around a row's own title (caption) specifically — four
    * independent literal Tailwind classes per property, this repo's shared
-   * per-side spacing catalogs. */
+   * per-side spacing catalogs, tiered by breakpoint (operator ask) — same
+   * MOBILE/TABLET/DESKTOP tabbed device-size switcher established
+   * elsewhere in this config system (see e.g. AbstractPostDockLayoutConfig's
+   * own minimalModeContentPaddingTop/-Wide/-Lg). This field is the
+   * mobile/base tier — margin (below) is tiered the same way, for the same
+   * reason (operator fix: leaving margin single-tier while padding was
+   * tiered left it visually inside the same tabs without being scoped to
+   * them). */
   rowTitlePaddingTopClassName: PaddingTopClass;
   rowTitlePaddingRightClassName: PaddingRightClass;
   rowTitlePaddingBottomClassName: PaddingBottomClass;
   rowTitlePaddingLeftClassName: PaddingLeftClass;
+  /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
+  rowTitlePaddingTopWideClassName: PaddingTopWideClass;
+  rowTitlePaddingRightWideClassName: PaddingRightWideClass;
+  rowTitlePaddingBottomWideClassName: PaddingBottomWideClass;
+  rowTitlePaddingLeftWideClassName: PaddingLeftWideClass;
+  /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  rowTitlePaddingTopLgClassName: PaddingTopLgClass;
+  rowTitlePaddingRightLgClassName: PaddingRightLgClass;
+  rowTitlePaddingBottomLgClassName: PaddingBottomLgClass;
+  rowTitlePaddingLeftLgClassName: PaddingLeftLgClass;
+  /** Margin around a row's own title (caption) — tiered by breakpoint the
+   * same way as padding above (operator fix: an earlier version left every
+   * margin field single-tier while padding was tiered, which visually sat
+   * inside the same MOBILE/TABLET/DESKTOP tabs without actually being
+   * scoped to them — changing it while on one tab silently "leaked" onto
+   * every other tab, since it was really one shared field the whole time.
+   * Margin is now a real per-tier field like padding, eliminating that). */
   rowTitleMarginTopClassName: MarginTopClass;
   rowTitleMarginRightClassName: MarginRightClass;
   rowTitleMarginBottomClassName: MarginBottomClass;
   rowTitleMarginLeftClassName: MarginLeftClass;
-  /** Padding/margin around a row's own supporting line specifically —
-   * independent of the title's own box above. */
+  /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
+  rowTitleMarginTopWideClassName: MarginTopWideClass;
+  rowTitleMarginRightWideClassName: MarginRightWideClass;
+  rowTitleMarginBottomWideClassName: MarginBottomWideClass;
+  rowTitleMarginLeftWideClassName: MarginLeftWideClass;
+  /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  rowTitleMarginTopLgClassName: MarginTopLgClass;
+  rowTitleMarginRightLgClassName: MarginRightLgClass;
+  rowTitleMarginBottomLgClassName: MarginBottomLgClass;
+  rowTitleMarginLeftLgClassName: MarginLeftLgClass;
+  /** Padding around a row's own supporting line specifically — independent
+   * of the title's own box above, tiered by breakpoint the same way. */
   rowDescriptionPaddingTopClassName: PaddingTopClass;
   rowDescriptionPaddingRightClassName: PaddingRightClass;
   rowDescriptionPaddingBottomClassName: PaddingBottomClass;
   rowDescriptionPaddingLeftClassName: PaddingLeftClass;
+  /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
+  rowDescriptionPaddingTopWideClassName: PaddingTopWideClass;
+  rowDescriptionPaddingRightWideClassName: PaddingRightWideClass;
+  rowDescriptionPaddingBottomWideClassName: PaddingBottomWideClass;
+  rowDescriptionPaddingLeftWideClassName: PaddingLeftWideClass;
+  /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  rowDescriptionPaddingTopLgClassName: PaddingTopLgClass;
+  rowDescriptionPaddingRightLgClassName: PaddingRightLgClass;
+  rowDescriptionPaddingBottomLgClassName: PaddingBottomLgClass;
+  rowDescriptionPaddingLeftLgClassName: PaddingLeftLgClass;
+  /** Margin around a row's own supporting line — tiered by breakpoint the
+   * same way as the title's own margin above. */
   rowDescriptionMarginTopClassName: MarginTopClass;
   rowDescriptionMarginRightClassName: MarginRightClass;
   rowDescriptionMarginBottomClassName: MarginBottomClass;
   rowDescriptionMarginLeftClassName: MarginLeftClass;
-  /** Outer spacing around the whole timeline block (description + rows
+  /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
+  rowDescriptionMarginTopWideClassName: MarginTopWideClass;
+  rowDescriptionMarginRightWideClassName: MarginRightWideClass;
+  rowDescriptionMarginBottomWideClassName: MarginBottomWideClass;
+  rowDescriptionMarginLeftWideClassName: MarginLeftWideClass;
+  /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  rowDescriptionMarginTopLgClassName: MarginTopLgClass;
+  rowDescriptionMarginRightLgClassName: MarginRightLgClass;
+  rowDescriptionMarginBottomLgClassName: MarginBottomLgClass;
+  rowDescriptionMarginLeftLgClassName: MarginLeftLgClass;
+  /** Outer padding around the whole timeline block (description + rows
    * together) — four independent literal Tailwind classes, this repo's
-   * shared per-side spacing catalogs (tailwindSpacingScale.ts). */
+   * shared per-side spacing catalogs (tailwindSpacingScale.ts), tiered by
+   * breakpoint the same way. */
   paddingTopClassName: PaddingTopClass;
   paddingRightClassName: PaddingRightClass;
   paddingBottomClassName: PaddingBottomClass;
   paddingLeftClassName: PaddingLeftClass;
+  /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
+  paddingTopWideClassName: PaddingTopWideClass;
+  paddingRightWideClassName: PaddingRightWideClass;
+  paddingBottomWideClassName: PaddingBottomWideClass;
+  paddingLeftWideClassName: PaddingLeftWideClass;
+  /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  paddingTopLgClassName: PaddingTopLgClass;
+  paddingRightLgClassName: PaddingRightLgClass;
+  paddingBottomLgClassName: PaddingBottomLgClass;
+  paddingLeftLgClassName: PaddingLeftLgClass;
+  /** Outer margin around the whole timeline block — tiered by breakpoint
+   * the same way as outer padding above. */
   marginTopClassName: MarginTopClass;
   marginRightClassName: MarginRightClass;
   marginBottomClassName: MarginBottomClass;
   marginLeftClassName: MarginLeftClass;
-  /** Padding/margin around the lead-in description text above the rows —
+  /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
+  marginTopWideClassName: MarginTopWideClass;
+  marginRightWideClassName: MarginRightWideClass;
+  marginBottomWideClassName: MarginBottomWideClass;
+  marginLeftWideClassName: MarginLeftWideClass;
+  /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  marginTopLgClassName: MarginTopLgClass;
+  marginRightLgClassName: MarginRightLgClass;
+  marginBottomLgClassName: MarginBottomLgClass;
+  marginLeftLgClassName: MarginLeftLgClass;
+  /** Padding around the lead-in description text above the rows —
    * independent of the outer block box above and of the per-row title/
-   * description boxes above. */
+   * description boxes above, tiered by breakpoint the same way. The indent
+   * side (whichever of left/right matches `alignment`) combines with the
+   * structural marker-offset via CSS custom properties + media queries in
+   * AboutTimeline.module.css (`.description[data-alignment]`'s own rules)
+   * rather than a plain class, at every tier — see AboutTimeline.tsx's own
+   * `descriptionIndentStyle` for why (a plain class on that side would
+   * collide with the module's own structural padding rule on the same
+   * property). */
   descriptionPaddingTopClassName: PaddingTopClass;
   descriptionPaddingRightClassName: PaddingRightClass;
   descriptionPaddingBottomClassName: PaddingBottomClass;
   descriptionPaddingLeftClassName: PaddingLeftClass;
+  /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
+  descriptionPaddingTopWideClassName: PaddingTopWideClass;
+  descriptionPaddingRightWideClassName: PaddingRightWideClass;
+  descriptionPaddingBottomWideClassName: PaddingBottomWideClass;
+  descriptionPaddingLeftWideClassName: PaddingLeftWideClass;
+  /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  descriptionPaddingTopLgClassName: PaddingTopLgClass;
+  descriptionPaddingRightLgClassName: PaddingRightLgClass;
+  descriptionPaddingBottomLgClassName: PaddingBottomLgClass;
+  descriptionPaddingLeftLgClassName: PaddingLeftLgClass;
+  /** Margin around the lead-in description text — tiered by breakpoint the
+   * same way as its own padding above. */
   descriptionMarginTopClassName: MarginTopClass;
   descriptionMarginRightClassName: MarginRightClass;
   descriptionMarginBottomClassName: MarginBottomClass;
   descriptionMarginLeftClassName: MarginLeftClass;
+  /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
+  descriptionMarginTopWideClassName: MarginTopWideClass;
+  descriptionMarginRightWideClassName: MarginRightWideClass;
+  descriptionMarginBottomWideClassName: MarginBottomWideClass;
+  descriptionMarginLeftWideClassName: MarginLeftWideClass;
+  /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
+  descriptionMarginTopLgClassName: MarginTopLgClass;
+  descriptionMarginRightLgClassName: MarginRightLgClass;
+  descriptionMarginBottomLgClassName: MarginBottomLgClass;
+  descriptionMarginLeftLgClassName: MarginLeftLgClass;
   /** Font size of the description text — literal Tailwind `text-*` class,
    * independent of `rowTitleFontSizeClassName`/`rowDescriptionFontSizeClassName`
    * above, since the description is a different kind of object (a lead-in
@@ -302,34 +442,98 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowTitlePaddingRightClassName: 'pr-0',
   rowTitlePaddingBottomClassName: 'pb-0',
   rowTitlePaddingLeftClassName: 'pl-0',
+  rowTitlePaddingTopWideClassName: 'md:pt-0',
+  rowTitlePaddingRightWideClassName: 'md:pr-0',
+  rowTitlePaddingBottomWideClassName: 'md:pb-0',
+  rowTitlePaddingLeftWideClassName: 'md:pl-0',
+  rowTitlePaddingTopLgClassName: 'lg:pt-0',
+  rowTitlePaddingRightLgClassName: 'lg:pr-0',
+  rowTitlePaddingBottomLgClassName: 'lg:pb-0',
+  rowTitlePaddingLeftLgClassName: 'lg:pl-0',
   rowTitleMarginTopClassName: 'mt-0',
   rowTitleMarginRightClassName: 'mr-0',
   rowTitleMarginBottomClassName: 'mb-0',
   rowTitleMarginLeftClassName: 'ml-0',
+  rowTitleMarginTopWideClassName: 'md:mt-0',
+  rowTitleMarginRightWideClassName: 'md:mr-0',
+  rowTitleMarginBottomWideClassName: 'md:mb-0',
+  rowTitleMarginLeftWideClassName: 'md:ml-0',
+  rowTitleMarginTopLgClassName: 'lg:mt-0',
+  rowTitleMarginRightLgClassName: 'lg:mr-0',
+  rowTitleMarginBottomLgClassName: 'lg:mb-0',
+  rowTitleMarginLeftLgClassName: 'lg:ml-0',
   rowDescriptionPaddingTopClassName: 'pt-0',
   rowDescriptionPaddingRightClassName: 'pr-0',
   rowDescriptionPaddingBottomClassName: 'pb-0',
   rowDescriptionPaddingLeftClassName: 'pl-0',
+  rowDescriptionPaddingTopWideClassName: 'md:pt-0',
+  rowDescriptionPaddingRightWideClassName: 'md:pr-0',
+  rowDescriptionPaddingBottomWideClassName: 'md:pb-0',
+  rowDescriptionPaddingLeftWideClassName: 'md:pl-0',
+  rowDescriptionPaddingTopLgClassName: 'lg:pt-0',
+  rowDescriptionPaddingRightLgClassName: 'lg:pr-0',
+  rowDescriptionPaddingBottomLgClassName: 'lg:pb-0',
+  rowDescriptionPaddingLeftLgClassName: 'lg:pl-0',
   rowDescriptionMarginTopClassName: 'mt-0',
   rowDescriptionMarginRightClassName: 'mr-0',
   rowDescriptionMarginBottomClassName: 'mb-0',
   rowDescriptionMarginLeftClassName: 'ml-0',
+  rowDescriptionMarginTopWideClassName: 'md:mt-0',
+  rowDescriptionMarginRightWideClassName: 'md:mr-0',
+  rowDescriptionMarginBottomWideClassName: 'md:mb-0',
+  rowDescriptionMarginLeftWideClassName: 'md:ml-0',
+  rowDescriptionMarginTopLgClassName: 'lg:mt-0',
+  rowDescriptionMarginRightLgClassName: 'lg:mr-0',
+  rowDescriptionMarginBottomLgClassName: 'lg:mb-0',
+  rowDescriptionMarginLeftLgClassName: 'lg:ml-0',
   paddingTopClassName: 'pt-0',
   paddingRightClassName: 'pr-0',
   paddingBottomClassName: 'pb-0',
   paddingLeftClassName: 'pl-0',
-  marginTopClassName: 'mt-7',
+  paddingTopWideClassName: 'md:pt-0',
+  paddingRightWideClassName: 'md:pr-0',
+  paddingBottomWideClassName: 'md:pb-0',
+  paddingLeftWideClassName: 'md:pl-0',
+  paddingTopLgClassName: 'lg:pt-0',
+  paddingRightLgClassName: 'lg:pr-0',
+  paddingBottomLgClassName: 'lg:pb-0',
+  paddingLeftLgClassName: 'lg:pl-0',
+  marginTopClassName: 'mt-0',
   marginRightClassName: 'mr-0',
   marginBottomClassName: 'mb-0',
   marginLeftClassName: 'ml-0',
+  marginTopWideClassName: 'md:mt-0',
+  marginRightWideClassName: 'md:mr-0',
+  marginBottomWideClassName: 'md:mb-0',
+  marginLeftWideClassName: 'md:ml-0',
+  marginTopLgClassName: 'lg:mt-7',
+  marginRightLgClassName: 'lg:mr-0',
+  marginBottomLgClassName: 'lg:mb-0',
+  marginLeftLgClassName: 'lg:ml-0',
   descriptionPaddingTopClassName: 'pt-3',
   descriptionPaddingRightClassName: 'pr-0',
   descriptionPaddingBottomClassName: 'pb-10',
   descriptionPaddingLeftClassName: 'pl-0',
+  descriptionPaddingTopWideClassName: 'md:pt-0',
+  descriptionPaddingRightWideClassName: 'md:pr-0',
+  descriptionPaddingBottomWideClassName: 'md:pb-10',
+  descriptionPaddingLeftWideClassName: 'md:pl-0',
+  descriptionPaddingTopLgClassName: 'lg:pt-3',
+  descriptionPaddingRightLgClassName: 'lg:pr-0',
+  descriptionPaddingBottomLgClassName: 'lg:pb-10',
+  descriptionPaddingLeftLgClassName: 'lg:pl-0',
   descriptionMarginTopClassName: 'mt-0',
   descriptionMarginRightClassName: 'mr-0',
   descriptionMarginBottomClassName: 'mb-0',
   descriptionMarginLeftClassName: 'ml-0',
+  descriptionMarginTopWideClassName: 'md:mt-0',
+  descriptionMarginRightWideClassName: 'md:mr-0',
+  descriptionMarginBottomWideClassName: 'md:mb-0',
+  descriptionMarginLeftWideClassName: 'md:ml-0',
+  descriptionMarginTopLgClassName: 'lg:mt-0',
+  descriptionMarginRightLgClassName: 'lg:mr-0',
+  descriptionMarginBottomLgClassName: 'lg:mb-0',
+  descriptionMarginLeftLgClassName: 'lg:ml-0',
   descriptionFontSizeClassName: 'text-base',
   descriptionOpacity: 1,
   descriptionMinContrast: 4.5,
@@ -343,13 +547,39 @@ const MARKER_SIZE_VALUES: ReadonlyArray<AboutTimelineMarkerSizeClass> =
 const RULE_WEIGHT_VALUES: ReadonlyArray<AboutTimelineRuleWeightClass> =
   RULE_WEIGHT_OPTIONS.map(option => option.value);
 const PADDING_TOP_VALUES: ReadonlyArray<PaddingTopClass> = PADDING_TOP_OPTIONS.map(option => option.value);
+const PADDING_TOP_WIDE_VALUES: ReadonlyArray<PaddingTopWideClass> = PADDING_TOP_WIDE_OPTIONS.map(option => option.value);
+const PADDING_TOP_LG_VALUES: ReadonlyArray<PaddingTopLgClass> = PADDING_TOP_LG_OPTIONS.map(option => option.value);
 const PADDING_RIGHT_VALUES: ReadonlyArray<PaddingRightClass> = PADDING_RIGHT_OPTIONS.map(option => option.value);
+const PADDING_RIGHT_WIDE_VALUES: ReadonlyArray<PaddingRightWideClass> =
+  PADDING_RIGHT_WIDE_OPTIONS.map(option => option.value);
+const PADDING_RIGHT_LG_VALUES: ReadonlyArray<PaddingRightLgClass> =
+  PADDING_RIGHT_LG_OPTIONS.map(option => option.value);
 const PADDING_BOTTOM_VALUES: ReadonlyArray<PaddingBottomClass> = PADDING_BOTTOM_OPTIONS.map(option => option.value);
+const PADDING_BOTTOM_WIDE_VALUES: ReadonlyArray<PaddingBottomWideClass> =
+  PADDING_BOTTOM_WIDE_OPTIONS.map(option => option.value);
+const PADDING_BOTTOM_LG_VALUES: ReadonlyArray<PaddingBottomLgClass> =
+  PADDING_BOTTOM_LG_OPTIONS.map(option => option.value);
 const PADDING_LEFT_VALUES: ReadonlyArray<PaddingLeftClass> = PADDING_LEFT_OPTIONS.map(option => option.value);
+const PADDING_LEFT_WIDE_VALUES: ReadonlyArray<PaddingLeftWideClass> =
+  PADDING_LEFT_WIDE_OPTIONS.map(option => option.value);
+const PADDING_LEFT_LG_VALUES: ReadonlyArray<PaddingLeftLgClass> =
+  PADDING_LEFT_LG_OPTIONS.map(option => option.value);
 const MARGIN_TOP_VALUES: ReadonlyArray<MarginTopClass> = MARGIN_TOP_OPTIONS.map(option => option.value);
+const MARGIN_TOP_WIDE_VALUES: ReadonlyArray<MarginTopWideClass> = MARGIN_TOP_WIDE_OPTIONS.map(option => option.value);
+const MARGIN_TOP_LG_VALUES: ReadonlyArray<MarginTopLgClass> = MARGIN_TOP_LG_OPTIONS.map(option => option.value);
 const MARGIN_RIGHT_VALUES: ReadonlyArray<MarginRightClass> = MARGIN_RIGHT_OPTIONS.map(option => option.value);
+const MARGIN_RIGHT_WIDE_VALUES: ReadonlyArray<MarginRightWideClass> =
+  MARGIN_RIGHT_WIDE_OPTIONS.map(option => option.value);
+const MARGIN_RIGHT_LG_VALUES: ReadonlyArray<MarginRightLgClass> = MARGIN_RIGHT_LG_OPTIONS.map(option => option.value);
 const MARGIN_BOTTOM_VALUES: ReadonlyArray<MarginBottomClass> = MARGIN_BOTTOM_OPTIONS.map(option => option.value);
+const MARGIN_BOTTOM_WIDE_VALUES: ReadonlyArray<MarginBottomWideClass> =
+  MARGIN_BOTTOM_WIDE_OPTIONS.map(option => option.value);
+const MARGIN_BOTTOM_LG_VALUES: ReadonlyArray<MarginBottomLgClass> =
+  MARGIN_BOTTOM_LG_OPTIONS.map(option => option.value);
 const MARGIN_LEFT_VALUES: ReadonlyArray<MarginLeftClass> = MARGIN_LEFT_OPTIONS.map(option => option.value);
+const MARGIN_LEFT_WIDE_VALUES: ReadonlyArray<MarginLeftWideClass> =
+  MARGIN_LEFT_WIDE_OPTIONS.map(option => option.value);
+const MARGIN_LEFT_LG_VALUES: ReadonlyArray<MarginLeftLgClass> = MARGIN_LEFT_LG_OPTIONS.map(option => option.value);
 const FONT_SIZE_VALUES: ReadonlyArray<FontSizeClass> = FONT_SIZE_OPTIONS.map(option => option.value);
 const FONT_WEIGHT_VALUES: ReadonlyArray<FontWeightClass> = FONT_WEIGHT_OPTIONS.map(option => option.value);
 const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
@@ -426,6 +656,30 @@ export function normalizeAboutTimelineConfig(
     rowTitlePaddingLeftClassName: token(
       base.rowTitlePaddingLeftClassName, PADDING_LEFT_VALUES, D.rowTitlePaddingLeftClassName,
     ),
+    rowTitlePaddingTopWideClassName: token(
+      base.rowTitlePaddingTopWideClassName, PADDING_TOP_WIDE_VALUES, D.rowTitlePaddingTopWideClassName,
+    ),
+    rowTitlePaddingRightWideClassName: token(
+      base.rowTitlePaddingRightWideClassName, PADDING_RIGHT_WIDE_VALUES, D.rowTitlePaddingRightWideClassName,
+    ),
+    rowTitlePaddingBottomWideClassName: token(
+      base.rowTitlePaddingBottomWideClassName, PADDING_BOTTOM_WIDE_VALUES, D.rowTitlePaddingBottomWideClassName,
+    ),
+    rowTitlePaddingLeftWideClassName: token(
+      base.rowTitlePaddingLeftWideClassName, PADDING_LEFT_WIDE_VALUES, D.rowTitlePaddingLeftWideClassName,
+    ),
+    rowTitlePaddingTopLgClassName: token(
+      base.rowTitlePaddingTopLgClassName, PADDING_TOP_LG_VALUES, D.rowTitlePaddingTopLgClassName,
+    ),
+    rowTitlePaddingRightLgClassName: token(
+      base.rowTitlePaddingRightLgClassName, PADDING_RIGHT_LG_VALUES, D.rowTitlePaddingRightLgClassName,
+    ),
+    rowTitlePaddingBottomLgClassName: token(
+      base.rowTitlePaddingBottomLgClassName, PADDING_BOTTOM_LG_VALUES, D.rowTitlePaddingBottomLgClassName,
+    ),
+    rowTitlePaddingLeftLgClassName: token(
+      base.rowTitlePaddingLeftLgClassName, PADDING_LEFT_LG_VALUES, D.rowTitlePaddingLeftLgClassName,
+    ),
     rowTitleMarginTopClassName: token(
       base.rowTitleMarginTopClassName, MARGIN_TOP_VALUES, D.rowTitleMarginTopClassName,
     ),
@@ -437,6 +691,30 @@ export function normalizeAboutTimelineConfig(
     ),
     rowTitleMarginLeftClassName: token(
       base.rowTitleMarginLeftClassName, MARGIN_LEFT_VALUES, D.rowTitleMarginLeftClassName,
+    ),
+    rowTitleMarginTopWideClassName: token(
+      base.rowTitleMarginTopWideClassName, MARGIN_TOP_WIDE_VALUES, D.rowTitleMarginTopWideClassName,
+    ),
+    rowTitleMarginRightWideClassName: token(
+      base.rowTitleMarginRightWideClassName, MARGIN_RIGHT_WIDE_VALUES, D.rowTitleMarginRightWideClassName,
+    ),
+    rowTitleMarginBottomWideClassName: token(
+      base.rowTitleMarginBottomWideClassName, MARGIN_BOTTOM_WIDE_VALUES, D.rowTitleMarginBottomWideClassName,
+    ),
+    rowTitleMarginLeftWideClassName: token(
+      base.rowTitleMarginLeftWideClassName, MARGIN_LEFT_WIDE_VALUES, D.rowTitleMarginLeftWideClassName,
+    ),
+    rowTitleMarginTopLgClassName: token(
+      base.rowTitleMarginTopLgClassName, MARGIN_TOP_LG_VALUES, D.rowTitleMarginTopLgClassName,
+    ),
+    rowTitleMarginRightLgClassName: token(
+      base.rowTitleMarginRightLgClassName, MARGIN_RIGHT_LG_VALUES, D.rowTitleMarginRightLgClassName,
+    ),
+    rowTitleMarginBottomLgClassName: token(
+      base.rowTitleMarginBottomLgClassName, MARGIN_BOTTOM_LG_VALUES, D.rowTitleMarginBottomLgClassName,
+    ),
+    rowTitleMarginLeftLgClassName: token(
+      base.rowTitleMarginLeftLgClassName, MARGIN_LEFT_LG_VALUES, D.rowTitleMarginLeftLgClassName,
     ),
     rowDescriptionPaddingTopClassName: token(
       base.rowDescriptionPaddingTopClassName, PADDING_TOP_VALUES, D.rowDescriptionPaddingTopClassName,
@@ -450,6 +728,34 @@ export function normalizeAboutTimelineConfig(
     rowDescriptionPaddingLeftClassName: token(
       base.rowDescriptionPaddingLeftClassName, PADDING_LEFT_VALUES, D.rowDescriptionPaddingLeftClassName,
     ),
+    rowDescriptionPaddingTopWideClassName: token(
+      base.rowDescriptionPaddingTopWideClassName, PADDING_TOP_WIDE_VALUES, D.rowDescriptionPaddingTopWideClassName,
+    ),
+    rowDescriptionPaddingRightWideClassName: token(
+      base.rowDescriptionPaddingRightWideClassName,
+      PADDING_RIGHT_WIDE_VALUES,
+      D.rowDescriptionPaddingRightWideClassName,
+    ),
+    rowDescriptionPaddingBottomWideClassName: token(
+      base.rowDescriptionPaddingBottomWideClassName,
+      PADDING_BOTTOM_WIDE_VALUES,
+      D.rowDescriptionPaddingBottomWideClassName,
+    ),
+    rowDescriptionPaddingLeftWideClassName: token(
+      base.rowDescriptionPaddingLeftWideClassName, PADDING_LEFT_WIDE_VALUES, D.rowDescriptionPaddingLeftWideClassName,
+    ),
+    rowDescriptionPaddingTopLgClassName: token(
+      base.rowDescriptionPaddingTopLgClassName, PADDING_TOP_LG_VALUES, D.rowDescriptionPaddingTopLgClassName,
+    ),
+    rowDescriptionPaddingRightLgClassName: token(
+      base.rowDescriptionPaddingRightLgClassName, PADDING_RIGHT_LG_VALUES, D.rowDescriptionPaddingRightLgClassName,
+    ),
+    rowDescriptionPaddingBottomLgClassName: token(
+      base.rowDescriptionPaddingBottomLgClassName, PADDING_BOTTOM_LG_VALUES, D.rowDescriptionPaddingBottomLgClassName,
+    ),
+    rowDescriptionPaddingLeftLgClassName: token(
+      base.rowDescriptionPaddingLeftLgClassName, PADDING_LEFT_LG_VALUES, D.rowDescriptionPaddingLeftLgClassName,
+    ),
     rowDescriptionMarginTopClassName: token(
       base.rowDescriptionMarginTopClassName, MARGIN_TOP_VALUES, D.rowDescriptionMarginTopClassName,
     ),
@@ -462,14 +768,68 @@ export function normalizeAboutTimelineConfig(
     rowDescriptionMarginLeftClassName: token(
       base.rowDescriptionMarginLeftClassName, MARGIN_LEFT_VALUES, D.rowDescriptionMarginLeftClassName,
     ),
+    rowDescriptionMarginTopWideClassName: token(
+      base.rowDescriptionMarginTopWideClassName, MARGIN_TOP_WIDE_VALUES, D.rowDescriptionMarginTopWideClassName,
+    ),
+    rowDescriptionMarginRightWideClassName: token(
+      base.rowDescriptionMarginRightWideClassName, MARGIN_RIGHT_WIDE_VALUES, D.rowDescriptionMarginRightWideClassName,
+    ),
+    rowDescriptionMarginBottomWideClassName: token(
+      base.rowDescriptionMarginBottomWideClassName,
+      MARGIN_BOTTOM_WIDE_VALUES,
+      D.rowDescriptionMarginBottomWideClassName,
+    ),
+    rowDescriptionMarginLeftWideClassName: token(
+      base.rowDescriptionMarginLeftWideClassName, MARGIN_LEFT_WIDE_VALUES, D.rowDescriptionMarginLeftWideClassName,
+    ),
+    rowDescriptionMarginTopLgClassName: token(
+      base.rowDescriptionMarginTopLgClassName, MARGIN_TOP_LG_VALUES, D.rowDescriptionMarginTopLgClassName,
+    ),
+    rowDescriptionMarginRightLgClassName: token(
+      base.rowDescriptionMarginRightLgClassName, MARGIN_RIGHT_LG_VALUES, D.rowDescriptionMarginRightLgClassName,
+    ),
+    rowDescriptionMarginBottomLgClassName: token(
+      base.rowDescriptionMarginBottomLgClassName, MARGIN_BOTTOM_LG_VALUES, D.rowDescriptionMarginBottomLgClassName,
+    ),
+    rowDescriptionMarginLeftLgClassName: token(
+      base.rowDescriptionMarginLeftLgClassName, MARGIN_LEFT_LG_VALUES, D.rowDescriptionMarginLeftLgClassName,
+    ),
     paddingTopClassName: token(base.paddingTopClassName, PADDING_TOP_VALUES, D.paddingTopClassName),
     paddingRightClassName: token(base.paddingRightClassName, PADDING_RIGHT_VALUES, D.paddingRightClassName),
     paddingBottomClassName: token(base.paddingBottomClassName, PADDING_BOTTOM_VALUES, D.paddingBottomClassName),
     paddingLeftClassName: token(base.paddingLeftClassName, PADDING_LEFT_VALUES, D.paddingLeftClassName),
+    paddingTopWideClassName: token(base.paddingTopWideClassName, PADDING_TOP_WIDE_VALUES, D.paddingTopWideClassName),
+    paddingRightWideClassName: token(
+      base.paddingRightWideClassName, PADDING_RIGHT_WIDE_VALUES, D.paddingRightWideClassName,
+    ),
+    paddingBottomWideClassName: token(
+      base.paddingBottomWideClassName, PADDING_BOTTOM_WIDE_VALUES, D.paddingBottomWideClassName,
+    ),
+    paddingLeftWideClassName: token(
+      base.paddingLeftWideClassName, PADDING_LEFT_WIDE_VALUES, D.paddingLeftWideClassName,
+    ),
+    paddingTopLgClassName: token(base.paddingTopLgClassName, PADDING_TOP_LG_VALUES, D.paddingTopLgClassName),
+    paddingRightLgClassName: token(base.paddingRightLgClassName, PADDING_RIGHT_LG_VALUES, D.paddingRightLgClassName),
+    paddingBottomLgClassName: token(
+      base.paddingBottomLgClassName, PADDING_BOTTOM_LG_VALUES, D.paddingBottomLgClassName,
+    ),
+    paddingLeftLgClassName: token(base.paddingLeftLgClassName, PADDING_LEFT_LG_VALUES, D.paddingLeftLgClassName),
     marginTopClassName: token(base.marginTopClassName, MARGIN_TOP_VALUES, D.marginTopClassName),
     marginRightClassName: token(base.marginRightClassName, MARGIN_RIGHT_VALUES, D.marginRightClassName),
     marginBottomClassName: token(base.marginBottomClassName, MARGIN_BOTTOM_VALUES, D.marginBottomClassName),
     marginLeftClassName: token(base.marginLeftClassName, MARGIN_LEFT_VALUES, D.marginLeftClassName),
+    marginTopWideClassName: token(base.marginTopWideClassName, MARGIN_TOP_WIDE_VALUES, D.marginTopWideClassName),
+    marginRightWideClassName: token(
+      base.marginRightWideClassName, MARGIN_RIGHT_WIDE_VALUES, D.marginRightWideClassName,
+    ),
+    marginBottomWideClassName: token(
+      base.marginBottomWideClassName, MARGIN_BOTTOM_WIDE_VALUES, D.marginBottomWideClassName,
+    ),
+    marginLeftWideClassName: token(base.marginLeftWideClassName, MARGIN_LEFT_WIDE_VALUES, D.marginLeftWideClassName),
+    marginTopLgClassName: token(base.marginTopLgClassName, MARGIN_TOP_LG_VALUES, D.marginTopLgClassName),
+    marginRightLgClassName: token(base.marginRightLgClassName, MARGIN_RIGHT_LG_VALUES, D.marginRightLgClassName),
+    marginBottomLgClassName: token(base.marginBottomLgClassName, MARGIN_BOTTOM_LG_VALUES, D.marginBottomLgClassName),
+    marginLeftLgClassName: token(base.marginLeftLgClassName, MARGIN_LEFT_LG_VALUES, D.marginLeftLgClassName),
     descriptionPaddingTopClassName: token(
       base.descriptionPaddingTopClassName, PADDING_TOP_VALUES, D.descriptionPaddingTopClassName,
     ),
@@ -482,6 +842,32 @@ export function normalizeAboutTimelineConfig(
     descriptionPaddingLeftClassName: token(
       base.descriptionPaddingLeftClassName, PADDING_LEFT_VALUES, D.descriptionPaddingLeftClassName,
     ),
+    descriptionPaddingTopWideClassName: token(
+      base.descriptionPaddingTopWideClassName, PADDING_TOP_WIDE_VALUES, D.descriptionPaddingTopWideClassName,
+    ),
+    descriptionPaddingRightWideClassName: token(
+      base.descriptionPaddingRightWideClassName, PADDING_RIGHT_WIDE_VALUES, D.descriptionPaddingRightWideClassName,
+    ),
+    descriptionPaddingBottomWideClassName: token(
+      base.descriptionPaddingBottomWideClassName,
+      PADDING_BOTTOM_WIDE_VALUES,
+      D.descriptionPaddingBottomWideClassName,
+    ),
+    descriptionPaddingLeftWideClassName: token(
+      base.descriptionPaddingLeftWideClassName, PADDING_LEFT_WIDE_VALUES, D.descriptionPaddingLeftWideClassName,
+    ),
+    descriptionPaddingTopLgClassName: token(
+      base.descriptionPaddingTopLgClassName, PADDING_TOP_LG_VALUES, D.descriptionPaddingTopLgClassName,
+    ),
+    descriptionPaddingRightLgClassName: token(
+      base.descriptionPaddingRightLgClassName, PADDING_RIGHT_LG_VALUES, D.descriptionPaddingRightLgClassName,
+    ),
+    descriptionPaddingBottomLgClassName: token(
+      base.descriptionPaddingBottomLgClassName, PADDING_BOTTOM_LG_VALUES, D.descriptionPaddingBottomLgClassName,
+    ),
+    descriptionPaddingLeftLgClassName: token(
+      base.descriptionPaddingLeftLgClassName, PADDING_LEFT_LG_VALUES, D.descriptionPaddingLeftLgClassName,
+    ),
     descriptionMarginTopClassName: token(
       base.descriptionMarginTopClassName, MARGIN_TOP_VALUES, D.descriptionMarginTopClassName,
     ),
@@ -493,6 +879,30 @@ export function normalizeAboutTimelineConfig(
     ),
     descriptionMarginLeftClassName: token(
       base.descriptionMarginLeftClassName, MARGIN_LEFT_VALUES, D.descriptionMarginLeftClassName,
+    ),
+    descriptionMarginTopWideClassName: token(
+      base.descriptionMarginTopWideClassName, MARGIN_TOP_WIDE_VALUES, D.descriptionMarginTopWideClassName,
+    ),
+    descriptionMarginRightWideClassName: token(
+      base.descriptionMarginRightWideClassName, MARGIN_RIGHT_WIDE_VALUES, D.descriptionMarginRightWideClassName,
+    ),
+    descriptionMarginBottomWideClassName: token(
+      base.descriptionMarginBottomWideClassName, MARGIN_BOTTOM_WIDE_VALUES, D.descriptionMarginBottomWideClassName,
+    ),
+    descriptionMarginLeftWideClassName: token(
+      base.descriptionMarginLeftWideClassName, MARGIN_LEFT_WIDE_VALUES, D.descriptionMarginLeftWideClassName,
+    ),
+    descriptionMarginTopLgClassName: token(
+      base.descriptionMarginTopLgClassName, MARGIN_TOP_LG_VALUES, D.descriptionMarginTopLgClassName,
+    ),
+    descriptionMarginRightLgClassName: token(
+      base.descriptionMarginRightLgClassName, MARGIN_RIGHT_LG_VALUES, D.descriptionMarginRightLgClassName,
+    ),
+    descriptionMarginBottomLgClassName: token(
+      base.descriptionMarginBottomLgClassName, MARGIN_BOTTOM_LG_VALUES, D.descriptionMarginBottomLgClassName,
+    ),
+    descriptionMarginLeftLgClassName: token(
+      base.descriptionMarginLeftLgClassName, MARGIN_LEFT_LG_VALUES, D.descriptionMarginLeftLgClassName,
     ),
     descriptionFontSizeClassName: token(
       base.descriptionFontSizeClassName, FONT_SIZE_VALUES, D.descriptionFontSizeClassName,
