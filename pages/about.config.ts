@@ -430,7 +430,10 @@ export const ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG: AbstractPostDockLayoutConfig = {
   minimalModeGradientEnabled: true,
   minimalModeFontSize: 'text-3xl',
   minimalModeTextDimOpacity: 0.45,
-  minimalModeTextEmphasisOpacity: 0.95,
+  // component-config-update/v1 (operator-applied): lowered from 0.95 — the
+  // emphasized run inside the dock's own narrative text was reading too
+  // bright against the live gradient.
+  minimalModeTextEmphasisOpacity: 0.69,
 };
 
 // PLAN-POLYMORPHIC-LAYOUT-PAGE-CONFIG-PARITY.md: relocated to
