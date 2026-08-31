@@ -1,0 +1,445 @@
+import { defineConfigScope } from '../../../components/Panel/config';
+import {
+  GAP_OPTIONS,
+  PADDING_TOP_OPTIONS,
+  PADDING_RIGHT_OPTIONS,
+  PADDING_BOTTOM_OPTIONS,
+  PADDING_LEFT_OPTIONS,
+  MARGIN_TOP_OPTIONS,
+  MARGIN_RIGHT_OPTIONS,
+  MARGIN_BOTTOM_OPTIONS,
+  MARGIN_LEFT_OPTIONS,
+} from '../../../components/tailwindSpacingScale';
+import { FONT_SIZE_OPTIONS } from '../../../components/tailwindTypographyScale';
+import {
+  DEFAULT_ABOUT_TIMELINE_CONFIG,
+  MARKER_SIZE_OPTIONS,
+  RULE_WEIGHT_OPTIONS,
+  type AboutTimelineConfig,
+} from './AboutTimeline.config';
+
+export const ABOUT_TIMELINE_SCOPE_ID = 'AboutTimeline/appearance' as const;
+
+// Local to this scope, same "each panel.ts keeps its own copy" convention
+// AboutMobileAccordion.panel.ts already follows.
+const MOTION_EASING_OPTIONS = [
+  { label: 'LINEAR', value: 'linear' },
+  { label: 'STANDARD', value: 'standard' },
+  { label: 'EXPRESSIVE', value: 'expressive' },
+  { label: 'VISCOUS', value: 'viscous' },
+  { label: 'GENTLE', value: 'gentle' },
+] as const;
+
+const whenCustomMarkerColor = (config: Readonly<AboutTimelineConfig>) => (
+  config.markerColorMode === 'custom'
+);
+const whenRuleVisible = (config: Readonly<AboutTimelineConfig>) => config.ruleVisible;
+
+/**
+ * CMP-04 (about-IA-timeline-copy-rework) — same scope/registry pattern as
+ * `AboutMobileAccordion.panel.ts`: single-page consumer, registered in
+ * `pages/aboutConfigPanels.ts`.
+ *
+ * Every spacing/sizing field below uses `kind: 'select'` over a literal
+ * Tailwind class catalog (`components/tailwindSpacingScale.ts`/
+ * `tailwindTypographyScale.ts`, or this component's own local
+ * `MARKER_SIZE_OPTIONS`/`RULE_WEIGHT_OPTIONS`) — never `kind: 'number'` with
+ * a raw px value — matching the shape `AboutMobileAccordion.panel.ts`'s own
+ * `affordancePadding`/`affordanceBorderThicknessClassName`/
+ * `affordanceDimensionClassName` fields already use one file over. Opacity,
+ * duration, and contrast-ratio fields stay `kind: 'number'` — see
+ * `AboutTimeline.config.ts`'s own doc comment for why those three are the
+ * genuine, sitewide-consistent exceptions.
+ */
+export const ABOUT_TIMELINE_PANEL = defineConfigScope<AboutTimelineConfig>({
+  id: ABOUT_TIMELINE_SCOPE_ID,
+  component: 'AboutTimeline',
+  scope: 'appearance',
+  title: 'Timeline',
+  createdAt: '2026-08-30',
+  summary: 'Left-column career timeline — row gap, marker, rule, alignment, description',
+  defaultOpen: false,
+  defaultValue: DEFAULT_ABOUT_TIMELINE_CONFIG,
+  fields: [
+    {
+      kind: 'select',
+      key: 'rowGap',
+      label: 'Row gap',
+      options: GAP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'markerSizeClassName',
+      label: 'Marker size',
+      options: MARKER_SIZE_OPTIONS,
+    },
+    {
+      kind: 'boolean',
+      key: 'ruleVisible',
+      label: 'Show rule',
+      description: 'The hairline vertical rule the markers sit on. Off omits it entirely; rows still show their own marker.',
+    },
+    {
+      kind: 'select',
+      key: 'ruleWeightClassName',
+      label: 'Rule weight',
+      description: 'Thickness of the hairline vertical rule the markers sit on.',
+      options: RULE_WEIGHT_OPTIONS,
+      visibleWhen: whenRuleVisible,
+    },
+    {
+      kind: 'enum',
+      key: 'markerColorMode',
+      label: 'Marker color source',
+      description: '"Accent" (default) tracks the active slide\'s own resolved palette color. "Custom" pins the marker to a fixed color below instead. "Text" matches whatever color the row\'s own title text is currently rendering at — one ink for both.',
+      options: [
+        { label: 'ACCENT', value: 'accent' },
+        { label: 'CUSTOM', value: 'custom' },
+        { label: 'TEXT', value: 'text' },
+      ],
+    },
+    {
+      kind: 'color',
+      key: 'markerCustomColor',
+      label: 'Marker custom color',
+      visibleWhen: whenCustomMarkerColor,
+    },
+    {
+      kind: 'number',
+      key: 'markerIdleOpacity',
+      label: 'Marker idle opacity',
+      description: 'Opacity of an inactive (hollow) marker outline.',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'number',
+      key: 'markerActiveOpacity',
+      label: 'Marker active opacity',
+      description: 'Opacity of the active (filled) marker.',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'enum',
+      key: 'alignment',
+      label: 'Alignment',
+      description: 'Right moves the marker/rule column to the right edge and right-aligns every row\'s own text — including the description above the rows.',
+      options: [
+        { label: 'LEFT', value: 'left' },
+        { label: 'RIGHT', value: 'right' },
+      ],
+    },
+    {
+      kind: 'number',
+      key: 'rowTitleMinContrastActive',
+      label: 'Row title contrast (active)',
+      description: 'WCAG contrast ratio a row\'s own title (caption) must clear against the column\'s own resolved background color while that row is active.',
+      min: 1,
+      max: 21,
+      step: 0.1,
+    },
+    {
+      kind: 'number',
+      key: 'rowTitleMinContrastInactive',
+      label: 'Row title contrast (inactive)',
+      description: 'Same as the active target above, applied while the row is inactive — typically lower, so an inactive title reads as genuinely de-emphasized.',
+      min: 1,
+      max: 21,
+      step: 0.1,
+    },
+    {
+      kind: 'number',
+      key: 'rowDescriptionMinContrastActive',
+      label: 'Row description contrast (active)',
+      description: 'Same active/inactive contrast pair as the title above, applied to a row\'s own supporting line instead.',
+      min: 1,
+      max: 21,
+      step: 0.1,
+    },
+    {
+      kind: 'number',
+      key: 'rowDescriptionMinContrastInactive',
+      label: 'Row description contrast (inactive)',
+      min: 1,
+      max: 21,
+      step: 0.1,
+    },
+    {
+      kind: 'number',
+      key: 'rowTitleOpacityActive',
+      label: 'Row title opacity (active)',
+      description: 'Opacity of a row\'s own title (caption) while that row is active — independent of the supporting line\'s own opacity below.',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'number',
+      key: 'rowTitleOpacityInactive',
+      label: 'Row title opacity (inactive)',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'number',
+      key: 'rowDescriptionOpacityActive',
+      label: 'Row description opacity (active)',
+      description: 'Opacity of a row\'s own supporting line while that row is active — independent of the title\'s own opacity above.',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'number',
+      key: 'rowDescriptionOpacityInactive',
+      label: 'Row description opacity (inactive)',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitlePaddingTopClassName',
+      label: 'Row title padding top',
+      options: PADDING_TOP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitlePaddingRightClassName',
+      label: 'Row title padding right',
+      options: PADDING_RIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitlePaddingBottomClassName',
+      label: 'Row title padding bottom',
+      options: PADDING_BOTTOM_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitlePaddingLeftClassName',
+      label: 'Row title padding left',
+      options: PADDING_LEFT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitleMarginTopClassName',
+      label: 'Row title margin top',
+      options: MARGIN_TOP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitleMarginRightClassName',
+      label: 'Row title margin right',
+      options: MARGIN_RIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitleMarginBottomClassName',
+      label: 'Row title margin bottom',
+      options: MARGIN_BOTTOM_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowTitleMarginLeftClassName',
+      label: 'Row title margin left',
+      options: MARGIN_LEFT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionPaddingTopClassName',
+      label: 'Row description padding top',
+      options: PADDING_TOP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionPaddingRightClassName',
+      label: 'Row description padding right',
+      options: PADDING_RIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionPaddingBottomClassName',
+      label: 'Row description padding bottom',
+      options: PADDING_BOTTOM_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionPaddingLeftClassName',
+      label: 'Row description padding left',
+      options: PADDING_LEFT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionMarginTopClassName',
+      label: 'Row description margin top',
+      options: MARGIN_TOP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionMarginRightClassName',
+      label: 'Row description margin right',
+      options: MARGIN_RIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionMarginBottomClassName',
+      label: 'Row description margin bottom',
+      options: MARGIN_BOTTOM_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'rowDescriptionMarginLeftClassName',
+      label: 'Row description margin left',
+      options: MARGIN_LEFT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'paddingTopClassName',
+      label: 'Padding top',
+      options: PADDING_TOP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'paddingRightClassName',
+      label: 'Padding right',
+      options: PADDING_RIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'paddingBottomClassName',
+      label: 'Padding bottom',
+      options: PADDING_BOTTOM_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'paddingLeftClassName',
+      label: 'Padding left',
+      options: PADDING_LEFT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'marginTopClassName',
+      label: 'Margin top',
+      options: MARGIN_TOP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'marginRightClassName',
+      label: 'Margin right',
+      options: MARGIN_RIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'marginBottomClassName',
+      label: 'Margin bottom',
+      options: MARGIN_BOTTOM_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'marginLeftClassName',
+      label: 'Margin left',
+      options: MARGIN_LEFT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionPaddingTopClassName',
+      label: 'Description padding top',
+      options: PADDING_TOP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionPaddingRightClassName',
+      label: 'Description padding right',
+      options: PADDING_RIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionPaddingBottomClassName',
+      label: 'Description padding bottom',
+      options: PADDING_BOTTOM_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionPaddingLeftClassName',
+      label: 'Description padding left',
+      options: PADDING_LEFT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionMarginTopClassName',
+      label: 'Description margin top',
+      options: MARGIN_TOP_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionMarginRightClassName',
+      label: 'Description margin right',
+      options: MARGIN_RIGHT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionMarginBottomClassName',
+      label: 'Description margin bottom',
+      options: MARGIN_BOTTOM_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionMarginLeftClassName',
+      label: 'Description margin left',
+      options: MARGIN_LEFT_OPTIONS,
+    },
+    {
+      kind: 'select',
+      key: 'descriptionFontSizeClassName',
+      label: 'Description font size',
+      options: FONT_SIZE_OPTIONS,
+    },
+    {
+      kind: 'number',
+      key: 'descriptionOpacity',
+      label: 'Description opacity',
+      description: 'Opacity of the lead-in description text above the rows — this element has no active/inactive state.',
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    {
+      kind: 'number',
+      key: 'descriptionMinContrast',
+      label: 'Description minimum contrast',
+      description: 'WCAG contrast ratio the description text must clear against the column\'s own resolved background color.',
+      min: 1,
+      max: 21,
+      step: 0.1,
+    },
+    {
+      kind: 'number',
+      key: 'transitionDurationMs',
+      label: 'Transition duration',
+      description: 'Marker fill and row-text opacity transition as the active row changes.',
+      min: 0,
+      max: 1000,
+      step: 10,
+      unit: 'ms',
+      integer: true,
+    },
+    {
+      kind: 'enum',
+      key: 'transitionEasing',
+      label: 'Transition easing',
+      options: MOTION_EASING_OPTIONS,
+    },
+  ],
+  copy: {
+    targetFile: 'experiences/about/components/AboutTimeline.config.ts',
+    targetSymbol: 'DEFAULT_ABOUT_TIMELINE_CONFIG',
+    targetType: 'AboutTimelineConfig',
+    updateStrategy: 'replace_scope',
+    completeScope: true,
+  },
+});

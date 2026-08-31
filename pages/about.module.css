@@ -85,6 +85,18 @@
    the real, already-bounded height computed above. */
 .splitRight {
   display: flex;
+  /* A11Y-05 (about-IA-timeline-copy-rework) — a local token, not a shared
+     import of ArticleCard.module.css's own --article-card-text-shadow (that
+     module zeroes it in a light variant this page never uses; keeping this
+     one independent lets the two diverge later without coupling). Read via
+     var(--about-dock-text-shadow, none) by both the desktop dock's own
+     narrative text (AbstractPostDock/components/View.tsx) and the mobile
+     accordion's (AboutMobileAccordionItem.tsx) — both render somewhere
+     inside this column, so declaring it once here reaches both through
+     ordinary CSS custom-property inheritance, no prop threading needed.
+     /about's dock text is always light-on-gradient, so this one always-on
+     value is correct with no separate light/dark variant. */
+  --about-dock-text-shadow: 0 8px 28px rgba(0, 0, 0, 0.48);
 }
 
 @media (max-width: 767px) {

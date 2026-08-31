@@ -151,6 +151,9 @@ export function AboutMobileAccordionItem({
           style={{
             opacity: previewTextOpacity,
             transition: `opacity ${contentSettleWaitMs}ms ${contentEasing}`,
+            // A11Y-05 (about-IA-timeline-copy-rework) — see View.tsx's own
+            // identical addition for the full doc comment.
+            textShadow: 'var(--about-dock-text-shadow, none)',
           }}
         >
           {slide.excerpt}
@@ -218,7 +221,10 @@ export function AboutMobileAccordionItem({
               easingCss: heightEasing,
             })}
           >
-            <p className={`relative ${CONTENT_TEXT_CLASSNAME}`}>
+            <p
+              className={`relative ${CONTENT_TEXT_CLASSNAME}`}
+              style={{ textShadow: 'var(--about-dock-text-shadow, none)' }}
+            >
               {renderEmphasisText(slide.title, dimOpacity, emphasisOpacity)}
             </p>
           </div>

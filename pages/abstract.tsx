@@ -360,18 +360,26 @@ const ABSTRACT_EDITORIAL_HEADLINE =
 // About page's own emphasis markup convention (pages/about.tsx), reused
 // verbatim — `**word**` runs render brighter via renderEmphasisText
 // (helpers/textEmphasis.tsx). Markup only: no word, punctuation, or
-// order differs from the plain copy below. Exactly two pivot nouns per
-// paragraph — the noun each sentence turns on, never a claim or adjective.
-// "light and sound" is the same linking phrase the About page uses for the
-// same relationship — deliberate repetition, preserved exactly.
+// order differs from the plain copy below. Two pivot nouns per paragraph —
+// the noun each sentence turns on, never a claim or adjective — plus the
+// site's own name at its very first mention in paragraph 1 (operator ask:
+// the brand name itself should read as emphasized, not just plain lead-in
+// text). "light and sound" is the same linking phrase the About page uses
+// for the same relationship — deliberate repetition, preserved exactly.
+// CPY-02/CPY-04 (about-IA-timeline-copy-rework): the closing phrase "on my
+// own terms" links to /about via the shared [text](href) inline-link syntax
+// (helpers/textEmphasis.tsx) — the homepage's own route into the new /about
+// timeline, picked up by that page's own H1 and paid off by its slides 02
+// and 05 (see IA-08 in that rework's acceptance criteria).
 const ABSTRACT_EDITORIAL_PARAGRAPH_1 =
-  'Abstract Voyage began as a **persona**, loose enough to let me study whatever held my ' +
-  'attention. It started with how **light and sound** relate. That habit took me to ' +
-  'McKinsey, where I kept studying and experimenting. Then AI opened questions I wanted ' +
-  'to chase myself.';
+  '**Abstract Voyage** started as a name to write under, loose enough to let me study ' +
+  'whatever held my attention. It began with how **light and sound** relate. That habit ' +
+  'took me to McKinsey, where I kept studying and experimenting. Then AI opened a ' +
+  '**question** I wanted to chase [on my own terms](/about).';
 const ABSTRACT_EDITORIAL_PARAGRAPH_2 =
   'I start by listening to the people closest to the work. That is usually where the ' +
-  'unnamed **risks** are. Once the picture is accurate I plan the work against **outcomes**.';
+  'unnamed **risks** are. Once the picture is accurate I plan against **outcomes**, and ' +
+  'we test the plan.';
 const ABSTRACT_EDITORIAL_PARAGRAPHS = [ABSTRACT_EDITORIAL_PARAGRAPH_1, ABSTRACT_EDITORIAL_PARAGRAPH_2];
 
 const ABSTRACT_GRADIENT_SNAPSHOT_BLEND_MODE = 'overlay';

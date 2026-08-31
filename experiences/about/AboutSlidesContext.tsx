@@ -16,6 +16,13 @@ export interface AboutSlidesContextValue {
   goToNext: () => void;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  /** CMP-05 (about-IA-timeline-copy-rework) — already a provider prop below,
+   * just not previously surfaced through the context value itself. Needed
+   * by AboutTimeline for `aria-setsize`/keyboard bounds (Home/End, roving
+   * tabindex) without that component needing its own separate prop for a
+   * number the provider already knows. Additive only — no existing call
+   * site changes. */
+  slideCount: number;
 }
 
 const AboutSlidesContext = createContext<AboutSlidesContextValue | null>(null);
@@ -42,6 +49,7 @@ export function AboutSlidesProvider({
     goToNext,
     canGoPrevious: activeIndex > 0,
     canGoNext: activeIndex < slideCount - 1,
+    slideCount,
   }), [activeIndex, goToPrevious, goToNext, slideCount]);
 
   return (

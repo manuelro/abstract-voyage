@@ -8,10 +8,7 @@ import {
   createConfigScopeBinding,
   useConfigPanelBindings,
 } from '../components/Panel/config';
-import {
-  CTA_BUTTON_MOTION_EASINGS,
-  normalizeCtaButtonConfig,
-} from '../components/CtaButton/config/registered';
+import { CTA_BUTTON_MOTION_EASINGS } from '../components/CtaButton/config/registered';
 import {
   DEFAULT_PAGE_SURFACE_CONFIG,
   normalizePageSurfaceConfig,
@@ -48,7 +45,6 @@ import {
   type AbstractPostDockLayoutConfig,
   type AbstractPostDockPaletteConfig,
 } from '../experiences/abstract/components/AbstractPostDock/config/registered';
-import { abstractConfigPanelRegistry } from '../experiences/abstract/configPanels';
 import {
   buildDeckPaletteStates,
   deckWindowHueOffset,
@@ -118,16 +114,13 @@ import {
   type AboutMobileAccordionConfig,
 } from '../experiences/about/components/AboutMobileAccordion.config';
 import { ABOUT_MOBILE_ACCORDION_SCOPE_ID } from '../experiences/about/components/AboutMobileAccordion.panel';
-import { AbstractEditorialHero } from '../experiences/abstract/components/AbstractEditorialHero';
+import { AboutTimeline } from '../experiences/about/components/AboutTimeline';
 import {
-  DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
-  normalizeAbstractEditorialHeroConfig,
-  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT,
-  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_WIDE,
-  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG,
-  type AbstractEditorialHeroConfig,
-} from '../experiences/abstract/components/AbstractEditorialHero.config';
-import { ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID } from '../experiences/abstract/components/AbstractEditorialHero.panel';
+  DEFAULT_ABOUT_TIMELINE_CONFIG,
+  normalizeAboutTimelineConfig,
+  type AboutTimelineConfig,
+} from '../experiences/about/components/AboutTimeline.config';
+import { ABOUT_TIMELINE_SCOPE_ID } from '../experiences/about/components/AboutTimeline.panel';
 import styles from './about.module.css';
 
 // Below this width, splitLeft/splitRight stack top/bottom instead of
@@ -162,77 +155,86 @@ const ABOUT_PAGE_LAYOUT_DEFINITION =
   aboutConfigPanelRegistry.resolve(ABOUT_PAGE_LAYOUT_SCOPE_ID);
 const ABOUT_MOBILE_ACCORDION_DEFINITION =
   aboutConfigPanelRegistry.resolve(ABOUT_MOBILE_ACCORDION_SCOPE_ID);
-// Reuses /abstract's own registered scope directly (PLAN-EDITORIAL-HERO-
-// UNIFICATION-AND-CARDSTACK-RESIZE-FIX.md Part 2) — already registered in
-// abstractConfigPanelRegistry (experiences/abstract/configPanels.ts).
-// Schema shared, value page-local: this page's own editorialHeroConfig
-// state is an independent third instance, the same shape pages/abstract.tsx's
-// own two instances already use. Flagged in PLAN-DOCK-PALETTE-CONFIG-
-// SEGREGATION.md as a known follow-up needing the same audit-and-fork
-// treatment dock palette/layout already got, not yet executed here.
-const ABSTRACT_EDITORIAL_HERO_DEFINITION =
-  abstractConfigPanelRegistry.resolve(ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID);
+const ABOUT_TIMELINE_DEFINITION =
+  aboutConfigPanelRegistry.resolve(ABOUT_TIMELINE_SCOPE_ID);
 const ABOUT_TOP_SEGMENT_GRADIENT_DEFINITION =
   aboutConfigPanelRegistry.resolve(ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID);
 const SPACEFIELD_DEFINITION =
   spacefieldConfigPanelRegistry.resolve(SPACEFIELD_SCOPE_ID);
 
-// `**word**` runs render brighter (see renderEmphasisText in
-// helpers/textEmphasis.tsx) — a lightweight, source-only way to mark each
-// paragraph's important words without a second structured field.
+// CNT-01 (about-IA-timeline-copy-rework) — single source of truth for the
+// desktop left-column timeline (AboutTimeline, mounted below) and the
+// mobile accordion's own collapsed-preview headers (ABOUT_NARRATIVE_PREVIEWS
+// below). Every date/range/scale claim on this page lives here and only
+// here — see the left/right column rule above ABOUT_EDITORIAL_HEADLINE for
+// why. slideIndex must equal each row's own array position — a row
+// activates the dock slide/accordion item at that index and vice versa
+// (AboutSlidesContext.activeIndex). The 2018-2023 and 2023-2026 ranges
+// deliberately elide the real April-November 2023 gap between them; no
+// per-year granularity is meant here. McKinsey (row index 3) is past
+// employment — tense in AboutTimelineRow's own rendering must reflect that.
+// Row 4 ("On my own") stays deliberately vague — no client count, no team
+// size, no named clients (see the left/right column rule's own "opacity is
+// deliberate" note).
+const ABOUT_TIMELINE_ROWS = [
+  {
+    caption: 'Where it starts, circa 2010',
+    line: 'Contract work for large corporations, learning the craft on live stakes.',
+    slideIndex: 0,
+  },
+  {
+    caption: 'The question, circa 2017',
+    line: 'Light and sound, and what biomimicry teaches about products.',
+    slideIndex: 1,
+  },
+  {
+    caption: 'The consulting years, 2018 to 2023',
+    line: 'Contractor, then multiple squads, then whole engagements.',
+    slideIndex: 2,
+  },
+  {
+    caption: 'McKinsey, 2023 to 2026',
+    line: 'Several teams at once, on firm-wide initiatives.',
+    slideIndex: 3,
+  },
+  {
+    caption: 'On my own, since 2026',
+    line: 'A few collaborators, a small number of clients.',
+    slideIndex: 4,
+  },
+] as const;
+
+// Plain lead-in text for AboutTimeline's own `description` prop — no
+// heading, no digits/dates (QA-01 still applies: every date lives in
+// ABOUT_TIMELINE_ROWS above, never here).
+const ABOUT_TIMELINE_DESCRIPTION = 'More than a decade of consulting and contract work, in the order it happened.';
+
+// `**word**` runs render brighter, `[text](href)` runs are inline links
+// (see renderEmphasisText in helpers/textEmphasis.tsx) — a lightweight,
+// source-only way to mark each paragraph's important words/routes without a
+// second structured field. Five entries, chronological, one per
+// ABOUT_TIMELINE_ROWS row above (index-for-index) — no digits/dates live in
+// any of these strings; every one already lives in the matching timeline
+// row instead (QA-01).
 const ABOUT_NARRATIVE_PARAGRAPHS: string[] = [
-  'AI took over much of the execution. The weight moved to **judgment**. That is the shift I wanted to work inside. It opened **collaboration** rather than replacing it, so I still bring people in when the work needs them.',
-  'Before this I spent close to nine years in technology consulting. I started as a contractor working with clients across industries from consumer goods to real estate, then moved into a technical lead role and later worked as a **lead consultant**. That period was followed by time at **McKinsey**.',
-  'These are the questions I left to chase. How **light and sound** relate, which is where the color on this page comes from. What makes an interface feel human, and what **biomimicry** can teach about it. Both are open, and the experiments below are the current state of the work.',
-  'I work with a few **people at a time**, and I stay close to the work from the first interview through delivery. A plan is a **hypothesis** until real usage tests it, so when the signals move I say so and we adjust.',
+  'Before any of this had a name, I was a **contractor**. Large corporations, long projects, the kind of work where the **brief** arrives finished and the job is to build it well. That was the work for years, and building it well was enough, until I started wondering about things the brief never asked about.',
+  'Two questions in particular, and neither had a use. How **light and sound** relate, which is where the color on this page comes from. The gradient behind these words is generated rather than chosen, from colors derived from sound. The other is what **biomimicry** can teach about making a product feel human. [Both are still open](/), and chasing them taught me more than any framework did. It set the pattern too. I pick up a question, and eventually it turns into work.',
+  'The work it turned into was technology consulting. I started as a contractor, across industries from consumer goods to real estate, then led multiple squads, and later whole **engagements**. Different clients, one recurring problem. The plan always arrived confident, and real **usage** always disagreed with part of it.',
+  '**McKinsey** put that problem at a **scale** where being wrong was expensive. I worked across several teams on firm-wide initiatives, and most of a day went to deciding what should exist rather than building it. That is where the shift stopped being an opinion.',
+  'Then AI took over much of the execution, and the weight moved to **judgment**. That is the shift I wanted to work inside. It opened collaboration rather than replacing it, so I still bring people in when the work needs them. I take on a few at a time and stay close to the work, from the first conversations through delivery. The plan is a **hypothesis** until real usage tests it, and when the signals move I say so. [Start anywhere](/contact)',
 ];
 
-// The mobile accordion's own collapsed-preview text — one single word per
-// paragraph above (operator ask, 2026-08-25: "one single sentence, and
-// preferable one single word, no numbering, no period at the end"),
-// extractive, not a fresh paraphrase: each is literally the same
-// **emphasis**-marked word already bolded within its own paragraph, so the
-// collapsed tab previews the paragraph's own real emphasis rather than an
-// invented label. Feeds SliderContentSlide.excerpt below, a field every
-// slide already carries but that was previously always ''.
-const ABOUT_NARRATIVE_PREVIEWS: string[] = [
-  'Judgment',
-  'McKinsey',
-  'Biomimicry',
-  'Hypothesis',
-];
+// CNT-06 — derived, not hand-maintained: the mobile accordion's own
+// collapsed-preview header is now each row's own editorial caption, not an
+// extracted single word (three of the four single-word previews this
+// replaced gave a reader nothing to decide with). Feeds
+// SliderContentSlide.excerpt below, same field this array always fed.
+const ABOUT_NARRATIVE_PREVIEWS: string[] = ABOUT_TIMELINE_ROWS.map(row => row.caption);
 
-// PLAN-EDITORIAL-HERO-UNIFICATION-AND-CARDSTACK-RESIZE-FIX.md Part 2 — the
-// narrow column's own headline + supporting copy, rendered through
-// AbstractEditorialHero (the same shared component /abstract uses) instead
-// of a hand-styled <h1>. Headline is drawn near-verbatim from
-// ABOUT_NARRATIVE_PARAGRAPHS[0]'s own opening sentence ("The weight moved
-// to judgment") rather than paraphrased — this site's own established
-// convention (see "light and sound" below, and this page's own
-// ABOUT_NARRATIVE_PREVIEWS) is to reuse a paragraph's real wording as its
-// own short-form label, not invent new copy for the same idea.
-//
-// The two paragraphs are a synthesis across all four accordion items, not
-// a fifth independent narrative: paragraph one condenses items 1
-// (execution → judgment, collaboration) and 2 (nine years in consulting,
-// McKinsey) into "judgment built on practice"; paragraph two condenses
-// items 3 (light and sound, biomimicry — the open questions behind the
-// page's own look) and 4 (a few clients at a time, hypothesis-tested) into
-// "curiosity worked in the open." Together they're meant to give a reader
-// who never opens a single accordion item the same grasp of what this page
-// is about that reading all four would — the accordion itself stays the
-// one place for the full, unabridged version of each thread.
-const ABOUT_EDITORIAL_HEADLINE = 'The weight moved to judgment.';
-const ABOUT_EDITORIAL_PARAGRAPHS: ReadonlyArray<string> = [
-  'Nine years in consulting, most recently at McKinsey, built these instincts. AI now ' +
-    'handles execution; **judgment** and **collaboration** carry the rest.',
-  'How **light and sound** relate, and what biomimicry teaches interfaces, stay open. I work ' +
-    'with a few people, testing plans as a **hypothesis**.',
-];
-
-// Left column (index 0) + the four slides (index 1..4) share one continuous
-// 5-stop ramp, so the left panel reads as part of the same palette sequence
-// the dock's own slides use rather than an arbitrarily-picked color.
+// Left column (index 0) + the five slides (index 1..5) share one continuous
+// ramp (ABOUT_PALETTE_STOP_COUNT stops), so the left panel reads as part of
+// the same palette sequence the dock's own slides use rather than an
+// arbitrarily-picked color.
 const ABOUT_PALETTE_STOP_COUNT = ABOUT_NARRATIVE_PARAGRAPHS.length + 1;
 const LEFT_PANEL_PALETTE_INDEX = 0;
 // The header's own top-segment row (topSegmentDynamicBackgroundEnabled) is
@@ -246,18 +248,22 @@ const LEFT_PANEL_PALETTE_INDEX = 0;
 // call (experiences/abstract/components/AbstractPostDock/components/
 // View.tsx), which derives each row's hueOffset from its own position
 // *within the aboutSlides array itself* (deckWindowHueOffset(localIndex,
-// aboutSlides.length, hueSpread) — always a 4-item window here, regardless
-// of ABOUT_PALETTE_STOP_COUNT) and feeds it through the real WebGL shader
-// (LiquidGradientAdapter) — the flat accent is never what's actually
-// painted once that shader has a frame ready. Inserting a stop into the
-// unrelated 5-stop ramp changed the header's own flat fallback color but
-// had zero effect on the narrative rows' actual rendered hue, which is why
-// the two visually diverged so badly (operator-reported, confirmed via a
-// live screenshot: a flat, bright, saturated lime top segment against
-// deep, muted teal/purple rows). The correct fix (see
+// aboutSlides.length, hueSpread) — an N-item window sized to however many
+// narrative slides exist (5, since about-IA-timeline-copy-rework's DEC-06:
+// accept the redistribution — this mechanism is one continuous field sliced
+// across however many slides render, by design; growing the slide count
+// shifts every hue, which is the intended behavior, not a regression),
+// regardless of ABOUT_PALETTE_STOP_COUNT) and feeds it through the real
+// WebGL shader (LiquidGradientAdapter) — the flat accent is never what's
+// actually painted once that shader has a frame ready. Inserting a stop
+// into the unrelated 6-stop ramp changed the header's own flat fallback
+// color but had zero effect on the narrative rows' actual rendered hue,
+// which is why the two visually diverged so badly (operator-reported,
+// confirmed via a live screenshot: a flat, bright, saturated lime top
+// segment against deep, muted teal/purple rows). The correct fix (see
 // topSegmentPaletteState below) computes the header's own hueOffset via
 // the exact same deckWindowHueOffset(index, count, hueSpread) call the
-// rows use, at index -1 in that SAME 4-item window — "one slide before the
+// rows use, at index -1 in that SAME N-item window — "one slide before the
 // first" — and renders it through the same LiquidGradientAdapter shader,
 // not a CSS approximation.
 // Arbitrary but stable — id/seed only need to differ from every real slide's
@@ -265,6 +271,16 @@ const LEFT_PANEL_PALETTE_INDEX = 0;
 // own effect dependency and deckKinshipSeed's own base value).
 const TOP_SEGMENT_SLIDE_ID = -1;
 const TOP_SEGMENT_SLIDE_SEED = 0.5;
+
+// A11Y-01 (about-IA-timeline-copy-rework) — the single dock region
+// AboutTimeline's own tabs (role="tab", aria-controls) point at, via
+// role="tabpanel" on the desktop dock's own wrapper below. One shared
+// region whose content changes, not a separate tabpanel per slide — the
+// desktop dock (AbstractPostDock/View.tsx) is a shared, multi-page
+// component this page must not fork just to thread a per-slide id through
+// it; this stays a page-local wrapper around that component's existing
+// render instead.
+const ABOUT_TIMELINE_PANEL_ID = 'about-timeline-panel';
 
 // resolveSplitColumnAccent/parseCssColorToRgb (the left column's own
 // palette-derived color + the nav control's idle/hover RGB math) live in
@@ -309,7 +325,6 @@ function AboutPageContent() {
     panelShellConfig,
     setPanelShellConfig,
     setLayoutDebugConfig,
-    ctaButtonConfig,
   } = useSharedDesignConfig();
   const {
     siteHeaderConfig, setSiteHeaderConfig, wordmarkConfig, setWordmarkConfig,
@@ -414,13 +429,12 @@ function AboutPageContent() {
     useState<AboutMobileAccordionConfig>(
       () => normalizeAboutMobileAccordionConfig(DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG),
     );
-  // This page's own independent instance of the shared AbstractEditorialHero
-  // scope (PLAN-EDITORIAL-HERO-UNIFICATION-AND-CARDSTACK-RESIZE-FIX.md
-  // Part 2) — same "own local state, shared schema" shape
-  // aboutMobileAccordionConfig above already uses.
-  const [editorialHeroConfig, setEditorialHeroConfig] =
-    useState<AbstractEditorialHeroConfig>(
-      () => normalizeAbstractEditorialHeroConfig(DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG),
+  // CMP-01/CFG-01 (about-IA-timeline-copy-rework) — the desktop left-column
+  // timeline's own component-owned scope, same "own local state, shared
+  // schema" shape aboutMobileAccordionConfig above already uses.
+  const [aboutTimelineConfig, setAboutTimelineConfig] =
+    useState<AboutTimelineConfig>(
+      () => normalizeAboutTimelineConfig(DEFAULT_ABOUT_TIMELINE_CONFIG),
     );
   const [topSegmentGradientConfig, setTopSegmentGradientConfig] =
     useState<AboutTopSegmentGradientConfig>(
@@ -762,6 +776,18 @@ function AboutPageContent() {
     // the first things worth tuning once this is visible live.
     shaderBellStrokeWidth: 0.05,
     shaderBellStrokeIntensity: dockPaletteConfig.windowPanCurve === 'gaussian' ? 0.85 : 0,
+    // A11Y-08 (about-IA-timeline-copy-rework) — this page-local override
+    // only; DEFAULT_LIQUID_SLIDER_CONFIG's own dockCounterEnabled: true
+    // default is untouched, so every other AbstractPostDock consumer keeps
+    // its counter. On /about specifically, this counter (View.tsx's own
+    // "N of M" indicator) would now duplicate AboutTimeline's own real
+    // tablist on desktop — the only place View.tsx ever renders here, since
+    // mobileAccordionActive swaps to the wholly separate AboutMobileAccordion
+    // component below the mobile breakpoint (which never rendered this
+    // counter either), so disabling it here removes it from every /about
+    // context this counter could actually appear in, with no viewport it
+    // needs to be preserved at.
+    dockCounterEnabled: false,
   }), [
     aboutMobileAccordionConfig.transitionMs,
     aboutMobileAccordionConfig.transitionEasing,
@@ -855,18 +881,6 @@ function AboutPageContent() {
   const leftAlignPx = (isNarrowViewport || aboutPageLayoutConfig.narrowColumnContentWidthDecoupledEnabled)
     ? undefined
     : logoAnchorRect?.left;
-
-  // The headline's own text color used to be hand-resolved here
-  // (resolveContrastAwareTextColor against colors.narrowColumnColor, mirroring
-  // what AbstractEditorialHero's own copyColorMode='column' already does) —
-  // now that the headline renders through that real component (PLAN-
-  // EDITORIAL-HERO-UNIFICATION-AND-CARDSTACK-RESIZE-FIX.md Part 2), its own
-  // config governs this directly and the page-local reimplementation is
-  // gone. Note: aboutPageLayoutConfig.leftPanelTextTone (the panel's own
-  // "light"/"dark" override this variable used to read) is no longer
-  // consumed anywhere on this page as a result — left in place rather than
-  // removed outright, since deleting a panel-exposed config field is a
-  // larger, separate decision than this component swap.
 
   // Arrow idle/hover fill — both derived from the header split-band's own
   // resolved left color (never an independent pick), so the control always
@@ -1216,15 +1230,6 @@ function AboutPageContent() {
   // operator's own escape hatch back to the vertical slider at every
   // breakpoint.
   const mobileAccordionActive = aboutMobileAccordionConfig.enabled && isNarrowViewport;
-  const normalizedCtaButtonConfig = useMemo(
-    () => normalizeCtaButtonConfig(ctaButtonConfig),
-    [ctaButtonConfig],
-  );
-  const normalizedEditorialHeroConfig = useMemo(
-    () => normalizeAbstractEditorialHeroConfig(editorialHeroConfig),
-    [editorialHeroConfig],
-  );
-
   const sharedConfigBindings = useAbstractDesignConfigBindings(
     ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE.about,
   );
@@ -1250,9 +1255,9 @@ function AboutPageContent() {
       onChange: setAboutMobileAccordionConfig,
     }),
     createConfigScopeBinding({
-      definition: ABSTRACT_EDITORIAL_HERO_DEFINITION,
-      value: editorialHeroConfig,
-      onChange: setEditorialHeroConfig,
+      definition: ABOUT_TIMELINE_DEFINITION,
+      value: aboutTimelineConfig,
+      onChange: setAboutTimelineConfig,
     }),
     createConfigScopeBinding({
       definition: ABOUT_TOP_SEGMENT_GRADIENT_DEFINITION,
@@ -1284,7 +1289,7 @@ function AboutPageContent() {
     dockLayoutConfig,
     aboutPageLayoutConfig,
     aboutMobileAccordionConfig,
-    editorialHeroConfig,
+    aboutTimelineConfig,
     topSegmentGradientConfig,
     splitColumnLayoutConfig,
     spacefieldConfig,
@@ -1307,8 +1312,8 @@ function AboutPageContent() {
     setAboutMobileAccordionConfig(
       normalizeAboutMobileAccordionConfig(DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG),
     );
-    setEditorialHeroConfig(
-      normalizeAbstractEditorialHeroConfig(DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG),
+    setAboutTimelineConfig(
+      normalizeAboutTimelineConfig(DEFAULT_ABOUT_TIMELINE_CONFIG),
     );
     setTopSegmentGradientConfig(
       normalizeAboutTopSegmentGradientConfig(DEFAULT_ABOUT_TOP_SEGMENT_GRADIENT_CONFIG),
@@ -1536,53 +1541,31 @@ function AboutPageContent() {
               // of a page-CSS class.
               containerQuery
             >
-              {/* PLAN-EDITORIAL-HERO-UNIFICATION-AND-CARDSTACK-RESIZE-FIX.md
-                  Part 2 — the same shared AbstractEditorialHero component
-                  /abstract renders, not a page-local <h1> reimplementation.
-                  ABOUT_EDITORIAL_HEADLINE/-PARAGRAPHS (declared above) are a
-                  synthesis of ABOUT_NARRATIVE_PARAGRAPHS's own four
-                  accordion items, not a duplicate of them — see that
-                  const's own doc comment for the derivation. layoutMode=
-                  "editorial" is the mode that already exists for "headline
-                  + paragraphs, no CTA composer," matching this column's own
-                  content exactly. copyInkTone/actionInkTone are
-                  structurally inert here —
-                  both only affect the CSS rules scoped to
-                  [data-layout-mode="full"] (AbstractEditorialHero.module.css)
-                  and the (unrendered, composerVisible: false by default) CTA
-                  composer respectively — so a fixed value is correct, not a
-                  page-specific tone computation like /abstract's own
-                  contentTone/actionsTone. The real text color comes from
-                  editorialHeroConfig's own copyColorMode (default 'column'),
-                  the same resolveContrastAwareTextColor-against-
-                  columnBackgroundColor resolution this page's own former
-                  leftPanelTextColor hand-rolled. */}
-              <AbstractEditorialHero
-                headline={ABOUT_EDITORIAL_HEADLINE}
-                paragraphs={ABOUT_EDITORIAL_PARAGRAPHS}
-                config={normalizedEditorialHeroConfig}
-                horizontalPlacement={
-                  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
-                    splitColumnLayoutConfig.narrowColumnContentAlign
-                  ]
-                }
-                horizontalPlacementWide={
-                  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_WIDE[
-                    splitColumnLayoutConfig.narrowColumnContentAlignWide
-                  ]
-                }
-                horizontalPlacementLg={
-                  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG[
-                    splitColumnLayoutConfig.narrowColumnContentAlignLg
-                  ]
-                }
-                layoutMode="editorial"
-                copyInkTone="dark"
-                actionInkTone="dark"
-                ctaConfig={normalizedCtaButtonConfig}
-                surfaceColor={normalizedPageSurfaceConfig.color}
-                columnBackgroundColor={colors.narrowColumnColor}
-              />
+              {/* CMP-06/INT-06 (about-IA-timeline-copy-rework) — the narrow
+                  column's only content now: the standfirst headline this
+                  page previously rendered above it (AbstractEditorialHero)
+                  was removed per operator request, so AboutTimeline (and its
+                  own lead-in description) is the entire column. Still inside
+                  NarrowColumnContent's own containerQuery context. Desktop-only
+                  (!isNarrowViewport, not mobileAccordionActive — this is a
+                  viewport decision, independent of whether an operator has
+                  toggled the mobile accordion feature off): mobile keeps
+                  the accordion's own headers (ABOUT_NARRATIVE_PREVIEWS,
+                  CNT-06) as its only "timeline," never this synchronized
+                  tablist. */}
+              {!isNarrowViewport ? (
+                <AboutTimeline
+                  rows={ABOUT_TIMELINE_ROWS}
+                  activeIndex={activeSlideIndex}
+                  onSelect={setActiveSlideIndex}
+                  accentColor={aboutSlides[activeSlideIndex]?.accent ?? '#ffffff'}
+                  columnBackgroundColor={colors.narrowColumnColor}
+                  description={ABOUT_TIMELINE_DESCRIPTION}
+                  config={aboutTimelineConfig}
+                  prefersReducedMotion={prefersReducedMotion}
+                  panelId={ABOUT_TIMELINE_PANEL_ID}
+                />
+              ) : null}
             </NarrowColumnContent>
 
             {/* !mobileAccordionActive: PLAN-ABOUT-MOBILE-ACCORDION.md §4 —
@@ -1591,7 +1574,12 @@ function AboutPageContent() {
                 one "next" item to step to once more than one can be open).
                 Tap-per-item fully replaces sequential navigation as the
                 mobile interaction model, so the control is hidden rather
-                than left to do something ambiguous. */}
+                than left to do something ambiguous.
+                CMP-07 (about-IA-timeline-copy-rework): AboutTimeline now
+                serves this same "jump to a slide" role on desktop (a real
+                tablist, not a pair of triangles) — this control is left in
+                place, unchanged, at its existing navControlEnabled: false
+                default rather than deleted, per that decision. */}
             {aboutPageLayoutConfig.navControlEnabled && !mobileAccordionActive ? (
               <AboutSlideNavControl
                 arrowSizePx={aboutPageLayoutConfig.navControlArrowSizePx}
@@ -1620,34 +1608,44 @@ function AboutPageContent() {
             onActiveIndexChange={setActiveSlideIndex}
           />
         ) : (
-          <AbstractPostDock
-            items={aboutSlides}
-            layoutConfig={dockLayoutConfig}
-            paletteConfig={dockPaletteConfig}
-            config={dockSliderConfig}
-            variant="embedded"
-            narrowDetectionSource="viewport"
-            // The dock's own narrow/touch presentation otherwise flips on
-            // at its generic 1180px default — ~400px before this page's
-            // real mobile breakpoint (mobileAccordionActive swaps to
-            // AboutMobileAccordion at MD_BREAKPOINT_PX). Without this, the
-            // accordion silently re-tuned itself (mobile peek sizing, deck/
-            // pager behavior, narrow shadow/dimming) across that gap even
-            // though the page still considered itself a wide device.
-            narrowBreakpointPx={MD_BREAKPOINT_PX}
-            // PLAN-ABOUT-MOBILE-ACCORDION.md §9 — without this, View.tsx
-            // falls back to its own legacy activeOnlyIdleDrift-derived
-            // policy, which still resolves the ACTIVE row to 'continuous'
-            // (a genuine per-frame shader recalculation, forever). 'static'
-            // freezes every row, active or not — one render per relevant
-            // change, never a live idle-drift loop, matching the mobile
-            // accordion's own forced-static gradient below it.
-            gradientPerformanceConfig={{ activityPolicy: 'static', pauseWhenOffscreen: true }}
-            activeIndex={activeSlideIndex}
-            onActiveIndexChange={setActiveSlideIndex}
-            gaussianProximityOffsetXRefs={rowGaussianProximityOffsetXRefs}
-            gaussianProximityDomRefs={rowGaussianProximityDomRefs}
-          />
+          // A11Y-01/A11Y-10 (about-IA-timeline-copy-rework) — `display:
+          // contents` so this wrapper adds ARIA semantics only, with zero
+          // layout footprint (AbstractPostDock still renders as if it were
+          // .splitRight's own direct flex child, unchanged). role="tabpanel"
+          // pairs with AboutTimeline's own tabs (aria-controls, same id);
+          // aria-live="polite" is what makes screen readers actually
+          // announce the panel change AboutTimeline's tab activation causes,
+          // not just the tab's own aria-selected flip (QA-10).
+          <div role="tabpanel" id={ABOUT_TIMELINE_PANEL_ID} aria-live="polite" style={{ display: 'contents' }}>
+            <AbstractPostDock
+              items={aboutSlides}
+              layoutConfig={dockLayoutConfig}
+              paletteConfig={dockPaletteConfig}
+              config={dockSliderConfig}
+              variant="embedded"
+              narrowDetectionSource="viewport"
+              // The dock's own narrow/touch presentation otherwise flips on
+              // at its generic 1180px default — ~400px before this page's
+              // real mobile breakpoint (mobileAccordionActive swaps to
+              // AboutMobileAccordion at MD_BREAKPOINT_PX). Without this, the
+              // accordion silently re-tuned itself (mobile peek sizing, deck/
+              // pager behavior, narrow shadow/dimming) across that gap even
+              // though the page still considered itself a wide device.
+              narrowBreakpointPx={MD_BREAKPOINT_PX}
+              // PLAN-ABOUT-MOBILE-ACCORDION.md §9 — without this, View.tsx
+              // falls back to its own legacy activeOnlyIdleDrift-derived
+              // policy, which still resolves the ACTIVE row to 'continuous'
+              // (a genuine per-frame shader recalculation, forever). 'static'
+              // freezes every row, active or not — one render per relevant
+              // change, never a live idle-drift loop, matching the mobile
+              // accordion's own forced-static gradient below it.
+              gradientPerformanceConfig={{ activityPolicy: 'static', pauseWhenOffscreen: true }}
+              activeIndex={activeSlideIndex}
+              onActiveIndexChange={setActiveSlideIndex}
+              gaussianProximityOffsetXRefs={rowGaussianProximityOffsetXRefs}
+              gaussianProximityDomRefs={rowGaussianProximityDomRefs}
+            />
+          </div>
         )}
       >
         {showAuthoringTools ? (

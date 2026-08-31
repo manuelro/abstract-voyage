@@ -496,11 +496,21 @@ export function AbstractPostDockView({
               layoutConfig.minimalModeFontSize,
               layoutConfig.minimalModeTextMaxWidth,
             ].join(' ')}
-            style={abstractPostDockActiveOpacityStyle({
-              isActive,
-              transitionMs,
-              easingCss: transitionEasing,
-            })}
+            style={{
+              ...abstractPostDockActiveOpacityStyle({
+                isActive,
+                transitionMs,
+                easingCss: transitionEasing,
+              }),
+              // A11Y-05 (about-IA-timeline-copy-rework) — reads a page-local
+              // CSS custom property (pages/about.module.css's own
+              // --about-dock-text-shadow, declared on .splitRight) via
+              // ordinary inheritance; falls back to 'none' everywhere else
+              // this shared component is used, so no other consumer's
+              // rendering changes. No gradient/palette change — text-shadow
+              // only, per C-01.
+              textShadow: 'var(--about-dock-text-shadow, none)',
+            }}
           >
             {renderEmphasisText(
               item.title,

@@ -1,0 +1,170 @@
+/* ART-01: standard sentence case, no small caps/letterspacing/uppercase —
+   this component sits below the H1 in scale and stays visually quiet.
+   ART-02: no serif here; the serif stays exclusive to the H1. */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.item {
+  display: block;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0;
+  padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.9rem);
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* config.alignment: 'right' (AboutTimeline.tsx) — row-reverse puts .content
+   (the last DOM child) first visually, i.e. on the left, with .marker
+   trailing on the right; padding/text-align mirror to match. */
+.row[data-alignment='right'] {
+  flex-direction: row-reverse;
+  padding-left: 0;
+  padding-right: calc(var(--about-timeline-marker-size, 9px) + 0.9rem);
+  text-align: right;
+}
+
+.row:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+/* ART-05: hairline vertical rule spanning every row, one marker per row.
+   Only rendered at all while config.ruleVisible is on (AboutTimelineRow.tsx
+   conditionally omits the element itself, not just hides it via CSS). */
+.rule {
+  position: absolute;
+  left: calc(var(--about-timeline-marker-size, 9px) / 2 - var(--about-timeline-rule-weight, 1px) / 2);
+  top: 0;
+  bottom: calc(var(--about-timeline-row-gap-px, 24px) * -1);
+  width: var(--about-timeline-rule-weight, 1px);
+  background-color: rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+}
+
+.row[data-alignment='right'] .rule {
+  left: auto;
+  right: calc(var(--about-timeline-marker-size, 9px) / 2 - var(--about-timeline-rule-weight, 1px) / 2);
+}
+
+.item:last-child .rule {
+  bottom: 0;
+}
+
+.marker {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: var(--about-timeline-marker-size, 9px);
+  height: var(--about-timeline-marker-size, 9px);
+  /* Centers the marker against the title's own line box (font-size 0.95rem,
+     line-height 1.3 — .caption above) rather than an eyeballed fixed offset,
+     so it stays aligned with the title regardless of the configured marker
+     size. */
+  margin-top: calc((0.95rem * 1.3 - var(--about-timeline-marker-size, 9px)) / 2);
+  border-radius: 9999px;
+  border: 1.5px solid currentColor;
+  background-color: transparent;
+  transition:
+    background-color var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease),
+    opacity var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease);
+}
+
+.markerActive {
+  background-color: currentColor;
+}
+
+.content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* Color and opacity are set inline per-row (AboutTimelineRow.tsx), each
+   independently resolved for the caption vs. the line — the transition
+   lives on these two leaf elements rather than the shared .content wrapper
+   above so the two never compound into a single multiplied fade. */
+.caption {
+  font-size: 0.95rem;
+  line-height: 1.3;
+  transition:
+    color var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease),
+    opacity var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease);
+}
+
+.line {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  transition:
+    color var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease),
+    opacity var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease);
+}
+
+/* Plain lead-in text above the rows (AboutTimeline.tsx's own `description`
+   prop) — indented to start at the exact same x-position a row's own
+   caption text starts at, so the marker/rule column's horizontal space
+   above it reads as deliberately empty rather than misaligned. The indent
+   side's own left/right padding is computed and applied inline
+   (AboutTimeline.tsx's own `descriptionIndentStyle`) since it must combine
+   the structural marker-offset with the operator's own configurable
+   `descriptionPaddingLeft/-RightClassName` on that same side — top/bottom
+   padding and all four margin sides have no such structural offset to
+   combine with, so those apply as plain Tailwind classes instead
+   (AboutTimeline.tsx's own className list). font-size/color/opacity come
+   from config too; text-align mirrors `.row`'s own alignment via the shared
+   `data-alignment` attribute. */
+.description {
+  line-height: 1.4;
+  text-align: left;
+}
+
+.description[data-alignment='right'] {
+  text-align: right;
+}
+
+/* Height constraint (about-IA-timeline-copy-rework §4.5): .splitLeft is
+   fixed-height with overflow: hidden — five rows plus the H1/standfirst must
+   fit at a 768px viewport height without clipping. A plain viewport-height
+   media query is used here rather than a height container query: the
+   narrow column's own container-query context (NarrowColumnContent's
+   `containerQuery` prop, pages/about.tsx) is `container-type: inline-size`
+   only, established for the headline's own responsive font sizing — adding
+   a second, conflicting `container-type: size` boundary on the same
+   ancestor purely for this one component risked breaking that existing
+   inline-size query elsewhere on the page. A `line`-only drop at short
+   viewport heights satisfies the same "captions survive, secondary detail
+   drops" fallback the brief itself allows. */
+@media (max-height: 900px) {
+  .line {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker,
+  .caption,
+  .line {
+    transition-duration: 0ms !important;
+  }
+}

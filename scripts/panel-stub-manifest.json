@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T18:29:30.897Z",
+  "generatedAt": "2026-08-31T00:54:09.607Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -65,6 +65,14 @@
       "exports": [
         "ABOUT_MOBILE_ACCORDION_SCOPE_ID",
         "ABOUT_MOBILE_ACCORDION_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/about/components/AboutTimeline.panel.ts",
+      "stub": "experiences/about/components/AboutTimeline.panel.stub.ts",
+      "exports": [
+        "ABOUT_TIMELINE_SCOPE_ID",
+        "ABOUT_TIMELINE_PANEL"
       ]
     },
     {

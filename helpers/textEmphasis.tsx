@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 /**
@@ -8,6 +9,19 @@ import type { ReactNode } from 'react';
  * (AbstractEditorialHero) started reusing it verbatim, so both — and
  * whatever else adopts the same convention next — read from one shared
  * implementation instead of each other's component-scoped helpers.
+ *
+ * `[text](href)` link syntax (Markdown's own inline-link shape) rides the
+ * same split/map pass — a linked run always renders at emphasisOpacity with
+ * a dotted 1px underline (deliberately distinct from a plain solid
+ * underline — this site's body copy already uses bold/opacity for
+ * **emphasis**, so a link needs its own, different "this is interactive"
+ * cue rather than looking like a heavier emphasis run), since a plain color
+ * change alone isn't reliably visible against a live gradient background.
+ * One shared rule for every content-column link on the site (both the
+ * narrow and wide columns of the main layout render through this same
+ * function) — never a per-page variant. Internal-only in practice (every
+ * current caller links to another route on this site), so a plain
+ * `next/link` is correct here with no external-link branch to maintain.
  *
  * `emphasisClassName` is optional and additive to the marked run only — it
  * exists because opacity alone can't always carry a visible highlight. A
@@ -21,6 +35,10 @@ import type { ReactNode } from 'react';
  * every caller that already has enough opacity gap to read clearly (About's
  * own 0.45/0.95 pairing) — those keep rendering exactly as before.
  */
+const EMPHASIS_OR_LINK_PATTERN = /(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g;
+const EMPHASIS_PATTERN = /^\*\*([^*]+)\*\*$/;
+const LINK_PATTERN = /^\[([^\]]+)\]\(([^)]+)\)$/;
+
 export function renderEmphasisText(
   text: string,
   dimOpacity: number,
@@ -28,10 +46,36 @@ export function renderEmphasisText(
   emphasisClassName?: string,
 ): ReactNode[] {
   return text
-    .split(/(\*\*[^*]+\*\*)/g)
+    .split(EMPHASIS_OR_LINK_PATTERN)
     .filter(Boolean)
     .map((part, index) => {
-      const emphasisMatch = part.match(/^\*\*([^*]+)\*\*$/);
+      const linkMatch = part.match(LINK_PATTERN);
+      if (linkMatch) {
+        const [, label, href] = linkMatch;
+        return (
+          <Link
+            key={index}
+            href={href}
+            // Plain inline text-decoration, not Tailwind's decoration-dotted/
+            // decoration-1 utilities: this file lives in helpers/, which
+            // tailwind.config.js's own `content` glob list doesn't scan (only
+            // pages/, components/, app/, experiences/, and one dpa-testing
+            // path are covered) — those utility classes silently compiled to
+            // nothing here, confirmed live (computed textDecorationStyle
+            // still read 'solid'). Inline style has no such dependency.
+            style={{
+              opacity: emphasisOpacity,
+              textDecorationLine: 'underline',
+              textDecorationStyle: 'dotted',
+              textDecorationThickness: '1px',
+              textUnderlineOffset: '2px',
+            }}
+          >
+            {label}
+          </Link>
+        );
+      }
+      const emphasisMatch = part.match(EMPHASIS_PATTERN);
       return emphasisMatch ? (
         <span key={index} className={emphasisClassName} style={{ opacity: emphasisOpacity }}>{emphasisMatch[1]}</span>
       ) : (
@@ -40,9 +84,13 @@ export function renderEmphasisText(
     });
 }
 
-// Every consumer of a **word**-marked string that isn't rendering it through
-// renderEmphasisText (aria-labels, plain-text titles, ...) needs the markers
-// stripped instead of shown literally.
+// Every consumer of a **word**-marked/[text](href)-linked string that isn't
+// rendering it through renderEmphasisText (aria-labels, plain-text titles,
+// ...) needs both markers stripped instead of shown literally — link syntax
+// first, so a link label containing e.g. an underscore is never mistaken for
+// leftover emphasis markup by the second pass.
 export function stripEmphasisMarkup(text: string): string {
-  return text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  return text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1');
 }
