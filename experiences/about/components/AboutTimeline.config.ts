@@ -237,7 +237,7 @@ export type AboutTimelineConfig = {
 };
 
 export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
-  rowGap: 'gap-10',
+  rowGap: 'gap-8',
   markerSizeClassName: 'w-6 h-6',
   ruleVisible: false,
   ruleWeightClassName: 'w-px',
@@ -274,7 +274,7 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   paddingRightClassName: 'pr-0',
   paddingBottomClassName: 'pb-0',
   paddingLeftClassName: 'pl-0',
-  marginTopClassName: 'mt-5',
+  marginTopClassName: 'mt-7',
   marginRightClassName: 'mr-0',
   marginBottomClassName: 'mb-0',
   marginLeftClassName: 'ml-0',
