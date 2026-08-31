@@ -33,6 +33,23 @@ import {
  * own `DEFAULT_POST_LAB_PAGE_LAYOUT_CONFIG`).
  */
 
+// STOP — before pasting a component-config-update/v1 payload's `config:`
+// block into this object: confirm the payload's own `target_symbol` line
+// reads EXACTLY `ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG`, not
+// `ABOUT_POLYMORPHIC_LAYOUT_CONFIG` below. Both objects share the identical
+// field set/names (same `PolymorphicLayoutConfig` type) — a field-name
+// search alone (e.g. grepping for `narrowColumnCustomColor:`) will match
+// BOTH blocks, and pasting into the wrong one has already happened twice:
+// once on 2026-08-24 (see narrowColumnCustomColorLg's own doc comment
+// further down, and pages/about.tsx's wideColumnStyle doc comment, for
+// that incident's full account), and again in a later session (color
+// fields meant for `/about` landed here instead, visually changing
+// `/abstract`'s own narrow column while `/about`'s own panel silently kept
+// showing its stale pre-update value — both symptoms traced back to this
+// exact mistake, not a wiring bug in either page). Locate the target
+// symbol's own `export const NAME = {` line FIRST, always, before
+// searching for the field(s) the payload names.
+//
 // PLAN-POLYMORPHIC-LAYOUT-PAGE-CONFIG-PARITY.md: relocated verbatim from
 // pages/abstract.config.ts (no value changes) — see that file's own
 // preserved doc comment above the export for the full per-field reasoning
@@ -55,7 +72,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnClearsFloatingHeaderWide: true,
   narrowColumnClearsFloatingHeaderLg: true,
   colorSource: 'custom',
-  wideColumnCustomColor: '#191929',
+  wideColumnCustomColor: '#cbcbe1',
   narrowColumnCustomColor: '#cbcbe1',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
@@ -264,6 +281,14 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   splitBandWidthTierLg: '38/62',
 };
 
+// STOP — before pasting a component-config-update/v1 payload's `config:`
+// block into this object: confirm the payload's own `target_symbol` line
+// reads EXACTLY `ABOUT_POLYMORPHIC_LAYOUT_CONFIG`, not
+// `ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG` above. See that export's own
+// matching warning for the full incident history — a field-name search
+// alone matches both blocks, and this exact mix-up has happened more than
+// once.
+//
 // Relocated verbatim from pages/about.config.ts (no value changes) — see
 // that file's own preserved doc comment above the export for the full
 // per-field reasoning (contentContainer: 'full-bleed' provenance, the
@@ -292,8 +317,8 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // '#0e1230' placeholder this scope's colorSource: 'surface' had made
   // permanently inert.
   colorSource: 'custom',
-  wideColumnCustomColor: '#191929',
-  narrowColumnCustomColor: '#cbcbe1',
+  wideColumnCustomColor: '#cbcbe1',
+  narrowColumnCustomColor: '#68689c',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
   headerSplitBandEnabled: true,
@@ -301,8 +326,8 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   splitBandLeftCustomColor: '#0e1230',
   splitBandLeftModeWide: 'custom',
   splitBandLeftModeLg: 'custom',
-  splitBandRightMode: 'syncWithColumnBelow',
-  splitBandRightCustomColor: '#0e1230',
+  splitBandRightMode: 'custom',
+  splitBandRightCustomColor: '#cbcbe1',
   splitBandRightModeWide: 'syncWithColumnBelow',
   splitBandRightModeLg: 'syncWithColumnBelow',
   contentContainer: 'full-bleed',
