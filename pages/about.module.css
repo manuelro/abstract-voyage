@@ -100,12 +100,48 @@
 }
 
 @media (max-width: 767px) {
-  .splitLeft,
-  .splitRight {
-    height: auto;
-    min-height: calc(50vh - var(--about-nav-h) / 2);
-    min-height: calc(50dvh - var(--about-nav-h) / 2);
+  /* .splitLeft is no longer needed at all on mobile (operator ask) — its
+     own standfirst headline was removed; AboutTimeline, its only other
+     content, is desktop-only (see pages/about.tsx's own `!isNarrowViewport
+     ? <AboutTimeline/> : null` gate) — leaving only background gradient/
+     spacefield layers with nothing to sit behind. A prior version kept it
+     in flow with `height: auto; min-height: 0` and separately subtracted
+     its own remaining padding-driven height from .splitRight's own height
+     calc below — that correctly stopped the PAGE from scrolling, but
+     .splitLeft's own padding-only box (narrowColumnContentPaddingTop/
+     -Bottom, still applied unconditionally by buildNarrowColumnClassName
+     regardless of whether the column has visible content) still visibly
+     occupied real screen space above the accordion (confirmed via the
+     LayoutDebug overlay, operator screenshot) — space the accordion could
+     use instead, now that the viewport is the scarce resource this
+     column's own height math treats it as. `display: none` (not just
+     zero height) is what actually reclaims that space: it drops out of
+     grid/flow sizing entirely, padding included, without touching
+     narrowColumnContentPaddingTop/-Bottom's own panel-editable values at
+     all — the exact same class of "CSS override silently outranks a live
+     panel field" bug BUG-004/BUG-006 already document and fixed elsewhere
+     on this page (see .splitLeft:not(.splitLeftWidthDecoupled) above) is
+     avoided here by removing the ELEMENT from layout, not by fighting its
+     own padding classes. */
+  .splitLeft {
+    display: none;
   }
+
+  /* .splitRight (the mobile accordion) needs no height override of its own
+     here anymore — with .splitLeft entirely out of flow (above), the
+     shared base rule this page's own .splitLeft, .splitRight selector
+     already declares (calc(100vh/100dvh - navH), overflow: hidden) is
+     exactly correct unmodified: the accordion is now the ONLY stacked row,
+     so it already gets the full remaining height below the header for
+     free. Not a `min-height`: that base rule's real `height` is what lets
+     AboutMobileAccordion's own flex-stretch child (see that rule's own doc
+     comment above) actually fill it, rather than only ever growing to its
+     own natural content height with room left over below. Page-level
+     `overflow: hidden` (same shared rule) plus that fixed height is what
+     stops the PAGE itself from scrolling — each accordion item now owns
+     its own internal scroll instead once its own content exceeds its
+     share of this fixed box (AboutMobileAccordionItem.tsx's own
+     maxContentHeightPx prop, via components/useExpandableHeight.ts). */
 
   /* SplitColumnPageShell applies `marginTop: <measured fixed-header height>`
      (inline style) to BOTH columns whenever their own *ColumnHeaderBehavior

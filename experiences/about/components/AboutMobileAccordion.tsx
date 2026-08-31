@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { SliderContentSlide } from '../../../helpers/postContent';
 import type { LiquidSliderConfig } from '../../abstract/components/AbstractPostDock/config/legacy';
 import type { AbstractPostDockPaletteConfig } from '../../abstract/components/AbstractPostDock/config/registered';
@@ -42,8 +42,94 @@ export function AboutMobileAccordion({
    * is mounted; see pages/about.tsx). */
   onActiveIndexChange: (index: number) => void;
 }) {
-  const [expandedIndices, setExpandedIndices] = useState<ReadonlyArray<number>>([]);
+  // [0]: the first item opens by default on a fresh load (operator ask) —
+  // every other index-driven consumer of this array (toggle's own FIFO
+  // cap/eviction logic below) treats an already-populated initial array no
+  // differently than one built up via taps, so no other wiring needed.
+  const [expandedIndices, setExpandedIndices] = useState<ReadonlyArray<number>>([0]);
   const motion = useLiquidSliderMotion(gradientConfig);
+
+  // Operator ask: the page itself must never scroll — pages/about.module
+  // .css's own .splitRight rule now gives this component real, fixed
+  // height (calc(100dvh - navH), overflow: hidden) instead of sizing to
+  // content, specifically so this accordion can fill "the rest of the
+  // screen" below the header. That fixed height is a hard ceiling, though:
+  // an expanded item whose content is taller than what's left over would,
+  // without a cap, still grow the accordion (and the page) past it. This
+  // ref/effect pair measures the real remaining budget — the column's own
+  // height minus every header's own (uniform) height — and divides it
+  // across however many items are currently expanded, so each expanded
+  // item's own useExpandableHeight call (AboutMobileAccordionItem.tsx) can
+  // cap itself to that share and scroll internally past it, rather than
+  // the ACCORDION or the PAGE ever scrolling.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  // Only one representative header is measured, not all of them — every
+  // item shares the exact same config-driven previewMinHeight/
+  // affordancePadding, so every header already renders at the same real
+  // height; summing N identical measurements would be no more accurate
+  // than one measurement times N.
+  const firstHeaderRef = useRef<HTMLButtonElement | null>(null);
+  const [maxContentHeightPx, setMaxContentHeightPx] = useState<number | undefined>(undefined);
+
+  const recomputeContentBudget = useCallback(() => {
+    const container = containerRef.current;
+    const header = firstHeaderRef.current;
+    if (!container || !header) return;
+    const containerHeightPx = container.getBoundingClientRect().height;
+    const headerHeightPx = header.getBoundingClientRect().height;
+    const totalHeaderHeightPx = headerHeightPx * slides.length;
+    const contentBudgetPx = Math.max(0, containerHeightPx - totalHeaderHeightPx);
+    // Equal-share heuristic: exact when (the shipped default)
+    // maxExpandedItems is 1, since only one item's content ever actually
+    // occupies space then. With a higher/unlimited cap, several
+    // simultaneously-expanded items each get an equal slice regardless of
+    // how much of it their own content actually needs — a short item
+    // "wastes" headroom a longer sibling could have used — a known,
+    // deliberate simplification rather than a full negotiated-space
+    // algorithm, acceptable since the default single-expand behavior (the
+    // common case this was built for) is unaffected by it.
+    const divisor = Math.max(1, expandedIndices.length);
+    setMaxContentHeightPx(contentBudgetPx / divisor);
+    // Depends on `expandedIndices` itself, not `.length` — an eviction +
+    // immediate reopen (maxExpandedItems' own FIFO cap, `toggle` below)
+    // can swap WHICH index is open while the COUNT stays the same (e.g.
+    // [0] -> [3]), which is a genuine content change this recompute must
+    // still react to (a resize mid-swap, a future non-uniform header
+    // height, etc.) even though the resulting divisor happens to be
+    // identical either way today. `.length` alone hid that: since
+    // `useCallback`/`useEffect` only re-run when a dependency's IDENTITY
+    // changes, and `current.length === next.length` for a same-count swap,
+    // this recompute silently never re-ran for that case — harmless only
+    // by coincidence (the default maxExpandedItems: 1 config never
+    // actually needs a different divisor across such a swap), not because
+    // it was provably correct.
+  }, [slides.length, expandedIndices]);
+
+  // useLayoutEffect, not useEffect: runs before the browser paints, so the
+  // very first render of a default-expanded item (index 0, see
+  // expandedIndices' own initial value above) already has a real cap in
+  // place — an useEffect-timed measurement would let that first paint
+  // happen uncapped for one frame, then visibly snap down once the
+  // measurement caught up, exactly the kind of jump this whole feature
+  // exists to avoid (components/useExpandableHeight.ts's own doc comment).
+  useLayoutEffect(() => {
+    recomputeContentBudget();
+  }, [recomputeContentBudget]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const header = firstHeaderRef.current;
+    if (!container || !header) return undefined;
+    // Viewport resize/orientation change resizes the column itself
+    // (pages/about.module.css's own calc(100dvh - navH)) without any of
+    // this component's own props changing — only a live observer on the
+    // container (not just the recomputeContentBudget dependency array
+    // above) catches that.
+    const observer = new ResizeObserver(recomputeContentBudget);
+    observer.observe(container);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [recomputeContentBudget]);
 
   // No single "active" slide in a multi-expand accordion — activeIndex:
   // null (the same reference-call shape pages/about.tsx's own
@@ -97,6 +183,25 @@ export function AboutMobileAccordion({
 
     setExpandedIndices((current) => {
       if (current.includes(index)) {
+        // Bug fix (operator report, screenshot): `maxExpandedItems: 1` is
+        // documented above (this config's own doc comment) as "an operator
+        // who wants a classic single-open accordion sets this to 1" — a
+        // classic single-open accordion always has exactly one item open,
+        // the same radio-button semantics every reference implementation
+        // (Bootstrap, macOS System Preferences, etc.) uses; tapping the
+        // only open item's own header is a no-op there, not a close, since
+        // there's no "next" item for the selection to fall back to. Without
+        // this guard, closing branch above ran unconditionally regardless
+        // of maxExpandedItems, so a `1`-cap accordion could be tapped down
+        // to every item collapsed — a state a real single-open accordion
+        // can never be in. Higher/unlimited caps (maxExpandedItems !== 1)
+        // keep their existing behavior unchanged: those don't carry the
+        // same "always exactly one" expectation, so an all-collapsed state
+        // stays a valid, intentional one for them (e.g. a plain FAQ-style
+        // accordion).
+        if (config.maxExpandedItems === 1 && current.length <= 1) {
+          return current;
+        }
         return current.filter(existing => existing !== index);
       }
 
@@ -139,7 +244,13 @@ export function AboutMobileAccordion({
   }, [config.maxExpandedItems, config.collapseLeadFraction, config.transitionMs, prefersReducedMotion, applyExpandCap, onActiveIndexChange]);
 
   return (
-    <div className="flex w-full flex-col">
+    // h-full + overflow-hidden: fills pages/about.module.css's own
+    // .splitRight (now real, fixed height on mobile — see that file's own
+    // doc comment) and never scrolls itself; every item's own
+    // maxContentHeightPx cap above is what keeps content within that fixed
+    // box, so this container itself never needs to grow past it or scroll
+    // to reveal overflow.
+    <div ref={containerRef} className="flex h-full w-full flex-col overflow-hidden">
       {slides.map((slide, index) => (
         <AboutMobileAccordionItem
           key={slide.id}
@@ -153,6 +264,8 @@ export function AboutMobileAccordion({
           dimOpacity={dimOpacity}
           emphasisOpacity={emphasisOpacity}
           prefersReducedMotion={prefersReducedMotion}
+          maxContentHeightPx={maxContentHeightPx}
+          headerRef={index === 0 ? (element) => { firstHeaderRef.current = element; } : undefined}
         />
       ))}
     </div>

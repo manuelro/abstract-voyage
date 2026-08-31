@@ -50,6 +50,8 @@ export function AboutMobileAccordionItem({
   dimOpacity,
   emphasisOpacity,
   prefersReducedMotion,
+  maxContentHeightPx,
+  headerRef,
 }: {
   slide: SliderContentSlide;
   palette: DeckPaletteState | null;
@@ -61,6 +63,20 @@ export function AboutMobileAccordionItem({
   dimOpacity: number;
   emphasisOpacity: number;
   prefersReducedMotion: boolean;
+  /** Caps this item's own expanded content to at most this many pixels —
+   * AboutMobileAccordion's own computed "remaining space below every
+   * header" budget (divided across however many items are currently
+   * expanded). Once content exceeds it, useExpandableHeight's own
+   * `overflow-y: auto` takes over so THIS item scrolls internally, instead
+   * of growing past the accordion's own fixed-height column and forcing
+   * the page itself to scroll (operator ask: the page must never scroll;
+   * only an individual expanded item's own content may). */
+  maxContentHeightPx?: number;
+  /** Only ever passed for one representative item (AboutMobileAccordion
+   * measures a single header's real rendered height, assuming — correctly,
+   * since every item shares the same config-driven affordancePadding/
+   * previewMinHeight — that every header renders at the same height). */
+  headerRef?: (element: HTMLButtonElement | null) => void;
 }) {
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const { isDockVisible, isDocumentVisible } = useDockGradientAvailability(sectionRef, true);
@@ -105,10 +121,22 @@ export function AboutMobileAccordionItem({
   // both states) — only opacity does, same as the real emphasis markup.
   const previewTextOpacity = expanded ? emphasisOpacity : dimOpacity;
 
-  const { contentRef, wrapperStyle } = useExpandableHeight(expanded, heightTransitionMs, heightEasing);
+  const { contentRef, wrapperStyle } = useExpandableHeight(
+    expanded, heightTransitionMs, heightEasing, maxContentHeightPx,
+  );
 
   return (
-    <div ref={sectionRef} className="relative w-full overflow-hidden" style={{ backgroundColor: slide.accent }}>
+    // shrink-0: AboutMobileAccordion's own root is now a fixed-height flex
+    // column (pages/about.module.css's real .splitRight height + that
+    // component's own h-full) — without this, flexbox's default
+    // flex-shrink: 1 would let a transient rounding gap in
+    // maxContentHeightPx's own budget math squish every item (including
+    // collapsed headers) shorter than their real content, rather than the
+    // much safer failure mode this guarantees instead: any leftover
+    // overflow simply clips at the container's own overflow-hidden edge
+    // (at most the last item's tail becomes invisible), never a squished,
+    // illegible header.
+    <div ref={sectionRef} className="relative w-full shrink-0 overflow-hidden" style={{ backgroundColor: slide.accent }}>
       {/* inset-0, not a fixed reference-height box — the gradient must
           cover the item's own real, current height at every moment
           (collapsed AND however tall a given expanded paragraph grows),
@@ -144,6 +172,7 @@ export function AboutMobileAccordionItem({
           about.module.css) — hovering anywhere on this row, not just the
           chevron's own small hit area, lights it. */}
       <button
+        ref={headerRef}
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
