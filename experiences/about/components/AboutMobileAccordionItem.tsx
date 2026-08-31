@@ -123,6 +123,20 @@ export function AboutMobileAccordionItem({
   // both states) — only opacity does, same as the real emphasis markup.
   const previewTextOpacity = expanded ? emphasisOpacity : dimOpacity;
 
+  // Classic single-open accordion (maxExpandedItems === 1): the chevron
+  // exists to invite opening, so once an item IS the open one it has
+  // nothing left to invite — fade it out as it rotates rather than leaving
+  // it sitting there pointing at content that's already showing. Reuses
+  // heightTransitionMs/heightEasing verbatim (the exact same values driving
+  // this item's own height/content-opacity transition just above) rather
+  // than a new duration, per the operator ask that the fade track the
+  // expand/collapse timing, not the chevron's own (faster) rotation speed.
+  // Only the opacity's own duration/easing are overridden here — rotation
+  // keeps affordanceRotationDurationMs/-Easing untouched. Inactive
+  // (maxExpandedItems !== 1, every accordion default) leaves the chevron's
+  // opacity entirely to about.module.css's idle/hover mechanism, unchanged.
+  const hideChevronOnExpand = config.maxExpandedItems === 1;
+
   const { contentRef, wrapperStyle } = useExpandableHeight(
     expanded, heightTransitionMs, heightEasing, maxContentHeightPx,
   );
@@ -209,6 +223,22 @@ export function AboutMobileAccordionItem({
             // the opacity/transform transitions can't both be expressed as
             // one inline `transition` shorthand without the hover rule's
             // duration override wrongly bleeding onto rotation speed too.
+            // hideChevronOnExpand overrides that same opacity transition's
+            // duration/easing inline (inline style always outranks the
+            // class's own rules, hover included) so it uses
+            // heightTransitionMs/heightEasing instead of the mouseout/hover
+            // pair — transitionProperty is restated here too since setting
+            // any one of these three longhands inline does not fall back to
+            // the class's own value for the other two. Only actually forces
+            // `opacity: 0` while `expanded`; collapsed still reads its
+            // opacity from the class's own idle/hover rule, just animated at
+            // this overridden speed.
+            ...(hideChevronOnExpand ? {
+              transitionProperty: 'opacity, transform',
+              transitionDuration: `${heightTransitionMs}ms, ${affordanceRotationDurationMs}ms`,
+              transitionTimingFunction: `${heightEasing}, ${affordanceEasing}`,
+              ...(expanded ? { opacity: 0 } : {}),
+            } : {}),
             '--about-accordion-affordance-idle-opacity': dimOpacity,
             '--about-accordion-affordance-hover-opacity': config.affordanceHoverOpacity,
             '--about-accordion-affordance-rotation-ms': `${affordanceRotationDurationMs}ms`,
