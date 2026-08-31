@@ -198,8 +198,16 @@
    ancestor purely for this one component risked breaking that existing
    inline-size query elsewhere on the page. A `line`-only drop at short
    viewport heights satisfies the same "captions survive, secondary detail
-   drops" fallback the brief itself allows. */
-@media (max-height: 900px) {
+   drops" fallback the brief itself allows.
+   Threshold tightened from an unretuned 900px to the 768px this comment's
+   own requirement actually names (unchanged since this component's very
+   first commit — confirmed via live measurement the real content, five rows
+   plus the lead-in description, needs only ~665px at every desktop width
+   from 1024–1440px, so 768px still carries its own safety margin) — 900px
+   was hiding the description on a wide band of real desktop viewports
+   (769–900px available height, common with browser chrome) that have
+   plenty of room, with no clipping risk at the new, tighter threshold. */
+@media (max-height: 768px) {
   .line {
     display: none;
   }
