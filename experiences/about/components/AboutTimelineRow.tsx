@@ -190,7 +190,7 @@ export function AboutTimelineRow({
         <span
           ref={markerRef}
           aria-hidden="true"
-          className={`${styles.marker} ${active ? styles.markerActive : ''}`}
+          className={`${styles.marker} ${active ? styles.markerActive : ''} ${showMarkerGradient ? styles.markerGradientBleed : ''}`}
           style={{
             color: markerColor,
             opacity: markerOpacity,

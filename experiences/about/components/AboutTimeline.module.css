@@ -77,8 +77,13 @@
   /* Only meaningful once markerGradientEnabled mounts a LiquidGradientAdapter
      canvas as a child (AboutTimelineRow.tsx) — clips its own self-centering
      `position: absolute; left/top: 50%` layout (GradientRenderer.tsx) down
-     to this element's own circle. No effect on the flat-fill path. */
-  overflow: hidden;
+     to this element's own circle. No effect on the flat-fill path.
+     `clip`, not `hidden` — `overflow-clip-margin` below (`.markerGradientBleed`)
+     only has any effect on `overflow: clip`; otherwise behaves identically
+     to `hidden` (no scrolling either way), so this is a no-op change on its
+     own. */
+  overflow: clip;
+  overflow-clip-margin: 0px;
   width: var(--about-timeline-marker-size, 9px);
   height: var(--about-timeline-marker-size, 9px);
   /* Centers the marker against the title's own line box (font-size 0.95rem,
@@ -96,6 +101,27 @@
 
 .markerActive {
   background-color: currentColor;
+}
+
+/* Only applied alongside .marker while AboutTimelineRow.tsx's own
+   `showMarkerGradient` is true (markerGradientEnabled + this row active) —
+   lets the gradient canvas child paint over the border's own 1.5px ring
+   too, instead of stopping at the padding edge the way the flat-fill path
+   still does. The canvas already renders at ~244% of this box's own size
+   (GRADIENT_LAYER_SIZE, GradientRenderer.tsx) — it already has real pixel
+   data out past the border's own edge, previously just clipped away by
+   `overflow-clip-margin: 0px` above; this only widens where that data is
+   allowed to paint, matching `.marker`'s own border-width (1.5px) exactly,
+   so the border reads as the exact same live mesh as the fill rather than
+   a separately flat-`currentColor` ring drawn around it. The `border`
+   property itself stays declared, unchanged, on `.marker` — a graceful
+   fallback ring (e.g. WebGL context lost, GradientRenderer.tsx's own
+   `visibility: hidden` on the canvas) rather than a hard requirement that
+   removing it would create. Compound selector (not a second bare class) so
+   this reliably wins over `.marker`'s own `overflow-clip-margin: 0px`
+   regardless of the two rules' source order in this file. */
+.marker.markerGradientBleed {
+  overflow-clip-margin: 1.5px;
 }
 
 .content {
