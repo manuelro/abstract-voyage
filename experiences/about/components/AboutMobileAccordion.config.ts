@@ -67,26 +67,45 @@ export type AboutMobileAccordionConfig = {
    * Has no effect when nothing is being evicted (e.g. the first item ever
    * opened, or `maxExpandedItems: 0` with room to spare).
    *
-   * NOT purely cosmetic (bug fix, operator report: "items below the
-   * expanding item are pushed down by a tiny amount, spring-like, during
-   * the transition"): each expanded item's own content height is capped to
-   * a SHARE of the accordion's fixed remaining space
-   * (AboutMobileAccordion.tsx's own maxContentHeightPx, sized assuming
-   * exactly one item is visibly occupying it at a time under the default
-   * `maxExpandedItems: 1`). While the closing and opening items animate
-   * SIMULTANEOUSLY (this fraction at `0`), BOTH are transiently non-zero at
-   * once, and their combined height briefly exceeds that single-item
-   * budget — every row below is pushed further down than either item's own
-   * steady-state position, then springs back up once the closing item
-   * finishes collapsing. Confirmed live (frame-by-frame `getBoundingClientRect`
-   * sampling of a below-fold header during a swap): `0` produced 15
-   * non-monotonic (upward-then-downward) frames out of 90; `1` produced
-   * zero, at any sample rate. This is why the default below is `1`, not
-   * `0` — `0` is still a legitimate, supported value (e.g. for a future
-   * `maxExpandedItems` > 1 config where multiple items are EXPECTED to
-   * share space concurrently, not swap one-for-one), but it is not safe as
-   * the default under the single-open configuration this component ships
-   * with. */
+   * Four rounds of tuning this field chased symptoms before the real root
+   * cause (a frame-timing asymmetry inside useExpandableHeight, not this
+   * field) was found. A STATIC once-per-toggle divide of the shared budget
+   * (contentBudgetPx / expandedIndices.length) is exact under this
+   * component's default `maxExpandedItems: 1` — but with `0`
+   * (simultaneous), the closing item's own collapse-to-0 call went through
+   * an extra two-`requestAnimationFrame` delay the opening item's
+   * synchronous open call didn't, so the two `height` transitions began
+   * interpolating 2 frames apart: for those 2 frames the closing item was
+   * still rendering its full OLD height while the opening item had
+   * already started growing from zero, pushing every row below down and
+   * springing back once the closing item caught up ("pushed down ...
+   * spring-like", confirmed via frame-by-frame `getBoundingClientRect`
+   * sampling: 15 non-monotonic frames out of 90). Forcing `1` (fully
+   * sequential) avoided that overlap but traded it for a real window
+   * where NEITHER item has any height — the whole accordion collapses to
+   * just its headers with a dead gap below ("empty gap at the bottom ...
+   * during a transition"), a direct violation of the hard requirement
+   * that this accordion fill 100% of its parent's height at every
+   * instant, including mid-transition. Two more attempts (see
+   * useExpandableHeight's own doc comment) tried live cross-reporting
+   * between siblings, and then delaying the OPEN path by the same two
+   * frames the close path used — both made things worse (the first
+   * chased a moving target instead of one clean curve; the second could
+   * starve the open path's `setHeight` from ever firing if `maxHeightPx`
+   * fluctuated during the delay). The actual fix was removing the
+   * `requestAnimationFrame` delay from BOTH paths — plain synchronous
+   * `setHeight` either way — so a toggle's closing and opening item
+   * commit their new height in the same React render/paint cycle, keeping
+   * their CSS transitions phase-aligned (same start frame, same duration,
+   * same easing, exactly complementary targets) purely from the browser's
+   * own CSS timing-function math. With that fixed, `0` is safe again as
+   * the default (confirmed live: 0 non-monotonic frames and 0 gap frames
+   * across the full transition) and is what "both must collapse and
+   * expand at the same time" requires. `1` (or any value between) remains
+   * a legitimate, supported value for an operator who wants a cosmetic
+   * "let the collapse read as its own event first" sequencing — it no
+   * longer risks the dead-gap bug either, since the two curves stay
+   * complementary regardless of how much they overlap in time. */
   collapseLeadFraction: number;
   /** Duration of the `grid-template-rows` height expand/collapse itself —
    * shared with the desktop accordion's own resize transition
@@ -160,10 +179,11 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   enabled: true,
   previewMinHeight: 'min-h-14',
   maxExpandedItems: 1,
-  // Was 0 (simultaneous close+open) — see collapseLeadFraction's own doc
-  // comment above for the live-confirmed spring/overshoot bug that default
-  // caused under maxExpandedItems: 1.
-  collapseLeadFraction: 1,
+  // Simultaneous close+open — safe now that AboutMobileAccordion.tsx
+  // continuously reconciles every item's live height against the shared
+  // budget (see collapseLeadFraction's own doc comment above for the
+  // two-bug history this replaces).
+  collapseLeadFraction: 0,
   transitionMs: 700,
   transitionEasing: 'settle',
   contentSettleMs: 0,

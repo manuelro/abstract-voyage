@@ -65,8 +65,10 @@ export function AboutMobileAccordionItem({
   prefersReducedMotion: boolean;
   /** Caps this item's own expanded content to at most this many pixels —
    * AboutMobileAccordion's own computed "remaining space below every
-   * header" budget (divided across however many items are currently
-   * expanded). Once content exceeds it, useExpandableHeight's own
+   * header, divided evenly across whichever indices are expanded" budget
+   * (see that component's own doc comment), computed once per toggle from
+   * the FINAL post-toggle `expandedIndices` — not a live per-frame
+   * renegotiation. Once content exceeds it, useExpandableHeight's own
    * `overflow-y: auto` takes over so THIS item scrolls internally, instead
    * of growing past the accordion's own fixed-height column and forcing
    * the page itself to scroll (operator ask: the page must never scroll;

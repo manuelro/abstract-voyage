@@ -58,32 +58,47 @@ export type UseExpandableHeightResult = {
  * itself (e.g. AboutMobileAccordionItem inside AboutMobileAccordion's own
  * fixed-height, page-non-scrolling column), the wrapper expands to fill
  * this ENTIRE amount whenever `expanded` is true, regardless of whether
- * the content's own natural size is smaller OR larger than it. An earlier
- * version instead clamped to `Math.min(natural, maxHeightPx)` — a pure
- * ceiling — which caused a real, reproducible bug: whenever a given item's
- * own natural text was shorter than its share of the accordion's fixed
- * height (confirmed happening on every item, not a particular one — first
- * observed while expanding a shorter, later item, but present even on the
- * very first, default-open item on a fresh load), the wrapper stopped
- * growing at that shorter natural height, leaving the remainder of the
- * accordion's own fixed column showing the PAGE's own background through
- * a visible gap below the last header, instead of that one open item's own
- * background/gradient extending down to fill it — "the full height
- * computation ... not being properly calculated" (operator report,
- * screenshot: a visible dark void beneath the last row). Filling the whole
- * budget unconditionally means the caller's own background always covers
- * its entire allotted share; `overflow-y: auto` below still exists for the
- * opposite case (natural content genuinely EXCEEDS the budget), so that
- * one item scrolls internally rather than pushing the ancestor taller.
- * Collapsing no longer re-measures the content node either (the previous
- * version's "lock in the current value before animating to 0" step) —
- * once a budget can exceed the content's own natural size, re-measuring
- * the CONTENT node on collapse would grab that smaller natural number
- * instead of the wrapper's actual (larger, budget-filling) current height,
- * snapping the wrapper down to the wrong size for one frame before
- * animating to 0. The `height` state itself already holds the correct
- * current value at all times (set directly, never left as `'auto'`), so
- * collapsing simply animates from whatever that already-correct value is.
+ * the content's own natural size is smaller OR larger than it — see
+ * `overflow-y: auto` below for the case where natural content genuinely
+ * EXCEEDS the budget instead (that one item scrolls internally).
+ *
+ * BOTH the open and close paths call `setHeight` synchronously, in the
+ * same effect pass, with no `requestAnimationFrame` delay on either side —
+ * this symmetry is load-bearing, not incidental. AboutMobileAccordion.tsx
+ * swaps two items at once (a closing one and an opening one) whose target
+ * heights are computed to be exactly complementary (sum to the shared
+ * fixed budget) specifically so their CSS `height` transitions — same
+ * duration, same easing — sum to that budget at every instant, purely
+ * from the browser's own timing-function math (closing(t) + opening(t) =
+ * budget for any shared elapsed time t, as long as both curves started at
+ * the same wall-clock frame). Two earlier versions got this wrong in
+ * opposite directions: one called `setHeight` synchronously on the open
+ * path but delayed the close path by two `requestAnimationFrame`s (a
+ * leftover guard against a narrower "flip open then closed before the
+ * open value ever painted" edge case that doesn't apply to a normal
+ * steady-state toggle) — that asymmetry meant the opening item started
+ * interpolating 2 frames before the closing item did, so for those 2
+ * frames the closing item was still rendering its FULL old height while
+ * the opening item had already started growing from zero: their combined
+ * height briefly exceeded the budget (a transient push-down/"spring" on
+ * every row below), then a complementary under-budget gap appeared later
+ * in the same swap once the two curves settled back out of phase
+ * (confirmed live via frame-by-frame `getBoundingClientRect` sampling: 8
+ * non-monotonic frames and a gap up to 240px). The next attempt delayed
+ * BOTH paths by the same two frames for symmetry — that removed the
+ * spring (0 violations) but broke the open path in a new way: `maxHeightPx`
+ * can genuinely fluctuate by sub-pixel amounts as AboutMobileAccordion's
+ * own container/header `ResizeObserver` settles after mount, and every
+ * such fluctuation re-ran this effect (it's in the dependency array),
+ * cancelling the in-flight two-`requestAnimationFrame` countdown and
+ * restarting it — if fluctuations kept arriving faster than every two
+ * frames, `setHeight(target)` never got to fire at all (confirmed live:
+ * the default-open first item stayed stuck at 0 content height
+ * indefinitely). Removing the delay from BOTH paths — plain synchronous
+ * `setHeight` either way — fixes both bugs at once: nothing is ever
+ * mid-flight to cancel, and both a toggle's closing and opening item still
+ * commit their new `height` value in the same React render/paint cycle,
+ * which is what actually keeps their CSS transitions phase-aligned.
  */
 export function useExpandableHeight(
   expanded: boolean,
@@ -114,21 +129,8 @@ export function useExpandableHeight(
       return () => observer.disconnect();
     }
 
-    // `height` state is already the correct current value (set directly on
-    // every prior render, never `'auto'`) — no re-measurement needed before
-    // collapsing. The double `requestAnimationFrame` still matters: it
-    // guarantees the browser has genuinely painted that current value at
-    // least once before the second frame flips it to 0, so the transition
-    // has a real "before" state to interpolate from instead of the browser
-    // coalescing both into a single paint and skipping the animation.
-    let secondFrameId = 0;
-    const firstFrameId = requestAnimationFrame(() => {
-      secondFrameId = requestAnimationFrame(() => setHeight(0));
-    });
-    return () => {
-      cancelAnimationFrame(firstFrameId);
-      if (secondFrameId) cancelAnimationFrame(secondFrameId);
-    };
+    setHeight(0);
+    return undefined;
   }, [expanded, durationMs, maxHeightPx]);
 
   // `overflow-y: auto` turns on whenever a budget was ever provided, not
