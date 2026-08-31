@@ -485,6 +485,15 @@ export interface ColumnContentBoxProps {
   width?: string;
   widthWide?: string;
   widthLg?: string;
+  /** Rem-based `max-w-*` cap, alongside `width`/`widthWide`/`widthLg` above
+   * — see `PolymorphicLayoutConfig`'s own `narrowColumnContentMaxWidth` doc
+   * comment for why this exists as its own field rather than folding into
+   * `width`: it stays effective under a `containerQuery` ancestor, where a
+   * percentage `width` silently falls back to shrink-to-fit/full. 'none'/
+   * undefined omits it, matching every other optional field here. */
+  maxWidth?: string;
+  maxWidthWide?: string;
+  maxWidthLg?: string;
   textAlign?: string;
   textAlignWide?: string;
   textAlignLg?: string;
@@ -515,6 +524,9 @@ function ColumnContentBox({
   width,
   widthWide,
   widthLg,
+  maxWidth,
+  maxWidthWide,
+  maxWidthLg,
   textAlign,
   textAlignWide,
   textAlignLg,
@@ -556,6 +568,16 @@ function ColumnContentBox({
           width && width !== 'auto' ? `w-full ${width}` : '',
           widthWide && widthWide !== 'auto' ? `w-full ${widthWide}` : '',
           widthLg && widthLg !== 'auto' ? `w-full ${widthLg}` : '',
+          // w-full + max-w-*: CSS resolves width to the smaller of the two,
+          // so this fills the column up to the cap rather than replacing
+          // the percentage width classes above — both can be set at once
+          // (max-w-* still wins as the true ceiling either way). Stays
+          // effective under a containerQuery ancestor, unlike the
+          // percentage width classes above — see maxWidth's own doc
+          // comment (ColumnContentBoxProps) for why.
+          maxWidth && maxWidth !== 'none' ? `w-full ${maxWidth}` : '',
+          maxWidthWide && maxWidthWide !== 'none' ? `w-full ${maxWidthWide}` : '',
+          maxWidthLg && maxWidthLg !== 'none' ? `w-full ${maxWidthLg}` : '',
           CONTENT_ALIGN_MARGIN_CLASS[align],
           alignWide ? CONTENT_ALIGN_MARGIN_CLASS_WIDE[alignWide] : '',
           alignLg ? CONTENT_ALIGN_MARGIN_CLASS_LG[alignLg] : '',
@@ -633,6 +655,9 @@ export function wideColumnContentBoxProps(config: PolymorphicLayoutConfig): Colu
     widthLg: resolveWideColumnContentWidth(
       config.wideColumnContentWidthLg, config.narrowColumnWidthTierLg, WIDE_COLUMN_CONTENT_MATCH_NARROW_CLASS_LG,
     ),
+    maxWidth: config.wideColumnContentMaxWidth,
+    maxWidthWide: config.wideColumnContentMaxWidthWide,
+    maxWidthLg: config.wideColumnContentMaxWidthLg,
     textAlign: config.wideColumnTextAlign,
     textAlignWide: config.wideColumnTextAlignWide,
     textAlignLg: config.wideColumnTextAlignLg,
@@ -654,6 +679,9 @@ export function narrowColumnContentBoxProps(config: PolymorphicLayoutConfig): Co
     width: config.narrowColumnContentWidth,
     widthWide: config.narrowColumnContentWidthWide,
     widthLg: config.narrowColumnContentWidthLg,
+    maxWidth: config.narrowColumnContentMaxWidth,
+    maxWidthWide: config.narrowColumnContentMaxWidthWide,
+    maxWidthLg: config.narrowColumnContentMaxWidthLg,
     textAlign: config.narrowColumnTextAlign,
     textAlignWide: config.narrowColumnTextAlignWide,
     textAlignLg: config.narrowColumnTextAlignLg,

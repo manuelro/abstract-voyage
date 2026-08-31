@@ -6,6 +6,14 @@ import {
   type ContentWidthPercentWideClass,
   type ContentWidthPercentLgClass,
 } from '../../../components/tailwindWidthScale'
+import {
+  MAX_WIDTH_OPTIONS,
+  MAX_WIDTH_WIDE_OPTIONS,
+  MAX_WIDTH_LG_OPTIONS,
+  type MaxWidthClass,
+  type MaxWidthWideClass,
+  type MaxWidthLgClass,
+} from '../../../components/tailwindTypographyScale'
 import { CONTENT_MIN_HEIGHT_OPTIONS, type ContentMinHeightClass } from '../../../components/tailwindMinHeightScale'
 import {
   PADDING_TOP_OPTIONS,
@@ -485,6 +493,41 @@ export type PolymorphicLayoutConfig = {
    * genuinely different split ratios, so each resolves against its own tier
    * rather than both reusing whichever one a page happened to hardcode. */
   wideColumnContentWidthLg: ContentWidthPercentLgClass | 'auto' | 'match-narrow-column';
+  /** A rem-based `max-w-*` cap on the content box, alongside (not instead
+   * of) the percentage-of-column `*ColumnContentWidth*` fields above —
+   * 'none' (default, every existing page) applies no cap at all, identical
+   * to today's behavior. Exists because the percentage fields above have a
+   * documented blind spot: per the Container Queries spec's own
+   * cycle-avoidance rule, a percentage width silently resolves to
+   * shrink-to-fit/full instead of the configured percentage whenever the
+   * column's own children establish a CSS Container Query context anywhere
+   * in their subtree (e.g. `<NarrowColumnContent containerQuery>`, used by
+   * any page with a `cqw`-based responsive font-size) — see
+   * `*ColumnContentWidthWide`'s own doc comment above for the full citation.
+   * When that happens, `*ColumnContentAlign`'s own mr-auto/mx-auto/ml-auto
+   * margin trick goes inert too, since the content box has no real width
+   * slack left to move within (it's rendering at its parent's full width
+   * regardless of the configured align value) — an operator can set
+   * `*ColumnContentAlign` to 'items-end' and see literally nothing move.
+   * `max-w-*` is a fixed rem value, not relative to the query container's
+   * own size, so it never participates in that cycle-avoidance fallback —
+   * pairing THIS field with `*ColumnContentAlign` is the one combination
+   * that reliably narrows-and-positions a column's content box regardless
+   * of whether a containerQuery ancestor is present, which is exactly the
+   * gap that previously forced component-owned workarounds (e.g.
+   * AboutTimeline.config.ts's own `maxWidthClassName`, a narrower,
+   * single-component version of only the "cap" half of this same problem —
+   * that field still owns this component's own internal reading measure,
+   * a separate, legitimate concern, but was never able to reposition the
+   * component within its column; that half now belongs here instead,
+   * centrally, so every PolymorphicLayout page gets it for free rather than
+   * each one reinventing it locally). */
+  narrowColumnContentMaxWidth: MaxWidthClass | 'none';
+  narrowColumnContentMaxWidthWide: MaxWidthWideClass | 'none';
+  narrowColumnContentMaxWidthLg: MaxWidthLgClass | 'none';
+  wideColumnContentMaxWidth: MaxWidthClass | 'none';
+  wideColumnContentMaxWidthWide: MaxWidthWideClass | 'none';
+  wideColumnContentMaxWidthLg: MaxWidthLgClass | 'none';
   /** Text alignment of the content itself — a literal text-align class
    * applied directly to the same wrapper *ColumnContentAlign's margin class
    * lands on. */
@@ -983,6 +1026,15 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   wideColumnContentWidth: 'auto',
   wideColumnContentWidthWide: 'auto',
   wideColumnContentWidthLg: 'auto',
+  // 'none' at every tier, both columns — zero visual change for any
+  // existing page until an operator opts in (see this field's own doc
+  // comment above for what it's for).
+  narrowColumnContentMaxWidth: 'none',
+  narrowColumnContentMaxWidthWide: 'none',
+  narrowColumnContentMaxWidthLg: 'none',
+  wideColumnContentMaxWidth: 'none',
+  wideColumnContentMaxWidthWide: 'none',
+  wideColumnContentMaxWidthLg: 'none',
   narrowColumnTextAlign: 'text-left',
   narrowColumnTextAlignWide: 'md:text-left',
   narrowColumnTextAlignLg: 'lg:text-left',
@@ -1168,6 +1220,18 @@ const WIDE_COLUMN_CONTENT_WIDTH_WIDE_AUTO_VALUES: ReadonlyArray<ContentWidthPerc
 const WIDE_COLUMN_CONTENT_WIDTH_LG_AUTO_VALUES: ReadonlyArray<ContentWidthPercentLgClass | 'auto' | 'match-narrow-column'> = [
   ...CONTENT_WIDTH_PERCENT_LG_AUTO_VALUES,
   'match-narrow-column',
+];
+const MAX_WIDTH_BASE_NONE_VALUES: ReadonlyArray<MaxWidthClass | 'none'> = [
+  'none',
+  ...MAX_WIDTH_OPTIONS.map(option => option.value),
+];
+const MAX_WIDTH_WIDE_NONE_VALUES: ReadonlyArray<MaxWidthWideClass | 'none'> = [
+  'none',
+  ...MAX_WIDTH_WIDE_OPTIONS.map(option => option.value),
+];
+const MAX_WIDTH_LG_NONE_VALUES: ReadonlyArray<MaxWidthLgClass | 'none'> = [
+  'none',
+  ...MAX_WIDTH_LG_OPTIONS.map(option => option.value),
 ];
 const CONTENT_MIN_HEIGHT_VALUES: ReadonlyArray<ContentMinHeightClass> =
   CONTENT_MIN_HEIGHT_OPTIONS.map(option => option.value);
@@ -1416,6 +1480,24 @@ export function normalizePolymorphicLayoutConfig(
     ),
     wideColumnContentWidthLg: token(
       base.wideColumnContentWidthLg, WIDE_COLUMN_CONTENT_WIDTH_LG_AUTO_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wideColumnContentWidthLg,
+    ),
+    narrowColumnContentMaxWidth: token(
+      base.narrowColumnContentMaxWidth, MAX_WIDTH_BASE_NONE_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnContentMaxWidth,
+    ),
+    narrowColumnContentMaxWidthWide: token(
+      base.narrowColumnContentMaxWidthWide, MAX_WIDTH_WIDE_NONE_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnContentMaxWidthWide,
+    ),
+    narrowColumnContentMaxWidthLg: token(
+      base.narrowColumnContentMaxWidthLg, MAX_WIDTH_LG_NONE_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnContentMaxWidthLg,
+    ),
+    wideColumnContentMaxWidth: token(
+      base.wideColumnContentMaxWidth, MAX_WIDTH_BASE_NONE_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wideColumnContentMaxWidth,
+    ),
+    wideColumnContentMaxWidthWide: token(
+      base.wideColumnContentMaxWidthWide, MAX_WIDTH_WIDE_NONE_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wideColumnContentMaxWidthWide,
+    ),
+    wideColumnContentMaxWidthLg: token(
+      base.wideColumnContentMaxWidthLg, MAX_WIDTH_LG_NONE_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wideColumnContentMaxWidthLg,
     ),
     narrowColumnTextAlign: token(
       base.narrowColumnTextAlign, TEXT_ALIGN_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnTextAlign,

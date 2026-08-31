@@ -115,6 +115,9 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnContentWidth: 'auto',
   narrowColumnContentWidthWide: 'md:max-w-[100%]',
   narrowColumnContentWidthLg: 'lg:max-w-[100%]',
+  narrowColumnContentMaxWidth: 'none',
+  narrowColumnContentMaxWidthWide: 'none',
+  narrowColumnContentMaxWidthLg: 'none',
   narrowColumnTextAlign: 'text-left',
   narrowColumnTextAlignWide: 'md:text-right',
   narrowColumnTextAlignLg: 'lg:text-right',
@@ -124,6 +127,9 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   wideColumnContentWidth: 'auto',
   wideColumnContentWidthWide: 'md:max-w-[100%]',
   wideColumnContentWidthLg: 'match-narrow-column',
+  wideColumnContentMaxWidth: 'none',
+  wideColumnContentMaxWidthWide: 'none',
+  wideColumnContentMaxWidthLg: 'none',
   wideColumnTextAlign: 'text-left',
   wideColumnTextAlignWide: 'md:text-left',
   wideColumnTextAlignLg: 'lg:text-left',
@@ -341,7 +347,25 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnContentAlignLg: 'items-end',
   narrowColumnContentWidth: 'auto',
   narrowColumnContentWidthWide: 'md:max-w-[100%]',
-  narrowColumnContentWidthLg: 'lg:max-w-[70%]',
+  narrowColumnContentWidthLg: 'lg:max-w-[100%]',
+  // 'none' below md (mobile is the accordion, not this column at all —
+  // AboutTimeline itself is !isNarrowViewport-gated, pages/about.tsx).
+  // md/lg: a real rem-based cap, finally giving narrowColumnContentAlignWide/
+  // -Lg's own 'items-end' above (already configured — was already the
+  // intended "align it right" value, just inert) real width slack to move
+  // within — narrowColumnContentWidthWide/-Lg above can't provide that
+  // slack themselves, since a percentage width silently falls back to full
+  // under the containerQuery ancestor AboutTimeline renders inside
+  // (`<NarrowColumnContent containerQuery>`, pages/about.tsx) — see
+  // narrowColumnContentMaxWidth's own doc comment (PolymorphicLayout.config
+  // .ts) for the full citation. Matches AboutTimeline's own component-level
+  // maxWidthClassName default (max-w-md) by choice, not because the two
+  // fields are coupled — they're independent knobs at different layers
+  // (this one positions+caps the column's content box; that one caps the
+  // component's own internal reading measure) that happen to agree here.
+  narrowColumnContentMaxWidth: 'none',
+  narrowColumnContentMaxWidthWide: 'none',
+  narrowColumnContentMaxWidthLg: 'lg:max-w-md',
   narrowColumnTextAlign: 'text-left',
   narrowColumnTextAlignWide: 'md:text-right',
   narrowColumnTextAlignLg: 'lg:text-left',
@@ -351,6 +375,9 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   wideColumnContentWidth: 'auto',
   wideColumnContentWidthWide: 'auto',
   wideColumnContentWidthLg: 'auto',
+  wideColumnContentMaxWidth: 'none',
+  wideColumnContentMaxWidthWide: 'none',
+  wideColumnContentMaxWidthLg: 'none',
   wideColumnTextAlign: 'text-left',
   wideColumnTextAlignWide: 'md:text-left',
   wideColumnTextAlignLg: 'lg:text-left',

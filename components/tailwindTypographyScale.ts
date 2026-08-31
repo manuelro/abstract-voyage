@@ -70,6 +70,30 @@ export const MAX_WIDTH_OPTIONS = [
 ] as const;
 export type MaxWidthClass = typeof MAX_WIDTH_OPTIONS[number]['value'];
 
+// md:/lg:-prefixed siblings of MAX_WIDTH_OPTIONS above — each class spelled
+// out in full (never assembled via `` `md:${value}` `` at runtime) so
+// Tailwind's JIT can see and compile every one of them, same discipline
+// CONTENT_WIDTH_PERCENT_WIDE_OPTIONS/-_LG_OPTIONS (PolymorphicLayout's own
+// width scale) already follows one file over. Exists for consumers that tier
+// a rem-based max-width by breakpoint (PolymorphicLayout.config.ts's own
+// *ColumnContentMaxWidth*Wide/-Lg fields) the same way every other
+// PolymorphicLayout content-box field is already tiered.
+export const MAX_WIDTH_WIDE_OPTIONS = [
+  { label: 'md:max-w-xs', value: 'md:max-w-xs' }, { label: 'md:max-w-sm', value: 'md:max-w-sm' },
+  { label: 'md:max-w-md', value: 'md:max-w-md' }, { label: 'md:max-w-lg', value: 'md:max-w-lg' },
+  { label: 'md:max-w-xl', value: 'md:max-w-xl' }, { label: 'md:max-w-2xl', value: 'md:max-w-2xl' },
+  { label: 'md:max-w-3xl', value: 'md:max-w-3xl' }, { label: 'md:max-w-prose', value: 'md:max-w-prose' },
+] as const;
+export type MaxWidthWideClass = typeof MAX_WIDTH_WIDE_OPTIONS[number]['value'];
+
+export const MAX_WIDTH_LG_OPTIONS = [
+  { label: 'lg:max-w-xs', value: 'lg:max-w-xs' }, { label: 'lg:max-w-sm', value: 'lg:max-w-sm' },
+  { label: 'lg:max-w-md', value: 'lg:max-w-md' }, { label: 'lg:max-w-lg', value: 'lg:max-w-lg' },
+  { label: 'lg:max-w-xl', value: 'lg:max-w-xl' }, { label: 'lg:max-w-2xl', value: 'lg:max-w-2xl' },
+  { label: 'lg:max-w-3xl', value: 'lg:max-w-3xl' }, { label: 'lg:max-w-prose', value: 'lg:max-w-prose' },
+] as const;
+export type MaxWidthLgClass = typeof MAX_WIDTH_LG_OPTIONS[number]['value'];
+
 export const BORDER_LEFT_WIDTH_OPTIONS = [
   { label: 'border-l', value: 'border-l' }, { label: 'border-l-2', value: 'border-l-2' },
   { label: 'border-l-4', value: 'border-l-4' }, { label: 'border-l-8', value: 'border-l-8' },

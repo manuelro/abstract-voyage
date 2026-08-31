@@ -5,6 +5,11 @@ import {
   CONTENT_WIDTH_PERCENT_WIDE_OPTIONS,
   CONTENT_WIDTH_PERCENT_LG_OPTIONS,
 } from '../../../components/tailwindWidthScale';
+import {
+  MAX_WIDTH_OPTIONS,
+  MAX_WIDTH_WIDE_OPTIONS,
+  MAX_WIDTH_LG_OPTIONS,
+} from '../../../components/tailwindTypographyScale';
 import { CONTENT_MIN_HEIGHT_OPTIONS } from '../../../components/tailwindMinHeightScale';
 import {
   PADDING_TOP_OPTIONS,
@@ -123,6 +128,25 @@ const WIDE_COLUMN_CONTENT_WIDTH_OPTIONS = [
 const WIDE_COLUMN_CONTENT_WIDTH_OPTIONS_LG = [
   ...HEADER_CONTENT_WIDTH_OPTIONS_LG,
   { label: 'MATCH NARROW COLUMN', value: 'match-narrow-column' },
+] as const;
+
+// *ColumnContentMaxWidth* fields' own options — a rem-based cap, alongside
+// (not instead of) the percentage width fields above. 'NONE' (default)
+// applies no cap. See narrowColumnContentMaxWidth's own doc comment
+// (PolymorphicLayout.config.ts) for why this field exists as its own thing:
+// it stays effective under a containerQuery ancestor, where the percentage
+// width fields above silently fall back to shrink-to-fit/full.
+const CONTENT_MAX_WIDTH_OPTIONS_BASE = [
+  { label: 'NONE', value: 'none' },
+  ...MAX_WIDTH_OPTIONS,
+] as const;
+const CONTENT_MAX_WIDTH_OPTIONS_WIDE = [
+  { label: 'NONE', value: 'none' },
+  ...MAX_WIDTH_WIDE_OPTIONS,
+] as const;
+const CONTENT_MAX_WIDTH_OPTIONS_LG = [
+  { label: 'NONE', value: 'none' },
+  ...MAX_WIDTH_LG_OPTIONS,
 ] as const;
 
 const HEADER_SCROLL_BEHAVIOR_OPTIONS = [
@@ -656,6 +680,22 @@ const CONTENT_ALIGNMENT_FIELDS: NonTabsEntry<PolymorphicLayoutConfig>[] = [
     label: 'Wide column content width',
     description: 'Same as the narrow column\'s own width field, applied to the wide column\'s content container instead. Composes with (does not replace) a page\'s own additional reading-measure field if it has one, e.g. the Article Reading panel\'s Body reading measure on posts-lab.',
     options: HEADER_CONTENT_WIDTH_OPTIONS_BASE,
+  },
+  {
+    kind: 'select',
+    key: 'narrowColumnContentMaxWidth',
+    debugHighlightIds: ['TABLE OF CONTENTS'],
+    label: 'Narrow column content max width',
+    description: 'A fixed, rem-based cap, alongside the percentage width above — NONE (default) applies no cap. Unlike the percentage width, this stays effective even when the column\'s own children establish a CSS Container Query context (e.g. a page using a cqw-based responsive font-size) — pair this with Content align above for alignment that actually moves the box in that case. See the Tablet/Desktop tabs to override starting at those widths.',
+    options: CONTENT_MAX_WIDTH_OPTIONS_BASE,
+  },
+  {
+    kind: 'select',
+    key: 'wideColumnContentMaxWidth',
+    debugHighlightIds: ['WIDE COLUMN'],
+    label: 'Wide column content max width',
+    description: 'Same as the narrow column\'s own max width field, applied to the wide column\'s content container instead.',
+    options: CONTENT_MAX_WIDTH_OPTIONS_BASE,
   },
   {
     kind: 'enum',
@@ -1741,6 +1781,14 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                       options: HEADER_CONTENT_WIDTH_OPTIONS,
                     },
                     {
+                      kind: 'select',
+                      key: 'narrowColumnContentMaxWidthWide',
+                      debugHighlightIds: ['TABLE OF CONTENTS'],
+                      label: 'Narrow column content max width (≥ tablet)',
+                      description: 'Overrides the All sizes tab\'s own "Narrow column content max width" starting at md. Stays effective under a containerQuery ancestor, unlike the percentage width above — pair with Content align for alignment that actually moves the box in that case.',
+                      options: CONTENT_MAX_WIDTH_OPTIONS_WIDE,
+                    },
+                    {
                       kind: 'enum',
                       key: 'narrowColumnTextAlignWide',
                       debugHighlightIds: ['TABLE OF CONTENTS'],
@@ -1775,6 +1823,14 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                       label: 'Wide column content width (≥ tablet)',
                       description: 'Overrides the All sizes tab\'s own "Wide column content width" starting at md. MATCH NARROW COLUMN caps this column\'s content to the narrow column\'s own real width, derived from this tab\'s own "Column split (≥ tablet)" ratio instead of a fixed percentage.',
                       options: WIDE_COLUMN_CONTENT_WIDTH_OPTIONS,
+                    },
+                    {
+                      kind: 'select',
+                      key: 'wideColumnContentMaxWidthWide',
+                      debugHighlightIds: ['READING COLUMN'],
+                      label: 'Wide column content max width (≥ tablet)',
+                      description: 'Overrides the All sizes tab\'s own "Wide column content max width" starting at md.',
+                      options: CONTENT_MAX_WIDTH_OPTIONS_WIDE,
                     },
                     {
                       kind: 'enum',
@@ -2064,6 +2120,14 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                       options: HEADER_CONTENT_WIDTH_OPTIONS_LG,
                     },
                     {
+                      kind: 'select',
+                      key: 'narrowColumnContentMaxWidthLg',
+                      debugHighlightIds: ['TABLE OF CONTENTS'],
+                      label: 'Narrow column content max width (≥ desktop)',
+                      description: 'Overrides the Tablet tab\'s own "Narrow column content max width (≥ tablet)" starting at 1024px. Stays effective under a containerQuery ancestor, unlike the percentage width above — pair with Content align for alignment that actually moves the box in that case.',
+                      options: CONTENT_MAX_WIDTH_OPTIONS_LG,
+                    },
+                    {
                       kind: 'enum',
                       key: 'narrowColumnTextAlignLg',
                       debugHighlightIds: ['TABLE OF CONTENTS'],
@@ -2098,6 +2162,14 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                       label: 'Wide column content width (≥ desktop)',
                       description: 'Overrides the Tablet tab\'s own "Wide column content width (≥ tablet)" starting at 1024px. MATCH NARROW COLUMN caps this column\'s content to the narrow column\'s own real width, derived from this tab\'s own "Column split (≥ desktop)" ratio instead of a fixed percentage.',
                       options: WIDE_COLUMN_CONTENT_WIDTH_OPTIONS_LG,
+                    },
+                    {
+                      kind: 'select',
+                      key: 'wideColumnContentMaxWidthLg',
+                      debugHighlightIds: ['READING COLUMN'],
+                      label: 'Wide column content max width (≥ desktop)',
+                      description: 'Overrides the Tablet tab\'s own "Wide column content max width (≥ tablet)" starting at 1024px.',
+                      options: CONTENT_MAX_WIDTH_OPTIONS_LG,
                     },
                     {
                       kind: 'enum',
