@@ -82,7 +82,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   splitBandLeftModeWide: 'custom',
   splitBandLeftModeLg: 'custom',
   splitBandRightMode: 'custom',
-  splitBandRightCustomColor: '#1c1c40',
+  splitBandRightCustomColor: '#cbcbe1',
   // Regression history (nav text rendering as washed-out gray/near-
   // invisible on wider devices — BUG-012, BUGS-AUDIT-POLYMORPHIC-LAYOUT-
   // CARD-STACK.md): the actual defect was never these mode values
@@ -360,7 +360,7 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   splitBandLeftModeWide: 'custom',
   splitBandLeftModeLg: 'custom',
   splitBandRightMode: 'custom',
-  splitBandRightCustomColor: '#cbcbe1',
+  splitBandRightCustomColor: '#1c1c40',
   splitBandRightModeWide: 'syncWithColumnBelow',
   splitBandRightModeLg: 'syncWithColumnBelow',
   contentContainer: 'full-bleed',
