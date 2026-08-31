@@ -138,7 +138,7 @@ export type AboutMobileAccordionConfig = {
 
 export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   enabled: true,
-  previewMinHeight: 'min-h-20',
+  previewMinHeight: 'min-h-14',
   maxExpandedItems: 1,
   collapseLeadFraction: 0,
   transitionMs: 700,
@@ -151,7 +151,7 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   affordanceDimensionClassName: 'w-2.5 h-2.5',
   affordancePadding: 'p-4',
   affordanceRotateCollapsedDeg: 135,
-  affordanceRotateExpandedDeg: -45,
+  affordanceRotateExpandedDeg: 90,
   affordanceColorMode: 'accent',
   affordanceCustomColor: '#ffffff',
   affordanceHoverOpacity: 0.9,
