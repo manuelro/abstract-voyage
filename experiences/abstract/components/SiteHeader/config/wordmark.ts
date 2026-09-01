@@ -66,6 +66,13 @@ export type WordmarkConfig = {
    * default (nav-facing now) still uses. */
   columnTextMinContrast: number;
 
+  // --- Layout ---
+  /** Max rendered width (px) of the wordmark, applied on top of the
+   * responsive `logoWidth`/`desktopLogoWidth` sizing (SiteHeaderConfig,
+   * registered.ts) as a hard cap — same `<Link>` wrapper, every page, since
+   * SiteHeader is the sole global mount point (renderLogo, SiteHeader.tsx). */
+  maxWidthPx: number;
+
   // --- Intro animation (SvgStaggerGroup, per-glyph fade/scale/bloom) ---
   /** Off: glyphs render in their resting state immediately, no stagger. */
   introEnabled: boolean;
@@ -113,6 +120,7 @@ export const DEFAULT_WORDMARK_CONFIG: WordmarkConfig = {
   color: '#f5f5f5',
   surfaceOffset: 0,
   columnTextMinContrast: 4.5,
+  maxWidthPx: 300,
   introEnabled: true,
   introInitialDelayS: 0.01,
   introStepDelayS: 0.02,
@@ -159,6 +167,7 @@ export function normalizeWordmarkConfig(
     columnTextMinContrast: clampRange(
       base.columnTextMinContrast, 1, 21, DEFAULT_WORDMARK_CONFIG.columnTextMinContrast,
     ),
+    maxWidthPx: clampRange(base.maxWidthPx, 100, 960, DEFAULT_WORDMARK_CONFIG.maxWidthPx),
     introEnabled: base.introEnabled !== false,
     introInitialDelayS: clampRange(
       base.introInitialDelayS, 0, 3, DEFAULT_WORDMARK_CONFIG.introInitialDelayS,

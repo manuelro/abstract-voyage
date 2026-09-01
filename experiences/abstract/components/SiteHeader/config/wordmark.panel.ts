@@ -86,6 +86,23 @@ const WORDMARK_FIELDS: ReadonlyArray<ConfigScopeEntry<WordmarkConfig>> = [
   },
   {
     kind: 'group',
+    label: 'Layout',
+    fields: [
+      {
+        kind: 'number',
+        key: 'maxWidthPx',
+        label: 'Max width',
+        description: 'Hard cap on the wordmark\'s rendered width, on top of the responsive logoWidth/desktopLogoWidth sizing — applies to every page since SiteHeader is the sole global mount point.',
+        min: 100,
+        max: 960,
+        step: 10,
+        unit: 'px',
+        integer: true,
+      },
+    ],
+  },
+  {
+    kind: 'group',
     label: 'Intro animation',
     fields: [
       {

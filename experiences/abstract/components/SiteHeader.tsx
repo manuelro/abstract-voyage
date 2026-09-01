@@ -598,6 +598,7 @@ export function SiteHeader({
       className={`${styles.synthAffordance} ${normalized.logoWidth} ${normalized.desktopLogoWidth} pointer-events-auto relative flex min-h-[2.75rem] max-w-full shrink-0 items-center justify-center md:justify-start ${extraClassName}`}
       href="/abstract"
       ref={ref}
+      style={{ maxWidth: `${effectiveWordmarkConfig.maxWidthPx}px` }}
     >
       <Logo
         // Remounts (replaying the intro stagger from scratch) only when an
