@@ -23,12 +23,13 @@ import {
  * `primaryNavRef` is this shell's own internal `useSplitColumnNavAlignment`
  * ref, which the page's own header must attach to its real `<nav>` element
  * for that hook's own live measurement to work; `navSplitBoundaryPx` is gated on
- * `autoAlignNavSplit`'s own live measurement; `splitBandBoundaryPx`/
- * `physicalRightColumnColor` originate one layer up, in `PolymorphicLayout`'s
- * own `usePolymorphicLayoutColors()`, and arrive here as plain passthrough
- * props (not computed by this component itself, despite living in this same
- * bundle — see PLAN-POLYMORPHIC-LAYOUT-DECOUPLING.md's own "Notes from
- * execution" for that correction); `legibilityScrimLeftEnabled`/
+ * `autoAlignNavSplit`'s own live measurement; `splitBandBoundaryPx`, the
+ * physical column colors, and the split-band paint values originate one
+ * layer up, in `PolymorphicLayout`'s own `usePolymorphicLayoutColors()`, and
+ * arrive here as plain passthrough props (not computed by this component
+ * itself, despite living in this same bundle — see PLAN-POLYMORPHIC-LAYOUT-
+ * DECOUPLING.md's own "Notes from execution" for that correction);
+ * `legibilityScrimLeftEnabled`/
  * `-RightEnabled` are derived from `splitColumnLayoutConfig`'s own header-
  * behavior fields plus `headerPositionMode`. See
  * PLAN-POLYMORPHIC-LAYOUT-DECOUPLING.md §1 for the full audit this type is
@@ -40,7 +41,12 @@ export type HeaderSlotProps = {
   splitBandBoundaryPx: number | undefined;
   legibilityScrimLeftEnabled: boolean;
   legibilityScrimRightEnabled: boolean;
+  physicalLeftColumnColor: string | undefined;
   physicalRightColumnColor: string | undefined;
+  splitBandActive: boolean;
+  splitBandLeftColor: string | undefined;
+  splitBandRightColor: string | undefined;
+  splitBandStacked: boolean;
 };
 
 // Literal classes only, per this codebase's Tailwind-only styling rule — no
@@ -53,6 +59,12 @@ const HEADER_POSITION_CLASS: Record<'fixed' | 'sticky' | 'static', string> = {
 };
 
 export type SplitColumnPageShellProps = {
+  /** 'split' renders both column slots. 'centered' renders the narrow slot
+   * in a single readable viewport area; intrinsic content height lets flexbox
+   * naturally fall back to top-aligned scrolling when it is too tall. */
+  layoutMode?: 'split' | 'centered';
+  centeredContentMaxWidth?: string;
+  centeredContentPaddingX?: string;
   pageSurfaceConfig: PageSurfaceConfig;
   /** <main>'s own background — defaults to pageSurfaceConfig.color. Split
    * out so a page mid-transition (e.g. /about's spacefield reveal) can
@@ -117,10 +129,19 @@ export type SplitColumnPageShellProps = {
    * autoAlignNavSplit above; not merged into effectiveNavSplitBoundaryPx
    * below, since the two are deliberately decoupled. */
   splitBandBoundaryPx?: number;
+  /** Resolved header paint values supplied by PolymorphicLayout. Keeping
+   * these in the slot contract makes a generic page's `<SiteHeader
+   * {...slotProps} />` consume the complete layout color model without
+   * re-running or partially reproducing its resolution. */
+  physicalLeftColumnColor?: string;
   /** Passthrough for SiteHeaderProps' own physicalRightColumnColor —
    * see that prop's doc comment. Omit for a page not opting into the
    * header's 'column' colorMode. */
   physicalRightColumnColor?: string;
+  splitBandActive?: boolean;
+  splitBandLeftColor?: string;
+  splitBandRightColor?: string;
+  splitBandStacked?: boolean;
   splitColumnLayoutConfig: SplitColumnLayoutConfig;
   wideColumn: ReactNode;
   narrowColumn: ReactNode;
@@ -226,6 +247,9 @@ export type SplitColumnPageShellProps = {
  * with the one change, not a new hardcoded override.
  */
 export function SplitColumnPageShell({
+  layoutMode = 'split',
+  centeredContentMaxWidth = 'max-w-2xl',
+  centeredContentPaddingX = 'px-6',
   pageSurfaceConfig,
   backgroundColor,
   className,
@@ -237,7 +261,12 @@ export function SplitColumnPageShell({
   headerPositionMode = 'fixed',
   navSplitBoundaryPx,
   splitBandBoundaryPx,
+  physicalLeftColumnColor,
   physicalRightColumnColor,
+  splitBandActive = false,
+  splitBandLeftColor,
+  splitBandRightColor,
+  splitBandStacked = false,
   splitColumnLayoutConfig,
   wideColumn,
   narrowColumn,
@@ -292,7 +321,7 @@ export function SplitColumnPageShell({
     ? navAlignment.measuredWideColumnBoundaryPx
     : measuredWideColumnBoundaryPx;
   const effectiveEdgeBackdropSeamPx = autoAlignNavSplit
-    ? navAlignment.edgeBackdropSeamPx
+    ? (navAlignment.desktopNavAlignmentActive ? navAlignment.edgeBackdropSeamPx : undefined)
     : edgeBackdropSeamPx;
 
   // SiteHeader's own legibilityScrimLeftEnabled/-RightEnabled are
@@ -365,14 +394,15 @@ export function SplitColumnPageShell({
   // already-correct content area from the inside, double-counting the
   // header height. This reproduces the old shared spacer's net visual
   // effect (push the whole row down by the header's height) per column
-  // instead of for the whole row at once — a page opting a column into
-  // 'pushDown' is still responsible for sizing that column's own height/
-  // min-height to leave room below the fold for it (about's own
-  // --about-nav-h-driven calc already does this; see pages/abstract.tsx's
-  // own wideColumnRowMinHeightCss/narrowColumnRowMinHeightCss for the
-  // splitColumn-presentation equivalent). Merged after the caller's own
-  // wideColumnStyle/narrowColumnStyle so neither ever loses its own
-  // minHeight/backgroundColor. Undefined height (before the first measurement lands)
+  // instead of for the whole row at once. The shell's flex-height chain
+  // below supplies the shared baseline: the grid fills the viewport space
+  // available to it and each grid item stretches inside that row, with its
+  // top margin included in that space. A page may still supply a larger,
+  // specialized min-height (about and abstract do), but no page needs to
+  // recreate the viewport floor merely to keep column paint reaching the
+  // bottom edge. Merged after the caller's own wideColumnStyle/
+  // narrowColumnStyle so neither ever loses its own minHeight/
+  // backgroundColor. Undefined height (before the first measurement lands)
   // renders as 0 margin — the same graceful-degrade pattern this component
   // already uses elsewhere.
   // headerPositionMode 'static' forces 'pushDown' inert on both columns —
@@ -414,6 +444,12 @@ export function SplitColumnPageShell({
   const layout = (
     <SplitColumnLayout
       config={splitColumnLayoutConfig}
+      // The shell's <main> owns the 100dvh floor. Participating in its
+      // column-flex sizing makes this grid absorb any viewport space left
+      // after an in-flow header, while its intrinsic min-size still lets
+      // content make the page taller. Because grid items stretch by
+      // default, both column paint boxes then reach the same bottom edge.
+      className="flex-1"
       wideColumnClassName={wideColumnClassName}
       narrowColumnClassName={narrowColumnClassName}
       wideColumnStyle={effectiveWideColumnStyle}
@@ -426,10 +462,29 @@ export function SplitColumnPageShell({
     />
   );
 
+  const centeredLayout = (
+    <div
+      className="flex w-full flex-1 items-center justify-center"
+      style={{
+        minHeight: measuredHeaderHeightPx !== undefined
+          ? `calc(100dvh - ${measuredHeaderHeightPx}px)`
+          : headerPositionMode === 'fixed' ? '100dvh' : '0px',
+      }}
+    >
+      <div className={`w-full ${centeredContentMaxWidth} ${centeredContentPaddingX}`}>
+        {narrowColumn}
+      </div>
+    </div>
+  );
+
   return (
     <main
       className={[
-        'relative min-h-[100dvh] overflow-x-clip',
+        // Both layout modes need a real height chain from this viewport
+        // floor. Previously only centered mode was a flex column, leaving
+        // split mode's grid at content height and exposing the page surface
+        // beneath short columns.
+        'relative flex min-h-[100dvh] flex-col overflow-x-clip',
         className,
       ].filter(Boolean).join(' ')}
       style={{ background: backgroundColor ?? normalizedPageSurfaceConfig.color, ...style }}
@@ -457,11 +512,19 @@ export function SplitColumnPageShell({
           splitBandBoundaryPx,
           legibilityScrimLeftEnabled,
           legibilityScrimRightEnabled,
+          physicalLeftColumnColor,
           physicalRightColumnColor,
+          splitBandActive,
+          splitBandLeftColor,
+          splitBandRightColor,
+          splitBandStacked,
         })}
       </div>
-      {contentContainer === 'bounded' ? (
-        <div className="relative">
+      {layoutMode === 'centered' ? centeredLayout : contentContainer === 'bounded' ? (
+        // Preserve the same flex-height chain through the bounded branch's
+        // backdrop and PageContainer wrappers. Without each link, flex-1 on
+        // the grid has no definite remaining space to absorb.
+        <div className="relative flex flex-1 flex-col">
           {edgeBackdropEnabled && typeof effectiveEdgeBackdropSeamPx === 'number' ? (
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 hidden md:block">
               <div
@@ -485,7 +548,7 @@ export function SplitColumnPageShell({
             </div>
           ) : null}
           <PageContainer
-            className={`relative z-[1] ${bodyGutterClassName ?? ''}`}
+            className={`relative z-[1] flex flex-1 flex-col ${bodyGutterClassName ?? ''}`}
             config={normalizedPageSurfaceConfig}
           >
             {layout}

@@ -84,6 +84,10 @@ import type {
  * narrow-left/wide-right, /about's arrangement. 'left': wide-left/
  * narrow-right, /abstract's arrangement. */
 export type PolymorphicLayoutWideSide = 'left' | 'right';
+/** The layout's explicit presentation modes. 'split' preserves the normal
+ * two-column behavior; 'centered' renders the narrow slot as one readable,
+ * viewport-centered column. */
+export type PolymorphicLayoutMode = 'split' | 'centered';
 /** The narrow column's own share of the grid at a given breakpoint tier —
  * 'stacked' emits no split at all (both columns render at their natural
  * 100% width); every other value is a literal, pre-written
@@ -276,6 +280,12 @@ export type PolymorphicLayoutHeaderScrollBehavior = 'fixed' | 'sticky' | 'static
  * what varies from one consumer of this type to the next.
  */
 export type PolymorphicLayoutConfig = {
+  /** Selects the layout presentation. Defaults to 'split'. */
+  layoutMode?: PolymorphicLayoutMode;
+  /** Maximum width used by the centered presentation. */
+  centeredContentMaxWidth?: MaxWidthClass | 'max-w-none';
+  /** Horizontal breathing room used by the centered presentation. */
+  centeredContentPaddingX?: 'px-0' | 'px-4' | 'px-6' | 'px-8' | 'px-12';
   /** Which physical side gets the wider (62%) column. See
    * PolymorphicLayoutWideSide's own doc comment. */
   wideColumnSide: PolymorphicLayoutWideSide;
@@ -979,6 +989,9 @@ export const POLYMORPHIC_LAYOUT_HEADER_SEGMENT_DEFAULTS = {
   | 'headerRightInnerAlign' | 'headerRightInnerAlignWide' | 'headerRightInnerAlignLg'>;
 
 export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
+  layoutMode: 'split',
+  centeredContentMaxWidth: 'max-w-2xl',
+  centeredContentPaddingX: 'px-6',
   wideColumnSide: 'right',
   narrowColumnWidthTierMd: '38/62',
   narrowColumnWidthTierLg: '38/62',
@@ -1350,6 +1363,10 @@ const CONTENT_CONTAINER_VALUES: ReadonlyArray<PolymorphicLayoutContentContainer>
   'bounded', 'full-bleed',
 ];
 const CONTENT_HEIGHT_VALUES: ReadonlyArray<PolymorphicLayoutContentHeight> = ['auto', 'full', 'viewport'];
+const LAYOUT_MODE_VALUES: ReadonlyArray<PolymorphicLayoutMode> = ['split', 'centered'];
+const CENTERED_CONTENT_PADDING_VALUES: ReadonlyArray<NonNullable<PolymorphicLayoutConfig['centeredContentPaddingX']>> = [
+  'px-0', 'px-4', 'px-6', 'px-8', 'px-12',
+];
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
@@ -1370,6 +1387,15 @@ export function normalizePolymorphicLayoutConfig(
 ): PolymorphicLayoutConfig {
   const base = { ...DEFAULT_POLYMORPHIC_LAYOUT_CONFIG, ...(config ?? {}) };
   return {
+    layoutMode: token(base.layoutMode ?? '', LAYOUT_MODE_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.layoutMode),
+    centeredContentMaxWidth: token(
+      base.centeredContentMaxWidth ?? '', ['max-w-none', ...MAX_WIDTH_OPTIONS.map(option => option.value)],
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.centeredContentMaxWidth,
+    ) as PolymorphicLayoutConfig['centeredContentMaxWidth'],
+    centeredContentPaddingX: token(
+      base.centeredContentPaddingX ?? '', CENTERED_CONTENT_PADDING_VALUES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.centeredContentPaddingX,
+    ),
     // Mirrors SplitColumnLayout.config.ts's own normalizeSplitColumnLayoutConfig
     // per-field token/color logic exactly — not called into (that function
     // lives in the file this type owns zero import from), reimplemented

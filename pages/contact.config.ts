@@ -15,6 +15,9 @@ import {
 // stays empty. See PLAN-CONTACT-POLYMORPHIC-LAYOUT.md for the full
 // capability-design audit this config's values were derived from.
 export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
+  layoutMode: 'centered',
+  centeredContentMaxWidth: 'max-w-none',
+  centeredContentPaddingX: 'px-0',
   wideColumnSide: 'right',
   narrowColumnWidthTierMd: 'stacked',
   narrowColumnWidthTierLg: 'stacked',

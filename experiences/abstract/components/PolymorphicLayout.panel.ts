@@ -56,6 +56,22 @@ const HORIZONTAL_ALIGN_OPTIONS = [
   { label: 'END', value: 'items-end' },
 ] as const;
 
+const LAYOUT_MODE_OPTIONS = [
+  { label: 'SPLIT COLUMNS', value: 'split' },
+  { label: 'CENTERED COLUMN', value: 'centered' },
+] as const;
+const CENTERED_CONTENT_MAX_WIDTH_OPTIONS = [
+  { label: 'max-w-none', value: 'max-w-none' },
+  ...MAX_WIDTH_OPTIONS,
+] as const;
+const CENTERED_CONTENT_PADDING_OPTIONS = [
+  { label: '0', value: 'px-0' },
+  { label: '4', value: 'px-4' },
+  { label: '6', value: 'px-6' },
+  { label: '8', value: 'px-8' },
+  { label: '12', value: 'px-12' },
+] as const;
+
 const VERTICAL_ALIGN_OPTIONS = [
   { label: 'TOP', value: 'justify-start' },
   { label: 'MIDDLE', value: 'justify-center' },
@@ -201,6 +217,27 @@ const CONTENT_CONTAINER_OPTIONS = [
 // page like that needs — the same shape fieldsWithKeys/fieldsExcludingKeys
 // below already use internally, just exposed for external reuse too.
 export const POLYMORPHIC_LAYOUT_BASE_FIELDS: ReadonlyArray<NonTabsEntry<PolymorphicLayoutConfig>> = [
+  ({
+    kind: 'enum',
+    key: 'layoutMode',
+    label: 'Layout mode',
+    description: 'Split columns preserves the normal two-column layout. Centered column uses the narrow slot as one readable column and centers it while it fits the viewport.',
+    options: LAYOUT_MODE_OPTIONS as any,
+  } as unknown as ConfigFieldDefinition<PolymorphicLayoutConfig>),
+  ({
+    kind: 'enum',
+    key: 'centeredContentMaxWidth',
+    label: 'Centered content max width',
+    visibleWhen: (config: Readonly<PolymorphicLayoutConfig>) => config.layoutMode === 'centered',
+    options: CENTERED_CONTENT_MAX_WIDTH_OPTIONS as any,
+  } as unknown as ConfigFieldDefinition<PolymorphicLayoutConfig>),
+  ({
+    kind: 'enum',
+    key: 'centeredContentPaddingX',
+    label: 'Centered content horizontal padding',
+    visibleWhen: (config: Readonly<PolymorphicLayoutConfig>) => config.layoutMode === 'centered',
+    options: CENTERED_CONTENT_PADDING_OPTIONS as any,
+  } as unknown as ConfigFieldDefinition<PolymorphicLayoutConfig>),
   {
     kind: 'enum',
     key: 'contentContainer',

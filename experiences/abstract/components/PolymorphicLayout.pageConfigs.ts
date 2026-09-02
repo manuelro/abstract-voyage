@@ -58,6 +58,9 @@ import {
 // specific to /abstract's own render call site, not this constant's own
 // definition.
 export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
+  layoutMode: 'split',
+  centeredContentMaxWidth: 'max-w-2xl',
+  centeredContentPaddingX: 'px-6',
   wideColumnSide: 'right',
   narrowColumnWidthTierMd: '38/62',
   narrowColumnWidthTierLg: '38/62',
@@ -329,6 +332,9 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
 // per-field reasoning (contentContainer: 'full-bleed' provenance, the
 // 'bounded' narrow-column revert history, etc.).
 export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
+  layoutMode: 'split',
+  centeredContentMaxWidth: 'max-w-2xl',
+  centeredContentPaddingX: 'px-6',
   wideColumnSide: 'right',
   narrowColumnWidthTierMd: '38/62',
   narrowColumnWidthTierLg: '38/62',

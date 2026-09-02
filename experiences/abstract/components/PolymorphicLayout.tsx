@@ -783,11 +783,11 @@ export type PolymorphicLayoutProps = {
   headerOverlay?: ReactNode;
   headerWrapperClassName?: string;
   headerWrapperRef?: Ref<HTMLDivElement>;
-  /** 'bounded' contentContainer only — paints a full-viewport-width color
-   * backdrop behind the (inset) content, split at the real, live-measured
-   * column seam (see the component's own top-level doc comment on nav-
-   * boundary alignment). No effect under 'full-bleed', where the content
-   * itself already reaches the viewport edge. */
+  /** Explicit override for bounded split layouts' full-viewport column
+   * backdrop. The shared default is enabled whenever the configured layout
+   * is both `split` and `bounded`; pass false only when a page intentionally
+   * wants its page surface to remain visible outside the content container.
+   * No effect under `full-bleed`, where the columns already reach the edge. */
   edgeBackdropEnabled?: boolean;
   /** Forwarded straight through to SplitColumnPageShell's own
    * onNavAlignmentChange — see that prop's doc comment. autoAlignNavSplit is
@@ -1056,9 +1056,16 @@ export function PolymorphicLayout({
     normalizedConfig.bodyGutterPaddingRightWide,
     normalizedConfig.bodyGutterPaddingRightLg,
   );
+  const effectiveEdgeBackdropEnabled = edgeBackdropEnabled ?? (
+    normalizedConfig.layoutMode === 'split'
+    && normalizedConfig.contentContainer === 'bounded'
+  );
 
   return (
     <SplitColumnPageShell
+      layoutMode={normalizedConfig.layoutMode}
+      centeredContentMaxWidth={normalizedConfig.centeredContentMaxWidth}
+      centeredContentPaddingX={normalizedConfig.centeredContentPaddingX}
       className={className}
       style={style}
       backgroundColor={backgroundColor}
@@ -1073,6 +1080,7 @@ export function PolymorphicLayout({
         normalizedConfig.headerScrollBehaviorLg,
       )}
       splitBandBoundaryPx={colors.splitBandBoundaryPx}
+      physicalLeftColumnColor={colors.actualLeftSegmentColor}
       // actualRightSegmentColor, not the raw physicalRightColumnColor —
       // see that field's own doc comment above (PolymorphicLayoutResolvedColors):
       // SiteHeader's own nav text/border contrast search needs "what's
@@ -1089,6 +1097,10 @@ export function PolymorphicLayout({
       // this was the one remaining internal passthrough still using the
       // wrong field for the right/nav segment).
       physicalRightColumnColor={colors.actualRightSegmentColor}
+      splitBandActive={normalizedConfig.headerSplitBandEnabled}
+      splitBandLeftColor={colors.resolvedSplitBandLeftColor}
+      splitBandRightColor={colors.resolvedSplitBandRightColor}
+      splitBandStacked={colors.splitBandStacked}
       splitColumnLayoutConfig={normalizedConfig}
       wideColumn={
         normalizedConfig.wideColumnContentContainer === 'full-bleed'
@@ -1119,7 +1131,8 @@ export function PolymorphicLayout({
       // is off, this component's own default, so this is byte-identical to
       // before these fields existed for every page that hasn't opted in.
       wideColumnStyle={{
-        ...(wideColumnStyle ?? { backgroundColor: colors.wideColumnColor }),
+        backgroundColor: colors.wideColumnColor,
+        ...(wideColumnStyle ?? {}),
         ...(wideColumnClearsFloatingHeaderStyle ?? {}),
       }}
       // mobileAlignPaddingLeftPx spread last so it always wins over
@@ -1131,13 +1144,14 @@ export function PolymorphicLayout({
       // before this prop existed. narrowColumnClearsFloatingHeaderStyle
       // spreads last of all — its own paddingTop always wins.
       narrowColumnStyle={{
-        ...(narrowColumnStyle ?? { backgroundColor: colors.narrowColumnColor }),
+        backgroundColor: colors.narrowColumnColor,
+        ...(narrowColumnStyle ?? {}),
         ...(mobileAlignPaddingLeftPx !== undefined ? { paddingLeft: mobileAlignPaddingLeftPx } : {}),
         ...(narrowColumnClearsFloatingHeaderStyle ?? {}),
       }}
       contentContainer={normalizedConfig.contentContainer}
       bodyGutterClassName={bodyGutterClassName}
-      edgeBackdropEnabled={edgeBackdropEnabled}
+      edgeBackdropEnabled={effectiveEdgeBackdropEnabled}
       // Unconditional — see this component's own top-level doc comment.
       // Not a page-configurable prop: every page gets a live-measured
       // header/body seam by construction, nothing to opt into or forget.
