@@ -1,6 +1,12 @@
 import type { PolymorphicLayoutConfig } from '../experiences/abstract/components/PolymorphicLayout.config';
+import {
+  DEFAULT_ABOUT_TIMELINE_CONFIG,
+  type AboutTimelineConfig,
+} from '../experiences/about/components/AboutTimeline.config';
 
 export type AbstractPagePresentationMode = 'splitColumn' | 'classic';
+export type AbstractNarrowColumnStackHorizontalAlign = 'start' | 'center' | 'end' | 'stretch';
+export type AbstractNarrowColumnStackVerticalAlign = 'start' | 'center' | 'end';
 
 /**
  * Page-owned settings for abstract.tsx's own top-level presentation choice
@@ -21,7 +27,35 @@ export const DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG = {
   presentationMode: 'splitColumn',
 } satisfies AbstractPageLayoutConfig;
 
+/** Page-owned structure for the two content regions passed through
+ * PolymorphicLayout's narrow-column slot. The region weights are expressed
+ * as relative percentages so the pair always consumes the full available
+ * height, even while an operator is editing one value independently. */
+export type AbstractNarrowColumnStackConfig = {
+  topRegionPercent: number;
+  bottomRegionPercent: number;
+  topHorizontalAlign: AbstractNarrowColumnStackHorizontalAlign;
+  topVerticalAlign: AbstractNarrowColumnStackVerticalAlign;
+  bottomHorizontalAlign: AbstractNarrowColumnStackHorizontalAlign;
+  bottomVerticalAlign: AbstractNarrowColumnStackVerticalAlign;
+};
+
+export const DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG = {
+  topRegionPercent: 18,
+  bottomRegionPercent: 62,
+  topHorizontalAlign: 'stretch',
+  topVerticalAlign: 'center',
+  bottomHorizontalAlign: 'end',
+  bottomVerticalAlign: 'end',
+} satisfies AbstractNarrowColumnStackConfig;
+
 const PRESENTATION_MODES: ReadonlyArray<AbstractPagePresentationMode> = ['splitColumn', 'classic'];
+const STACK_HORIZONTAL_ALIGNMENTS: ReadonlyArray<AbstractNarrowColumnStackHorizontalAlign> = [
+  'start', 'center', 'end', 'stretch',
+];
+const STACK_VERTICAL_ALIGNMENTS: ReadonlyArray<AbstractNarrowColumnStackVerticalAlign> = [
+  'start', 'center', 'end',
+];
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
@@ -38,6 +72,46 @@ export function normalizeAbstractPageLayoutConfig(
   };
 }
 
+const clampRegionPercent = (value: number, fallback: number): number => (
+  Number.isFinite(value) ? Math.min(99, Math.max(1, value)) : fallback
+);
+
+export function normalizeAbstractNarrowColumnStackConfig(
+  config: Partial<AbstractNarrowColumnStackConfig> | undefined,
+): AbstractNarrowColumnStackConfig {
+  const base = { ...DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG, ...(config ?? {}) };
+  return {
+    topRegionPercent: clampRegionPercent(
+      base.topRegionPercent,
+      DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG.topRegionPercent,
+    ),
+    bottomRegionPercent: clampRegionPercent(
+      base.bottomRegionPercent,
+      DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG.bottomRegionPercent,
+    ),
+    topHorizontalAlign: token(
+      base.topHorizontalAlign,
+      STACK_HORIZONTAL_ALIGNMENTS,
+      DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG.topHorizontalAlign,
+    ),
+    topVerticalAlign: token(
+      base.topVerticalAlign,
+      STACK_VERTICAL_ALIGNMENTS,
+      DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG.topVerticalAlign,
+    ),
+    bottomHorizontalAlign: token(
+      base.bottomHorizontalAlign,
+      STACK_HORIZONTAL_ALIGNMENTS,
+      DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG.bottomHorizontalAlign,
+    ),
+    bottomVerticalAlign: token(
+      base.bottomVerticalAlign,
+      STACK_VERTICAL_ALIGNMENTS,
+      DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG.bottomVerticalAlign,
+    ),
+  };
+}
+
 // PLAN-POLYMORPHIC-LAYOUT-PAGE-CONFIG-PARITY.md: relocated to
 // experiences/abstract/components/PolymorphicLayout.pageConfigs.ts, co-located
 // with /about's and /posts-lab's own instances next to the shared type they're
@@ -46,6 +120,27 @@ export function normalizeAbstractPageLayoutConfig(
 // Re-exported here unchanged so no other consumer of this file's own
 // ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG import needs to change.
 export { ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG } from '../experiences/abstract/components/PolymorphicLayout.pageConfigs';
+
+// /abstract's own default for the shared AboutTimeline component (see
+// experiences/abstract/components/AbstractTimeline.panel.ts's own doc
+// comment) — starts identical to /about's DEFAULT_ABOUT_TIMELINE_CONFIG (the
+// "must use the current default" ask), re-exported under its own symbol so
+// the panel's "copy to source" tooling has a real, page-specific target to
+// write into once an operator diverges this page's own values, without ever
+// touching /about's.
+export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
+  ...DEFAULT_ABOUT_TIMELINE_CONFIG,
+  rowGap: 'gap-5',
+  markerSizeClassName: 'w-4 h-4',
+  markerCustomColor: '#242732',
+  hoverMarkerOpacity: 0.4,
+  markerActiveOpacity: 0.7,
+  rowCategoryEnabled: true,
+  rowCategoryRevealDelayMs: 340,
+  rowCategorySeparator: '⋅',
+  paddingTopLgClassName: 'lg:pt-7',
+  marginTopLgClassName: 'lg:mt-0',
+};
 
 const VERTICAL_ALIGN_WIDE_BY_BASE: Record<
   PolymorphicLayoutConfig['wideColumnContentVerticalAlign'],

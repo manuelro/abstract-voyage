@@ -1,5 +1,5 @@
 // GENERATED FILE — do not hand-edit.
-// Production stand-in for pages/abstract.panel.ts, produced by scripts/generate-panel-stubs.js.
+// Production stand-in for experiences/abstract/components/CoverFlow/CoverFlow.panel.ts, produced by scripts/generate-panel-stubs.js.
 // Every real consumer only reads these values inside a showAuthoringTools-gated
 // render, which is always false in production — EXCEPT that some real code
 // constructs bindings/registries unconditionally (e.g. `registry.resolve(id)`
@@ -15,35 +15,14 @@
 // Each export below is its own anonymous, self-contained IIFE, not a call
 // to a shared named helper — see this function's own doc comment in
 // generate-panel-stubs.js for why that distinction matters here.
-export const ABSTRACT_PAGE_LAYOUT_SCOPE_ID: any = (() => {
+export const COVER_FLOW_SCOPE_ID: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
     apply() { return undefined },
   })
   return p
 })()
-export const ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID: any = (() => {
-  const p: any = new Proxy(() => undefined, {
-    get(t, prop) { return prop in t ? (t as any)[prop] : p },
-    apply() { return undefined },
-  })
-  return p
-})()
-export const ABSTRACT_POLYMORPHIC_LAYOUT_PANEL: any = (() => {
-  const p: any = new Proxy(() => undefined, {
-    get(t, prop) { return prop in t ? (t as any)[prop] : p },
-    apply() { return undefined },
-  })
-  return p
-})()
-export const ABSTRACT_PAGE_LAYOUT_PANEL: any = (() => {
-  const p: any = new Proxy(() => undefined, {
-    get(t, prop) { return prop in t ? (t as any)[prop] : p },
-    apply() { return undefined },
-  })
-  return p
-})()
-export const ABSTRACT_NARROW_COLUMN_STACK_PANEL: any = (() => {
+export const COVER_FLOW_PANEL: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
     apply() { return undefined },

@@ -5,10 +5,12 @@ import { buildSiteTitle } from '../helpers/siteMetadata';
 import { getLabSummaries, type LabSummary } from '../helpers/labContent';
 import type {
   CSSProperties,
+  MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
+  ReactNode,
   WheelEvent as ReactWheelEvent,
 } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 // DEFAULT_GRADIENT_DESIGNER_CONFIG/GradientDesignerConfig/GradientDesignerTarget
 // come from AbstractGradientBackground.config.ts, not GradientDesignerPanel
 // itself, deliberately: this page reads DEFAULT_GRADIENT_DESIGNER_CONFIG
@@ -70,7 +72,33 @@ import { useAbstractDesignConfig } from '../experiences/abstract/components/Abst
 import { buildSynthLogoStops } from '../experiences/synth/gradients/synthGradient';
 import { clamp } from '../components/Panel';
 import { resolveSiteHeaderLogoStops } from '../experiences/abstract/components/SiteHeader/hooks/resolveSiteHeaderLogoStops';
-import { resolveContrastAwareTextColor } from '../helpers/surfaceColorDerivation';
+import {
+  deriveOpaqueTint,
+  blendOpaqueColors,
+  resolveContrastAwareTextColor,
+  deriveSurfaceColor,
+  deriveTransparentTint,
+} from '../helpers/surfaceColorDerivation';
+import { usePrefersReducedMotion } from '../helpers/usePrefersReducedMotion';
+import articleCardStyles from '../components/ArticleCard.module.css';
+import { useLiquidSliderMotion } from '../experiences/abstract/components/AbstractPostDock/hooks/motion';
+import { buildDeckPaletteStates } from '../experiences/abstract/helpers/deckPalette';
+import {
+  AbstractJournalLabHueFadeCard,
+  type CardReveal,
+} from '../experiences/abstract/components/AbstractJournalLabCollection';
+import type { AbstractJournalLabFlipSlot } from '../experiences/abstract/components/AbstractJournalLabCollection/collectionLayout';
+import { CTA_BUTTON_MOTION_EASINGS } from '../components/CtaButton/config/registered';
+import { CoverFlow, type CoverFlowCardReveal } from '../experiences/abstract/components/CoverFlow/CoverFlow';
+import {
+  DEFAULT_COVER_FLOW_CONFIG,
+  normalizeCoverFlowConfig,
+} from '../experiences/abstract/components/CoverFlow/CoverFlow.config';
+import { COVER_FLOW_SCOPE_ID } from '../experiences/abstract/components/CoverFlow/CoverFlow.panel';
+import {
+  useArticleListCoverFlowSync,
+  useArticleHashSync,
+} from '../experiences/abstract/components/ArticleListCoverFlowSync/useArticleListCoverFlowSync';
 import {
   ABSTRACT_LEGACY_PALETTE_GUARD_FRAGMENT_SOURCE,
   PROCEDURAL_COLOR_FRAGMENT_SOURCE,
@@ -209,12 +237,25 @@ import {
 import { ABSTRACT_LAB_SECTION_APPEARANCE_SCOPE_ID } from '../experiences/abstract/LabSection.panel';
 import {
   ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG,
+  DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
+  DEFAULT_ABSTRACT_TIMELINE_CONFIG,
   applyAbstractPolymorphicLayoutAllSizesUpdate,
+  normalizeAbstractNarrowColumnStackConfig,
   normalizeAbstractPageLayoutConfig,
+  type AbstractNarrowColumnStackConfig,
+  type AbstractNarrowColumnStackHorizontalAlign,
+  type AbstractNarrowColumnStackVerticalAlign,
   type AbstractPageLayoutConfig,
 } from './abstract.config';
-import { ABSTRACT_PAGE_LAYOUT_SCOPE_ID, ABSTRACT_POLYMORPHIC_LAYOUT_PANEL } from './abstract.panel';
+import { AboutTimeline, type AboutTimelineRowData } from '../experiences/about/components/AboutTimeline';
+import { normalizeAboutTimelineConfig, type AboutTimelineConfig } from '../experiences/about/components/AboutTimeline.config';
+import { ABSTRACT_TIMELINE_SCOPE_ID } from '../experiences/abstract/components/AbstractTimeline.panel';
+import {
+  ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID,
+  ABSTRACT_PAGE_LAYOUT_SCOPE_ID,
+  ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
+} from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
 import {
@@ -222,17 +263,9 @@ import {
   type PolymorphicLayoutConfig,
 } from '../experiences/abstract/components/PolymorphicLayout.config';
 import { resolveSplitColumnAccent } from '../experiences/abstract/components/SplitColumnLayout/colorResolution';
-import { SplitColumnCardPreview } from '../experiences/abstract/components/SplitColumnCardPreview';
-import {
-  DEFAULT_SPLIT_COLUMN_CARD_PREVIEW_CONFIG,
-  normalizeSplitColumnCardPreviewConfig,
-  type SplitColumnCardPreviewConfig,
-} from '../experiences/abstract/components/SplitColumnCardPreview.config';
-import { SPLIT_COLUMN_CARD_PREVIEW_SCOPE_ID } from '../experiences/abstract/components/SplitColumnCardPreview.panel';
 import {
   DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG,
   normalizeSplitColumnCardStackConfig,
-  type SplitColumnCardStackConfig,
 } from '../experiences/abstract/components/SplitColumnCardPreview/config/stack';
 import { SPLIT_COLUMN_CARD_STACK_SCOPE_ID } from '../experiences/abstract/components/SplitColumnCardPreview/config/stack.panel';
 import type { AbstractPostDockItem } from '../experiences/abstract/helpers/abstractPostDockItems';
@@ -332,6 +365,73 @@ type AdaptiveHeroInkTones = {
   actions: HeroInkTone;
 };
 
+// A11Y — same role="tabpanel"/aria-controls pairing pages/about.tsx's own
+// ABOUT_TIMELINE_PANEL_ID establishes for AboutTimeline's tablist: the id of
+// the single region (here, CoverFlow's own wideColumn) this page's timeline
+// rows control.
+const ABSTRACT_TIMELINE_PANEL_ID = 'abstract-timeline-panel';
+
+const NARROW_STACK_HORIZONTAL_CLASS: Record<AbstractNarrowColumnStackHorizontalAlign, string> = {
+  start: 'items-start',
+  center: 'items-center',
+  end: 'items-end',
+  stretch: 'items-stretch',
+};
+const NARROW_STACK_VERTICAL_CLASS: Record<AbstractNarrowColumnStackVerticalAlign, string> = {
+  start: 'justify-start',
+  center: 'justify-center',
+  end: 'justify-end',
+};
+
+type AbstractNarrowColumnStackProps = {
+  config: AbstractNarrowColumnStackConfig;
+  top: ReactNode;
+  bottom: ReactNode;
+};
+
+/** Page-endemic narrow-column composition. PolymorphicLayout owns the
+ * available-height box; this component only partitions the slot it receives. */
+function AbstractNarrowColumnStack({
+  config,
+  top,
+  bottom,
+}: AbstractNarrowColumnStackProps) {
+  const region = (
+    position: 'top' | 'bottom',
+    content: ReactNode,
+    horizontalAlign: AbstractNarrowColumnStackHorizontalAlign,
+    verticalAlign: AbstractNarrowColumnStackVerticalAlign,
+  ) => (
+    <div
+      className={`flex min-h-0 min-w-0 flex-col ${NARROW_STACK_HORIZONTAL_CLASS[horizontalAlign]} ${NARROW_STACK_VERTICAL_CLASS[verticalAlign]}`}
+      data-abstract-narrow-stack-region={position}
+    >
+      <div className={horizontalAlign === 'stretch' ? 'w-full min-w-0' : 'min-w-0 max-w-full'}>
+        {content}
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      // The enclosing NarrowColumnContent publishes its resolved viewport
+      // slot (after live header clearance and column padding) as a custom
+      // property. This grid must use that definite height: `fr` tracks only
+      // partition a definite grid size, which is what gives each region its
+      // own real vertical alignment space.
+      className="grid h-full min-h-0 w-full min-w-0"
+      data-abstract-narrow-stack="true"
+      style={{
+        height: 'var(--polymorphic-content-viewport-height, 100%)',
+        gridTemplateRows: `minmax(min-content, ${config.topRegionPercent}fr) minmax(min-content, ${config.bottomRegionPercent}fr)`,
+      }}
+    >
+      {region('top', top, config.topHorizontalAlign, config.topVerticalAlign)}
+      {region('bottom', bottom, config.bottomHorizontalAlign, config.bottomVerticalAlign)}
+    </div>
+  );
+}
+
 // splitColumnLayoutConfig.colorSource === 'palette' — the same
 // resolveSplitColumnAccent(index, count, paletteConfig) call /about's own
 // leftPanelColor uses, against two distinct fixed indices instead of one so
@@ -355,32 +455,42 @@ const ABSTRACT_NARROW_COLUMN_PALETTE_INDEX = 1;
 // (Part 2 above); this page's own copy, byte-identical to what the
 // component used to hardcode, so both existing instances below render
 // exactly as before.
-const ABSTRACT_EDITORIAL_HEADLINE =
-  'I work where engineering, design, and strategy meet.';
+const ABSTRACT_EDITORIAL_HEADLINE = 'Abstract Voyage is where I think out loud.';
 // About page's own emphasis markup convention (pages/about.tsx), reused
 // verbatim — `**word**` runs render brighter via renderEmphasisText
-// (helpers/textEmphasis.tsx). Markup only: no word, punctuation, or
-// order differs from the plain copy below. Two pivot nouns per paragraph —
-// the noun each sentence turns on, never a claim or adjective — plus the
-// site's own name at its very first mention in paragraph 1 (operator ask:
-// the brand name itself should read as emphasized, not just plain lead-in
-// text). "light and sound" is the same linking phrase the About page uses
-// for the same relationship — deliberate repetition, preserved exactly.
-// CPY-02/CPY-04 (about-IA-timeline-copy-rework): the closing phrase "on my
-// own terms" links to /about via the shared [text](href) inline-link syntax
-// (helpers/textEmphasis.tsx) — the homepage's own route into the new /about
-// timeline, picked up by that page's own H1 and paid off by its slides 02
-// and 05 (see IA-08 in that rework's acceptance criteria).
+// (helpers/textEmphasis.tsx). The name now lives in the H1 above, so this
+// paragraph opens on "It" instead of re-stating it. "light and sound" is
+// the same linking phrase the About page uses for the same relationship —
+// deliberate repetition, preserved exactly. The closing phrase "on my own
+// terms" links to /about via the shared [text](href) inline-link syntax.
 const ABSTRACT_EDITORIAL_PARAGRAPH_1 =
-  '**Abstract Voyage** started as a name to write under, loose enough to let me study ' +
+  'It started as a name to write under, loose enough to let me study ' +
   'whatever held my attention. It began with how **light and sound** relate. That habit ' +
   'took me to McKinsey, where I kept studying and experimenting. Then AI opened a ' +
   '**question** I wanted to chase [on my own terms](/about).';
-const ABSTRACT_EDITORIAL_PARAGRAPH_2 =
-  'I start by listening to the people closest to the work. That is usually where the ' +
-  'unnamed **risks** are. Once the picture is accurate I plan against **outcomes**, and ' +
-  'we test the plan.';
-const ABSTRACT_EDITORIAL_PARAGRAPHS = [ABSTRACT_EDITORIAL_PARAGRAPH_1, ABSTRACT_EDITORIAL_PARAGRAPH_2];
+const ABSTRACT_EDITORIAL_PARAGRAPHS = [ABSTRACT_EDITORIAL_PARAGRAPH_1];
+
+const COVER_FLOW_DISABLED_REVEAL: CardReveal = {
+  enabled: false,
+  startMs: 0,
+  durationMs: 0,
+  easingCss: 'linear',
+  offsetYPercent: 0,
+};
+// The normal card in the approved composition is 375px wide. Converting
+// its established rem inset and 128px content band into cqw ratios makes
+// those relationships invariant when CoverFlow's card-size control changes.
+const COVER_FLOW_COMPOSITION_REFERENCE_WIDTH_PX = 375;
+const COVER_FLOW_ROOT_REM_PX = 16;
+const COVER_FLOW_CONTENT_BLOCK_HEIGHT = '34.1333cqw';
+const COVER_FLOW_UNSTAGGERED_REVEAL_DELAYS_MS = {
+  topic: 0,
+  date: 0,
+  readingTime: 0,
+  title: 0,
+  excerpt: 0,
+  cta: 0,
+};
 
 const ABSTRACT_GRADIENT_SNAPSHOT_BLEND_MODE = 'overlay';
 const ABSTRACT_GRADIENT_SNAPSHOT_OPACITY = 1;
@@ -456,10 +566,14 @@ const ABSTRACT_LAB_SECTION_APPEARANCE_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_LAB_SECTION_APPEARANCE_SCOPE_ID);
 const ABSTRACT_PAGE_LAYOUT_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_PAGE_LAYOUT_SCOPE_ID);
-const SPLIT_COLUMN_CARD_PREVIEW_DEFINITION =
-  abstractConfigPanelRegistry.resolve(SPLIT_COLUMN_CARD_PREVIEW_SCOPE_ID);
+const ABSTRACT_NARROW_COLUMN_STACK_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID);
+const COVER_FLOW_DEFINITION =
+  abstractConfigPanelRegistry.resolve(COVER_FLOW_SCOPE_ID);
 const SPLIT_COLUMN_CARD_STACK_DEFINITION =
   abstractConfigPanelRegistry.resolve(SPLIT_COLUMN_CARD_STACK_SCOPE_ID);
+const ABSTRACT_TIMELINE_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_TIMELINE_SCOPE_ID);
 
 // This page's own baseline for LiquidSliderConfig — not the component's
 // shared DEFAULT_LIQUID_SLIDER_CONFIG (pages/slider.tsx and pages/about.tsx
@@ -471,14 +585,8 @@ const JOURNAL_DOCK_SLIDER_CONFIG = {
   dockShadowDisableOnNarrow: true,
 };
 
-// Page-level override discarded 2026-08-21 (operator instruction): this
-// page now reads the shared DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG
-// directly rather than its own local copy. Note for future reference — the
-// discarded override existed as the RSP-01 fix (2026-08-20-139d957):
-// showArrowControlsEnabled's shared default (false) hides the prev/next
-// arrow group on every device including touch, leaving no visible
-// affordance that the stack advances there. Reverting to the shared
-// default reintroduces that gap on /abstract for touch devices.
+// CoverFlow keeps the established card-treatment baseline without mounting
+// or exposing the retired CardStack itself.
 
 /**
  * Keeps the configured card width as the column-count target, then lets the
@@ -1351,6 +1459,27 @@ export async function getStaticProps() {
 }
 
 export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
+  // The masthead/welcome item is site introduction, not part of the
+  // article index. CoverFlow and the narrow column's AboutTimeline share
+  // this filtered sequence.
+  const carouselAndListItems = useMemo(
+    () => (dockItems ?? []).filter((item) => item.slug !== 'welcome'),
+    [dockItems],
+  );
+  // AboutTimelineRowData mapping — carouselAndListItems is already exactly
+  // SliderContentSlide-shaped (AbstractPostDockItem is a straight type
+  // alias, helpers/abstractPostDockItems.ts), the same shape /about's own
+  // aboutSlides is. For /abstract, the article topic is metadata rather
+  // than a permanent supporting line: it only appears through
+  // AboutTimeline's opt-in hover category reveal.
+  const abstractTimelineRows = useMemo<ReadonlyArray<AboutTimelineRowData>>(
+    () => carouselAndListItems.map((item, index) => ({
+      caption: item.title,
+      category: item.topic,
+      slideIndex: index,
+    })),
+    [carouselAndListItems],
+  );
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const snapshotAtlasRef = useRef<HTMLCanvasElement | null>(null);
   const gradientSnapshotLayerRefs = useRef<Array<HTMLCanvasElement | null>>([]);
@@ -1415,6 +1544,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const [abstractPageLayoutConfig, setAbstractPageLayoutConfig] =
     useState<AbstractPageLayoutConfig>(() => (
       normalizeAbstractPageLayoutConfig(DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG)
+    ));
+  const [abstractNarrowColumnStackConfig, setAbstractNarrowColumnStackConfig] =
+    useState<AbstractNarrowColumnStackConfig>(() => (
+      normalizeAbstractNarrowColumnStackConfig(DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG)
     ));
   // The split-column branch consumes this complete config; the classic
   // fallback deliberately reads its narrow-column alignment triplet too,
@@ -1484,27 +1617,21 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     && splitColumnHeaderHeightPx !== undefined
     ? `calc(100dvh - ${splitColumnHeaderHeightPx}px)`
     : '100dvh';
-  // What the card stack's own fixed layer (position: fixed, outside normal
-  // flow — see useCardStackLayout's own doc comment) gives back to the
-  // header instead of rendering under, mirroring the wide column's own
-  // choice above. 0 (this page's shipped default): today's only behavior,
-  // unchanged.
-  const cardStackHeaderOffsetPx = splitColumnLayoutConfig.wideColumnHeaderBehavior === 'pushDown'
-    ? (splitColumnHeaderHeightPx ?? 0)
-    : 0;
-  // Tabs-to-card separation inside the narrow column's card preview — see
-  // SplitColumnCardPreview.config.ts's own doc comment.
-  const [splitColumnCardPreviewConfig, setSplitColumnCardPreviewConfig] =
-    useState<SplitColumnCardPreviewConfig>(() => (
-      normalizeSplitColumnCardPreviewConfig(DEFAULT_SPLIT_COLUMN_CARD_PREVIEW_CONFIG)
-    ));
-  // The opt-in vertical card-stack presentation — its own scope/state,
-  // separate from splitColumnCardPreviewConfig above, see
-  // SplitColumnCardPreview/config/stack.ts's own doc comment.
+  // CoverFlow reuses the established card treatment tokens, while the same
+  // live Card stack scope also feeds its inactive-card presentation here.
   const [splitColumnCardStackConfig, setSplitColumnCardStackConfig] =
-    useState<SplitColumnCardStackConfig>(() => (
-      normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG)
-    ));
+    useState(() => normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG));
+  // CoverFlow and the narrow column's AboutTimeline remain independently
+  // tunable through their own live scopes. abstractTimelineConfig is its
+  // own independent instance from /about's own aboutTimelineConfig. The
+  // two pages now intentionally start from synchronized page-owned
+  // defaults, while retaining room for per-page divergence such as marker
+  // size. This page's panel edits never touch /about's state or vice
+  // versa.
+  const [coverFlowConfig, setCoverFlowConfig] =
+    useState(() => normalizeCoverFlowConfig(DEFAULT_COVER_FLOW_CONFIG));
+  const [abstractTimelineConfig, setAbstractTimelineConfig] =
+    useState<AboutTimelineConfig>(() => normalizeAboutTimelineConfig(DEFAULT_ABSTRACT_TIMELINE_CONFIG));
   // Shared across every page via SharedDesignConfigProvider (pages/_app.tsx)
   // — tuning these here reflects on contact.tsx/about.tsx/design-system.tsx
   // too, and vice versa, instead of each page holding its own disconnected
@@ -1832,31 +1959,6 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const colors = usePolymorphicLayoutColors(
     splitColumnLayoutConfig, normalizedPageSurfaceConfig.color, paletteColorResolver,
   );
-  // CardStack's visible layer is fixed to the browser viewport, outside the
-  // flex box PolymorphicLayout normally positions. Translate the currently
-  // active responsive tier into CardStack's generic start/center/end prop so
-  // the same panel field moves the actual cards, not only their zero-height
-  // normal-flow anchor.
-  const resolvedWideColumnVerticalAlign = colors.breakpointTier === 'lg'
-    ? splitColumnLayoutConfig.wideColumnContentVerticalAlignLg
-    : colors.breakpointTier === 'md'
-      ? splitColumnLayoutConfig.wideColumnContentVerticalAlignWide
-      : splitColumnLayoutConfig.wideColumnContentVerticalAlign;
-  const resolvedWideColumnPaddingTop = colors.breakpointTier === 'lg'
-    ? splitColumnLayoutConfig.wideColumnContentPaddingTopLg
-    : colors.breakpointTier === 'md'
-      ? splitColumnLayoutConfig.wideColumnContentPaddingTopWide
-      : splitColumnLayoutConfig.wideColumnContentPaddingTop;
-  const resolvedWideColumnPaddingBottom = colors.breakpointTier === 'lg'
-    ? splitColumnLayoutConfig.wideColumnContentPaddingBottomLg
-    : colors.breakpointTier === 'md'
-      ? splitColumnLayoutConfig.wideColumnContentPaddingBottomWide
-      : splitColumnLayoutConfig.wideColumnContentPaddingBottom;
-  const cardStackVerticalAlign = resolvedWideColumnVerticalAlign.endsWith('justify-start')
-    ? 'start'
-    : resolvedWideColumnVerticalAlign.endsWith('justify-end')
-      ? 'end'
-      : 'center';
   // The authoring shell belongs visually to the surface at the viewport's
   // right edge. In split-column mode it inherits that physical column's
   // resolved color; the classic layout falls back to the page surface
@@ -2081,6 +2183,14 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       onChange: setAbstractPageLayoutConfig,
     }),
     createConfigScopeBinding({
+      definition: ABSTRACT_NARROW_COLUMN_STACK_DEFINITION,
+      value: abstractNarrowColumnStackConfig,
+      onChange: setAbstractNarrowColumnStackConfig,
+      defaultValue: normalizeAbstractNarrowColumnStackConfig(
+        DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG,
+      ),
+    }),
+    createConfigScopeBinding({
       definition: ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
       value: splitColumnLayoutConfig,
       onChange: next => setSplitColumnLayoutConfig(previous => (
@@ -2091,18 +2201,22 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       ),
     }),
     createConfigScopeBinding({
-      definition: SPLIT_COLUMN_CARD_PREVIEW_DEFINITION,
-      value: splitColumnCardPreviewConfig,
-      onChange: setSplitColumnCardPreviewConfig,
+      definition: COVER_FLOW_DEFINITION,
+      value: coverFlowConfig,
+      onChange: setCoverFlowConfig,
+      defaultValue: normalizeCoverFlowConfig(DEFAULT_COVER_FLOW_CONFIG),
     }),
     createConfigScopeBinding({
       definition: SPLIT_COLUMN_CARD_STACK_DEFINITION,
       value: splitColumnCardStackConfig,
       onChange: setSplitColumnCardStackConfig,
-      // No page-level override anymore (see this file's own note above,
-      // line ~433) — reset/"COPY DIFF" compares against the shared scope
-      // default directly.
       defaultValue: normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG),
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_TIMELINE_DEFINITION,
+      value: abstractTimelineConfig,
+      onChange: setAbstractTimelineConfig,
+      defaultValue: normalizeAboutTimelineConfig(DEFAULT_ABSTRACT_TIMELINE_CONFIG),
     }),
   ], [
     dockGradientPerformanceConfig,
@@ -2119,12 +2233,14 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     collectionHeadingConfig,
     editorialHeroConfig,
     splitColumnHeroConfig,
+    coverFlowConfig,
+    abstractTimelineConfig,
     siteHeaderColorOverride,
     ctaButtonColorOverride,
     heroCtaComposerConfig,
     abstractPageLayoutConfig,
+    abstractNarrowColumnStackConfig,
     splitColumnLayoutConfig,
-    splitColumnCardPreviewConfig,
     splitColumnCardStackConfig,
   ]);
   const applicableConfigBindings = useMemo(
@@ -2243,17 +2359,11 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     setAbstractPageLayoutConfig(
       normalizeAbstractPageLayoutConfig(DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG),
     );
+    setAbstractNarrowColumnStackConfig(
+      normalizeAbstractNarrowColumnStackConfig(DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG),
+    );
     setSplitColumnLayoutConfig(
       normalizePolymorphicLayoutConfig(ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG),
-    );
-    setSplitColumnCardPreviewConfig(
-      normalizeSplitColumnCardPreviewConfig(DEFAULT_SPLIT_COLUMN_CARD_PREVIEW_CONFIG),
-    );
-    setSplitColumnCardStackConfig(
-      // No page-level override anymore — see this file's own note above,
-      // line ~433. A panel-wide "reset" now resolves to the shared
-      // component default directly, same as any other non-overridden scope.
-      normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG),
     );
   }, [
     setCtaButtonConfig,
@@ -3298,6 +3408,363 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     }));
   }, []);
 
+  // CoverFlow + the narrow column's AboutTimeline are the split
+  // presentation's single carousel and synchronized index. The legacy
+  // fixed CardStack no longer mounts.
+  const coverFlowPrefersReducedMotion = usePrefersReducedMotion();
+  const isCoverFlowDesktopTier = colors.breakpointTier !== 'mobile';
+  const { ref: coverFlowSectionAnchorRef, rect: coverFlowSectionAnchorRect } =
+    useMeasuredElementRect<HTMLDivElement>([isCoverFlowDesktopTier]);
+  const coverFlowWideColumnStyle = useMemo<CSSProperties>(() => {
+    const anchorLeftPx = coverFlowSectionAnchorRect?.left;
+    const viewportWidthPx = colors.viewportWidthPx;
+    if (anchorLeftPx === undefined || viewportWidthPx === undefined) {
+      return { inset: 0 };
+    }
+    // Below the split (columns stacked, no splitBandBoundaryPx): the wide
+    // column already spans the full viewport width, so the same breakout
+    // math desktop uses collapses to wideColumnLeftPx=0/wideColumnWidthPx=
+    // viewportWidthPx — same edge-to-edge escape from the bounded column's
+    // own pl-7/pr-7 content padding (ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG),
+    // just without a split boundary to branch on. Previously this tier fell
+    // through to `{ inset: 0 }`, which only fills the padded anchor box
+    // itself rather than reaching the true viewport edges — the one
+    // mobile-only regression from this page's 'full-bleed' -> 'bounded'
+    // wideColumnContentContainer migration (see PolymorphicLayout.tsx's own
+    // wideColumn doc comment).
+    if (!isCoverFlowDesktopTier) {
+      return {
+        top: 0,
+        bottom: 0,
+        left: -anchorLeftPx,
+        width: viewportWidthPx,
+      };
+    }
+    const splitBoundaryPx = colors.splitBandBoundaryPx;
+    if (splitBoundaryPx === undefined) {
+      return { inset: 0 };
+    }
+    const wideColumnLeftPx = splitColumnLayoutConfig.wideColumnSide === 'right'
+      ? splitBoundaryPx
+      : 0;
+    const wideColumnWidthPx = splitColumnLayoutConfig.wideColumnSide === 'right'
+      ? viewportWidthPx - splitBoundaryPx
+      : splitBoundaryPx;
+    return {
+      top: 0,
+      bottom: 0,
+      left: wideColumnLeftPx - anchorLeftPx,
+      width: wideColumnWidthPx,
+    };
+  }, [
+    colors.splitBandBoundaryPx,
+    colors.viewportWidthPx,
+    coverFlowSectionAnchorRect?.left,
+    isCoverFlowDesktopTier,
+    splitColumnLayoutConfig.wideColumnSide,
+  ]);
+  const {
+    activeIndex: articleActiveIndex,
+    setActiveIndex: setArticleActiveIndex,
+  } = useArticleListCoverFlowSync(carouselAndListItems.length);
+  // CoverFlow has already moved its MotionValue before it notifies this
+  // controlled state. Keep that compositor-friendly movement ahead of the
+  // page-level selection work: changing the index also refreshes the
+  // synchronized timeline, URL hash, and a large surrounding page tree.
+  // Scheduling that coordination as a transition prevents a 20–30ms
+  // synchronous React commit from occupying the activation frame.
+  const handleCoverFlowActiveIndexChange = useCallback((index: number) => {
+    startTransition(() => {
+      setArticleActiveIndex(index, 'coverflow');
+    });
+  }, [setArticleActiveIndex]);
+  const handleTimelineActiveIndexChange = useCallback((index: number) => {
+    startTransition(() => {
+      setArticleActiveIndex(index, 'list');
+    });
+  }, [setArticleActiveIndex]);
+  const articleSlugs = useMemo(
+    () => carouselAndListItems.map(item => item.slug),
+    [carouselAndListItems],
+  );
+  useArticleHashSync(articleSlugs, articleActiveIndex, setArticleActiveIndex);
+
+  const coverFlowLiquidSliderMotion = useLiquidSliderMotion(journalDockSliderConfig);
+  const coverFlowContentInsetCqw = (
+    journalDockSliderConfig.dockContentInsetRem
+    * COVER_FLOW_ROOT_REM_PX
+    / COVER_FLOW_COMPOSITION_REFERENCE_WIDTH_PX
+    * 100
+  );
+  // Same "base" (uninfluenced) palette branch SplitColumnCardPreview's own
+  // flat mode feeds both basePalette/influencedPalette with when there's no
+  // active-row hue-influence concept to drive (see that component's own
+  // hueFadeArticleBasePalettes/-InfluencedPalettes split) — CoverFlow has no
+  // equivalent either, so it reads the same uninfluenced palette.
+  const coverFlowPalettes = useMemo(
+    () => buildDeckPaletteStates({
+      slides: carouselAndListItems,
+      paletteConfig: dockPaletteConfig,
+      hueInfluenceConfig: { ...dockHueInfluenceConfig, transitionEnabled: false, enabled: false },
+      activeIndex: null,
+    }),
+    [carouselAndListItems, dockPaletteConfig, dockHueInfluenceConfig],
+  );
+
+  // Neighbour "look and feel" — the exact same formula
+  // SplitColumnCardPreview/components/CardStack.tsx resolves internally for
+  // its own neighborTextColorMode==='column' case (that file's own
+  // resolvedNeighborBackgroundColor/-TextColor/-TopicBorderColor/
+  // -CardBorderColor, ~lines 302-345), duplicated here rather than exported
+  // from CardStack.tsx. Reads the normalized shared baseline so CoverFlow's
+  // neighbour cards retain the proven treatment without exposing the
+  // retired component's controls.
+  const coverFlowColumnBackgroundColor = colors.wideColumnColor ?? normalizedPageSurfaceConfig.color;
+  const coverFlowNeighborBackgroundColor = splitColumnCardStackConfig.neighborBackgroundMode === 'transparent'
+    ? 'transparent'
+    : splitColumnCardStackConfig.neighborBackgroundMode === 'custom'
+      ? splitColumnCardStackConfig.neighborBackgroundCustomColor
+      : splitColumnCardStackConfig.neighborBackgroundMode === 'column'
+        ? deriveSurfaceColor(coverFlowColumnBackgroundColor, splitColumnCardStackConfig.neighborBackgroundOffset)
+        : normalizedPageSurfaceConfig.color;
+  const coverFlowNeighborTextContrastTarget = coverFlowNeighborBackgroundColor === 'transparent'
+    ? coverFlowColumnBackgroundColor
+    : coverFlowNeighborBackgroundColor;
+  const coverFlowNeighborTextColor = splitColumnCardStackConfig.neighborTextColorMode === 'column'
+    ? resolveContrastAwareTextColor(
+      coverFlowNeighborTextContrastTarget,
+      splitColumnCardStackConfig.neighborTextMinContrast,
+      splitColumnCardStackConfig.neighborTextOffset,
+    )
+    : splitColumnCardStackConfig.neighborTextColor;
+  const coverFlowNeighborTopicBorderColor = splitColumnCardStackConfig.neighborTextColorMode === 'column'
+    ? coverFlowNeighborTextColor
+    : splitColumnCardStackConfig.neighborTopicBorderColor;
+  const coverFlowNeighborCardBorderColor = deriveTransparentTint(
+    coverFlowNeighborTextColor, splitColumnCardStackConfig.neighborBorderColorOffset,
+  );
+  const coverFlowNeighborFillUnderlay = coverFlowNeighborBackgroundColor === 'transparent'
+    ? coverFlowColumnBackgroundColor
+    : coverFlowNeighborBackgroundColor;
+  const coverFlowNeighborFlatFillColor = deriveOpaqueTint(
+    coverFlowNeighborTextColor,
+    coverFlowNeighborFillUnderlay,
+    splitColumnCardStackConfig.neighborFlatFillOpacity,
+  );
+  const coverFlowNeighborFlatFillToneColor = deriveSurfaceColor(
+    coverFlowNeighborFlatFillColor,
+    splitColumnCardStackConfig.neighborFlatFillToneOffset,
+  );
+  const coverFlowNeighborCardSurfaceColor = splitColumnCardStackConfig.neighborFrameMode === 'flat-fill'
+    ? coverFlowNeighborFlatFillToneColor
+    : coverFlowNeighborBackgroundColor;
+
+  const coverFlowStackPresentationBase = useMemo(() => ({
+    surfaceColor: coverFlowNeighborCardSurfaceColor,
+    frameMode: splitColumnCardStackConfig.neighborFrameMode,
+    textColor: coverFlowNeighborTextColor,
+    topicBorderColor: coverFlowNeighborTopicBorderColor,
+    cardBorderColor: coverFlowNeighborCardBorderColor,
+    headerOpacity: splitColumnCardStackConfig.activeHeaderOpacity,
+    textOpacity: splitColumnCardStackConfig.activeTextOpacity,
+    transitionDurationMs: coverFlowPrefersReducedMotion ? 0 : splitColumnCardStackConfig.stepTiltDurationMs,
+    transitionEasingCss: CTA_BUTTON_MOTION_EASINGS[splitColumnCardStackConfig.stepTiltEasing],
+    transitionDelayMs: 0,
+    gradientRevealDurationMs: coverFlowPrefersReducedMotion
+      ? 0
+      : splitColumnCardStackConfig.neighborGradientRevealDurationMs,
+    gradientRevealEasingCss:
+      CTA_BUTTON_MOTION_EASINGS[splitColumnCardStackConfig.neighborGradientRevealEasing],
+    gradientRevealBlurPx: coverFlowPrefersReducedMotion
+      ? 0
+      : splitColumnCardStackConfig.neighborGradientRevealBlurPx,
+    shadowFadeDurationMs: coverFlowPrefersReducedMotion
+      ? 0
+      : splitColumnCardStackConfig.neighborShadowFadeDurationMs,
+    shadowFadeEasingCss:
+      CTA_BUTTON_MOTION_EASINGS[splitColumnCardStackConfig.neighborShadowFadeEasing],
+    ctaHoverDurationMs: coverFlowPrefersReducedMotion ? 0 : splitColumnCardStackConfig.ctaHoverDurationMs,
+    ctaHoverEasingCss: CTA_BUTTON_MOTION_EASINGS[splitColumnCardStackConfig.ctaHoverEasing],
+    ctaHoverDelayMs: coverFlowPrefersReducedMotion ? 0 : splitColumnCardStackConfig.ctaHoverDelayMs,
+  }), [
+    coverFlowNeighborCardSurfaceColor, coverFlowNeighborTextColor, coverFlowNeighborTopicBorderColor,
+    coverFlowNeighborCardBorderColor, coverFlowPrefersReducedMotion, splitColumnCardStackConfig,
+  ]);
+
+  // Mesh performance state machine — identical to the carousel-lab spike's
+  // own liveMeshIndices (experiences/abstract/components/CoverFlowLab's
+  // proving ground): a card index is "live" (continuous mesh, hover/tilt
+  // responsive) iff it's in this set. The newly active card goes live
+  // immediately; the outgoing one stays live only until its own neutral
+  // cover finishes fading back in (gradientRevealDurationMs), never a "pop"
+  // to a static frame while still visible.
+  const [coverFlowLiveMeshIndices, setCoverFlowLiveMeshIndices] =
+    useState<ReadonlySet<number>>(() => new Set([0]));
+  const coverFlowDeactivationTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const coverFlowPrevActiveIndexRef = useRef(articleActiveIndex);
+  const coverFlowGradientRevealDurationMs = coverFlowStackPresentationBase.gradientRevealDurationMs;
+
+  useEffect(() => {
+    const prevActive = coverFlowPrevActiveIndexRef.current;
+    if (prevActive === articleActiveIndex) return;
+    coverFlowPrevActiveIndexRef.current = articleActiveIndex;
+
+    const pendingForNewActive = coverFlowDeactivationTimersRef.current.get(articleActiveIndex);
+    if (pendingForNewActive !== undefined) {
+      clearTimeout(pendingForNewActive);
+      coverFlowDeactivationTimersRef.current.delete(articleActiveIndex);
+    }
+    setCoverFlowLiveMeshIndices((current) => {
+      if (current.has(articleActiveIndex)) return current;
+      const next = new Set(current);
+      next.add(articleActiveIndex);
+      return next;
+    });
+
+    const timer = setTimeout(() => {
+      coverFlowDeactivationTimersRef.current.delete(prevActive);
+      setCoverFlowLiveMeshIndices((current) => {
+        if (!current.has(prevActive)) return current;
+        const next = new Set(current);
+        next.delete(prevActive);
+        return next;
+      });
+    }, coverFlowGradientRevealDurationMs);
+    coverFlowDeactivationTimersRef.current.set(prevActive, timer);
+  }, [articleActiveIndex, coverFlowGradientRevealDurationMs]);
+
+  useEffect(() => {
+    const timers = coverFlowDeactivationTimersRef.current;
+    return () => { timers.forEach(clearTimeout); };
+  }, []);
+
+  // Drag-vs-tap disambiguation — identical technique to the carousel-lab
+  // spike (each card is the real article <Link>; a mousedown+move
+  // originating on it would otherwise trigger the browser's own native
+  // link-drag instead of reaching CoverFlow's own pointer gesture
+  // recognizer). Capture-phase so it runs before both the anchor's default
+  // navigation and CoverFlow's own bubble-phase click-to-snap handler.
+  const coverFlowPointerDownAtRef = useRef<{ x: number; y: number } | null>(null);
+  const handleCoverFlowCardPointerDownCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    coverFlowPointerDownAtRef.current = { x: event.clientX, y: event.clientY };
+  }, []);
+  const handleCoverFlowCardClickCapture = useCallback((
+    event: ReactMouseEvent<HTMLDivElement>,
+    isActive: boolean,
+  ) => {
+    const origin = coverFlowPointerDownAtRef.current;
+    const distancePx = origin
+      ? Math.hypot(event.clientX - origin.x, event.clientY - origin.y)
+      : 0;
+    coverFlowPointerDownAtRef.current = null;
+    if (distancePx > coverFlowConfig.clickVsDragThresholdPx) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (!isActive) {
+      event.preventDefault();
+    }
+  }, [coverFlowConfig.clickVsDragThresholdPx]);
+
+  const renderCoverFlowItem = useCallback((
+    article: AbstractPostDockItem,
+    index: number,
+    isActive: boolean,
+    geometry: { width: number; height: number },
+    reveal: CoverFlowCardReveal,
+    position: { distanceFromActive: number },
+  ) => {
+    const slot: AbstractJournalLabFlipSlot = {
+      index,
+      article,
+      lab: null,
+      position: { leftPx: 0, topPx: 0, rotationDeg: 0 },
+    };
+    const isMeshLive = coverFlowLiveMeshIndices.has(index);
+    // reveal.hasSettled describes "the currently-active card has settled,"
+    // not "this card is active" (see CoverFlow.tsx's own CoverFlowCardReveal
+    // doc comment) — combined with isActive here so only the real active
+    // card's own information layer actually reveals; every inactive card stays hidden
+    // regardless of the shared hasSettled value.
+    const cardDetailsRevealSettled = isActive && reveal.hasSettled;
+    // CoverFlow's exit timing is always all-content, even when the entrance
+    // is not staggered. Supplying a zero-delay map keeps title/excerpt/CTA on
+    // ArticleCard's shared detailsVisible gate, so the configured exit
+    // delay/duration/easing apply to the entire card information layer.
+    const revealDelaysMs = reveal.stagger?.elementDelaysMs ?? COVER_FLOW_UNSTAGGERED_REVEAL_DELAYS_MS;
+    const columnDarkeningAmount = Math.min(
+      1,
+      position.distanceFromActive * coverFlowConfig.inactiveCardColumnDarkeningStep,
+    );
+    const coverFlowCardSurfaceColor = !isActive
+      && splitColumnCardStackConfig.neighborFrameMode === 'flat-fill'
+      ? blendOpaqueColors(
+        coverFlowStackPresentationBase.surfaceColor,
+        coverFlowColumnBackgroundColor,
+        columnDarkeningAmount,
+      )
+      : coverFlowStackPresentationBase.surfaceColor;
+    return (
+      <div
+        className={`cover-flow-card ${isActive ? 'cover-flow-card--active' : 'cover-flow-card--inactive'}`}
+        data-card-state={isActive ? 'active' : 'inactive'}
+        style={{ width: '100%', height: '100%' }}
+        onDragStart={(event) => event.preventDefault()}
+        onPointerDownCapture={handleCoverFlowCardPointerDownCapture}
+        onClickCapture={(event) => handleCoverFlowCardClickCapture(event, isActive)}
+      >
+        <AbstractJournalLabHueFadeCard
+          slot={slot}
+          targetView="articles"
+          renderedView="articles"
+          colorView="articles"
+          phase="idle"
+          transitioning={false}
+          prefersReducedMotion={coverFlowPrefersReducedMotion}
+          config={journalLabCollectionConfig}
+          motion={coverFlowLiquidSliderMotion}
+          gradientConfig={journalDockSliderConfig}
+          basePalette={coverFlowPalettes?.[index] ?? null}
+          influencedPalette={coverFlowPalettes?.[index] ?? null}
+          visualSlide={article}
+          journalHologramConfig={dockHologramConfig}
+          cardWidthPx={geometry.width}
+          cardHeightPx={geometry.height}
+          cardRadius={resolvedCollectionDockLayoutConfig.cardRadius}
+          layoutConfig={resolvedCollectionDockLayoutConfig}
+          ctaConfig={normalizedCtaButtonConfig}
+          reveal={COVER_FLOW_DISABLED_REVEAL}
+          detailsRevealSettled={cardDetailsRevealSettled}
+          staggerRevealDelaysMs={revealDelaysMs}
+          staggerRevealDurationMs={reveal.stagger?.durationMs}
+          staggerRevealEasingCss={reveal.stagger?.easingCss}
+          staggerRevealExitDelayMs={reveal.exit.delayMs}
+          staggerRevealExitDurationMs={reveal.exit.durationMs}
+          staggerRevealExitEasingCss={reveal.exit.easingCss}
+          cardTypographyScale="proportional"
+          cardProportionalContentInsetCqw={coverFlowContentInsetCqw}
+          cardContentBlockHeight={COVER_FLOW_CONTENT_BLOCK_HEIGHT}
+          meshActivity={isMeshLive ? 'continuous' : 'frozen'}
+          stackNeighborSettled={!isActive && !isMeshLive}
+          stackActiveSlide={isActive}
+          stackPresentation={{
+            ...coverFlowStackPresentationBase,
+            surfaceColor: coverFlowCardSurfaceColor,
+            state: isActive ? 'active' : 'inactive',
+          }}
+        />
+      </div>
+    );
+  }, [
+    coverFlowLiveMeshIndices, handleCoverFlowCardPointerDownCapture, handleCoverFlowCardClickCapture,
+    coverFlowPrefersReducedMotion, journalLabCollectionConfig, coverFlowLiquidSliderMotion,
+    journalDockSliderConfig, coverFlowPalettes, dockHologramConfig, resolvedCollectionDockLayoutConfig,
+    normalizedCtaButtonConfig, coverFlowStackPresentationBase, coverFlowContentInsetCqw,
+    coverFlowColumnBackgroundColor, coverFlowConfig.inactiveCardColumnDarkeningStep,
+    splitColumnCardStackConfig.neighborFrameMode,
+  ]);
+
   return (
     <>
       <SeoHead
@@ -3691,17 +4158,9 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         // floats." The blur is a deliberate visual choice per config, not an
         // automatic consequence of choosing 'float'.
         //
-        // /about's own columns are already full-bleed; /abstract's are
-        // deliberately bounded/centered (config.contentContainer: 'bounded'
-        // — see ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own doc comment) —
-        // switching this to 'full-bleed' was tried and reverted: it lets
-        // SplitColumnCardPreview's own wide column grow past the width its
-        // internal ResizeObserver-driven sizing (and
-        // wideColumnContentWidthWide/-Lg's own 'match-narrow-column' cap —
-        // ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG, resolved by
-        // components/PolymorphicLayout.tsx's own resolveWideColumnContentWidth
-        // — tuned against the bounded box's own width) was built for, which
-        // is what broke its layout.
+        // /about's own columns are full-bleed; /abstract keeps a bounded
+        // content anchor. CoverFlow uses that anchor for card sizing, then
+        // expands its interaction plane to the physical wide-column edges.
         // edgeBackdropEnabled extends whatever colors wideColumnStyle/
         // narrowColumnStyle below actually resolve to out to the true
         // viewport edges — inert when colorSource is 'none' — seamed at the
@@ -3790,6 +4249,14 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           minHeight: wideColumnRowMinHeightCss,
           backgroundColor: colors.wideColumnColor,
         }}
+        // 'viewport' is intentionally not another alias for the bounded
+        // content box's parent-relative `h-full flex-1` behavior. These are
+        // the same live, per-column effective viewport slots used for the
+        // row itself: a floating header overlays 100dvh; a push-down header
+        // reserves its measured height above a box that still ends flush
+        // with the viewport bottom. PolymorphicLayout disables this mode
+        // automatically while the columns stack on mobile.
+        wideColumnContentViewportMinHeight={wideColumnRowMinHeightCss}
         narrowColumnClassName={[
           // No 'items-center' here anymore — the narrow column's own real
           // vertical-centering slack (from narrowColumnStyle's own minHeight
@@ -3816,6 +4283,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           minHeight: narrowColumnRowMinHeightCss,
           backgroundColor: colors.narrowColumnColor,
         }}
+        narrowColumnContentViewportMinHeight={narrowColumnRowMinHeightCss}
         // wideColumn/narrowColumn below are raw content — no page-level
         // WideColumnContent/NarrowColumnContent composition. PolymorphicLayout
         // itself wraps both automatically now that wideColumnContentContainer/
@@ -3827,71 +4295,139 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         // (this page, posts-lab, about) each type out their own subset of
         // ColumnContentBoxProps fields and silently drop different tiers.
         wideColumn={(
-          // SplitColumnCardPreview measures its own container's real width
-          // (ResizeObserver, see that file's own containerRef effect) and
-          // scales the whole card to fill it exactly — it takes no width
-          // opinion of its own (no className override here), filling
-          // whatever box PolymorphicLayout's own coordinator gives it. That
-          // box is exactly what ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own
-          // wideColumnContentWidthWide/-Lg ('match-narrow-column') caps it
-          // to — the container sets the constraint, the content fills it
-          // fluidly, not the other way around.
-          <SplitColumnCardPreview
-            articles={dockItems ?? []}
-            labs={labs ?? []}
-            collectionConfig={journalLabCollectionConfig}
-            config={splitColumnCardPreviewConfig}
-            stackConfig={splitColumnCardStackConfig}
-            headerOffsetPx={cardStackHeaderOffsetPx}
-            stackVerticalAlign={cardStackVerticalAlign}
-            stackVerticalPaddingTopClass={resolvedWideColumnPaddingTop}
-            stackVerticalPaddingBottomClass={resolvedWideColumnPaddingBottom}
-            physicsConfig={normalizedCtaButtonConfig}
-            gradientConfig={journalDockSliderConfig}
-            paletteConfig={dockPaletteConfig}
-            hueInfluenceConfig={dockHueInfluenceConfig}
-            hologramConfig={dockHologramConfig}
-            layoutConfig={resolvedCollectionDockLayoutConfig}
-            cardRadius={resolvedCollectionDockLayoutConfig.cardRadius}
-            surfaceColor={normalizedPageSurfaceConfig.color}
-            columnBackgroundColor={colors.wideColumnColor}
-          />
+          <div
+            ref={coverFlowSectionAnchorRef}
+            data-abstract-cover-flow-section="true"
+            className="relative h-full w-full"
+            style={isCoverFlowDesktopTier ? undefined : { height: '62dvh' }}
+            role="tabpanel"
+            id={ABSTRACT_TIMELINE_PANEL_ID}
+            aria-live="polite"
+          >
+            <div className="absolute" style={coverFlowWideColumnStyle}>
+              <CoverFlow
+                items={carouselAndListItems}
+                activeIndex={articleActiveIndex}
+                onActiveIndexChange={handleCoverFlowActiveIndexChange}
+                renderItem={renderCoverFlowItem}
+                config={coverFlowConfig}
+                cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
+                prefersReducedMotion={coverFlowPrefersReducedMotion}
+                // Same live CtaButtonConfig instance renderCoverFlowItem
+                // already threads into AbstractJournalLabHueFadeCard as
+                // ctaConfig — CoverFlow's own vertical-fit math needs its
+                // proximity scale/lift/tilt maxima to reserve headroom for
+                // that same hover physics, not a second, independently
+                // guessed envelope. tiltMaxDegrees only applies when
+                // tiltEnabled is actually on — otherwise useCardLiftPhysics
+                // never rotates the card at all, so reserving tilt headroom
+                // for it would just shrink the card for no visual reason.
+                hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
+                hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
+                hoverMaxTiltDeg={
+                  normalizedCtaButtonConfig.tiltEnabled ? normalizedCtaButtonConfig.tiltMaxDegrees : 0
+                }
+                hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
+              />
+            </div>
+          </div>
         )}
         narrowColumn={(
-          <AbstractEditorialHero
-            headline={ABSTRACT_EDITORIAL_HEADLINE}
-            paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
-            actionInkTone={actionsTone}
-            config={normalizedSplitColumnHeroConfig}
-            horizontalPlacement={
-              NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
-                splitColumnLayoutConfig.narrowColumnContentAlign
-              ]
-            }
-            horizontalPlacementWide={
-              NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_WIDE[
-                splitColumnLayoutConfig.narrowColumnContentAlignWide
-              ]
-            }
-            horizontalPlacementLg={
-              NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG[
-                splitColumnLayoutConfig.narrowColumnContentAlignLg
-              ]
-            }
-            copyInkTone={contentTone}
-            ctaConfig={normalizedCtaButtonConfig}
-            heroCtaComposerConfig={normalizedHeroCtaComposerConfig}
-            gradientHeadlineActive={heroContentPresentationActive}
-            gradientDebugCanvasRef={heroHeadlineDebugCanvasRef}
-            gradientDebugPanelOpen={isPanelOpen}
-            headlineCanvasRef={heroHeadlineCanvasRef}
-            headlineRef={heroHeadlineRef}
-            layoutMode={gridLayoutActive ? 'editorial' : heroLayoutMode}
-            surfaceColor={normalizedPageSurfaceConfig.color}
-            columnBackgroundColor={colors.narrowColumnColor}
+          <AbstractNarrowColumnStack
+            config={abstractNarrowColumnStackConfig}
+            top={(
+              <div data-abstract-editorial-section="true">
+                <AbstractEditorialHero
+                headline={ABSTRACT_EDITORIAL_HEADLINE}
+                paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
+                actionInkTone={actionsTone}
+                config={normalizedSplitColumnHeroConfig}
+                horizontalPlacement={
+                  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
+                    splitColumnLayoutConfig.narrowColumnContentAlign
+                  ]
+                }
+                horizontalPlacementWide={
+                  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_WIDE[
+                    splitColumnLayoutConfig.narrowColumnContentAlignWide
+                  ]
+                }
+                horizontalPlacementLg={
+                  NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG[
+                    splitColumnLayoutConfig.narrowColumnContentAlignLg
+                  ]
+                }
+                copyInkTone={contentTone}
+                ctaConfig={normalizedCtaButtonConfig}
+                heroCtaComposerConfig={normalizedHeroCtaComposerConfig}
+                gradientHeadlineActive={heroContentPresentationActive}
+                gradientDebugCanvasRef={heroHeadlineDebugCanvasRef}
+                gradientDebugPanelOpen={isPanelOpen}
+                headlineCanvasRef={heroHeadlineCanvasRef}
+                headlineRef={heroHeadlineRef}
+                layoutMode={gridLayoutActive ? 'editorial' : heroLayoutMode}
+                surfaceColor={normalizedPageSurfaceConfig.color}
+                columnBackgroundColor={colors.narrowColumnColor}
+                />
+              </div>
+            )}
+            bottom={(
+              <div data-abstract-article-list-section="true">
+                <AboutTimeline
+                  rows={abstractTimelineRows}
+                  activeIndex={articleActiveIndex}
+                  onSelect={handleTimelineActiveIndexChange}
+                  accentColor={carouselAndListItems[articleActiveIndex]?.accent ?? '#ffffff'}
+                  columnBackgroundColor={colors.narrowColumnColor}
+                  config={abstractTimelineConfig}
+                  prefersReducedMotion={coverFlowPrefersReducedMotion}
+                  panelId={ABSTRACT_TIMELINE_PANEL_ID}
+                  // Same gradient-marker inputs renderCoverFlowItem already
+                  // threads into CoverFlow's own cards (carouselAndListItems
+                  // is exactly SliderContentSlide-shaped, coverFlowPalettes/
+                  // coverFlowLiquidSliderMotion/journalDockSliderConfig are
+                  // the same live instances) — the marker mesh matches
+                  // whatever the active CoverFlow card is already showing,
+                  // not a second, independently-configured gradient.
+                  gradientSlides={carouselAndListItems}
+                  gradientPaletteStates={coverFlowPalettes}
+                  gradientMotion={coverFlowLiquidSliderMotion}
+                  gradientConfig={journalDockSliderConfig}
+                />
+              </div>
+            )}
           />
         )}
       >
+        {/* Neighbour title/excerpt hiding for CoverFlow's cards — same
+            mechanism the carousel-lab spike proved (see that file's own
+            doc comment for the full reasoning): layered on top of
+            AbstractJournalLabCollection's own color-based neighbour
+            treatment (stackPresentation above the wideColumn prop) rather
+            than replacing it, since opacity is a property that component
+            never touches itself. A plain class modifier
+            (cover-flow-card--inactive), not an attribute selector — a
+            quoted attribute-selector value inside this interpolated CSS
+            string hit a real Next.js dev-mode SSR/CSR text-content
+            hydration mismatch (confirmed live) on the quote character,
+            which a plain class selector has none of to hit. Placed as a
+            direct PolymorphicLayout child (not nested inside the
+            wideColumn prop's own JSX, where it previously sat) because
+            that nesting also produced a spurious "non-boolean attribute
+            jsx/global" console warning — carousel-lab.tsx's own identical
+            style tag, a flat top-level child there too, never shows it. */}
+        <style jsx global>{`
+          .cover-flow-card .${articleCardStyles.titleInk} {
+            transition: opacity var(--article-card-appearance-duration, 300ms)
+              var(--article-card-appearance-easing, ease) var(--article-card-appearance-delay, 0ms);
+          }
+          .cover-flow-card--inactive .${articleCardStyles.titleInk} {
+            opacity: 0;
+          }
+          .cover-flow-card--inactive .${articleCardStyles.hoverReveal} {
+            opacity: 0 !important;
+          }
+        `}</style>
         {showAuthoringTools ? (
           <PanelShell
             title="ABSTRACT SETTINGS"

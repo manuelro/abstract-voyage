@@ -146,6 +146,13 @@ export type PolymorphicLayoutBandMode = 'transparent' | 'custom' | 'syncWithColu
  * SplitColumnPageShell.tsx's own contentContainer prop, which this
  * mirrors structurally, not by import). */
 export type PolymorphicLayoutContentContainer = 'bounded' | 'full-bleed';
+/**
+ * `auto`: intrinsic content height.
+ * `full`: fills the resolved height of the parent column.
+ * `viewport`: fills the page-provided effective viewport slot (for example,
+ * the viewport less a push-down header) while the columns are side by side.
+ */
+export type PolymorphicLayoutContentHeight = 'auto' | 'full' | 'viewport';
 
 // Promoted from pages/posts-lab/postLab.config.ts (PLAN-SPLIT-COLUMN-LAYOUT-ENRICHMENT-EXTRACTION.md
 // Stage 1) — the entire "Posts lab page layout" scope, relocated here
@@ -378,6 +385,10 @@ export type PolymorphicLayoutConfig = {
    * real value, since its content (the AbstractPostDock) was never meant
    * to be width-capped or centered within its own column. */
   wideColumnContentContainer: PolymorphicLayoutContentContainer;
+  /** Wide-column counterpart to narrowColumnContentHeight. Kept separate so
+   * pages can give a full-height canvas/carousel slot to one column without
+   * changing the other column's intrinsic content flow. */
+  wideColumnContentHeight: PolymorphicLayoutContentHeight;
   /** Same idea as wideColumnContentContainer, for the narrow column's own
    * children (gates narrowColumnContentAlignWide/narrowColumnContentWidthWide/
    * narrowColumnTextAlign/narrowColumnContentMinHeight). Independent of
@@ -386,6 +397,13 @@ export type PolymorphicLayoutConfig = {
    * narrowColumnHeaderBehavior already being independently configurable
    * per column elsewhere in this same type. */
   narrowColumnContentContainer: PolymorphicLayoutContentContainer;
+  /** Controls the bounded narrow-column content box's vertical contract:
+   * intrinsic height ('auto', the shared default), the available height of
+   * its parent column ('full'), or the page-provided effective viewport slot
+   * ('viewport'). 'full' remains parent-relative and is applied to both
+   * layers of the content-box primitive. 'viewport' is independently sized
+   * so it is not coupled to an incidental grid-row height. */
+  narrowColumnContentHeight: PolymorphicLayoutContentHeight;
   /** See PolymorphicLayoutHeaderScrollBehavior's own doc comment. Base/
    * mobile tier (<768px) — resolved live against the current breakpoint by
    * PolymorphicLayout.tsx's own `tier()` helper (the same one every other
@@ -1005,7 +1023,9 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   // zero visual change, verified by the reasoning above rather than by
   // trying to force this page's real DOM into the generic shared shape.
   wideColumnContentContainer: 'full-bleed',
+  wideColumnContentHeight: 'auto',
   narrowColumnContentContainer: 'full-bleed',
+  narrowColumnContentHeight: 'auto',
   headerScrollBehavior: 'static',
   headerScrollBehaviorWide: 'static',
   headerScrollBehaviorLg: 'static',
@@ -1329,6 +1349,7 @@ const BAND_MODES: ReadonlyArray<PolymorphicLayoutBandMode> = [
 const CONTENT_CONTAINER_VALUES: ReadonlyArray<PolymorphicLayoutContentContainer> = [
   'bounded', 'full-bleed',
 ];
+const CONTENT_HEIGHT_VALUES: ReadonlyArray<PolymorphicLayoutContentHeight> = ['auto', 'full', 'viewport'];
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
@@ -1425,10 +1446,20 @@ export function normalizePolymorphicLayoutConfig(
       CONTENT_CONTAINER_VALUES,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wideColumnContentContainer,
     ),
+    wideColumnContentHeight: token(
+      base.wideColumnContentHeight,
+      CONTENT_HEIGHT_VALUES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wideColumnContentHeight,
+    ),
     narrowColumnContentContainer: token(
       base.narrowColumnContentContainer,
       CONTENT_CONTAINER_VALUES,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnContentContainer,
+    ),
+    narrowColumnContentHeight: token(
+      base.narrowColumnContentHeight,
+      CONTENT_HEIGHT_VALUES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnContentHeight,
     ),
     headerScrollBehavior: token(
       base.headerScrollBehavior,

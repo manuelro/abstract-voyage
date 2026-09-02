@@ -7,6 +7,8 @@ import {
 import {
   ABOUT_PAGE_LAYOUT_PANEL,
   ABOUT_PAGE_LAYOUT_SCOPE_ID,
+  ABOUT_TIMELINE_PANEL,
+  ABOUT_TIMELINE_SCOPE_ID,
   ABOUT_TOP_SEGMENT_GRADIENT_PANEL,
   ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID,
   ABOUT_DOCK_PALETTE_PANEL,
@@ -18,10 +20,6 @@ import {
   ABOUT_MOBILE_ACCORDION_PANEL,
   ABOUT_MOBILE_ACCORDION_SCOPE_ID,
 } from '../experiences/about/components/AboutMobileAccordion.panel';
-import {
-  ABOUT_TIMELINE_PANEL,
-  ABOUT_TIMELINE_SCOPE_ID,
-} from '../experiences/about/components/AboutTimeline.panel';
 
 // SiteHeaderColorOverride and ABOUT_POLYMORPHIC_LAYOUT_PANEL have
 // no entries here — /about owns a complete, independent instance of each,

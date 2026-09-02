@@ -357,6 +357,12 @@ function joinClasses(...classes: ReadonlyArray<string | false | undefined>): str
   return classes.filter(Boolean).join(' ');
 }
 
+// Passed through the otherwise-generic content wrapper to page-owned layout
+// primitives that need a *definite* height to partition a viewport slot (the
+// /abstract narrow stack is one such primitive). Kept as a custom property
+// rather than a new page-specific prop on PolymorphicLayout.
+const VIEWPORT_CONTENT_HEIGHT_CSS_VAR = '--polymorphic-content-viewport-height';
+
 /** The body columns' own bottom content-container assembly — outer grid-
  * cell padding/margin/vertical-align classes, mirroring
  * pages/posts-lab/[slug].tsx's own former wideColumnClassName/
@@ -501,6 +507,15 @@ export interface ColumnContentBoxProps {
   verticalAlignWide?: string;
   verticalAlignLg?: string;
   minHeight?: string;
+  /** Makes both content-box layers consume their parent column's available
+   * height. The inner layer matters for page-owned grid/flex slot layouts. */
+  fillHeight?: boolean;
+  /** The usable portion of an effective viewport slot, supplied by the owning
+   * page when `*ColumnContentHeight` resolves to 'viewport'. Unlike
+   * fillHeight, this is intentionally independent of the parent grid row. It
+   * is a minimum so longer content remains in normal document flow instead of
+   * being clipped. */
+  viewportMinHeight?: CSSProperties['minHeight'];
   /** Adds `[container-type:inline-size]` to the outer box — for content
    * that needs a CSS Container Query context (e.g. a `cqw`-based
    * responsive font-size), same mechanism about.tsx's own former
@@ -534,12 +549,22 @@ function ColumnContentBox({
   verticalAlignWide,
   verticalAlignLg,
   minHeight,
+  fillHeight,
+  viewportMinHeight,
   containerQuery,
   outerClassName,
   outerStyle,
   debugLabel,
   children,
 }: ColumnContentBoxProps) {
+  const outerStyleWithViewportMinHeight = viewportMinHeight === undefined
+    ? outerStyle
+    : {
+      ...outerStyle,
+      minHeight: viewportMinHeight,
+      [VIEWPORT_CONTENT_HEIGHT_CSS_VAR]: viewportMinHeight,
+    };
+
   return (
     <div
       className={joinClasses(
@@ -552,6 +577,7 @@ function ColumnContentBox({
         // align-items at its default (normal → stretch) value. An explicit
         // width class doesn't depend on that ancestor negotiation succeeding.
         'relative flex w-full flex-col',
+        fillHeight ? 'h-full flex-1' : '',
         containerQuery ? '[container-type:inline-size]' : '',
         verticalAlign,
         verticalAlignWide,
@@ -559,12 +585,13 @@ function ColumnContentBox({
         minHeight,
         outerClassName,
       )}
-      style={outerStyle}
+      style={outerStyleWithViewportMinHeight}
     >
       <div
         data-column-content-box={debugLabel.startsWith('WIDE') ? 'wide' : 'narrow'}
         className={joinClasses(
           'relative',
+          fillHeight ? 'h-full flex-1' : '',
           width && width !== 'auto' ? `w-full ${width}` : '',
           widthWide && widthWide !== 'auto' ? `w-full ${widthWide}` : '',
           widthLg && widthLg !== 'auto' ? `w-full ${widthLg}` : '',
@@ -643,7 +670,19 @@ function resolveWideColumnContentWidth(
  * field) makes that class of bug structurally impossible: the
  * config-field-to-prop mapping lives in exactly one place, so every tier a
  * page didn't explicitly override is still live, not silently dropped. */
-export function wideColumnContentBoxProps(config: PolymorphicLayoutConfig): ColumnContentBoxProps {
+type ColumnContentBoxViewportOptions = {
+  /** The exact viewport slot resolved by the page. Defaults to raw 100dvh
+   * for direct consumers that do not have page-shell-specific header math. */
+  viewportMinHeight?: CSSProperties['minHeight'];
+  /** A stacked layout has no shared viewport slot between columns, so the
+   * viewport mode deliberately returns to intrinsic content flow there. */
+  viewportHeightEnabled?: boolean;
+};
+
+export function wideColumnContentBoxProps(
+  config: PolymorphicLayoutConfig,
+  viewportOptions: ColumnContentBoxViewportOptions = {},
+): ColumnContentBoxProps {
   return {
     align: config.wideColumnContentAlign,
     alignWide: config.wideColumnContentAlignWide,
@@ -665,13 +704,21 @@ export function wideColumnContentBoxProps(config: PolymorphicLayoutConfig): Colu
     verticalAlignWide: config.wideColumnContentVerticalAlignWide,
     verticalAlignLg: config.wideColumnContentVerticalAlignLg,
     minHeight: config.wideColumnContentMinHeight,
+    fillHeight: config.wideColumnContentHeight === 'full',
+    viewportMinHeight: config.wideColumnContentHeight === 'viewport'
+      && viewportOptions.viewportHeightEnabled !== false
+      ? viewportOptions.viewportMinHeight ?? '100dvh'
+      : undefined,
     debugLabel: 'WIDE COLUMN CONTENT',
     children: null,
   };
 }
 
 /** See `wideColumnContentBoxProps`'s own doc comment. */
-export function narrowColumnContentBoxProps(config: PolymorphicLayoutConfig): ColumnContentBoxProps {
+export function narrowColumnContentBoxProps(
+  config: PolymorphicLayoutConfig,
+  viewportOptions: ColumnContentBoxViewportOptions = {},
+): ColumnContentBoxProps {
   return {
     align: config.narrowColumnContentAlign,
     alignWide: config.narrowColumnContentAlignWide,
@@ -689,6 +736,11 @@ export function narrowColumnContentBoxProps(config: PolymorphicLayoutConfig): Co
     verticalAlignWide: config.narrowColumnContentVerticalAlignWide,
     verticalAlignLg: config.narrowColumnContentVerticalAlignLg,
     minHeight: config.narrowColumnContentMinHeight,
+    fillHeight: config.narrowColumnContentHeight === 'full',
+    viewportMinHeight: config.narrowColumnContentHeight === 'viewport'
+      && viewportOptions.viewportHeightEnabled !== false
+      ? viewportOptions.viewportMinHeight ?? '100dvh'
+      : undefined,
     debugLabel: 'NARROW COLUMN CONTENT',
     children: null,
   };
@@ -720,6 +772,11 @@ export type PolymorphicLayoutProps = {
   narrowColumnClassName?: string;
   wideColumnStyle?: CSSProperties;
   narrowColumnStyle?: CSSProperties;
+  /** Page-resolved effective viewport slots for the bounded content boxes.
+   * `/abstract` supplies `100dvh` for floating headers and subtracts its
+   * measured header height for push-down columns. */
+  wideColumnContentViewportMinHeight?: CSSProperties['minHeight'];
+  narrowColumnContentViewportMinHeight?: CSSProperties['minHeight'];
   className?: string;
   style?: CSSProperties;
   backgroundColor?: string;
@@ -770,6 +827,8 @@ export function PolymorphicLayout({
   narrowColumnClassName,
   wideColumnStyle,
   narrowColumnStyle,
+  wideColumnContentViewportMinHeight,
+  narrowColumnContentViewportMinHeight,
   className,
   style,
   backgroundColor,
@@ -796,6 +855,14 @@ export function PolymorphicLayout({
   const headerScrollBehaviorForTier = <T,>(base: T, wide: T, lg: T): T => (
     headerScrollBreakpointTier === 'lg' ? lg : headerScrollBreakpointTier === 'md' ? wide : base
   );
+  const columnsAreSideBySide = headerScrollBreakpointTier === 'lg'
+    ? normalizedConfig.narrowColumnWidthTierLg !== 'stacked'
+    : headerScrollBreakpointTier === 'md'
+      ? normalizedConfig.narrowColumnWidthTierMd !== 'stacked'
+      : false;
+  const viewportContentBoxOptions: ColumnContentBoxViewportOptions = {
+    viewportHeightEnabled: columnsAreSideBySide,
+  };
 
   // *ColumnClearsFloatingHeader (base/Wide/Lg) — see
   // those fields' own doc comments (PolymorphicLayout.config.ts). Live
@@ -911,6 +978,60 @@ export function PolymorphicLayout({
     }
     : undefined;
 
+  // A viewport-content box is a child of the padded grid cell, not the grid
+  // cell itself. Giving it the raw viewport slot makes the grid's intrinsic
+  // row height become `viewport + block padding`: e.g. a 100dvh box inside
+  // `pt-16 pb-16` contributes 100dvh + 128px. That is the vertical overflow
+  // reported on /abstract and, because grid items stretch by default, also
+  // makes the other column's centered content appear to move. Resolve the
+  // child floor against the cell's *actual* usable block space instead. The
+  // floating-header overrides are deliberately included: their `max()` value
+  // is the rendered padding and can exceed the configured Tailwind token.
+  const activeColumnPaddingPx = (
+    base: string,
+    wide: string,
+    lg: string,
+    override: CSSProperties['paddingTop' | 'paddingBottom'] | undefined,
+  ): string => String(override ?? `${tailwindSpacingTokenToPx(
+    headerScrollBehaviorForTier(base, wide, lg),
+    0,
+  )}px`);
+  const usableViewportContentMinHeight = (
+    viewportSlot: CSSProperties['minHeight'] | undefined,
+    paddingTop: string,
+    paddingBottom: string,
+  ): CSSProperties['minHeight'] => `calc(${viewportSlot ?? '100dvh'} - ${paddingTop} - ${paddingBottom})`;
+  const wideViewportContentMinHeight = usableViewportContentMinHeight(
+    wideColumnContentViewportMinHeight,
+    activeColumnPaddingPx(
+      normalizedConfig.wideColumnContentPaddingTop,
+      normalizedConfig.wideColumnContentPaddingTopWide,
+      normalizedConfig.wideColumnContentPaddingTopLg,
+      wideColumnClearsFloatingHeaderStyle?.paddingTop,
+    ),
+    activeColumnPaddingPx(
+      normalizedConfig.wideColumnContentPaddingBottom,
+      normalizedConfig.wideColumnContentPaddingBottomWide,
+      normalizedConfig.wideColumnContentPaddingBottomLg,
+      wideColumnClearsFloatingHeaderStyle?.paddingBottom,
+    ),
+  );
+  const narrowViewportContentMinHeight = usableViewportContentMinHeight(
+    narrowColumnContentViewportMinHeight,
+    activeColumnPaddingPx(
+      normalizedConfig.narrowColumnContentPaddingTop,
+      normalizedConfig.narrowColumnContentPaddingTopWide,
+      normalizedConfig.narrowColumnContentPaddingTopLg,
+      narrowColumnClearsFloatingHeaderStyle?.paddingTop,
+    ),
+    activeColumnPaddingPx(
+      normalizedConfig.narrowColumnContentPaddingBottom,
+      normalizedConfig.narrowColumnContentPaddingBottomWide,
+      normalizedConfig.narrowColumnContentPaddingBottomLg,
+      narrowColumnClearsFloatingHeaderStyle?.paddingBottom,
+    ),
+  );
+
   // mobileNavAlignEnabled's own internal capture — SplitColumnPageShell's
   // onNavAlignmentChange fires with the full, live SplitColumnNavAlignment
   // object (including mobileNavAlignBasePx) whenever it changes; this
@@ -973,7 +1094,10 @@ export function PolymorphicLayout({
         normalizedConfig.wideColumnContentContainer === 'full-bleed'
           ? wideColumn
           : (
-            <WideColumnContent {...wideColumnContentBoxProps(normalizedConfig)}>
+            <WideColumnContent {...wideColumnContentBoxProps(normalizedConfig, {
+              ...viewportContentBoxOptions,
+              viewportMinHeight: wideViewportContentMinHeight,
+            })}>
               {wideColumn}
             </WideColumnContent>
           )
@@ -981,7 +1105,10 @@ export function PolymorphicLayout({
       narrowColumn={
         normalizedConfig.narrowColumnContentContainer === 'full-bleed'
           ? narrowColumn
-          : <NarrowColumnContent {...narrowColumnContentBoxProps(normalizedConfig)}>{narrowColumn}</NarrowColumnContent>
+          : <NarrowColumnContent {...narrowColumnContentBoxProps(normalizedConfig, {
+            ...viewportContentBoxOptions,
+            viewportMinHeight: narrowViewportContentMinHeight,
+          })}>{narrowColumn}</NarrowColumnContent>
       }
       wideColumnClassName={buildWideColumnClassName(normalizedConfig, wideColumnClassName)}
       narrowColumnClassName={buildNarrowColumnClassName(normalizedConfig, narrowColumnClassName)}

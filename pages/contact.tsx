@@ -70,6 +70,7 @@ import {
   clearPendingComposerDraft,
   peekPendingComposerDraft,
 } from '../helpers/pendingComposerDraft'
+import { renderEmphasisText } from '../helpers/textEmphasis'
 
 const intakeEndpoint = '/.netlify/functions/intake'
 
@@ -82,6 +83,14 @@ const REPLY_WINDOW_TEXT = process.env.NEXT_PUBLIC_REPLY_WINDOW_TEXT || ''
 const ENTRY_MESSAGE = `Hello. I’m ${AGENT_NAME}, an agent Manuel engineered. Listening is the part of his work I handle.
 
 Tell me what’s going on. It doesn’t need to be polished. Whatever you say reaches him as you said it, and he reads all of it himself.`
+
+// Moved here from the /abstract homepage (that page's own hero now carries
+// only the origin-story paragraph) — this is the "how I work" paragraph,
+// read as context above the composer rather than as a pitch.
+const CONTACT_INTRO_PARAGRAPH =
+  'I start by listening to the people closest to the work. That is usually where the ' +
+  'unnamed **risks** are. Once the picture is accurate I plan against **outcomes**, and ' +
+  'we test the plan.'
 
 // Shown once (after gap-check/recap has failed multiple times in a row —
 // see autoRetryMaxCount) and merged with the identity ask in the same turn,
@@ -1475,6 +1484,20 @@ export default function ContactPage() {
                 className={`flex h-full min-h-0 w-full flex-col gap-6 overflow-x-clip pb-20 pt-4 font-sans text-[color:var(--contact-primary)] lg:translate-y-[var(--contact-optical-y)] lg:py-10 ${PAGE_CONTENT_GUTTER_CLASSNAME}`}
               >
                 <div className="mx-auto flex h-full min-h-0 w-full max-w-[var(--contact-conversation-max)] flex-col pt-6">
+                  {/* Static, outside GuidedIntake entirely — it owns no part
+                      of that component's hero-phase/FLIP-transform machinery
+                      (see the animation notes below), so this can't disturb
+                      it. flex-shrink-0 so it only adds height, never
+                      compresses the conversation area beneath it. */}
+                  <p
+                    className="mb-6 flex-shrink-0 max-w-[var(--contact-message-measure)] text-[length:var(--contact-conversation-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-muted)]"
+                  >
+                    {renderEmphasisText(
+                      CONTACT_INTRO_PARAGRAPH,
+                      contactConfig.mutedTextOpacity,
+                      1,
+                    )}
+                  </p>
                   <GuidedIntake
                     // Changing scenario remounts GuidedIntake outright — its
                     // existing unmount cleanup effect already aborts any in-flight

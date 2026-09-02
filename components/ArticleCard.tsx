@@ -19,12 +19,13 @@ export type ArticleCardInteractiveMode =
   | 'cta-link'
   | 'whole-card'
   | 'parent-link';
-/** 'fluid' (default): title/excerpt scale continuously off the card's own
- * container size (cqmin) -- tuned for standalone/grid use at any size.
- * 'dock': the abstract page's original dock typography -- a two-step size
- * (not continuous) that jumps at a 480px container width, matching the
- * dock/deck/scattered look before this component existed. */
-export type ArticleCardTypographyScale = 'fluid' | 'dock';
+/** 'fluid' (default): title/excerpt scale continuously off the card's most
+ * constrained axis (cqmin), with readability clamps for mixed aspect ratios.
+ * 'dock': the abstract page's established dock typography, also clamped for
+ * deck/scattered contexts. 'proportional': an unclamped card-width coordinate
+ * system for fixed-aspect compositions such as CoverFlow, where typography,
+ * spacing, and wrapping must remain visually identical as the card scales. */
+export type ArticleCardTypographyScale = 'fluid' | 'dock' | 'proportional';
 /** 'none' (default): a static card. 'lift': the same proximity-driven
  * lift/tilt/scale + layered shadow CtaButton uses (via useCardLiftPhysics)
  * -- for contexts where the card itself is a physical, "pick this up"
@@ -71,6 +72,10 @@ export type ArticleCardProps = {
    * component's own generically-tuned default. */
   contentInsetRem?: number;
   contentInsetWideRem?: number;
+  /** Card-width-relative inset used by the proportional typography mode.
+   * Expressed directly in cqw so its ratio cannot be interrupted by rem
+   * floors/ceilings as the card changes size. */
+  proportionalContentInsetCqw?: number;
   /** See `ArticleCardTypographyScale`. Defaults to 'fluid'. */
   typographyScale?: ArticleCardTypographyScale;
   /** Caps the title+excerpt block to a fixed height, top-aligned within it
@@ -152,6 +157,55 @@ export type ArticleCardProps = {
   /** `title-and-summary` is for an editorial lead card whose reading order
    * should begin with the idea, not category/date/action chrome. */
   contentMode?: ArticleCardContentMode;
+  /** Opt-in: extends the same `detailsVisible`/`.detailFade` reveal gate
+   * above (today: topic/date/reading-time, and the CTA whenever
+   * `ctaHoverOnly` is false) to the title and excerpt too, with every one
+   * of the six elements' own `transition-delay` driven by this map instead
+   * of the fixed 80/150/220ms schedule those three already use — for a
+   * caller (e.g. CoverFlow, once its own `staggeredCardRevealEnabled` is
+   * on) that wants a deliberately-ordered staggered reveal across the
+   * whole card instead of just the meta row. A key omitted from the map
+   * falls back to its own existing default (topic 0ms — appears first,
+   * unchanged from `detailFade`'s own inert default; date 80ms; reading-
+   * time 150ms; cta 220ms; title/excerpt 0ms, since neither has a
+   * pre-existing default of its own to fall back to). Undefined (default):
+   * today's behavior — title/excerpt always visible regardless of
+   * `detailsVisible`, topic/date/reading-time/cta on their original fixed
+   * schedule. */
+  staggerRevealDelaysMs?: {
+    topic?: number;
+    date?: number;
+    readingTime?: number;
+    title?: number;
+    excerpt?: number;
+    cta?: number;
+  };
+  /** Overrides the shared `--article-card-detail-fade-duration`/`-easing`
+   * custom properties (below) every `.detailFade` element already reads —
+   * only meaningful together with `staggerRevealDelaysMs` above. One
+   * shared duration/easing across the whole staggered sequence, matching
+   * this repo's own convention for this kind of reveal (only the delay is
+   * staggered per element) — see CoverFlow.config.ts's own
+   * `staggeredCardRevealElementDurationMs`/`-EasingCss` doc comments for
+   * the full rationale. Falls back to `ARTICLE_CARD_DETAIL_FADE_MS`/
+   * `-EASING_CSS` when omitted, same as every other caller. */
+  staggerRevealDurationMs?: number;
+  staggerRevealEasingCss?: string;
+  /** The reverse of `staggerRevealDelaysMs` above: while a `.detailFade`
+   * element is *leaving* (detailsVisible flips to false), every one of them
+   * — regardless of whichever entrance delay it has, staggered or not —
+   * fades out together as one shared motion instead of replaying its own
+   * entrance delay backwards. A staggered entrance reads as a deliberate
+   * sequence; a staggered exit reads as the UI breaking apart at different
+   * times, so this unification is not opt-in — every `detailsVisible`
+   * caller gets it. Only the *timing* is configurable: this delay, plus
+   * `staggerRevealExitDurationMs`/`-EasingCss` below. All three default to
+   * `0`/`ARTICLE_CARD_DETAIL_FADE_MS`/`-EASING_CSS` (the same base reveal
+   * language every other `.detailFade` transition already uses) when a
+   * caller doesn't override them. */
+  staggerRevealExitDelayMs?: number;
+  staggerRevealExitDurationMs?: number;
+  staggerRevealExitEasingCss?: string;
 };
 
 export function ArticleCard({
@@ -176,6 +230,7 @@ export function ArticleCard({
   detailsVisible = true,
   contentInsetRem,
   contentInsetWideRem,
+  proportionalContentInsetCqw = 10.6667,
   typographyScale = 'fluid',
   contentBlockHeight,
   contentStyle,
@@ -190,6 +245,12 @@ export function ArticleCard({
   ctaLabel = 'Read article',
   excerptHoverOnly = false,
   contentMode = 'full',
+  staggerRevealDelaysMs,
+  staggerRevealDurationMs,
+  staggerRevealEasingCss,
+  staggerRevealExitDelayMs,
+  staggerRevealExitDurationMs,
+  staggerRevealExitEasingCss,
 }: ArticleCardProps) {
   const isExternal = Boolean(forceExternalNavigation && externalUrl);
   const hasLink = Boolean(href && href !== '#');
@@ -198,9 +259,11 @@ export function ArticleCard({
   const cssGradient = backgroundImage
     ? `url(${backgroundImage}) center / cover no-repeat`
     : getArticleCardFallbackBackground(seed);
-  const contentPadding = contentInsetRem !== undefined
-    ? `clamp(${contentInsetRem}rem, 6cqmin, ${contentInsetWideRem ?? contentInsetRem}rem)`
-    : undefined;
+  const contentPadding = typographyScale === 'proportional'
+    ? `${Number.isFinite(proportionalContentInsetCqw) ? Math.max(0, proportionalContentInsetCqw) : 10.6667}cqw`
+    : contentInsetRem !== undefined
+      ? `clamp(${contentInsetRem}rem, 6cqmin, ${contentInsetWideRem ?? contentInsetRem}rem)`
+      : undefined;
 
   const physicsEnabled = physics === 'lift';
   const {
@@ -247,8 +310,16 @@ export function ArticleCard({
   // caused on small scattered cards. Line-height doesn't need that -- it's
   // a ratio, not a size -- so it's Tailwind's own tested leading-* utility
   // instead of a hand-picked number.
-  const titleClassName = typographyScale === 'dock' ? `${styles.dockTitle} leading-tight` : styles.title;
-  const excerptClassName = typographyScale === 'dock' ? `${styles.dockExcerpt} leading-normal` : styles.excerpt;
+  const titleClassName = typographyScale === 'proportional'
+    ? `${styles.proportionalTitle} leading-tight`
+    : typographyScale === 'dock'
+      ? `${styles.dockTitle} leading-tight`
+      : styles.title;
+  const excerptClassName = typographyScale === 'proportional'
+    ? `${styles.proportionalExcerpt} leading-normal`
+    : typographyScale === 'dock'
+      ? `${styles.dockExcerpt} leading-normal`
+      : styles.excerpt;
   const stackStyle: CSSProperties = contentBlockHeight ? {
     height: contentBlockHeight,
     alignSelf: 'center',
@@ -291,8 +362,16 @@ export function ArticleCard({
           willChange: 'transform, opacity',
           ...(contentPadding ? { padding: contentPadding } : {}),
           ...contentStyle,
-          '--article-card-detail-fade-duration': `${ARTICLE_CARD_DETAIL_FADE_MS}ms`,
-          '--article-card-detail-fade-easing': ARTICLE_CARD_DETAIL_FADE_EASING_CSS,
+          '--article-card-detail-fade-duration':
+            `${staggerRevealDurationMs ?? ARTICLE_CARD_DETAIL_FADE_MS}ms`,
+          '--article-card-detail-fade-easing': staggerRevealEasingCss ?? ARTICLE_CARD_DETAIL_FADE_EASING_CSS,
+          // Leaving never staggers, regardless of the entrance's own
+          // per-element delays above — see ArticleCard.module.css's own
+          // `:where(.content[data-details-visible='false']) .detailFade`
+          // rule and staggerRevealExitDelayMs's own doc comment.
+          '--reveal-exit-delay': `${staggerRevealExitDelayMs ?? 0}ms`,
+          '--reveal-exit-duration': `${staggerRevealExitDurationMs ?? ARTICLE_CARD_DETAIL_FADE_MS}ms`,
+          '--reveal-exit-easing': staggerRevealExitEasingCss ?? ARTICLE_CARD_DETAIL_FADE_EASING_CSS,
         } as CSSProperties}
         data-details-visible={detailsVisible ? 'true' : 'false'}
       >
@@ -311,21 +390,49 @@ export function ArticleCard({
               // never shifts with how many lines it wraps to -- otherwise the
               // title below it (row 2) starts at a different height per card
               // depending on each post's own topic/date/reading-time length.
-              style={typographyScale === 'dock' ? { minHeight: '4.2em' } : undefined}
+              style={typographyScale !== 'fluid' ? { minHeight: '4.2em' } : undefined}
               className="articleCardMeta flex flex-wrap items-center font-mono uppercase"
-              topicClassName="articleCardTopic rounded-full border uppercase"
+              // Topic joins the same detailFade/data-details-visible gate
+              // date/reading-time/cta already use — previously always
+              // opaque regardless of detailsVisible, which left it out of
+              // step with the rest of the meta row's own reveal. Inert
+              // (opacity stays 1) for every caller that never sets
+              // detailsVisible false, exactly like the rest of this gate.
+              topicClassName={`articleCardTopic rounded-full border uppercase ${styles.detailFade}`}
+              topicStyle={{ '--reveal-enter-delay': `${staggerRevealDelaysMs?.topic ?? 0}ms` } as CSSProperties}
               dateClassName={`articleCardDate ${styles.detailFade}`}
-              dateStyle={{ transitionDelay: '80ms' }}
+              dateStyle={{ '--reveal-enter-delay': `${staggerRevealDelaysMs?.date ?? 80}ms` } as CSSProperties}
               readingTimeClassName={`articleCardReadingTime ${styles.detailFade}`}
-              readingTimeStyle={{ transitionDelay: '150ms' }}
+              readingTimeStyle={
+                { '--reveal-enter-delay': `${staggerRevealDelaysMs?.readingTime ?? 150}ms` } as CSSProperties
+              }
               dotClassName="articleCardSeparator"
+              topicDateSeparatorClassName={styles.detailFade}
+              topicDateSeparatorStyle={
+                { '--reveal-enter-delay': `${staggerRevealDelaysMs?.date ?? 80}ms` } as CSSProperties
+              }
               readingTimeSeparatorClassName={`articleCardReadingTime ${styles.detailFade}`}
-              readingTimeSeparatorStyle={{ transitionDelay: '150ms' }}
+              readingTimeSeparatorStyle={
+                { '--reveal-enter-delay': `${staggerRevealDelaysMs?.readingTime ?? 150}ms` } as CSSProperties
+              }
             />
           ) : null}
         </div>
         <div className={`${styles.stack} flex min-h-0 flex-col justify-center`} style={stackStyle}>
-          <h2 className={`${titleClassName} ${styles.titleInk} max-w-full font-sans font-medium tracking-normal [overflow-wrap:anywhere]`}>
+          <h2
+            className={[
+              titleClassName,
+              `${styles.titleInk} max-w-full font-sans font-medium tracking-normal [overflow-wrap:anywhere]`,
+              // Only joins the detailsVisible reveal gate while a caller
+              // actually supplies staggerRevealDelaysMs — omitted (default),
+              // the title stays exactly as always: unconditionally visible,
+              // no dependency on detailsVisible at all.
+              staggerRevealDelaysMs ? styles.detailFade : '',
+            ].filter(Boolean).join(' ')}
+            style={staggerRevealDelaysMs
+              ? { '--reveal-enter-delay': `${staggerRevealDelaysMs.title ?? 0}ms` } as CSSProperties
+              : undefined}
+          >
             {title}
           </h2>
           {excerpt && excerptLines > 0 ? (
@@ -334,7 +441,9 @@ export function ArticleCard({
                 excerptClassName,
                 `${styles.excerptInk} max-w-[44rem]`,
                 (contentMode === 'title-and-summary' || excerptVisible)
-                  ? (contentMode === 'full' && excerptHoverOnly ? styles.hoverReveal : '')
+                  ? (staggerRevealDelaysMs
+                    ? styles.detailFade
+                    : contentMode === 'full' && excerptHoverOnly ? styles.hoverReveal : '')
                   : 'invisible',
               ].filter(Boolean).join(' ')}
               // 'dock' scale never line-clamped by excerptLines -- the original
@@ -351,7 +460,17 @@ export function ArticleCard({
               // excerptVisible true + excerptHoverOnly instead fades via
               // .hoverReveal (same group-hover/focus-within mechanism as the
               // CTA's own ctaHoverOnly, see .hoverReveal in the CSS module).
-              style={typographyScale === 'dock' ? undefined : { maxHeight: `${excerptLines * 1.5}em` }}
+              // staggerRevealDelaysMs (opt-in, see that prop's own doc
+              // comment) takes over the excerpt's own reveal instead of
+              // .hoverReveal when both would otherwise apply — a caller
+              // opting into the staggered sequence wants the excerpt tied
+              // to the card settling, not to a live pointer hover.
+              style={{
+                ...(typographyScale === 'fluid' ? { maxHeight: `${excerptLines * 1.5}em` } : {}),
+                ...(staggerRevealDelaysMs
+                  ? { '--reveal-enter-delay': `${staggerRevealDelaysMs.excerpt ?? 0}ms` }
+                  : {}),
+              } as CSSProperties}
             >
               {excerpt}
             </p>
@@ -368,7 +487,7 @@ export function ArticleCard({
                     transitionDelay: ctaHoverDelayMs !== undefined ? `${ctaHoverDelayMs}ms` : undefined,
                   }
                 : undefined)
-              : { transitionDelay: '220ms' }}
+              : { '--reveal-enter-delay': `${staggerRevealDelaysMs?.cta ?? 220}ms` } as CSSProperties}
           >
             {cta}
           </div>
@@ -379,6 +498,7 @@ export function ArticleCard({
 
   const appearanceProps = {
     'data-appearance': appearance,
+    'data-typography-scale': typographyScale,
   } as const;
 
   if (wholeCardIsLink) {

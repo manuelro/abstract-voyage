@@ -3,11 +3,14 @@ import { POLYMORPHIC_LAYOUT_FIELDS } from '../experiences/abstract/components/Po
 import type { PolymorphicLayoutConfig } from '../experiences/abstract/components/PolymorphicLayout.config';
 import {
   ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG,
+  DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
+  type AbstractNarrowColumnStackConfig,
   type AbstractPageLayoutConfig,
 } from './abstract.config';
 
 export const ABSTRACT_PAGE_LAYOUT_SCOPE_ID = 'AbstractPage/layout' as const;
+export const ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID = 'AbstractPage/narrowColumnStack' as const;
 
 // /abstract's own instance of the shared PolymorphicLayoutConfig field
 // structure (components/PolymorphicLayout.panel.ts's own
@@ -67,6 +70,98 @@ export const ABSTRACT_PAGE_LAYOUT_PANEL = defineConfigScope<AbstractPageLayoutCo
     targetFile: 'pages/abstract.config.ts',
     targetSymbol: 'DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG',
     targetType: 'AbstractPageLayoutConfig',
+    updateStrategy: 'replace_scope',
+    completeScope: true,
+  },
+});
+
+const HORIZONTAL_ALIGN_OPTIONS = [
+  { label: 'START', value: 'start' },
+  { label: 'CENTER', value: 'center' },
+  { label: 'END', value: 'end' },
+  { label: 'STRETCH', value: 'stretch' },
+] as const;
+const VERTICAL_ALIGN_OPTIONS = [
+  { label: 'START', value: 'start' },
+  { label: 'CENTER', value: 'center' },
+  { label: 'END', value: 'end' },
+] as const;
+
+export const ABSTRACT_NARROW_COLUMN_STACK_PANEL = defineConfigScope<AbstractNarrowColumnStackConfig>({
+  id: ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID,
+  component: 'AbstractNarrowColumnStack',
+  scope: 'layout',
+  title: 'Narrow column stack',
+  createdAt: '2026-09-01',
+  summary: 'Top and bottom region proportions and content alignment',
+  defaultOpen: false,
+  defaultValue: DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG,
+  fields: [
+    {
+      kind: 'group',
+      label: 'Region proportions',
+      fields: [
+        {
+          kind: 'number',
+          key: 'topRegionPercent',
+          label: 'Top region weight',
+          description: 'Top region share of the available height. The top and bottom values are normalized as relative weights so the stack always fills its parent.',
+          min: 1,
+          max: 99,
+          step: 1,
+        },
+        {
+          kind: 'number',
+          key: 'bottomRegionPercent',
+          label: 'Bottom region weight',
+          description: 'Bottom region share of the available height. Defaults to 62 against the top region\'s 38.',
+          min: 1,
+          max: 99,
+          step: 1,
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Top content',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'topHorizontalAlign',
+          label: 'Horizontal alignment',
+          options: HORIZONTAL_ALIGN_OPTIONS,
+        },
+        {
+          kind: 'enum',
+          key: 'topVerticalAlign',
+          label: 'Vertical alignment',
+          options: VERTICAL_ALIGN_OPTIONS,
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Bottom content',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'bottomHorizontalAlign',
+          label: 'Horizontal alignment',
+          options: HORIZONTAL_ALIGN_OPTIONS,
+        },
+        {
+          kind: 'enum',
+          key: 'bottomVerticalAlign',
+          label: 'Vertical alignment',
+          options: VERTICAL_ALIGN_OPTIONS,
+        },
+      ],
+    },
+  ],
+  copy: {
+    targetFile: 'pages/abstract.config.ts',
+    targetSymbol: 'DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG',
+    targetType: 'AbstractNarrowColumnStackConfig',
     updateStrategy: 'replace_scope',
     completeScope: true,
   },

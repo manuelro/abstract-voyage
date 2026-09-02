@@ -315,6 +315,26 @@ export type SplitColumnCardStackConfig = {
    * renders the same text color at 50% opacity while hovered. */
   neighborBorderHoverOpacity: number;
 
+  /** The inactive card's edge treatment. 'border' (default) preserves the
+   * existing transparent text-tint perimeter. 'flat-fill' instead paints an
+   * opaque, flat face derived from the same resolved neighbor text color;
+   * this is intentionally a mode rather than a second layer, so cards can
+   * overlap without their fills accumulating. */
+  neighborFrameMode: 'border' | 'flat-fill';
+  /** Only meaningful when neighborFrameMode is 'flat-fill'. This is the
+   * equivalent alpha used to composite the resolved neighbor text color over
+   * the card's real surface, yielding one opaque pigment via
+   * deriveOpaqueTint. Dark text therefore darkens the surface; light text
+   * lightens it. No CSS opacity is painted, so overlapping cards stay
+   * visually stable. */
+  neighborFlatFillOpacity: number;
+  /** Only meaningful when neighborFrameMode is 'flat-fill'. Signed HSL
+   * lightness adjustment applied after the opaque text/surface composite:
+   * negative darkens, positive lightens. This is separate from the
+   * equivalent-opacity control above so an operator can darken a fill even
+   * when the contrast-aware text resolver selected a light ink color. */
+  neighborFlatFillToneOffset: number;
+
   /** Duration/easing for the active card's "Read article" CTA fading in on
    * hover/focus (ArticleCard's own `ctaHoverOnly`/`.hoverReveal`) — a
    * dedicated pair rather than reusing stepTiltDurationMs/stepTiltEasing,
@@ -581,6 +601,9 @@ export const DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG = {
   neighborTextMinContrast: 4.5,
   neighborBorderColorOffset: .28,
   neighborBorderHoverOpacity: 0.5,
+  neighborFrameMode: 'flat-fill',
+  neighborFlatFillOpacity: 1,
+  neighborFlatFillToneOffset: -0.45,
   ctaHoverDurationMs: 420,
   ctaHoverEasing: 'gentle',
   ctaHoverDelayMs: 150,
@@ -642,6 +665,8 @@ const NEIGHBOR_BACKGROUND_MODES: ReadonlyArray<SplitColumnCardStackConfig['neigh
   ['surface', 'transparent', 'custom', 'column'];
 const NEIGHBOR_TEXT_COLOR_MODES: ReadonlyArray<SplitColumnCardStackConfig['neighborTextColorMode']> =
   ['custom', 'column'];
+const NEIGHBOR_FRAME_MODES: ReadonlyArray<SplitColumnCardStackConfig['neighborFrameMode']> =
+  ['border', 'flat-fill'];
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
@@ -717,6 +742,13 @@ export function normalizeSplitColumnCardStackConfig(
     ),
     neighborBorderHoverOpacity: clamp(
       base.neighborBorderHoverOpacity, 0, 1, D.neighborBorderHoverOpacity,
+    ),
+    neighborFrameMode: token(base.neighborFrameMode, NEIGHBOR_FRAME_MODES, D.neighborFrameMode),
+    neighborFlatFillOpacity: clamp(
+      base.neighborFlatFillOpacity, 0, 1, D.neighborFlatFillOpacity,
+    ),
+    neighborFlatFillToneOffset: clamp(
+      base.neighborFlatFillToneOffset, -1, 1, D.neighborFlatFillToneOffset,
     ),
     ctaHoverDurationMs: clamp(base.ctaHoverDurationMs, 0, 1200, D.ctaHoverDurationMs),
     ctaHoverEasing: token(base.ctaHoverEasing, MOTION_EASINGS, D.ctaHoverEasing),

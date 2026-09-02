@@ -42,6 +42,51 @@ export function deriveTransparentTint(color: string, opacityFraction: number): s
 }
 
 /**
+ * Paints `foregroundColor` over `backgroundColor` at `opacityFraction`, but
+ * returns the resulting *opaque* color instead of an rgba value. This gives
+ * an operator the familiar opacity control while keeping a flat card face
+ * stable when cards overlap: every card receives the same final pigment,
+ * rather than repeatedly alpha-compositing into the cards behind it.
+ *
+ * The direction is inherent in the two colors. A darker foreground darkens
+ * the underlay and a lighter foreground lightens it, so callers can derive
+ * the foreground with resolveContrastAwareTextColor and retain its
+ * light/dark decision without a second, disconnected color knob.
+ */
+export function deriveOpaqueTint(
+  foregroundColor: string,
+  backgroundColor: string,
+  opacityFraction: number,
+): string {
+  const opacity = Math.min(1, Math.max(0, Number.isFinite(opacityFraction) ? opacityFraction : 0));
+  const foreground = colord(foregroundColor).toRgb();
+  const background = colord(backgroundColor).toRgb();
+  const blend = (foregroundChannel: number, backgroundChannel: number) => (
+    Math.round(foregroundChannel * opacity + backgroundChannel * (1 - opacity))
+  );
+
+  return colord({
+    r: blend(foreground.r, background.r),
+    g: blend(foreground.g, background.g),
+    b: blend(foreground.b, background.b),
+  }).toHex();
+}
+
+/** Returns one opaque RGB interpolation between two valid colors. Keeping
+ * this opaque is important for overlapping coverflow cards: alpha would
+ * compound with every card behind it instead of describing one stable face. */
+export function blendOpaqueColors(fromColor: string, toColor: string, amount: number): string {
+  const ratio = Math.min(1, Math.max(0, Number.isFinite(amount) ? amount : 0));
+  const from = colord(fromColor).toRgb();
+  const to = colord(toColor).toRgb();
+  return colord({
+    r: Math.round(from.r + (to.r - from.r) * ratio),
+    g: Math.round(from.g + (to.g - from.g) * ratio),
+    b: Math.round(from.b + (to.b - from.b) * ratio),
+  }).toHex();
+}
+
+/**
  * Picks a legible tint of backgroundColor's own hue for text over it. Both
  * darker and lighter candidates are considered: a binary search finds the
  * closest passing lightness on each side, then the candidate nearest the

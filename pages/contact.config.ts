@@ -60,7 +60,9 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   // equivalent in this scope's 3-tier bodyGutterPadding* fields.
   contentContainer: 'full-bleed',
   wideColumnContentContainer: 'full-bleed',
+  wideColumnContentHeight: 'auto',
   narrowColumnContentContainer: 'full-bleed',
+  narrowColumnContentHeight: 'auto',
   // /contact's header renders in normal document flow today (not
   // fixed/sticky) — reproduced exactly by 'static'
   // (components/SplitColumnPageShell.tsx's own HEADER_POSITION_CLASS).

@@ -19,6 +19,9 @@ import styles from './CardStack.module.css';
 export type CardStackSlotPresentation = {
   state: 'active' | 'inactive';
   surfaceColor: string;
+  /** Whether the inactive face uses its established perimeter or the
+   * config-driven opaque flat fill. */
+  frameMode: 'border' | 'flat-fill';
   textColor: string;
   topicBorderColor: string;
   /** The card's own outer border — the exact same textColor, at reduced
@@ -204,6 +207,7 @@ export type CardStackSlotProps<TItem> = {
    * the settle-grace doc comment below for what it's used for. */
   settleOpacityEasingCss: string;
   resolvedNeighborBackgroundColor: string;
+  resolvedNeighborFrameMode: SplitColumnCardStackConfig['neighborFrameMode'];
   resolvedNeighborTextColor: string;
   resolvedNeighborTopicBorderColor: string;
   resolvedNeighborCardBorderColor: string;
@@ -287,6 +291,7 @@ export function CardStackSlot<TItem>({
   resolvedNeighborTopicBorderColor,
   resolvedNeighborCardBorderColor,
   resolvedNeighborCardBorderHoverColor,
+  resolvedNeighborFrameMode,
   prefersReducedMotion,
   cardRadius,
   hasHoverPointer,
@@ -572,6 +577,7 @@ export function CardStackSlot<TItem>({
           presentation: {
             state: presentationState,
             surfaceColor: resolvedNeighborBackgroundColor,
+            frameMode: resolvedNeighborFrameMode,
             textColor: resolvedNeighborTextColor,
             topicBorderColor: resolvedNeighborTopicBorderColor,
             cardBorderColor: hoverBorderActive

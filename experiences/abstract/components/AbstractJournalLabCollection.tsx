@@ -12,7 +12,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import ArticleCard from '../../../components/ArticleCard';
+import ArticleCard, { type ArticleCardTypographyScale } from '../../../components/ArticleCard';
 import type { SectionHeadingConfig } from '../../../components/SectionHeading.config';
 import {
   DEFAULT_CTA_BUTTON_CONFIG,
@@ -47,6 +47,7 @@ import {
   type LiquidSliderConfig,
   type LiquidSliderMotion,
 } from './AbstractPostDock';
+import type { AbstractPostDockGradientActivity } from './AbstractPostDock/helpers/gradientActivity';
 import {
   normalizeAbstractPostDockPaletteConfig,
   normalizeAbstractPostDockHueInfluenceConfig,
@@ -560,6 +561,24 @@ export type HueFadeCardProps = {
   cardRadius: string;
   layoutConfig: AbstractPostDockLayoutConfig;
   reveal: CardReveal;
+  /** Optional ArticleCard information-scale override. CoverFlow uses the
+   * fixed-aspect proportional mode; all established collection/dock callers
+   * retain the existing dock mode by omission. */
+  cardTypographyScale?: ArticleCardTypographyScale;
+  cardProportionalContentInsetCqw?: number;
+  cardContentBlockHeight?: string;
+  /** Passthrough to LiquidGradientAdapter's own `activity` prop — that
+   * component already supports 'continuous'/'frozen'/'suspended' render-loop
+   * ownership (see AbstractPostDock/helpers/gradientActivity.ts), but until
+   * now nothing above it ever exposed a way to set it, so every mesh here
+   * ran 'continuous' unconditionally regardless of caller. Optional,
+   * defaults to 'continuous' — every existing caller that doesn't pass this
+   * sees zero behavior change. A caller managing many simultaneously-
+   * mounted cards (e.g. several receded neighbours in a carousel) can pass
+   * 'frozen' for cards it has already determined don't need a live render
+   * loop, stopping that work instead of paying for it off-screen or behind
+   * a fully-opaque cover. */
+  meshActivity?: AbstractPostDockGradientActivity;
   /** Tilt/lift/shadow physics tuning for this card — same shape CtaButton
    * itself uses (useCardLiftPhysics is the shared engine both are built
    * on). Optional and defaults to the module's own CTA constant
@@ -650,6 +669,8 @@ export type HueFadeCardProps = {
   stackPresentation?: {
     state: 'active' | 'inactive';
     surfaceColor: string;
+    /** Inactive-card frame treatment from the shared stack config. */
+    frameMode: 'border' | 'flat-fill';
     /** Neighbor (inactive)-only — label/meta/title/excerpt/separator/CTA
      * color, applied as an inline override of ArticleCard.module.css's own
      * `[data-appearance='neutral']` block (see stackAppearanceStyle below).
@@ -697,6 +718,45 @@ export type HueFadeCardProps = {
      * ctaHoverDelayMs below. */
     ctaHoverDelayMs: number;
   };
+  /** Opt-in: gates the meta row's own (topic/date/reading-time)
+   * `ArticleCard` `detailsVisible`/`.detailFade` reveal on this value
+   * instead of the component's own permanent "always visible" default —
+   * for a carousel-style caller (CoverFlow) that wants a card's meta row
+   * hidden while inactive and faded in only once the card has settled as
+   * the active one (`CoverFlow`'s own `reveal.hasSettled`, see
+   * `CoverFlow.tsx`). Omitted (default): today's behavior for every
+   * existing caller — meta row always visible. */
+  detailsRevealSettled?: boolean;
+  /** Opt-in, only meaningful together with `staggerRevealDelaysMs` below —
+   * forwarded straight to `ArticleCard`'s own identically-named prop
+   * (see that prop's own doc comment, components/ArticleCard.tsx) once
+   * set, this also switches the CTA from its usual hover-triggered reveal
+   * (`ctaHoverOnly`, below) to the same settle-gated one the meta row/
+   * title/excerpt use — a caller opting into the full staggered sequence
+   * wants the CTA's own reveal tied to "this card just became active," not
+   * to a live pointer hover, which the two would otherwise fight over on
+   * the same element. Omitted: `ctaHoverOnly` keeps its own original,
+   * unrelated value (today's behavior). */
+  staggerRevealDelaysMs?: {
+    topic?: number;
+    date?: number;
+    readingTime?: number;
+    title?: number;
+    excerpt?: number;
+    cta?: number;
+  };
+  staggerRevealDurationMs?: number;
+  staggerRevealEasingCss?: string;
+  /** Forwarded straight to `ArticleCard`'s own identically-named props (see
+   * those props' own doc comments, components/ArticleCard.tsx) — the
+   * shared, non-staggered exit timing every `detailsVisible` caller gets
+   * unconditionally (unlike `staggerRevealDelaysMs` above, this isn't
+   * opt-in: leaving never staggers regardless of whether entering does).
+   * Omitted: `ArticleCard`'s own defaults (0ms delay, the shared
+   * `ARTICLE_CARD_DETAIL_FADE_MS`/`-EASING_CSS` constant). */
+  staggerRevealExitDelayMs?: number;
+  staggerRevealExitDurationMs?: number;
+  staggerRevealExitEasingCss?: string;
 };
 
 /**
@@ -726,6 +786,10 @@ export function AbstractJournalLabHueFadeCard({
   cardRadius,
   layoutConfig,
   reveal,
+  cardTypographyScale = 'dock',
+  cardProportionalContentInsetCqw,
+  cardContentBlockHeight = 'clamp(5rem, 26cqh, 8rem)',
+  meshActivity,
   ctaConfig = CTA,
   stackActiveSlide = false,
   stackNeighborSettled = false,
@@ -734,6 +798,13 @@ export function AbstractJournalLabHueFadeCard({
   stackPresentation,
   hasHoverPointer = true,
   titleAndSummaryOnly = false,
+  detailsRevealSettled,
+  staggerRevealDelaysMs,
+  staggerRevealDurationMs,
+  staggerRevealEasingCss,
+  staggerRevealExitDelayMs,
+  staggerRevealExitDurationMs,
+  staggerRevealExitEasingCss,
 }: HueFadeCardProps) {
   const visibilityRef = useRef<HTMLAnchorElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -1224,7 +1295,7 @@ export function AbstractJournalLabHueFadeCard({
   } as CSSProperties : undefined;
   const background = (
     <div
-      className={`absolute inset-0 overflow-hidden ${cardRadius}`}
+      className="absolute inset-0"
       style={{
         background: getArticleCardFallbackBackground(visualSlide.seed),
       }}
@@ -1234,6 +1305,7 @@ export function AbstractJournalLabHueFadeCard({
           slide={visualSlide}
           motion={motion}
           config={gradientConfig}
+          activity={meshActivity}
           palette={activePalette}
           hologramConfig={journalHologramConfig}
           hologramInteraction={interactionRef}
@@ -1244,8 +1316,9 @@ export function AbstractJournalLabHueFadeCard({
       {stackPresentation ? (
         <div
           aria-hidden="true"
-          className={styles.stackNeutralSurface}
+          className={`${styles.stackNeutralSurface} ${cardRadius}`}
           data-visible={inactiveStackPresentation ? 'true' : 'false'}
+          data-frame-mode={stackPresentation.frameMode}
           // Only while this card is actually crossing the neighbor/active
           // boundary (never at rest, either fully covered or fully
           // uncovered) — see styles.module.css's own [data-transitioning]
@@ -1328,20 +1401,32 @@ export function AbstractJournalLabHueFadeCard({
               interactive="parent-link"
               physics="none"
               aspectRatio="fill"
-              typographyScale="dock"
+              typographyScale={cardTypographyScale}
               contentInsetRem={gradientConfig.dockContentInsetRem}
               contentInsetWideRem={gradientConfig.dockContentInsetWideRem}
-              contentBlockHeight="clamp(5rem, 26cqh, 8rem)"
+              proportionalContentInsetCqw={cardProportionalContentInsetCqw}
+              contentBlockHeight={cardContentBlockHeight}
               contentStyle={contentStyle}
               appearance={inactiveStackPresentation ? 'neutral' : 'gradient'}
               excerptVisible={layoutConfig.descriptionVisible}
               excerptHoverOnly={stackActiveSlide ? false : layoutConfig.descriptionHoverReveal}
-              ctaHoverOnly={!titleAndSummaryOnly}
+              // staggerRevealDelaysMs (opt-in) switches the CTA away from
+              // its usual hover-triggered reveal to the same settle-gated
+              // one the rest of the staggered sequence uses — see this
+              // component's own staggerRevealDelaysMs doc comment above.
+              ctaHoverOnly={staggerRevealDelaysMs ? false : !titleAndSummaryOnly}
               ctaHoverDurationMs={stackPresentation?.ctaHoverDurationMs}
               ctaHoverEasingCss={stackPresentation?.ctaHoverEasingCss}
               ctaHoverDelayMs={stackPresentation?.ctaHoverDelayMs}
               ctaLabel={payloadLab ? 'View lab' : 'Read article'}
               contentMode={titleAndSummaryOnly ? 'title-and-summary' : 'full'}
+              detailsVisible={detailsRevealSettled}
+              staggerRevealDelaysMs={staggerRevealDelaysMs}
+              staggerRevealDurationMs={staggerRevealDurationMs}
+              staggerRevealEasingCss={staggerRevealEasingCss}
+              staggerRevealExitDelayMs={staggerRevealExitDelayMs}
+              staggerRevealExitDurationMs={staggerRevealExitDurationMs}
+              staggerRevealExitEasingCss={staggerRevealExitEasingCss}
               className={cardRadius}
               style={stackAppearanceStyle}
               background={background}

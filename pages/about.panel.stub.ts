@@ -22,6 +22,13 @@ export const ABOUT_PAGE_LAYOUT_SCOPE_ID: any = (() => {
   })
   return p
 })()
+export const ABOUT_TIMELINE_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
 export const ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
@@ -51,6 +58,13 @@ export const ABOUT_POLYMORPHIC_LAYOUT_PANEL: any = (() => {
   return p
 })()
 export const ABOUT_PAGE_LAYOUT_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const ABOUT_TIMELINE_PANEL: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
     apply() { return undefined },

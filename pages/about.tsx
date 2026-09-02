@@ -88,6 +88,7 @@ import {
 import { SpacefieldBackground } from '../experiences/spacefield/SpacefieldBackground';
 import {
   ABOUT_POLYMORPHIC_LAYOUT_CONFIG,
+  DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG,
   DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG,
   DEFAULT_ABOUT_TOP_SEGMENT_GRADIENT_CONFIG,
   ABOUT_DEFAULT_DOCK_PALETTE_CONFIG,
@@ -99,6 +100,7 @@ import {
 } from './about.config';
 import {
   ABOUT_PAGE_LAYOUT_SCOPE_ID,
+  ABOUT_TIMELINE_SCOPE_ID,
   ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID,
   ABOUT_DOCK_PALETTE_SCOPE_ID,
   ABOUT_DOCK_LAYOUT_SCOPE_ID,
@@ -116,11 +118,9 @@ import {
 import { ABOUT_MOBILE_ACCORDION_SCOPE_ID } from '../experiences/about/components/AboutMobileAccordion.panel';
 import { AboutTimeline } from '../experiences/about/components/AboutTimeline';
 import {
-  DEFAULT_ABOUT_TIMELINE_CONFIG,
   normalizeAboutTimelineConfig,
   type AboutTimelineConfig,
 } from '../experiences/about/components/AboutTimeline.config';
-import { ABOUT_TIMELINE_SCOPE_ID } from '../experiences/about/components/AboutTimeline.panel';
 import styles from './about.module.css';
 
 // Below this width, splitLeft/splitRight stack top/bottom instead of
@@ -430,11 +430,11 @@ function AboutPageContent() {
       () => normalizeAboutMobileAccordionConfig(DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG),
     );
   // CMP-01/CFG-01 (about-IA-timeline-copy-rework) — the desktop left-column
-  // timeline's own component-owned scope, same "own local state, shared
+  // timeline's own page-owned scope, same "own local state, shared
   // schema" shape aboutMobileAccordionConfig above already uses.
   const [aboutTimelineConfig, setAboutTimelineConfig] =
     useState<AboutTimelineConfig>(
-      () => normalizeAboutTimelineConfig(DEFAULT_ABOUT_TIMELINE_CONFIG),
+      () => normalizeAboutTimelineConfig(DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG),
     );
   const [topSegmentGradientConfig, setTopSegmentGradientConfig] =
     useState<AboutTopSegmentGradientConfig>(
@@ -1352,7 +1352,7 @@ function AboutPageContent() {
       normalizeAboutMobileAccordionConfig(DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG),
     );
     setAboutTimelineConfig(
-      normalizeAboutTimelineConfig(DEFAULT_ABOUT_TIMELINE_CONFIG),
+      normalizeAboutTimelineConfig(DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG),
     );
     setTopSegmentGradientConfig(
       normalizeAboutTopSegmentGradientConfig(DEFAULT_ABOUT_TOP_SEGMENT_GRADIENT_CONFIG),

@@ -219,6 +219,21 @@
   border-width: 3px;
 }
 
+/* The flat-fill treatment intentionally owns the whole inactive face. Its
+   color is already an opaque composite (deriveOpaqueTint), so retaining the
+   perimeter would reintroduce the border treatment the mode replaces. */
+.stackNeutralSurface[data-frame-mode='flat-fill'][data-visible='true'] {
+  /* ArticleCard's root is the sole rounded overflow clip. Keeping another
+     identical radius on this opaque layer creates two independently
+     antialiased curves and lets the lighter mesh underneath appear in the
+     fractional pixels between them, especially under rotateY. Internally
+     square is correct here: this layer fills the face, and the root clips it
+     to the authoritative rounded silhouette. Border mode retains the radius
+     above because its perimeter is an intentional part of that treatment. */
+  border-radius: 0;
+  border-width: 0;
+}
+
 /* Only while this exact card is crossing the neighbor/active boundary
    (CardStack.tsx's own stackPresentationTransitioning — never true at
    rest, either fully covered or fully uncovered) does the mesh get a real

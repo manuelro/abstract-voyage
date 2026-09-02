@@ -117,10 +117,17 @@
 .card :global(.articleCardDate),
 .card :global(.articleCardReadingTime) {
   color: var(--article-card-meta-color);
-  transition:
-    color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
-      var(--article-card-appearance-delay),
-    opacity 420ms cubic-bezier(0.19, 1, 0.22, 1);
+  /* opacity's own transition-property/-duration/-timing-function/-delay are
+     entirely owned by .card .detailFade below (same specificity, later in
+     source, so it wins outright) — this rule only ever needs to carry its
+     own color transition now. A stale hardcoded `opacity 420ms
+     cubic-bezier(...)` entry used to sit here too, silently overriding
+     every actually-configured reveal timing (staggerRevealDurationMs/
+     -EasingCss, the per-element stagger delays, the exit timing) back to
+     that one fixed value regardless of what was configured — confirmed
+     live via getComputedStyle before removing it. */
+  transition: color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
+    var(--article-card-appearance-delay);
 }
 
 .card :global(.articleCardSeparator) {
@@ -191,6 +198,57 @@
   flex-shrink: 0;
 }
 
+/* Fixed-aspect card composition. Unlike the fluid/dock curves above, every
+   dimensional token remains an unclamped ratio of the card's own width.
+   Scaling the card therefore scales the complete information hierarchy by
+   the same factor, preserving line length, wrapping, and visual density. */
+.proportionalTitle {
+  font-size: 5.6cqw;
+  flex-shrink: 0;
+}
+
+.proportionalExcerpt {
+  display: block;
+  max-width: none;
+  font-size: 3.9cqw;
+  flex-shrink: 0;
+}
+
+.card[data-typography-scale='proportional'] {
+  --article-card-text-shadow: 0 2.1333cqw 7.4667cqw rgba(0, 0, 0, 0.48);
+}
+
+.card[data-typography-scale='proportional'] .stack {
+  gap: 1.7067cqw;
+}
+
+.card[data-typography-scale='proportional'] .label {
+  display: inline;
+  font-size: 2.4cqw;
+}
+
+.card[data-typography-scale='proportional'] :global(.articleCardMeta) {
+  gap: 1.0667cqw;
+  font-size: 2.2cqw;
+}
+
+.card[data-typography-scale='proportional'] :global(.articleCardTopic) {
+  border-width: max(1px, 0.2667cqw);
+  padding: 0.5333cqw 1.7067cqw;
+  font-size: 2.2cqw;
+}
+
+.card[data-typography-scale='proportional'] :global(.articleCardReadingTime) {
+  display: inline;
+}
+
+.card[data-typography-scale='proportional'] .cta {
+  margin-top: 1.0667cqw;
+  border-bottom-width: max(1px, 0.2667cqw);
+  padding-bottom: 1.0667cqw;
+  font-size: 2.2cqw;
+}
+
 .titleInk {
   color: var(--article-card-title-color);
   transition: color var(--article-card-appearance-duration)
@@ -226,17 +284,120 @@
 /* Detail reveal — for carousel-style callers (detailsVisible prop) that only
    want a card's meta/CTA disclosed once it settles as the active slide;
    invisible no-op (opacity: 1, no transition) for the default always-visible
-   case. */
+   case.
+
+   Several of the elements this targets (topic tag, date/reading-time, their
+   own separators, title, excerpt) already carry an unrelated, always-on
+   color transition of their own on the SAME element — the appearance-mode
+   gradient<->neutral ink swap above (--article-card-appearance-*).
+   transition-property (and its positionally-aligned -duration/
+   -timing-function/-delay lists) is a single cascaded value, not additive
+   across separately-declared rules: whichever declaration wins the cascade
+   decides the *entire* list, silently dropping the other concern's own
+   property if the two are declared independently — confirmed live: this is
+   exactly what made the topic tag's own reveal snap instantly instead of
+   fading (its rule's own transition-property never included opacity to
+   begin with), and made date/reading-time's reveal always use a fixed,
+   unconfigurable 420ms/cubic-bezier(0.19,1,0.22,1) regardless of what was
+   actually configured here (a leftover hardcoded opacity entry in that same
+   rule, removed above). The variants below explicitly re-list BOTH
+   concerns together in one declaration instead, at a higher specificity
+   than either concern's own single-purpose rule, so neither one drops the
+   other's property off the list. */
 .detailFade {
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--article-card-detail-fade-duration, 420ms)
-    var(--article-card-detail-fade-easing, cubic-bezier(0.19, 1, 0.22, 1));
+}
+
+/* Base: elements with no competing color transition of their own on this
+   same box — the CTA's own wrapper div here (its inner link/span, the
+   .cta class, has its own color/border-color transition, but that's a
+   different element entirely, so nothing to merge for the div itself). */
+.card .detailFade {
+  transition-property: opacity;
+  transition-duration: var(--article-card-detail-fade-duration, 420ms);
+  transition-timing-function: var(--article-card-detail-fade-easing, cubic-bezier(0.19, 1, 0.22, 1));
+  /* Entering only (data-details-visible flips to 'true') — each element's
+     own stagger delay, set inline per element (ArticleCard.tsx's own
+     staggerRevealDelaysMs, or the fixed 80/150/220ms defaults for
+     date/reading-time/CTA). Overridden to one shared, non-staggered delay
+     below while leaving (data-details-visible 'false') — the browser
+     resolves transition-delay/-duration/-timing-function from the
+     after-change computed style, so which rule applies is automatic, no
+     JS direction-tracking needed. */
+  transition-delay: var(--reveal-enter-delay, 0ms);
+}
+
+/* Variant A: date/reading-time/their own separators/title/excerpt each
+   carry a plain `color` transition (the appearance-mode swap) on this same
+   element — merged in alongside opacity. Specificity (0,3,0): naturally
+   wins over both the base rule above and each element's own single-purpose
+   color rule (both 0,2,0/0,1,0), no source-order dependency. */
+.card :global(.articleCardDate).detailFade,
+.card :global(.articleCardReadingTime).detailFade,
+.card :global(.articleCardSeparator).detailFade,
+.card .titleInk.detailFade,
+.card .excerptInk.detailFade {
+  transition-property: opacity, color;
+  transition-duration: var(--article-card-detail-fade-duration, 420ms), var(--article-card-appearance-duration);
+  transition-timing-function:
+    var(--article-card-detail-fade-easing, cubic-bezier(0.19, 1, 0.22, 1)), var(--article-card-appearance-easing);
+  transition-delay: var(--reveal-enter-delay, 0ms), var(--article-card-appearance-delay);
+}
+
+/* Variant B: the topic tag also carries its own `border-color` transition
+   (its pill outline) on top of Variant A's `color`. */
+.card :global(.articleCardTopic).detailFade {
+  transition-property: opacity, color, border-color;
+  transition-duration:
+    var(--article-card-detail-fade-duration, 420ms),
+    var(--article-card-appearance-duration), var(--article-card-appearance-duration);
+  transition-timing-function:
+    var(--article-card-detail-fade-easing, cubic-bezier(0.19, 1, 0.22, 1)),
+    var(--article-card-appearance-easing), var(--article-card-appearance-easing);
+  transition-delay:
+    var(--reveal-enter-delay, 0ms), var(--article-card-appearance-delay), var(--article-card-appearance-delay);
 }
 
 .content[data-details-visible='true'] .detailFade {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* Leaving must never stagger, even while entering does — every element
+   fades out together as one motion instead of the entrance's own
+   per-element delays (a staggered entrance reads as a deliberate sequence;
+   a staggered exit reads as the UI breaking apart at different times).
+   Only opacity's own timing changes below; each variant's own color/
+   border-color entries stay pinned to --article-card-appearance-* either
+   way — that transition is driven by the appearance-mode swap, not by
+   reveal direction, so it has no "exit" variant of its own. */
+.card :where(.content[data-details-visible='false']) .detailFade {
+  transition-delay: var(--reveal-exit-delay, 0ms);
+  transition-duration: var(--reveal-exit-duration, 420ms);
+  transition-timing-function: var(--reveal-exit-easing, cubic-bezier(0.19, 1, 0.22, 1));
+}
+
+.card :where(.content[data-details-visible='false']) :global(.articleCardDate).detailFade,
+.card :where(.content[data-details-visible='false']) :global(.articleCardReadingTime).detailFade,
+.card :where(.content[data-details-visible='false']) :global(.articleCardSeparator).detailFade,
+.card :where(.content[data-details-visible='false']) .titleInk.detailFade,
+.card :where(.content[data-details-visible='false']) .excerptInk.detailFade {
+  transition-duration: var(--reveal-exit-duration, 420ms), var(--article-card-appearance-duration);
+  transition-timing-function:
+    var(--reveal-exit-easing, cubic-bezier(0.19, 1, 0.22, 1)), var(--article-card-appearance-easing);
+  transition-delay: var(--reveal-exit-delay, 0ms), var(--article-card-appearance-delay);
+}
+
+.card :where(.content[data-details-visible='false']) :global(.articleCardTopic).detailFade {
+  transition-duration:
+    var(--reveal-exit-duration, 420ms),
+    var(--article-card-appearance-duration), var(--article-card-appearance-duration);
+  transition-timing-function:
+    var(--reveal-exit-easing, cubic-bezier(0.19, 1, 0.22, 1)),
+    var(--article-card-appearance-easing), var(--article-card-appearance-easing);
+  transition-delay:
+    var(--reveal-exit-delay, 0ms), var(--article-card-appearance-delay), var(--article-card-appearance-delay);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -251,7 +412,13 @@
   .card :global(.articleCardDate),
   .card :global(.articleCardReadingTime),
   .card :global(.articleCardSeparator),
-  .detailFade {
+  .card .detailFade,
+  .card :global(.articleCardDate).detailFade,
+  .card :global(.articleCardReadingTime).detailFade,
+  .card :global(.articleCardSeparator).detailFade,
+  .card .titleInk.detailFade,
+  .card .excerptInk.detailFade,
+  .card :global(.articleCardTopic).detailFade {
     transition-duration: 0ms;
     transition-delay: 0ms;
   }

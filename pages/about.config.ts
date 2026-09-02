@@ -5,6 +5,10 @@ import {
   type AbstractPostDockPaletteConfig,
   type AbstractPostDockLayoutConfig,
 } from '../experiences/abstract/components/AbstractPostDock/config/registered';
+import {
+  DEFAULT_ABOUT_TIMELINE_CONFIG,
+  type AboutTimelineConfig,
+} from '../experiences/about/components/AboutTimeline.config';
 
 /** 'column' (the default) derives the headline's own color from the left
  * column's real resolved background via resolveContrastAwareTextColor —
@@ -132,6 +136,22 @@ export type AboutPageLayoutConfig = {
    * wordmark's position, the same independent behavior /abstract's own
    * narrow column (no such live-measured padding at all) already has. */
   narrowColumnContentWidthDecoupledEnabled: boolean;
+};
+
+// /about's own default instance of the shared AboutTimeline component.
+// Kept page-owned so /about and /abstract can stay visually synchronized
+// where intended without forcing identical marker sizing.
+export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
+  ...DEFAULT_ABOUT_TIMELINE_CONFIG,
+  rowGap: 'gap-5',
+  markerCustomColor: '#242732',
+  hoverMarkerOpacity: 0.4,
+  markerActiveOpacity: 0.7,
+  rowCategoryEnabled: true,
+  rowCategoryRevealDelayMs: 340,
+  rowCategorySeparator: '⋅',
+  paddingTopLgClassName: 'lg:pt-7',
+  marginTopLgClassName: 'lg:mt-0',
 };
 
 export const DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG = {

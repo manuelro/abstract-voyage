@@ -28,7 +28,9 @@ export interface AboutTimelineRowProps {
   id: string;
   panelId: string;
   caption: string;
-  line: string;
+  line?: string;
+  category?: string;
+  categorySeparator: string;
   /** Real selection state (`row.slideIndex === activeIndex`) — drives ARIA
    * (`aria-selected`) and the marker's own fill class. Hover never touches
    * this — only a row's own marker/title opacity change on hover (see
@@ -72,6 +74,7 @@ export interface AboutTimelineRowProps {
   alignment: AboutTimelineAlignment;
   transitionDurationMs: number;
   transitionEasingCss: string;
+  categoryRevealDelayMs: number;
   onSelect: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
   /** Pointer-hover start — `AboutTimeline.tsx`'s own delay timer decides
@@ -122,6 +125,8 @@ export function AboutTimelineRow({
   panelId,
   caption,
   line,
+  category,
+  categorySeparator,
   active,
   tabIndex,
   markerColor,
@@ -136,6 +141,7 @@ export function AboutTimelineRow({
   alignment,
   transitionDurationMs,
   transitionEasingCss,
+  categoryRevealDelayMs,
   onSelect,
   onKeyDown,
   onPointerEnter,
@@ -159,6 +165,8 @@ export function AboutTimelineRow({
   // than one concurrent WebGL instance across all five rows, not one per
   // row.
   const showMarkerGradient = gradientEnabled && active && Boolean(gradientSlide) && Boolean(gradientMotion) && Boolean(gradientConfig);
+  const normalizedLine = typeof line === 'string' ? line.trim() : '';
+  const normalizedCategory = typeof category === 'string' ? category.trim() : '';
   const markerGradientActivity = resolveAbstractPostDockGradientActivity({
     config: STATIC_MARKER_GRADIENT_PERFORMANCE_CONFIG,
     isActive: false,
@@ -184,6 +192,7 @@ export function AboutTimelineRow({
         style={{
           '--about-timeline-transition-ms': `${transitionDurationMs}ms`,
           '--about-timeline-transition-easing': transitionEasingCss,
+          '--about-timeline-category-reveal-delay-ms': `${categoryRevealDelayMs}ms`,
         } as CSSProperties}
       >
         {ruleVisible ? <span aria-hidden="true" className={styles.rule} /> : null}
@@ -209,16 +218,35 @@ export function AboutTimelineRow({
         <span className={styles.content}>
           <span
             className={`${styles.caption} ${titleClassName}`}
-            style={{ color: titleColor, opacity: titleOpacity }}
           >
-            {caption}
+            <span
+              className={styles.captionText}
+              style={{ color: titleColor, opacity: titleOpacity }}
+            >
+              {caption}
+            </span>
+            {normalizedCategory ? (
+              <span
+                aria-hidden="true"
+                className={styles.category}
+                style={{
+                  color: descriptionColor,
+                  '--about-timeline-category-opacity': descriptionOpacity,
+                } as CSSProperties}
+              >
+                <span className={styles.categorySeparator}>{categorySeparator}</span>
+                {normalizedCategory}
+              </span>
+            ) : null}
           </span>
-          <span
-            className={`${styles.line} ${descriptionClassName}`}
-            style={{ color: descriptionColor, opacity: descriptionOpacity }}
-          >
-            {line}
-          </span>
+          {normalizedLine ? (
+            <span
+              className={`${styles.line} ${descriptionClassName}`}
+              style={{ color: descriptionColor, opacity: descriptionOpacity }}
+            >
+              {normalizedLine}
+            </span>
+          ) : null}
         </span>
       </button>
     </li>

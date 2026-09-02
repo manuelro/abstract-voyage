@@ -76,6 +76,7 @@ export type AboutTimelineMarkerColorMode = 'accent' | 'custom' | 'text';
  * AboutTimeline.tsx's own doc comment), so there is no narrower tier for a
  * second value to ever apply to. */
 export type AboutTimelineAlignment = 'left' | 'right';
+export type AboutTimelineCategorySeparator = '·' | '⋅';
 
 /** Square icon-style dimension catalog for the marker dot — same literal
  * "complete w-N h-N combo per option" shape
@@ -107,6 +108,11 @@ export const RULE_WEIGHT_OPTIONS = [
   { label: '4px', value: 'w-1' },
 ] as const;
 export type AboutTimelineRuleWeightClass = typeof RULE_WEIGHT_OPTIONS[number]['value'];
+
+export const CATEGORY_SEPARATOR_OPTIONS = [
+  { label: 'MIDDLE DOT', value: '·' },
+  { label: 'DOT OPERATOR', value: '⋅' },
+] as const;
 
 /**
  * about-IA-timeline-copy-rework (CMP-03) — component-owned config for
@@ -295,6 +301,14 @@ export type AboutTimelineConfig = {
    * row's hover state actually taking effect — leaving before this elapses
    * cancels it outright (no delay on the way out, only on the way in). */
   hoverDelayMs: number;
+  /** Off by default: row metadata/category is omitted entirely. On: a row
+   * with a `category` value reveals it beside the title only while the title
+   * itself is hovered or keyboard-focused. */
+  rowCategoryEnabled: boolean;
+  /** Separator shown between title and category while category reveal is on. */
+  rowCategorySeparator: AboutTimelineCategorySeparator;
+  /** CSS transition delay before the hover-only category becomes visible. */
+  rowCategoryRevealDelayMs: number;
   /** Padding around a row's own title (caption) specifically — four
    * independent literal Tailwind classes per property, this repo's shared
    * per-side spacing catalogs, tiered by breakpoint (operator ask) — same
@@ -504,6 +518,9 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   hoverMarkerOpacity: 1,
   hoverTitleOpacity: 1,
   hoverDelayMs: 150,
+  rowCategoryEnabled: false,
+  rowCategorySeparator: '·',
+  rowCategoryRevealDelayMs: 180,
   rowTitlePaddingTopClassName: 'pt-0',
   rowTitlePaddingRightClassName: 'pr-0',
   rowTitlePaddingBottomClassName: 'pb-0',
@@ -654,6 +671,8 @@ const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
 ];
 const MARKER_COLOR_MODES: ReadonlyArray<AboutTimelineMarkerColorMode> = ['accent', 'custom', 'text'];
 const ALIGNMENTS: ReadonlyArray<AboutTimelineAlignment> = ['left', 'right'];
+const CATEGORY_SEPARATORS: ReadonlyArray<AboutTimelineCategorySeparator> =
+  CATEGORY_SEPARATOR_OPTIONS.map(option => option.value);
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
@@ -714,6 +733,11 @@ export function normalizeAboutTimelineConfig(
     hoverMarkerOpacity: clampRange(base.hoverMarkerOpacity, 0, 1, D.hoverMarkerOpacity),
     hoverTitleOpacity: clampRange(base.hoverTitleOpacity, 0, 1, D.hoverTitleOpacity),
     hoverDelayMs: clampRange(base.hoverDelayMs, 0, 2000, D.hoverDelayMs),
+    rowCategoryEnabled: base.rowCategoryEnabled === true,
+    rowCategorySeparator: token(base.rowCategorySeparator, CATEGORY_SEPARATORS, D.rowCategorySeparator),
+    rowCategoryRevealDelayMs: clampRange(
+      base.rowCategoryRevealDelayMs, 0, 2000, D.rowCategoryRevealDelayMs,
+    ),
     rowTitlePaddingTopClassName: token(
       base.rowTitlePaddingTopClassName, PADDING_TOP_VALUES, D.rowTitlePaddingTopClassName,
     ),

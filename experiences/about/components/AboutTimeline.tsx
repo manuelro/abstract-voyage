@@ -13,7 +13,8 @@ import type { useLiquidSliderMotion } from '../../abstract/components/AbstractPo
 
 export type AboutTimelineRowData = {
   caption: string;
-  line: string;
+  line?: string;
+  category?: string;
   slideIndex: number;
 };
 
@@ -249,6 +250,8 @@ export function AboutTimeline({
         panelId={panelId}
         caption={row.caption}
         line={row.line}
+        category={config.rowCategoryEnabled ? row.category : undefined}
+        categorySeparator={config.rowCategorySeparator}
         active={selected}
         tabIndex={selected ? 0 : -1}
         markerColor={resolvedMarkerColor}
@@ -267,6 +270,7 @@ export function AboutTimeline({
         descriptionClassName={rowDescriptionClassName}
         transitionDurationMs={transitionDurationMs}
         transitionEasingCss={transitionEasingCss}
+        categoryRevealDelayMs={prefersReducedMotion ? 0 : config.rowCategoryRevealDelayMs}
         onSelect={() => onSelect(row.slideIndex)}
         onKeyDown={keyboardEvent => handleKeyDown(keyboardEvent, index)}
         onPointerEnter={() => handleRowPointerEnter(row.slideIndex)}
@@ -287,6 +291,7 @@ export function AboutTimeline({
     config.ruleVisible, config.alignment,
     config.rowTitleOpacityActive, config.rowTitleOpacityInactive,
     config.hoverTitleOpacity, config.hoverMarkerOpacity,
+    config.rowCategoryEnabled, config.rowCategorySeparator, config.rowCategoryRevealDelayMs,
     titleClassName, rowDescriptionClassName,
     config.markerIdleOpacity, config.markerActiveOpacity,
     config.markerGradientEnabled, gradientSlides, gradientPaletteStates,

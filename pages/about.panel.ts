@@ -1,6 +1,8 @@
 import { defineConfigScope, definePageConfigScope } from '../components/Panel/config';
 import { POLYMORPHIC_LAYOUT_FIELDS } from '../experiences/abstract/components/PolymorphicLayout.panel';
 import type { PolymorphicLayoutConfig } from '../experiences/abstract/components/PolymorphicLayout.config';
+import { ABOUT_TIMELINE_PANEL_FIELDS } from '../experiences/about/components/AboutTimeline.panel';
+import type { AboutTimelineConfig } from '../experiences/about/components/AboutTimeline.config';
 import {
   ABSTRACT_POST_DOCK_PALETTE_PANEL,
   ABSTRACT_POST_DOCK_LAYOUT_PANEL,
@@ -11,6 +13,7 @@ import type {
 } from '../experiences/abstract/components/AbstractPostDock/config/registered';
 import {
   ABOUT_POLYMORPHIC_LAYOUT_CONFIG,
+  DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG,
   DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG,
   DEFAULT_ABOUT_TOP_SEGMENT_GRADIENT_CONFIG,
   ABOUT_DEFAULT_DOCK_PALETTE_CONFIG,
@@ -20,6 +23,7 @@ import {
 } from './about.config';
 
 export const ABOUT_PAGE_LAYOUT_SCOPE_ID = 'AboutPage/layout' as const;
+export const ABOUT_TIMELINE_SCOPE_ID = 'AboutTimeline/about-appearance' as const;
 export const ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID = 'AboutPage/topSegmentGradient' as const;
 export const ABOUT_DOCK_PALETTE_SCOPE_ID = 'AboutPage/dockPalette' as const;
 export const ABOUT_DOCK_LAYOUT_SCOPE_ID = 'AboutPage/dockLayout' as const;
@@ -256,6 +260,25 @@ export const ABOUT_PAGE_LAYOUT_PANEL = defineConfigScope<AboutPageLayoutConfig>(
     targetFile: 'pages/about.config.ts',
     targetSymbol: 'DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG',
     targetType: 'AboutPageLayoutConfig',
+    updateStrategy: 'replace_scope',
+    completeScope: true,
+  },
+});
+
+export const ABOUT_TIMELINE_PANEL = defineConfigScope<AboutTimelineConfig>({
+  id: ABOUT_TIMELINE_SCOPE_ID,
+  component: 'AboutTimeline',
+  scope: 'appearance',
+  title: 'Timeline',
+  createdAt: '2026-09-01',
+  summary: 'Left-column narrative timeline — row gap, marker, rule, alignment, description',
+  defaultOpen: false,
+  defaultValue: DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG,
+  fields: ABOUT_TIMELINE_PANEL_FIELDS,
+  copy: {
+    targetFile: 'pages/about.config.ts',
+    targetSymbol: 'DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG',
+    targetType: 'AboutTimelineConfig',
     updateStrategy: 'replace_scope',
     completeScope: true,
   },

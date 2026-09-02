@@ -4,7 +4,7 @@ import {
   CTA_BUTTON_MOTION_EASINGS,
   type CtaButtonConfig,
 } from '../../../../../components/CtaButton/config/registered';
-import { deriveSurfaceColor, deriveTransparentTint, resolveContrastAwareTextColor } from '../../../../../helpers/surfaceColorDerivation';
+import { deriveOpaqueTint, deriveSurfaceColor, deriveTransparentTint, resolveContrastAwareTextColor } from '../../../../../helpers/surfaceColorDerivation';
 import { resolveStackCardWidthClass, type SplitColumnCardStackConfig } from '../config/stack';
 import { useCardStackLayout } from '../hooks/useCardStackLayout';
 import { useStackStepMotion } from '../hooks/useStackStepMotion';
@@ -352,6 +352,26 @@ export function CardStack<TItem>({
   const resolvedNeighborCardBorderHoverColor = deriveTransparentTint(
     resolvedNeighborTextColor, stackConfig.neighborBorderHoverOpacity,
   );
+  // Flat-fill mode keeps the operator's familiar opacity reading, but
+  // resolves it into one opaque color before paint. A real rgba fill would
+  // accumulate every time one inactive card overlaps another. When the
+  // configured neighbor surface is transparent, the column is its physical
+  // underlay and therefore the correct color to composite against.
+  const resolvedNeighborFillUnderlay = resolvedNeighborBackgroundColor === 'transparent'
+    ? resolvedColumnBackgroundColor
+    : resolvedNeighborBackgroundColor;
+  const resolvedNeighborFlatFillColor = deriveOpaqueTint(
+    resolvedNeighborTextColor,
+    resolvedNeighborFillUnderlay,
+    stackConfig.neighborFlatFillOpacity,
+  );
+  const resolvedNeighborFlatFillToneColor = deriveSurfaceColor(
+    resolvedNeighborFlatFillColor,
+    stackConfig.neighborFlatFillToneOffset,
+  );
+  const resolvedNeighborCardSurfaceColor = stackConfig.neighborFrameMode === 'flat-fill'
+    ? resolvedNeighborFlatFillToneColor
+    : resolvedNeighborBackgroundColor;
   const {
     anchorRef, cardWidthPx, cardHeightPx, rowPitchPx, aboveCount, belowCount,
     fixedLeftPx, fixedTopPx, fixedWidthPx, fixedHeightPx, pageWidthPx,
@@ -863,7 +883,8 @@ export function CardStack<TItem>({
         poseEasingCss={neighborPoseEasingCss}
         ctaHoverEasingCss={ctaHoverEasingCss}
         settleOpacityEasingCss={settleOpacityEasingCss}
-        resolvedNeighborBackgroundColor={resolvedNeighborBackgroundColor}
+        resolvedNeighborBackgroundColor={resolvedNeighborCardSurfaceColor}
+        resolvedNeighborFrameMode={stackConfig.neighborFrameMode}
         resolvedNeighborTextColor={resolvedNeighborTextColor}
         resolvedNeighborTopicBorderColor={resolvedNeighborTopicBorderColor}
         resolvedNeighborCardBorderColor={resolvedNeighborCardBorderColor}
@@ -1188,7 +1209,8 @@ export function CardStack<TItem>({
         poseEasingCss={neighborPoseEasingCss}
                   ctaHoverEasingCss={ctaHoverEasingCss}
                   settleOpacityEasingCss={settleOpacityEasingCss}
-                  resolvedNeighborBackgroundColor={resolvedNeighborBackgroundColor}
+                  resolvedNeighborBackgroundColor={resolvedNeighborCardSurfaceColor}
+                  resolvedNeighborFrameMode={stackConfig.neighborFrameMode}
                   resolvedNeighborTextColor={resolvedNeighborTextColor}
                   resolvedNeighborTopicBorderColor={resolvedNeighborTopicBorderColor}
         resolvedNeighborCardBorderColor={resolvedNeighborCardBorderColor}

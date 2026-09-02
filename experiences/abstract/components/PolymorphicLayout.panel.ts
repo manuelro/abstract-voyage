@@ -219,11 +219,35 @@ export const POLYMORPHIC_LAYOUT_BASE_FIELDS: ReadonlyArray<NonTabsEntry<Polymorp
   },
   {
     kind: 'enum',
+    key: 'wideColumnContentHeight',
+    debugHighlightIds: ['WIDE COLUMN CONTENT'],
+    label: 'Wide content height',
+    description: 'Auto preserves intrinsic height. Fill column follows the parent column\'s resolved height. Fill viewport uses the visible viewport slot while the columns sit side by side.',
+    options: [
+      { label: 'AUTO', value: 'auto' },
+      { label: 'FILL COLUMN', value: 'full' },
+      { label: 'FILL VIEWPORT', value: 'viewport' },
+    ],
+  },
+  {
+    kind: 'enum',
     key: 'narrowColumnContentContainer',
     debugHighlightIds: ['NARROW COLUMN'],
     label: 'Narrow column content container',
     description: 'Same idea as Wide column content container, for the narrow column\'s own children instead — independently configurable.',
     options: CONTENT_CONTAINER_OPTIONS,
+  },
+  {
+    kind: 'enum',
+    key: 'narrowColumnContentHeight',
+    debugHighlightIds: ['NARROW COLUMN CONTENT'],
+    label: 'Narrow content height',
+    description: 'Auto preserves intrinsic height. Fill column follows the parent column\'s resolved height, allowing a page-owned slot to subdivide it. Fill viewport uses the visible viewport slot while the columns sit side by side.',
+    options: [
+      { label: 'AUTO', value: 'auto' },
+      { label: 'FILL COLUMN', value: 'full' },
+      { label: 'FILL VIEWPORT', value: 'viewport' },
+    ],
   },
   {
     kind: 'enum',

@@ -7,6 +7,7 @@ type PostMetaRowProps = {
   className?: string
   style?: CSSProperties
   topicClassName?: string
+  topicStyle?: CSSProperties
   dateClassName?: string
   dateStyle?: CSSProperties
   readingTimeClassName?: string
@@ -25,6 +26,7 @@ export default function PostMetaRow({
   className,
   style,
   topicClassName,
+  topicStyle,
   dateClassName,
   dateStyle,
   readingTimeClassName,
@@ -49,6 +51,7 @@ export default function PostMetaRow({
             topicClassName ??
             'rounded-full border border-white/30 px-2 py-0.5 text-[11px] uppercase tracking-wide text-white/80'
           }
+          style={topicStyle}
         >
           {topic}
         </span>

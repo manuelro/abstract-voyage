@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T00:54:09.607Z",
+  "generatedAt": "2026-09-02T04:30:29.138Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -72,6 +72,7 @@
       "stub": "experiences/about/components/AboutTimeline.panel.stub.ts",
       "exports": [
         "ABOUT_TIMELINE_SCOPE_ID",
+        "ABOUT_TIMELINE_PANEL_FIELDS",
         "ABOUT_TIMELINE_PANEL"
       ]
     },
@@ -141,6 +142,22 @@
         "ABSTRACT_POST_DOCK_LAYOUT_PANEL",
         "ABSTRACT_POST_DOCK_HOLOGRAM_SCOPE_ID",
         "ABSTRACT_POST_DOCK_HOLOGRAM_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/AbstractTimeline.panel.ts",
+      "stub": "experiences/abstract/components/AbstractTimeline.panel.stub.ts",
+      "exports": [
+        "ABSTRACT_TIMELINE_SCOPE_ID",
+        "ABSTRACT_TIMELINE_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/CoverFlow/CoverFlow.panel.ts",
+      "stub": "experiences/abstract/components/CoverFlow/CoverFlow.panel.stub.ts",
+      "exports": [
+        "COVER_FLOW_SCOPE_ID",
+        "COVER_FLOW_PANEL"
       ]
     },
     {
@@ -284,11 +301,13 @@
       "stub": "pages/about.panel.stub.ts",
       "exports": [
         "ABOUT_PAGE_LAYOUT_SCOPE_ID",
+        "ABOUT_TIMELINE_SCOPE_ID",
         "ABOUT_TOP_SEGMENT_GRADIENT_SCOPE_ID",
         "ABOUT_DOCK_PALETTE_SCOPE_ID",
         "ABOUT_DOCK_LAYOUT_SCOPE_ID",
         "ABOUT_POLYMORPHIC_LAYOUT_PANEL",
         "ABOUT_PAGE_LAYOUT_PANEL",
+        "ABOUT_TIMELINE_PANEL",
         "ABOUT_TOP_SEGMENT_GRADIENT_PANEL",
         "ABOUT_DOCK_PALETTE_PANEL",
         "ABOUT_DOCK_LAYOUT_PANEL"
@@ -306,8 +325,18 @@
       "stub": "pages/abstract.panel.stub.ts",
       "exports": [
         "ABSTRACT_PAGE_LAYOUT_SCOPE_ID",
+        "ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID",
         "ABSTRACT_POLYMORPHIC_LAYOUT_PANEL",
-        "ABSTRACT_PAGE_LAYOUT_PANEL"
+        "ABSTRACT_PAGE_LAYOUT_PANEL",
+        "ABSTRACT_NARROW_COLUMN_STACK_PANEL"
+      ]
+    },
+    {
+      "real": "pages/carousel-lab.panel.ts",
+      "stub": "pages/carousel-lab.panel.stub.ts",
+      "exports": [
+        "CAROUSEL_LAB_SCOPE_ID",
+        "CAROUSEL_LAB_PANEL"
       ]
     },
     {
