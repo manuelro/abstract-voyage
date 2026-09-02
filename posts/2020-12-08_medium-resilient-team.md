@@ -1,9 +1,5 @@
 ---
-
-
-
-
-title: The resilient team, the Tech Lead role and the coordination function in Scrum
+title: The Tech Lead is a dependency your team should outgrow
 excerpt: "Explores how tech leads build resilient teams in Scrum and coordinate effectively across roles and responsibilities."
 author: "Manu"
 url: https://abstractvoyage.medium.com/the-resilient-team-the-tech-lead-role-and-the-coordination-function-in-scrum-bdce438d0988
@@ -16,6 +12,7 @@ tags:
     - Resilient Teams
     - Scrum
     - Tech Lead
+featured: true
 ---
 
 ![The resilient team, the Tech Lead role and the coordination function in Scrum](/posts/medium-resilient-team/hero.jpeg)

@@ -1,9 +1,5 @@
 ---
-
-
-
-
-title: The taxonomy of dependencies in software and their associated risk
+title: Four kinds of dependency, and which ones carry real risk
 excerpt: "Analyzes dependency types in software engineering and the risk tradeoffs they introduce across systems and teams."
 author: "Manu"
 url: https://abstractvoyage.medium.com/a-reflection-on-the-taxonomy-of-dependencies-in-software-engineering-and-their-associated-risk-864e3a4c881
@@ -17,6 +13,7 @@ tags:
     - Dependencies
     - Risk Management
     - Software Architecture
+featured: true
 ---
 
 > Freedom is the only worthy goal in life. It is won by disregarding things that lie beyond our control. — Epictetus

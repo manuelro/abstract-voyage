@@ -1,9 +1,5 @@
 ---
-
-
-
-
-title: The implementation of biomimetics in the design and development of highly efficient user interfaces
+title: A biomimetic framework for interfaces that feel human
 excerpt: "Looks at biomimetics in UI design and how nature-inspired patterns can improve interface efficiency and usability."
 author: "Manu"
 url: https://abstractvoyage.medium.com/the-implementation-of-biomimetics-in-the-design-and-development-of-highly-efficient-user-interfaces-7a8e3a3d18db
@@ -17,6 +13,7 @@ tags:
     - Biomimetics
     - UX Design
     - Interface Design
+featured: true
 ---
 
 > The use of biomimetics in technology may not be a hot topic, but it can revolutionize the way we construct our user interfaces.

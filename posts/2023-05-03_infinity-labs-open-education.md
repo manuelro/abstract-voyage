@@ -1,7 +1,8 @@
 ---
-title: 'Introducing Infinity Labs: The Open Education Initiative'
+title: 'Infinity Labs, and why engineering education should be free'
 excerpt: "Announces Infinity Labs, a free open education initiative offering software engineering learning resources and videos."
 author: "Manu"
+featured: false
 tags:
     - Open Education
     - Software Engineering
@@ -24,5 +25,5 @@ We encourage you to visit our [YouTube channel](https://www.youtube.com/@infinit
 
 Thank you for your support, and I look forward to working with you to make education more accessible and inclusive for everyone.
 
-Cheers,  
+Best,  
 Manu

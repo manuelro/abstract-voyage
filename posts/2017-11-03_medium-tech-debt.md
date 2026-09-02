@@ -3,7 +3,7 @@
 
 
 
-title: The importance of tackling technical debt
+title: Technical debt works like a credit card
 excerpt: "Explains what technical debt is, why it accumulates, and how teams can manage it to keep software maintainable."
 author: "Manu"
 url: https://abstractvoyage.medium.com/your-company-is-in-debt-technically-46ade0eea37
@@ -15,6 +15,7 @@ tags:
     - Technical Debt
     - Software Engineering
     - Best Practices
+featured: true
 ---
 
 ![The importance of tackling technical debt](/posts/medium-tech-debt/hero.jpeg)

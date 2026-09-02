@@ -3,7 +3,7 @@
 
 
 
-title: Understanding the Document Object Model (DOM)
+title: The DOM, from nodes to events
 excerpt: "Introduces the Document Object Model (DOM), explaining how web pages are structured and how JavaScript interacts with nodes and events."
 author: "Manu"
 url: https://abstractvoyage.medium.com/understanding-the-dom-basics-1c0b35970d90

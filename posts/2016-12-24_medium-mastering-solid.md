@@ -1,10 +1,5 @@
 ---
-
-
-
-
-
-title: Mastering the SOLID principles
+title: The five SOLID principles, one at a time
 excerpt: "A practical guide to the SOLID principles in object-oriented programming and how they improve maintainable software architecture."
 author: "Manu"
 url: https://abstractvoyage.medium.com/mastering-solid-programming-principles-3ba15c5df942
@@ -17,6 +12,7 @@ tags:
     - SOLID
     - Object-Oriented Design
     - Software Architecture
+featured: true
 ---
 
 ![Mastering the SOLID principles](/posts/medium-mastering-solid/hero.png)

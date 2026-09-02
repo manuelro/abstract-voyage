@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="The taxonomy of dependencies in software and their associated risk">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Four kinds of dependency, and which ones carry real risk">
   <defs>
     <radialGradient id="bg" cx="68%" cy="22%" r="90%">
       <stop offset="0%" stop-color="#29ffc6"/>
@@ -19,9 +19,8 @@
   <circle cx="960" cy="140" r="300" fill="#ffffff" opacity="0.08"/>
   <circle cx="990" cy="170" r="190" fill="#05060a" opacity="0.12"/>
   <text x="72" y="86" fill="#f8fafc" opacity="0.72" font-family="Inter, Arial, sans-serif" font-size="26" letter-spacing="5">Abstract Voyage</text>
-  <text x="72" y="230" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="700">The taxonomy of</text>
-  <text x="72" y="306" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="700">dependencies in software</text>
-  <text x="72" y="382" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="700">and their associated risk</text>
+  <text x="72" y="230" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="700">Four kinds of dependency, and</text>
+  <text x="72" y="306" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="700">which ones carry real risk</text>
   <text x="76" y="500" fill="#f8fafc" opacity="0.72" font-family="Inter, Arial, sans-serif" font-size="28">Analyzes dependency types in software engineering and the risk</text>
   <text x="76" y="534" fill="#f8fafc" opacity="0.72" font-family="Inter, Arial, sans-serif" font-size="28">tradeoffs they introduce across systems and teams.</text>
 </svg>
