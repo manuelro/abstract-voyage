@@ -4183,10 +4183,11 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         // direct <SiteHeader> call (out of scope per §0.7), so
         // there is nothing to carry over here. slotProps (HeaderSlotProps)
         // carries the values only PolymorphicLayout's own internal
-        // machinery can compute; spread last so nothing here can silently
-        // shadow them.
+        // machinery can compute. Spread first so this page's adaptive-
+        // gradient overrides below remain authoritative.
         header={(slotProps) => (
           <SiteHeader
+            {...slotProps}
             // Local override, same technique /about uses for its own
             // navAlignedToSplitEnabled override — layered on at the render
             // call site, not mutating the shared normalizedSiteHeaderConfig,
@@ -4224,7 +4225,6 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             splitBandLeftColor={colors.resolvedSplitBandLeftColor}
             splitBandRightColor={colors.resolvedSplitBandRightColor}
             splitBandStacked={colors.splitBandStacked}
-            {...slotProps}
           />
         )}
         // wideColumn/narrowColumn below are the CARD PREVIEW and HERO TEXT

@@ -1399,10 +1399,12 @@ function AboutPageContent() {
         // its own <SiteHeader> instead of handing PolymorphicLayout
         // a siteHeaderConfig/logoStops/splitBand*/etc. bundle to render
         // automatically. slotProps (HeaderSlotProps) carries the values
-        // only PolymorphicLayout's own internal machinery can compute;
-        // spread last so nothing here can silently shadow them.
+        // only PolymorphicLayout's own internal machinery can compute.
+        // Spread first: this page's spacefield/reveal overrides below remain
+        // authoritative over those centralized defaults.
         header={(slotProps) => (
           <SiteHeader
+            {...slotProps}
             // Local override, same technique as spacefieldHeaderConfig
             // just above — layered on at the render call site rather than
             // mutating the shared siteHeaderConfig, so every other page
@@ -1487,7 +1489,6 @@ function AboutPageContent() {
             splitBandRightBackgroundSlot={topSegmentBackgroundSlot}
             splitBandStacked={colors.splitBandStacked}
             splitBandTransition={entranceTransition}
-            {...slotProps}
           />
         )}
         headerOverlay={spacefieldVisible && !topSegmentBackgroundEnabled ? (

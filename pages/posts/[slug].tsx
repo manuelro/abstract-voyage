@@ -372,10 +372,12 @@ export default function PostLab({
         // piece `colors` doesn't carry, replicating PolymorphicLayout's own
         // former `splitBandActive ?? normalizedConfig.headerSplitBandEnabled`
         // merge exactly. slotProps (HeaderSlotProps) carries the values
-        // only PolymorphicLayout's own internal machinery can compute;
-        // spread last so nothing here can silently shadow them.
+        // only PolymorphicLayout's own internal machinery can compute.
+        // Spread first so any deliberate post-layout override below remains
+        // authoritative.
         header={(slotProps) => (
           <SiteHeader
+            {...slotProps}
             config={buildEffectiveSiteHeaderConfig(pageSiteHeaderConfig, postLabLayoutConfig)}
             // The same shared, cross-page Wordmark config /about, /abstract,
             // and /contact already bind (AbstractDesignConfigProvider) —
@@ -393,7 +395,6 @@ export default function PostLab({
             splitBandLeftColor={colors.resolvedSplitBandLeftColor}
             splitBandRightColor={colors.resolvedSplitBandRightColor}
             splitBandStacked={colors.splitBandStacked}
-            {...slotProps}
           />
         )}
         // wideColumnStyle/narrowColumnStyle, bodyGutterClassName,
