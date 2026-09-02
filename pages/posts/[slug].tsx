@@ -1,5 +1,12 @@
 import SeoHead from '../../components/SeoHead'
-import { SITE_METADATA, buildSiteTitle } from '../../helpers/siteMetadata'
+import {
+  SITE_METADATA,
+  buildSiteTitle,
+  getPostOgImagePath,
+  getAbsoluteUrl,
+  getPostCanonicalPath,
+  getPublishedDate,
+} from '../../helpers/siteMetadata'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { getAllPostSlugPaths, getPostArticleProps, type PostType } from '../../helpers/postArticle'
@@ -70,17 +77,16 @@ import { TableOfContentsDisclosure } from '../../experiences/abstract/components
 import MarkdownContent from '../../experiences/abstract/components/MarkdownContent'
 import { firstSplitTierPrefix } from '../../experiences/abstract/components/SplitColumnLayout'
 
-// Article reading view foundations (PLAN: article reading view) — a
-// dev-only sandbox for redesigning the reading experience through the same
-// SplitColumnLayout/SplitColumnPageShell shell /about, /contact, and
-// /abstract already use, instead of the production route's SynthLayout/
-// ArticleLayout. Reuses pages/posts/[slug].tsx's own data pipeline
-// (helpers/postArticle.ts) verbatim — this route only differs in how it
-// renders that same props shape, and touching it can never affect the
-// production /posts/[slug] route.
+// Production article reading view. This route uses the same shared
+// SplitColumnLayout/SplitColumnPageShell family as /about, /contact, and
+// /abstract. The post data pipeline remains centralized in
+// helpers/postArticle.ts so metadata, reading time, and adjacent navigation
+// all use the same source values.
 
 export default function PostLab({
   slug,
+  publishedDate,
+  canonicalPath,
   frontmatter,
   content,
   formattedDate,
@@ -89,10 +95,20 @@ export default function PostLab({
   figures,
   codeBlocks,
   tables,
+  previousPost,
+  nextPost,
 }: PostType) {
   const { title, excerpt, primaryTopic, tags, source } = frontmatter
   const topic = primaryTopic ?? tags?.[0] ?? null
   const hasBody = content.trim().length > 0
+  const resolvedCanonicalPath = canonicalPath ?? getPostCanonicalPath(slug)
+  const resolvedPublishedDate = publishedDate ?? getPublishedDate({
+    slug,
+    frontmatterDate: (frontmatter as any)?.date,
+    sourceDate: source?.originallyPublished,
+  })
+  const ogImagePath = getPostOgImagePath(slug)
+  const postUrl = getAbsoluteUrl(resolvedCanonicalPath)
 
   // pageSurfaceConfig: page-local state, deliberately not
   // useSharedDesignConfig() — this page's own decoupled background, and
@@ -346,11 +362,28 @@ export default function PostLab({
     // app-wide, not just page-wide.
     <>
       <SeoHead
-        title={buildSiteTitle(`${title} (reading view sandbox)`)}
+        title={buildSiteTitle(title)}
         description={excerpt ?? SITE_METADATA.defaultDescription}
-        robots="noindex,nofollow"
-        canonicalPath={null}
+        canonicalPath={resolvedCanonicalPath}
         ogType="article"
+        ogImagePath={ogImagePath}
+        publishedTime={resolvedPublishedDate}
+        modifiedTime={resolvedPublishedDate}
+        tags={tags ?? []}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'BlogPosting',
+          headline: title,
+          description: excerpt ?? SITE_METADATA.defaultDescription,
+          url: postUrl,
+          mainEntityOfPage: { '@type': 'WebPage', '@id': postUrl },
+          author: { '@type': 'Person', name: SITE_METADATA.authorName, url: SITE_METADATA.siteUrl },
+          publisher: { '@type': 'Person', name: SITE_METADATA.authorName },
+          image: getAbsoluteUrl(ogImagePath),
+          datePublished: resolvedPublishedDate ?? undefined,
+          dateModified: resolvedPublishedDate ?? undefined,
+          keywords: tags?.length ? tags.join(', ') : undefined,
+        }}
       />
       <PolymorphicLayout
         config={postLabLayoutConfig}
@@ -580,7 +613,23 @@ export default function PostLab({
                 </div>
               )}
             </div>
-            </WideColumnContent>
+            {(previousPost || nextPost) ? (
+              <nav className="mt-10 border-t border-slate-900/10 pt-6 text-sm" aria-label="More articles">
+                <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  {nextPost ? (
+                    <a href={`/posts/${nextPost.slug}`} className="hover:underline">
+                      Next: {nextPost.title}
+                    </a>
+                  ) : <span />}
+                  {previousPost ? (
+                    <a href={`/posts/${previousPost.slug}`} className="text-right hover:underline">
+                      Previous: {previousPost.title}
+                    </a>
+                  ) : <span />}
+                </div>
+              </nav>
+            ) : null}
+          </WideColumnContent>
           </article>
         )}
         narrowColumn={(
