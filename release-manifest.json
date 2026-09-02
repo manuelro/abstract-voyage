@@ -1,12 +1,15 @@
 {
   "description": "Approved production route inventory for this release branch. verify-release.js diffs the actual next export output against this list — any route that appears in one but not the other fails the gate. Update this file deliberately, in the same change that adds/removes a route, per P1-404-INCIDENT-RCA-AND-RELEASE-PROTOCOL.md §H item 1-2.",
-  "updated": "2026-08-28",
+  "updated": "2026-09-02",
   "routes": [
     "/",
     "/about",
     "/abstract",
     "/carousel-lab",
     "/contact",
+    "/journal",
+    "/thoughts",
+    "/thoughts/nobody-made-this-alone",
     "/posts/2016-12-24_medium-mastering-solid",
     "/posts/2017-01-15_medium-gzipping",
     "/posts/2017-02-11_medium-dom-basics",
