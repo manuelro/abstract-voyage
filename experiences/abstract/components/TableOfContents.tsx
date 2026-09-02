@@ -219,6 +219,7 @@ export default function TableOfContents({
   const [hoverHoldId, setHoverHoldId] = useState<string | null>(null)
   const [hoverSettlingId, setHoverSettlingId] = useState<string | null>(null)
   const [hoverReleaseId, setHoverReleaseId] = useState<string | null>(null)
+  const [delayedHoverId, setDelayedHoverId] = useState<string | null>(null)
   const [activeExitingId, setActiveExitingId] = useState<string | null>(null)
   const [activeReleaseId, setActiveReleaseId] = useState<string | null>(null)
   const [pendingNavigationId, setPendingNavigationId] = useState<string | null>(null)
@@ -226,6 +227,7 @@ export default function TableOfContents({
   const hoverPreviousIdRef = useRef<string | null>(null)
   const activePreviousIdRef = useRef<string | null>(null)
   const hoverTimersRef = useRef<number[]>([])
+  const hoverEnterTimerRef = useRef<number | undefined>(undefined)
   const activeTimersRef = useRef<number[]>([])
   const navigationCancelRef = useRef<(() => void) | undefined>(undefined)
   const navigationSequenceRef = useRef(0)
@@ -244,9 +246,10 @@ export default function TableOfContents({
       ...(showFigures ? figures.map(({ id }) => id) : []),
     ]))
   ), [figures, headings, showFigures, showHeadings])
-  const requestedHoverId = presentationConfig?.hoverStateEnabled
+  const hoverCandidateId = presentationConfig?.hoverStateEnabled
     ? focusedId ?? pointerHoveredId
     : null
+  const requestedHoverId = delayedHoverId
   const motionAllowed = Boolean(presentationConfig?.motionEnabled) && !reducedMotion
 
   useEffect(() => {
@@ -261,9 +264,37 @@ export default function TableOfContents({
   useEffect(() => () => {
     hoverTimersRef.current.forEach(window.clearTimeout)
     activeTimersRef.current.forEach(window.clearTimeout)
+    if (hoverEnterTimerRef.current !== undefined) window.clearTimeout(hoverEnterTimerRef.current)
     navigationSequenceRef.current += 1
     navigationCancelRef.current?.()
   }, [])
+
+  // The timeline's hover contract intentionally delays only arrival: a
+  // pointer/focus that leaves before the delay expires never produces a
+  // hover state, while leaving an already-hovered row begins its existing
+  // release choreography immediately.
+  useEffect(() => {
+    if (hoverEnterTimerRef.current !== undefined) {
+      window.clearTimeout(hoverEnterTimerRef.current)
+      hoverEnterTimerRef.current = undefined
+    }
+    if (!motionAllowed || !hoverCandidateId) {
+      setDelayedHoverId(null)
+      return undefined
+    }
+    if (hoverCandidateId === delayedHoverId) return undefined
+    setDelayedHoverId(null)
+    const delay = presentationConfig?.hoverEnterDelayMs ?? 0
+    if (delay <= 0) {
+      setDelayedHoverId(hoverCandidateId)
+      return undefined
+    }
+    hoverEnterTimerRef.current = window.setTimeout(() => {
+      hoverEnterTimerRef.current = undefined
+      setDelayedHoverId(hoverCandidateId)
+    }, delay)
+    return undefined
+  }, [delayedHoverId, hoverCandidateId, motionAllowed, presentationConfig?.hoverEnterDelayMs])
 
   useEffect(() => {
     const clearHoverTimers = () => {

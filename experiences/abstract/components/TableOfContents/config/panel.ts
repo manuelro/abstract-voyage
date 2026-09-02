@@ -144,6 +144,7 @@ export const POST_LAB_ARTICLE_TOC_PANEL = defineConfigScope<TableOfContentsConfi
       label: 'Interaction motion',
       fields: [
         { kind: 'boolean', key: 'motionEnabled', label: 'Enable state motion' },
+        { kind: 'number', key: 'hoverEnterDelayMs', label: 'Hover arrival delay', description: 'Time the pointer or keyboard focus must remain on an item before its hover state begins. Leaving cancels it immediately, matching the timeline interaction.', min: 0, max: 2000, step: 10, unit: 'ms', integer: true, visibleWhen: config => config.motionEnabled },
         { kind: 'number', key: 'hoverEnterDurationMs', label: 'Hover arrival duration', min: 0, max: 2000, step: 10, unit: 'ms', integer: true, visibleWhen: config => config.motionEnabled },
         { kind: 'enum', key: 'hoverEnterEasing', label: 'Hover arrival easing', options: motionEasingOptions, visibleWhen: config => config.motionEnabled },
         { kind: 'number', key: 'hoverExitHoldMs', label: 'Hover exit hold', description: 'Keeps the outgoing hover state briefly visible before it begins to settle.', min: 0, max: 2000, step: 10, unit: 'ms', integer: true, visibleWhen: config => config.motionEnabled },

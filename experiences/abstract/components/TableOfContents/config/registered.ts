@@ -80,6 +80,7 @@ export type TableOfContentsConfig = {
   hoverBackgroundPigmentIntensity: number
   hoverBackgroundOpacity: number
   motionEnabled: boolean
+  hoverEnterDelayMs: number
   hoverEnterDurationMs: number
   hoverEnterEasing: CtaButtonMotionEasing
   hoverExitHoldMs: number
@@ -174,8 +175,9 @@ export const DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG = {
   hoverBackgroundPigmentIntensity: 1.65,
   hoverBackgroundOpacity: 0.35,
   motionEnabled: true,
-  hoverEnterDurationMs: 540,
-  hoverEnterEasing: 'viscous',
+  hoverEnterDelayMs: 150,
+  hoverEnterDurationMs: 550,
+  hoverEnterEasing: 'gentle',
   hoverExitHoldMs: 50,
   hoverExitDelayMs: 40,
   hoverExitDurationMs: 280,
@@ -289,6 +291,7 @@ export function normalizePostLabArticleTocConfig(config: Partial<TableOfContents
     hoverBackgroundPigmentIntensity: clamp(base.hoverBackgroundPigmentIntensity, 0, 2, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.hoverBackgroundPigmentIntensity),
     hoverBackgroundOpacity: clamp(base.hoverBackgroundOpacity, 0, 1, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.hoverBackgroundOpacity),
     motionEnabled: base.motionEnabled !== false,
+    hoverEnterDelayMs: clamp(base.hoverEnterDelayMs, 0, 2000, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.hoverEnterDelayMs),
     hoverEnterDurationMs: clamp(base.hoverEnterDurationMs, 0, 2000, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.hoverEnterDurationMs),
     hoverEnterEasing: token(base.hoverEnterEasing, MOTION_EASINGS, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.hoverEnterEasing),
     hoverExitHoldMs: clamp(base.hoverExitHoldMs, 0, 2000, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.hoverExitHoldMs),
