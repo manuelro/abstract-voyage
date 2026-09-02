@@ -185,7 +185,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnContentPaddingTopLg: 'lg:pt-0',
   narrowColumnContentPaddingBottom: 'pb-5',
   narrowColumnContentPaddingBottomWide: 'md:pb-16',
-  narrowColumnContentPaddingBottomLg: 'lg:pb-14',
+  narrowColumnContentPaddingBottomLg: 'lg:pb-10',
   narrowColumnContentMarginTop: 'mt-0',
   narrowColumnContentMarginTopWide: 'md:mt-0',
   narrowColumnContentMarginTopLg: 'lg:mt-0',
