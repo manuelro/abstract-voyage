@@ -657,7 +657,7 @@ export function SiteHeader({
         </Link>
       </li>
       <li className="min-w-0">
-        <Link className={navItemClassName} href="/abstract#journal">
+        <Link className={navItemClassName} href="/journal">
           <span className={styles.navLabel}>Journal</span>
         </Link>
       </li>

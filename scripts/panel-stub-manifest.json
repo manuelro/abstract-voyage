@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T23:46:35.028Z",
+  "generatedAt": "2026-09-02T23:53:48.524Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -239,6 +239,14 @@
       ]
     },
     {
+      "real": "experiences/abstract/components/ThoughtCard/config/panel.ts",
+      "stub": "experiences/abstract/components/ThoughtCard/config/panel.stub.ts",
+      "exports": [
+        "THOUGHT_CARD_SCOPE_ID",
+        "THOUGHT_CARD_PANEL"
+      ]
+    },
+    {
       "real": "experiences/abstract/configPanels.ts",
       "stub": "experiences/abstract/configPanels.stub.ts",
       "exports": [
@@ -354,6 +362,17 @@
       "stub": "pages/contact.panel.stub.ts",
       "exports": [
         "CONTACT_POLYMORPHIC_LAYOUT_PANEL"
+      ]
+    },
+    {
+      "real": "pages/journal.panel.ts",
+      "stub": "pages/journal.panel.stub.ts",
+      "exports": [
+        "JOURNAL_TIMELINE_SCOPE_ID",
+        "JOURNAL_TIMELINE_PANEL",
+        "JOURNAL_CARD_APPEARANCE_SCOPE_ID",
+        "JOURNAL_CARD_APPEARANCE_PANEL",
+        "JOURNAL_POLYMORPHIC_LAYOUT_PANEL"
       ]
     },
     {

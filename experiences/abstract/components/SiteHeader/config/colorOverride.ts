@@ -139,6 +139,23 @@ export const ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG = {
   columnTextMinContrast: 4.5,
 } satisfies SiteHeaderColorOverrideConfig;
 
+// /journal uses the same split-column header contract as /abstract. Keep
+// its navigation ink tied to the physically rendered right segment instead
+// of allowing mutable shared header color settings to select a flat color or
+// derive against the page surface. The neutral offsets make contrast, not a
+// manual lighten/darken bias, the sole color decision.
+export const JOURNAL_SITE_HEADER_COLOR_OVERRIDE_CONFIG = {
+  enabled: true,
+  colorMode: 'column',
+  logoColor: '#f5f5f5',
+  navTextColor: '#787878',
+  navBorderColor: '#787878',
+  logoSurfaceOffset: 0,
+  navTextSurfaceOffset: 0,
+  navBorderSurfaceOffset: 0,
+  columnTextMinContrast: 4.5,
+} satisfies SiteHeaderColorOverrideConfig;
+
 // pages/posts-lab/[slug].tsx (PLAN: centralize the split-column header/nav
 // mechanism) — this page's own colorMode: 'column' divergence, mirroring
 // /abstract's own reasoning above: logo/nav resolve against the split

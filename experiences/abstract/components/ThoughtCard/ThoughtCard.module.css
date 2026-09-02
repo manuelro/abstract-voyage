@@ -1,0 +1,18 @@
+.root {
+  container-type: inline-size;
+  width: min(100%, var(--thought-card-root-size));
+  max-width: 100%;
+}
+
+.card :global(h2),
+.card :global(p) {
+  font-family: var(--site-font-serif, Georgia, serif);
+}
+
+.card :global(h2) {
+  font-size: calc(var(--thought-card-title-ratio) * 1cqw);
+}
+
+.card :global(p) {
+  font-size: calc(var(--thought-card-description-ratio) * 1cqw);
+}
