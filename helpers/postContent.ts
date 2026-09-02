@@ -2,6 +2,7 @@ import fs from 'fs'
 import matter from 'gray-matter'
 import { formatDate } from './date'
 import { getSliderVisualParameters } from './sliderVisualParameters'
+import { getReadingTimeMinutes } from './readingTime'
 
 export {
   getSliderVisualParameters,
@@ -16,6 +17,10 @@ export type PostFrontmatter = Record<string, FrontmatterValue> & {
   tags?: string[] | string
   externalUrl?: string
   forceExternalNavigation?: boolean
+  /** Opt-in candidacy for the frontpage (abstract.tsx) hero spotlight rail —
+   * see PostSummary.featured's own doc comment. Absent/falsy is the default
+   * for every post that hasn't been curated yet. */
+  featured?: boolean
 }
 
 export type PostSummary = {
@@ -29,6 +34,13 @@ export type PostSummary = {
   externalUrl: string | null
   forceExternalNavigation: boolean
   readingTimeMinutes: number | null
+  /** Whether this post is a curated candidate for the frontpage (abstract.tsx)
+   * hero spotlight rail (CoverFlow + its AboutTimeline rail) — an opt-in
+   * editorial flag, not a derived one: a post with no `featured` frontmatter
+   * simply never appears there, regardless of how recent it is. Every other
+   * listing (journal.tsx, the frontpage's own full "Journal & Labs" archive)
+   * is unaffected and keeps showing every post. */
+  featured: boolean
 }
 
 export type SliderContentSlide = {
@@ -39,10 +51,19 @@ export type SliderContentSlide = {
   excerpt: string
   topic: string
   date: string
+  /** Raw ISO publication date when the slide comes from a post. Optional so
+   * hand-authored slides remain valid. */
+  publishedDate?: string
   readingTime: string
   href: string
   externalUrl: string | null
   forceExternalNavigation: boolean
+  /** See PostSummary.featured's own doc comment. Optional (unlike
+   * PostSummary's own required field) since hand-authored slides elsewhere
+   * (e.g. pages/about.tsx's own aboutSlides/topSegmentSlide) build this type
+   * directly without ever going through toSliderSlides, and have no
+   * equivalent "featured post" concept to report — they simply omit it. */
+  featured?: boolean
   seed: number
   hueOffset: number
   variationBias: number
@@ -52,7 +73,6 @@ export type SliderContentSlide = {
 }
 
 const DEFAULT_POSTS_DIR = 'posts'
-const WORDS_PER_MINUTE = 200
 
 function normalizeTags(value: PostFrontmatter['tags']) {
   if (Array.isArray(value)) {
@@ -74,11 +94,6 @@ export function getPostDate(fileName: string) {
   return fileName.split('_')[0].replace(/\.md$/, '')
 }
 
-export function getReadingTimeMinutes(content: string) {
-  const wordCount = content.replace(/[#_*`>\\-]/g, ' ').split(/\s+/).filter(Boolean).length
-  return wordCount ? Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE)) : null
-}
-
 export function normalizePostSummary(fileName: string, frontmatter: PostFrontmatter, content: string): PostSummary {
   const slug = getPostSlug(fileName)
   const date = getPostDate(fileName)
@@ -97,6 +112,7 @@ export function normalizePostSummary(fileName: string, frontmatter: PostFrontmat
     externalUrl: frontmatter?.externalUrl ? String(frontmatter.externalUrl) : null,
     forceExternalNavigation: Boolean(frontmatter?.forceExternalNavigation),
     readingTimeMinutes: getReadingTimeMinutes(content),
+    featured: Boolean(frontmatter?.featured),
   }
 }
 
@@ -139,10 +155,12 @@ export function toSliderSlides(posts: PostSummary[]): SliderContentSlide[] {
       excerpt: post.excerpt,
       topic: post.tags?.[0] ?? '',
       date: displayDate,
+      publishedDate: post.date,
       readingTime: post.readingTimeMinutes != null ? `${post.readingTimeMinutes} min read` : '',
       href,
       externalUrl: post.externalUrl,
       forceExternalNavigation: post.forceExternalNavigation,
+      featured: post.featured,
       ...visualParameters,
     }
   })

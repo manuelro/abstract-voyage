@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T04:30:29.138Z",
+  "generatedAt": "2026-09-02T23:46:35.028Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -150,6 +150,14 @@
       "exports": [
         "ABSTRACT_TIMELINE_SCOPE_ID",
         "ABSTRACT_TIMELINE_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/Card/config/appearance.panel.ts",
+      "stub": "experiences/abstract/components/Card/config/appearance.panel.stub.ts",
+      "exports": [
+        "CARD_APPEARANCE_SCOPE_ID",
+        "CARD_APPEARANCE_PANEL"
       ]
     },
     {
@@ -328,7 +336,9 @@
         "ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID",
         "ABSTRACT_POLYMORPHIC_LAYOUT_PANEL",
         "ABSTRACT_PAGE_LAYOUT_PANEL",
-        "ABSTRACT_NARROW_COLUMN_STACK_PANEL"
+        "ABSTRACT_NARROW_COLUMN_STACK_PANEL",
+        "ABSTRACT_TIMELINE_CONTENT_SCOPE_ID",
+        "ABSTRACT_TIMELINE_CONTENT_PANEL"
       ]
     },
     {

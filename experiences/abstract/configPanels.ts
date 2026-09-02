@@ -74,9 +74,17 @@ import {
   COVER_FLOW_SCOPE_ID,
 } from './components/CoverFlow/CoverFlow.panel';
 import {
+  CARD_APPEARANCE_PANEL,
+  CARD_APPEARANCE_SCOPE_ID,
+} from './components/Card/config/appearance.panel';
+import {
   ABSTRACT_TIMELINE_PANEL,
   ABSTRACT_TIMELINE_SCOPE_ID,
 } from './components/AbstractTimeline.panel';
+import {
+  ABSTRACT_TIMELINE_CONTENT_PANEL,
+  ABSTRACT_TIMELINE_CONTENT_SCOPE_ID,
+} from '../../pages/abstract.panel';
 import {
   ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_PANEL,
   ABSTRACT_POST_DOCK_GRADIENT_PERFORMANCE_SCOPE_ID,
@@ -153,6 +161,10 @@ export const abstractConfigPanelRegistry = defineConfigScopeRegistry({
     SPLIT_COLUMN_CARD_STACK_PANEL,
   [COVER_FLOW_SCOPE_ID]:
     COVER_FLOW_PANEL,
+  [CARD_APPEARANCE_SCOPE_ID]:
+    CARD_APPEARANCE_PANEL,
   [ABSTRACT_TIMELINE_SCOPE_ID]:
     ABSTRACT_TIMELINE_PANEL,
+  [ABSTRACT_TIMELINE_CONTENT_SCOPE_ID]:
+    ABSTRACT_TIMELINE_CONTENT_PANEL,
 });

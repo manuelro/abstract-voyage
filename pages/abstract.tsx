@@ -84,7 +84,6 @@ import articleCardStyles from '../components/ArticleCard.module.css';
 import { useLiquidSliderMotion } from '../experiences/abstract/components/AbstractPostDock/hooks/motion';
 import { buildDeckPaletteStates } from '../experiences/abstract/helpers/deckPalette';
 import {
-  AbstractJournalLabHueFadeCard,
   type CardReveal,
 } from '../experiences/abstract/components/AbstractJournalLabCollection';
 import type { AbstractJournalLabFlipSlot } from '../experiences/abstract/components/AbstractJournalLabCollection/collectionLayout';
@@ -238,23 +237,34 @@ import { ABSTRACT_LAB_SECTION_APPEARANCE_SCOPE_ID } from '../experiences/abstrac
 import {
   ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG,
   DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG,
+  DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
   DEFAULT_ABSTRACT_TIMELINE_CONFIG,
   applyAbstractPolymorphicLayoutAllSizesUpdate,
   normalizeAbstractNarrowColumnStackConfig,
+  normalizeAbstractTimelineContentConfig,
   normalizeAbstractPageLayoutConfig,
   type AbstractNarrowColumnStackConfig,
   type AbstractNarrowColumnStackHorizontalAlign,
   type AbstractNarrowColumnStackVerticalAlign,
   type AbstractPageLayoutConfig,
+  type AbstractTimelineContentConfig,
 } from './abstract.config';
 import { AboutTimeline, type AboutTimelineRowData } from '../experiences/about/components/AboutTimeline';
 import { normalizeAboutTimelineConfig, type AboutTimelineConfig } from '../experiences/about/components/AboutTimeline.config';
 import { ABSTRACT_TIMELINE_SCOPE_ID } from '../experiences/abstract/components/AbstractTimeline.panel';
 import {
+  DEFAULT_CARD_APPEARANCE_CONFIG,
+  normalizeCardAppearanceConfig,
+  type CardAppearanceConfig,
+} from '../experiences/abstract/components/Card/config/appearance';
+import { Card } from '../experiences/abstract/components/Card/Card';
+import { CARD_APPEARANCE_SCOPE_ID } from '../experiences/abstract/components/Card/config/appearance.panel';
+import {
   ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID,
   ABSTRACT_PAGE_LAYOUT_SCOPE_ID,
   ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
+  ABSTRACT_TIMELINE_CONTENT_SCOPE_ID,
 } from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
@@ -405,6 +415,11 @@ function AbstractNarrowColumnStack({
     <div
       className={`flex min-h-0 min-w-0 flex-col ${NARROW_STACK_HORIZONTAL_CLASS[horizontalAlign]} ${NARROW_STACK_VERTICAL_CLASS[verticalAlign]}`}
       data-abstract-narrow-stack-region={position}
+      style={{
+        gridRow: config.invertOrder
+          ? (position === 'top' ? 2 : 1)
+          : (position === 'top' ? 1 : 2),
+      }}
     >
       <div className={horizontalAlign === 'stretch' ? 'w-full min-w-0' : 'min-w-0 max-w-full'}>
         {content}
@@ -574,6 +589,8 @@ const SPLIT_COLUMN_CARD_STACK_DEFINITION =
   abstractConfigPanelRegistry.resolve(SPLIT_COLUMN_CARD_STACK_SCOPE_ID);
 const ABSTRACT_TIMELINE_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_TIMELINE_SCOPE_ID);
+const CARD_APPEARANCE_DEFINITION =
+  abstractConfigPanelRegistry.resolve(CARD_APPEARANCE_SCOPE_ID);
 
 // This page's own baseline for LiquidSliderConfig — not the component's
 // shared DEFAULT_LIQUID_SLIDER_CONFIG (pages/slider.tsx and pages/about.tsx
@@ -1459,13 +1476,46 @@ export async function getStaticProps() {
 }
 
 export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
+  const [abstractTimelineContentConfig, setAbstractTimelineContentConfig] =
+    useState<AbstractTimelineContentConfig>(() => (
+      normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG)
+    ));
   // The masthead/welcome item is site introduction, not part of the
   // article index. CoverFlow and the narrow column's AboutTimeline share
-  // this filtered sequence.
-  const carouselAndListItems = useMemo(
-    () => (dockItems ?? []).filter((item) => item.slug !== 'welcome'),
-    [dockItems],
-  );
+  // this filtered sequence. `featured` is an opt-in editorial flag
+  // (PostFrontmatter.featured, helpers/postContent.ts) — a post with no
+  // `featured: true` in its own frontmatter never appears in this hero
+  // rail, regardless of recency. The full "Journal & Labs" archive further
+  // down this page renders `dockItems` directly and is deliberately
+  // unaffected: `featured` only curates this hero spotlight, it doesn't
+  // hide a post from the rest of the site.
+  const carouselAndListItems = useMemo(() => {
+    const sourceItems = (dockItems ?? []).filter(
+      (item) => item.slug !== 'welcome' && item.featured === true,
+    );
+    const indexedItems = sourceItems.map((item, index) => ({ item, index }));
+    const compare = (a: typeof indexedItems[number], b: typeof indexedItems[number]) => {
+      if (abstractTimelineContentConfig.order === 'titleAsc') {
+        return a.item.title.localeCompare(b.item.title) || a.index - b.index;
+      }
+      if (abstractTimelineContentConfig.order === 'titleDesc') {
+        return b.item.title.localeCompare(a.item.title) || a.index - b.index;
+      }
+      const dateComparison = (a.item.publishedDate ?? '').localeCompare(b.item.publishedDate ?? '');
+      if (dateComparison !== 0) {
+        return abstractTimelineContentConfig.order === 'oldest' ? dateComparison : -dateComparison;
+      }
+      // The loader already supplies publication-descending items. This
+      // fallback keeps hand-authored slides stable when no raw date exists.
+      return abstractTimelineContentConfig.order === 'oldest'
+        ? b.index - a.index
+        : a.index - b.index;
+    };
+    return indexedItems
+      .sort(compare)
+      .slice(0, abstractTimelineContentConfig.visibleItemCount)
+      .map(({ item }) => item);
+  }, [abstractTimelineContentConfig, dockItems]);
   // AboutTimelineRowData mapping — carouselAndListItems is already exactly
   // SliderContentSlide-shaped (AbstractPostDockItem is a straight type
   // alias, helpers/abstractPostDockItems.ts), the same shape /about's own
@@ -1621,6 +1671,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // live Card stack scope also feeds its inactive-card presentation here.
   const [splitColumnCardStackConfig, setSplitColumnCardStackConfig] =
     useState(() => normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG));
+  const [cardAppearanceConfig, setCardAppearanceConfig] =
+    useState<CardAppearanceConfig>(() => normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG));
   // CoverFlow and the narrow column's AboutTimeline remain independently
   // tunable through their own live scopes. abstractTimelineConfig is its
   // own independent instance from /about's own aboutTimelineConfig. The
@@ -2213,10 +2265,22 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       defaultValue: normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG),
     }),
     createConfigScopeBinding({
+      definition: CARD_APPEARANCE_DEFINITION,
+      value: cardAppearanceConfig,
+      onChange: setCardAppearanceConfig,
+      defaultValue: normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG),
+    }),
+    createConfigScopeBinding({
       definition: ABSTRACT_TIMELINE_DEFINITION,
       value: abstractTimelineConfig,
       onChange: setAbstractTimelineConfig,
       defaultValue: normalizeAboutTimelineConfig(DEFAULT_ABSTRACT_TIMELINE_CONFIG),
+    }),
+    createConfigScopeBinding({
+      definition: abstractConfigPanelRegistry.resolve(ABSTRACT_TIMELINE_CONTENT_SCOPE_ID),
+      value: abstractTimelineContentConfig,
+      onChange: setAbstractTimelineContentConfig,
+      defaultValue: normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG),
     }),
   ], [
     dockGradientPerformanceConfig,
@@ -2234,12 +2298,14 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     editorialHeroConfig,
     splitColumnHeroConfig,
     coverFlowConfig,
+    cardAppearanceConfig,
     abstractTimelineConfig,
     siteHeaderColorOverride,
     ctaButtonColorOverride,
     heroCtaComposerConfig,
     abstractPageLayoutConfig,
     abstractNarrowColumnStackConfig,
+    abstractTimelineContentConfig,
     splitColumnLayoutConfig,
     splitColumnCardStackConfig,
   ]);
@@ -2356,11 +2422,17 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     setLabCardConfig({
       ...DEFAULT_ABSTRACT_METAL_LAB_CARD_CONFIG,
     });
+    setCardAppearanceConfig(
+      normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG),
+    );
     setAbstractPageLayoutConfig(
       normalizeAbstractPageLayoutConfig(DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG),
     );
     setAbstractNarrowColumnStackConfig(
       normalizeAbstractNarrowColumnStackConfig(DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG),
+    );
+    setAbstractTimelineContentConfig(
+      normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG),
     );
     setSplitColumnLayoutConfig(
       normalizePolymorphicLayoutConfig(ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG),
@@ -3520,28 +3592,28 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // neighbour cards retain the proven treatment without exposing the
   // retired component's controls.
   const coverFlowColumnBackgroundColor = colors.wideColumnColor ?? normalizedPageSurfaceConfig.color;
-  const coverFlowNeighborBackgroundColor = splitColumnCardStackConfig.neighborBackgroundMode === 'transparent'
+  const coverFlowNeighborBackgroundColor = cardAppearanceConfig.neighborBackgroundMode === 'transparent'
     ? 'transparent'
-    : splitColumnCardStackConfig.neighborBackgroundMode === 'custom'
-      ? splitColumnCardStackConfig.neighborBackgroundCustomColor
-      : splitColumnCardStackConfig.neighborBackgroundMode === 'column'
-        ? deriveSurfaceColor(coverFlowColumnBackgroundColor, splitColumnCardStackConfig.neighborBackgroundOffset)
+    : cardAppearanceConfig.neighborBackgroundMode === 'custom'
+      ? cardAppearanceConfig.neighborBackgroundCustomColor
+      : cardAppearanceConfig.neighborBackgroundMode === 'column'
+        ? deriveSurfaceColor(coverFlowColumnBackgroundColor, cardAppearanceConfig.neighborBackgroundOffset)
         : normalizedPageSurfaceConfig.color;
   const coverFlowNeighborTextContrastTarget = coverFlowNeighborBackgroundColor === 'transparent'
     ? coverFlowColumnBackgroundColor
     : coverFlowNeighborBackgroundColor;
-  const coverFlowNeighborTextColor = splitColumnCardStackConfig.neighborTextColorMode === 'column'
+  const coverFlowNeighborTextColor = cardAppearanceConfig.neighborTextColorMode === 'column'
     ? resolveContrastAwareTextColor(
       coverFlowNeighborTextContrastTarget,
-      splitColumnCardStackConfig.neighborTextMinContrast,
-      splitColumnCardStackConfig.neighborTextOffset,
+      cardAppearanceConfig.neighborTextMinContrast,
+      cardAppearanceConfig.neighborTextOffset,
     )
-    : splitColumnCardStackConfig.neighborTextColor;
-  const coverFlowNeighborTopicBorderColor = splitColumnCardStackConfig.neighborTextColorMode === 'column'
+    : cardAppearanceConfig.neighborTextColor;
+  const coverFlowNeighborTopicBorderColor = cardAppearanceConfig.neighborTextColorMode === 'column'
     ? coverFlowNeighborTextColor
-    : splitColumnCardStackConfig.neighborTopicBorderColor;
+    : cardAppearanceConfig.neighborTopicBorderColor;
   const coverFlowNeighborCardBorderColor = deriveTransparentTint(
-    coverFlowNeighborTextColor, splitColumnCardStackConfig.neighborBorderColorOffset,
+    coverFlowNeighborTextColor, cardAppearanceConfig.neighborBorderColorOffset,
   );
   const coverFlowNeighborFillUnderlay = coverFlowNeighborBackgroundColor === 'transparent'
     ? coverFlowColumnBackgroundColor
@@ -3549,46 +3621,46 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const coverFlowNeighborFlatFillColor = deriveOpaqueTint(
     coverFlowNeighborTextColor,
     coverFlowNeighborFillUnderlay,
-    splitColumnCardStackConfig.neighborFlatFillOpacity,
+    cardAppearanceConfig.neighborFlatFillOpacity,
   );
   const coverFlowNeighborFlatFillToneColor = deriveSurfaceColor(
     coverFlowNeighborFlatFillColor,
-    splitColumnCardStackConfig.neighborFlatFillToneOffset,
+    cardAppearanceConfig.neighborFlatFillToneOffset,
   );
-  const coverFlowNeighborCardSurfaceColor = splitColumnCardStackConfig.neighborFrameMode === 'flat-fill'
+  const coverFlowNeighborCardSurfaceColor = cardAppearanceConfig.neighborFrameMode === 'flat-fill'
     ? coverFlowNeighborFlatFillToneColor
     : coverFlowNeighborBackgroundColor;
 
   const coverFlowStackPresentationBase = useMemo(() => ({
     surfaceColor: coverFlowNeighborCardSurfaceColor,
-    frameMode: splitColumnCardStackConfig.neighborFrameMode,
+    frameMode: cardAppearanceConfig.neighborFrameMode,
     textColor: coverFlowNeighborTextColor,
     topicBorderColor: coverFlowNeighborTopicBorderColor,
     cardBorderColor: coverFlowNeighborCardBorderColor,
-    headerOpacity: splitColumnCardStackConfig.activeHeaderOpacity,
-    textOpacity: splitColumnCardStackConfig.activeTextOpacity,
-    transitionDurationMs: coverFlowPrefersReducedMotion ? 0 : splitColumnCardStackConfig.stepTiltDurationMs,
-    transitionEasingCss: CTA_BUTTON_MOTION_EASINGS[splitColumnCardStackConfig.stepTiltEasing],
+    headerOpacity: cardAppearanceConfig.activeHeaderOpacity,
+    textOpacity: cardAppearanceConfig.activeTextOpacity,
+    transitionDurationMs: coverFlowPrefersReducedMotion ? 0 : cardAppearanceConfig.stepTiltDurationMs,
+    transitionEasingCss: CTA_BUTTON_MOTION_EASINGS[cardAppearanceConfig.stepTiltEasing],
     transitionDelayMs: 0,
     gradientRevealDurationMs: coverFlowPrefersReducedMotion
       ? 0
-      : splitColumnCardStackConfig.neighborGradientRevealDurationMs,
+      : cardAppearanceConfig.neighborGradientRevealDurationMs,
     gradientRevealEasingCss:
-      CTA_BUTTON_MOTION_EASINGS[splitColumnCardStackConfig.neighborGradientRevealEasing],
+      CTA_BUTTON_MOTION_EASINGS[cardAppearanceConfig.neighborGradientRevealEasing],
     gradientRevealBlurPx: coverFlowPrefersReducedMotion
       ? 0
-      : splitColumnCardStackConfig.neighborGradientRevealBlurPx,
+      : cardAppearanceConfig.neighborGradientRevealBlurPx,
     shadowFadeDurationMs: coverFlowPrefersReducedMotion
       ? 0
-      : splitColumnCardStackConfig.neighborShadowFadeDurationMs,
+      : cardAppearanceConfig.neighborShadowFadeDurationMs,
     shadowFadeEasingCss:
-      CTA_BUTTON_MOTION_EASINGS[splitColumnCardStackConfig.neighborShadowFadeEasing],
-    ctaHoverDurationMs: coverFlowPrefersReducedMotion ? 0 : splitColumnCardStackConfig.ctaHoverDurationMs,
-    ctaHoverEasingCss: CTA_BUTTON_MOTION_EASINGS[splitColumnCardStackConfig.ctaHoverEasing],
-    ctaHoverDelayMs: coverFlowPrefersReducedMotion ? 0 : splitColumnCardStackConfig.ctaHoverDelayMs,
+      CTA_BUTTON_MOTION_EASINGS[cardAppearanceConfig.neighborShadowFadeEasing],
+    ctaHoverDurationMs: coverFlowPrefersReducedMotion ? 0 : cardAppearanceConfig.ctaHoverDurationMs,
+    ctaHoverEasingCss: CTA_BUTTON_MOTION_EASINGS[cardAppearanceConfig.ctaHoverEasing],
+    ctaHoverDelayMs: coverFlowPrefersReducedMotion ? 0 : cardAppearanceConfig.ctaHoverDelayMs,
   }), [
     coverFlowNeighborCardSurfaceColor, coverFlowNeighborTextColor, coverFlowNeighborTopicBorderColor,
-    coverFlowNeighborCardBorderColor, coverFlowPrefersReducedMotion, splitColumnCardStackConfig,
+    coverFlowNeighborCardBorderColor, coverFlowPrefersReducedMotion, cardAppearanceConfig,
   ]);
 
   // Mesh performance state machine — identical to the carousel-lab spike's
@@ -3698,7 +3770,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       position.distanceFromActive * coverFlowConfig.inactiveCardColumnDarkeningStep,
     );
     const coverFlowCardSurfaceColor = !isActive
-      && splitColumnCardStackConfig.neighborFrameMode === 'flat-fill'
+      && cardAppearanceConfig.neighborFrameMode === 'flat-fill'
       ? blendOpaqueColors(
         coverFlowStackPresentationBase.surfaceColor,
         coverFlowColumnBackgroundColor,
@@ -3714,7 +3786,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         onPointerDownCapture={handleCoverFlowCardPointerDownCapture}
         onClickCapture={(event) => handleCoverFlowCardClickCapture(event, isActive)}
       >
-        <AbstractJournalLabHueFadeCard
+        <Card
           slot={slot}
           targetView="articles"
           renderedView="articles"
@@ -3723,6 +3795,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           transitioning={false}
           prefersReducedMotion={coverFlowPrefersReducedMotion}
           config={journalLabCollectionConfig}
+          appearanceConfig={cardAppearanceConfig}
           motion={coverFlowLiquidSliderMotion}
           gradientConfig={journalDockSliderConfig}
           basePalette={coverFlowPalettes?.[index] ?? null}
@@ -3762,7 +3835,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     journalDockSliderConfig, coverFlowPalettes, dockHologramConfig, resolvedCollectionDockLayoutConfig,
     normalizedCtaButtonConfig, coverFlowStackPresentationBase, coverFlowContentInsetCqw,
     coverFlowColumnBackgroundColor, coverFlowConfig.inactiveCardColumnDarkeningStep,
-    splitColumnCardStackConfig.neighborFrameMode,
+    cardAppearanceConfig,
   ]);
 
   return (

@@ -4,8 +4,10 @@ import type { PolymorphicLayoutConfig } from '../experiences/abstract/components
 import {
   ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG,
   DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG,
+  DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
   type AbstractNarrowColumnStackConfig,
+  type AbstractTimelineContentConfig,
   type AbstractPageLayoutConfig,
 } from './abstract.config';
 
@@ -122,6 +124,12 @@ export const ABSTRACT_NARROW_COLUMN_STACK_PANEL = defineConfigScope<AbstractNarr
       ],
     },
     {
+      kind: 'boolean',
+      key: 'invertOrder',
+      label: 'Invert visual order',
+      description: 'Swap the top and bottom content positions while keeping each region’s own size and alignment settings. DOM and keyboard reading order remain top then bottom.',
+    },
+    {
       kind: 'group',
       label: 'Top content',
       fields: [
@@ -162,6 +170,50 @@ export const ABSTRACT_NARROW_COLUMN_STACK_PANEL = defineConfigScope<AbstractNarr
     targetFile: 'pages/abstract.config.ts',
     targetSymbol: 'DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG',
     targetType: 'AbstractNarrowColumnStackConfig',
+    updateStrategy: 'replace_scope',
+    completeScope: true,
+  },
+});
+
+export const ABSTRACT_TIMELINE_CONTENT_SCOPE_ID = 'AbstractPage/timelineContent' as const;
+
+export const ABSTRACT_TIMELINE_CONTENT_PANEL = defineConfigScope<AbstractTimelineContentConfig>({
+  id: ABSTRACT_TIMELINE_CONTENT_SCOPE_ID,
+  component: 'AboutTimeline',
+  scope: 'content',
+  title: 'Timeline content',
+  createdAt: '2026-09-02',
+  summary: 'Visible article count and ordering shared with CoverFlow',
+  defaultOpen: false,
+  defaultValue: DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG,
+  fields: [
+    {
+      kind: 'number',
+      key: 'visibleItemCount',
+      label: 'Visible article count',
+      description: 'How many articles appear in both the timeline and CoverFlow. The selected ordering determines which top N articles are retained.',
+      min: 1,
+      max: 100,
+      step: 1,
+      integer: true,
+    },
+    {
+      kind: 'enum',
+      key: 'order',
+      label: 'Article order',
+      description: 'Controls the shared sequence used by the timeline and CoverFlow. Newest first is the current publication order.',
+      options: [
+        { label: 'NEWEST FIRST', value: 'newest' },
+        { label: 'OLDEST FIRST', value: 'oldest' },
+        { label: 'TITLE A–Z', value: 'titleAsc' },
+        { label: 'TITLE Z–A', value: 'titleDesc' },
+      ],
+    },
+  ],
+  copy: {
+    targetFile: 'pages/abstract.config.ts',
+    targetSymbol: 'DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG',
+    targetType: 'AbstractTimelineContentConfig',
     updateStrategy: 'replace_scope',
     completeScope: true,
   },

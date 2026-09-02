@@ -6,6 +6,7 @@ import { getHighlighter } from 'shiki'
 import type { HeadingItem, FigureItem } from './articleOutline'
 import { getPostCanonicalPath, getPostCanonicalUrl, getPublishedDate } from './siteMetadata'
 import { formatDate } from 'components/helpers/date'
+import { getReadingTimeMinutes } from './readingTime'
 
 export type PostType = {
   slug: string
@@ -205,8 +206,7 @@ export async function getPostArticleProps(slug: string): Promise<PostType> {
   const excerpt = rawExcerpt.length > 220
     ? `${rawExcerpt.slice(0, 217).trimEnd()}...`
     : rawExcerpt
-  const wordCount = processedContent.replace(/[#_*`>\\-]/g, ' ').split(/\s+/).filter(Boolean).length
-  const readingTimeMinutes = wordCount ? Math.max(1, Math.round(wordCount / 200)) : null
+  const readingTimeMinutes = getReadingTimeMinutes(processedContent)
   const lines = processedContent.split('\n')
   let headings: HeadingItem[] = []
   let figures: FigureItem[] = []
@@ -276,7 +276,7 @@ export async function getPostArticleProps(slug: string): Promise<PostType> {
     figures = figures.filter((item) => !excludeSet.has(item.id) && !excludeSet.has(item.alt.toLowerCase()) && (!item.caption || !excludeSet.has(item.caption.toLowerCase())))
   }
   const files = fs.readdirSync('posts')
-  const allPosts = files.map((file) => {
+  const allPosts = files.filter((file) => file !== 'welcome.md').map((file) => {
     const fileContent = fs.readFileSync(`posts/${file}`, 'utf-8')
     const { data } = matter(fileContent)
     const postSlug = file.replace('.md', '')

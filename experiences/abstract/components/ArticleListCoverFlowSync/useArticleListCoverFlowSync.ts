@@ -41,6 +41,13 @@ export function useArticleListCoverFlowSync(
   const lastOriginRef = useRef<ArticleListCoverFlowSyncOrigin>('external');
   const suppressUntilRef = useRef(0);
 
+  useEffect(() => {
+    const maxIndex = Math.max(itemCount - 1, 0);
+    if (activeIndexRef.current <= maxIndex) return;
+    activeIndexRef.current = maxIndex;
+    setActiveIndexRaw(maxIndex);
+  }, [itemCount]);
+
   const setActiveIndex = useCallback((index: number, origin: ArticleListCoverFlowSyncOrigin) => {
     const clamped = Math.min(Math.max(index, 0), Math.max(itemCount - 1, 0));
     if (clamped === activeIndexRef.current) return;

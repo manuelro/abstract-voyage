@@ -34,17 +34,35 @@ export const DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG = {
 export type AbstractNarrowColumnStackConfig = {
   topRegionPercent: number;
   bottomRegionPercent: number;
+  /** Visually swaps the top and bottom content regions while preserving the
+   * named region's own size and alignment settings. The DOM order remains
+   * top-then-bottom for stable keyboard and screen-reader navigation. */
+  invertOrder: boolean;
   topHorizontalAlign: AbstractNarrowColumnStackHorizontalAlign;
   topVerticalAlign: AbstractNarrowColumnStackVerticalAlign;
   bottomHorizontalAlign: AbstractNarrowColumnStackHorizontalAlign;
   bottomVerticalAlign: AbstractNarrowColumnStackVerticalAlign;
 };
 
+export type AbstractTimelineContentOrder = 'newest' | 'oldest' | 'titleAsc' | 'titleDesc';
+
+/** Page-owned content selection shared by Abstract's timeline and CoverFlow. */
+export type AbstractTimelineContentConfig = {
+  visibleItemCount: number;
+  order: AbstractTimelineContentOrder;
+};
+
+export const DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG = {
+  visibleItemCount: 10,
+  order: 'newest',
+} satisfies AbstractTimelineContentConfig;
+
 export const DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG = {
   topRegionPercent: 18,
   bottomRegionPercent: 62,
+  invertOrder: false,
   topHorizontalAlign: 'stretch',
-  topVerticalAlign: 'center',
+  topVerticalAlign: 'end',
   bottomHorizontalAlign: 'end',
   bottomVerticalAlign: 'end',
 } satisfies AbstractNarrowColumnStackConfig;
@@ -55,6 +73,9 @@ const STACK_HORIZONTAL_ALIGNMENTS: ReadonlyArray<AbstractNarrowColumnStackHorizo
 ];
 const STACK_VERTICAL_ALIGNMENTS: ReadonlyArray<AbstractNarrowColumnStackVerticalAlign> = [
   'start', 'center', 'end',
+];
+const TIMELINE_CONTENT_ORDERS: ReadonlyArray<AbstractTimelineContentOrder> = [
+  'newest', 'oldest', 'titleAsc', 'titleDesc',
 ];
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
@@ -89,6 +110,7 @@ export function normalizeAbstractNarrowColumnStackConfig(
       base.bottomRegionPercent,
       DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG.bottomRegionPercent,
     ),
+    invertOrder: Boolean(base.invertOrder),
     topHorizontalAlign: token(
       base.topHorizontalAlign,
       STACK_HORIZONTAL_ALIGNMENTS,
@@ -109,6 +131,18 @@ export function normalizeAbstractNarrowColumnStackConfig(
       STACK_VERTICAL_ALIGNMENTS,
       DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG.bottomVerticalAlign,
     ),
+  };
+}
+
+export function normalizeAbstractTimelineContentConfig(
+  config: Partial<AbstractTimelineContentConfig> | undefined,
+): AbstractTimelineContentConfig {
+  const base = { ...DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG, ...(config ?? {}) };
+  return {
+    visibleItemCount: Number.isFinite(base.visibleItemCount)
+      ? Math.min(100, Math.max(1, Math.round(base.visibleItemCount)))
+      : DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG.visibleItemCount,
+    order: token(base.order, TIMELINE_CONTENT_ORDERS, DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG.order),
   };
 }
 
