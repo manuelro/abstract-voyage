@@ -147,9 +147,9 @@ export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
   markerCustomColor: '#242732',
   hoverMarkerOpacity: 0.4,
   markerActiveOpacity: 0.7,
-  rowCategoryEnabled: true,
-  rowCategoryRevealDelayMs: 340,
-  rowCategorySeparator: '⋅',
+  rowAppendixEnabled: true,
+  rowAppendixRevealDelayMs: 340,
+  rowAppendixSeparator: '⋅',
   paddingTopLgClassName: 'lg:pt-7',
   marginTopLgClassName: 'lg:mt-0',
 };
