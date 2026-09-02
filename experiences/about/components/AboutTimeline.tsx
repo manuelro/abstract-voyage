@@ -14,8 +14,16 @@ import type { useLiquidSliderMotion } from '../../abstract/components/AbstractPo
 export type AboutTimelineRowData = {
   caption: string;
   line?: string;
+  /** Optional metadata appended inline to the title. Its meaning is owned by
+   * the caller: category, date, duration, status, or another compact label. */
+  appendix?: string;
+  /** @deprecated Use `appendix`; retained for existing timeline data. */
   category?: string;
   slideIndex: number;
+  /** Only read while `config.maxActiveRows === 0` — see `AboutTimelineRow`'s
+   * own `href` doc comment. Absent (every existing caller) keeps a
+   * zero-selection row a non-navigating list item, unchanged. */
+  href?: string;
 };
 
 // Rule weight's own catalog (AboutTimeline.config.ts's RULE_WEIGHT_OPTIONS)
@@ -25,6 +33,23 @@ export type AboutTimelineRowData = {
 // three-value lookup stays local here rather than teaching that shared
 // helper about a keyword class none of its other callers use.
 const RULE_WEIGHT_PX: Record<string, number> = { 'w-px': 1, 'w-0.5': 2, 'w-1': 4 };
+
+// The title class is a closed catalog (tailwindTypographyScale.ts), so the
+// marker can share the caption's actual first-line box instead of relying on
+// a stale, hard-coded 0.95rem assumption. The caption's own CSS line-height
+// is unitless 1.3 (AboutTimeline.module.css), applied to these font sizes.
+const TITLE_FONT_SIZE_REM: Record<string, number> = {
+  'text-xs': 0.75,
+  'text-sm': 0.875,
+  'text-base': 1,
+  'text-lg': 1.125,
+  'text-xl': 1.25,
+  'text-2xl': 1.5,
+  'text-3xl': 1.875,
+  'text-4xl': 2.25,
+  'text-5xl': 3,
+  'text-6xl': 3.75,
+};
 
 export interface AboutTimelineProps {
   rows: ReadonlyArray<AboutTimelineRowData>;
@@ -106,7 +131,7 @@ export function AboutTimeline({
   gradientMotion,
   gradientConfig,
 }: AboutTimelineProps) {
-  const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const rowRefs = useRef<Array<HTMLButtonElement | HTMLAnchorElement | null>>([]);
   const transitionEasingCss = CTA_BUTTON_MOTION_EASINGS[config.transitionEasing];
   const transitionDurationMs = prefersReducedMotion ? 0 : config.transitionDurationMs;
 
@@ -188,7 +213,7 @@ export function AboutTimeline({
   // move between rows, Home/End jump to first/last, wrapping never occurs
   // (clamped, matching AboutSlidesContext.goToPrevious/-Next's own
   // Math.max/Math.min bounds).
-  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement | HTMLAnchorElement>, index: number) => {
     let nextIndex: number | null = null;
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
       nextIndex = Math.min(rows.length - 1, index + 1);
@@ -206,6 +231,7 @@ export function AboutTimeline({
   }, [rows, onSelect, focusRow]);
 
   const titleClassName = [
+    config.rowTitleFontFamily,
     config.rowTitleFontWeightClassName, config.rowTitleFontSizeClassName,
     config.rowTitlePaddingTopClassName, config.rowTitlePaddingRightClassName,
     config.rowTitlePaddingBottomClassName, config.rowTitlePaddingLeftClassName,
@@ -221,6 +247,7 @@ export function AboutTimeline({
     config.rowTitleMarginBottomLgClassName, config.rowTitleMarginLeftLgClassName,
   ].join(' ');
   const rowDescriptionClassName = [
+    config.rowDescriptionFontFamily,
     config.rowDescriptionFontSizeClassName,
     config.rowDescriptionPaddingTopClassName, config.rowDescriptionPaddingRightClassName,
     config.rowDescriptionPaddingBottomClassName, config.rowDescriptionPaddingLeftClassName,
@@ -237,11 +264,8 @@ export function AboutTimeline({
   ].join(' ');
 
   const rowElements = useMemo(() => rows.map((row, index) => {
-    const selected = row.slideIndex === activeIndex;
-    // Hover only ever touches the hovered row's own marker/title opacity —
-    // every other row (and every other property of the hovered row itself:
-    // color, description, marker fill) stays exactly whatever its real
-    // selection state already made it, completely untouched by hover.
+    const selectionEnabled = config.maxActiveRows > 0;
+    const selected = selectionEnabled && row.slideIndex === activeIndex;
     const isHoveredRow = row.slideIndex === hoveredIndex;
     return (
       <AboutTimelineRow
@@ -250,14 +274,22 @@ export function AboutTimeline({
         panelId={panelId}
         caption={row.caption}
         line={row.line}
-        category={config.rowCategoryEnabled ? row.category : undefined}
-        categorySeparator={config.rowCategorySeparator}
+        appendix={config.rowAppendixEnabled ? (row.appendix ?? row.category) : undefined}
+        appendixSeparator={config.rowAppendixSeparator}
+        appendixClassName={`${config.rowAppendixFontFamily} ${config.rowAppendixFontSizeClassName}`}
+        appendixVisible={isHoveredRow}
         active={selected}
-        tabIndex={selected ? 0 : -1}
+        selectionEnabled={selectionEnabled}
+        tabIndex={selectionEnabled ? (selected ? 0 : -1) : 0}
+        href={row.href}
         markerColor={resolvedMarkerColor}
-        titleColor={selected ? resolvedRowTitleColorActive : resolvedRowTitleColorInactive}
-        descriptionColor={selected ? resolvedRowDescriptionColorActive : resolvedRowDescriptionColorInactive}
-        descriptionOpacity={selected ? config.rowDescriptionOpacityActive : config.rowDescriptionOpacityInactive}
+        titleColor={isHoveredRow || selected ? resolvedRowTitleColorActive : resolvedRowTitleColorInactive}
+        descriptionColor={isHoveredRow || selected ? resolvedRowDescriptionColorActive : resolvedRowDescriptionColorInactive}
+        descriptionOpacity={isHoveredRow
+          ? config.hoverDescriptionOpacity
+          : (selected ? config.rowDescriptionOpacityActive : config.rowDescriptionOpacityInactive)}
+        markerVisible={config.markerVisible}
+        descriptionVisible={config.rowDescriptionVisible}
         ruleVisible={config.ruleVisible}
         alignment={config.alignment}
         titleOpacity={isHoveredRow
@@ -270,7 +302,7 @@ export function AboutTimeline({
         descriptionClassName={rowDescriptionClassName}
         transitionDurationMs={transitionDurationMs}
         transitionEasingCss={transitionEasingCss}
-        categoryRevealDelayMs={prefersReducedMotion ? 0 : config.rowCategoryRevealDelayMs}
+        appendixRevealDelayMs={prefersReducedMotion ? 0 : config.rowAppendixRevealDelayMs}
         onSelect={() => onSelect(row.slideIndex)}
         onKeyDown={keyboardEvent => handleKeyDown(keyboardEvent, index)}
         onPointerEnter={() => handleRowPointerEnter(row.slideIndex)}
@@ -284,14 +316,17 @@ export function AboutTimeline({
       />
     );
   }), [
-    rows, activeIndex, resolvedMarkerColor, hoveredIndex,
+    rows, activeIndex, resolvedMarkerColor, hoveredIndex, config.maxActiveRows,
     resolvedRowTitleColorActive, resolvedRowTitleColorInactive,
     resolvedRowDescriptionColorActive, resolvedRowDescriptionColorInactive,
     config.rowDescriptionOpacityActive, config.rowDescriptionOpacityInactive,
+    config.markerVisible, config.rowDescriptionVisible,
     config.ruleVisible, config.alignment,
     config.rowTitleOpacityActive, config.rowTitleOpacityInactive,
-    config.hoverTitleOpacity, config.hoverMarkerOpacity,
-    config.rowCategoryEnabled, config.rowCategorySeparator, config.rowCategoryRevealDelayMs,
+    config.hoverTitleOpacity, config.hoverMarkerOpacity, config.hoverDescriptionOpacity,
+    config.rowAppendixEnabled, config.rowAppendixSeparator,
+    config.rowAppendixFontFamily, config.rowAppendixFontSizeClassName,
+    config.rowAppendixRevealDelayMs,
     titleClassName, rowDescriptionClassName,
     config.markerIdleOpacity, config.markerActiveOpacity,
     config.markerGradientEnabled, gradientSlides, gradientPaletteStates,
@@ -302,6 +337,7 @@ export function AboutTimeline({
 
   const markerSizePx = tailwindSpacingTokenToPx(config.markerSizeClassName.split(' ')[0], 24);
   const ruleWeightPx = RULE_WEIGHT_PX[config.ruleWeightClassName] ?? 1;
+  const titleFontSizeRem = TITLE_FONT_SIZE_REM[config.rowTitleFontSizeClassName] ?? 0.875;
 
   // The indent side (left while alignment is 'left', right while 'right')
   // combines the structural marker-offset with the operator's own
@@ -348,6 +384,7 @@ export function AboutTimeline({
       style={{
         '--about-timeline-marker-size': `${markerSizePx}px`,
         '--about-timeline-rule-weight': `${ruleWeightPx}px`,
+        '--about-timeline-title-line-height': `${titleFontSizeRem * 1.3}rem`,
       } as CSSProperties}
     >
       {description ? (
@@ -389,8 +426,8 @@ export function AboutTimeline({
         </p>
       ) : null}
       <ol
-        role="tablist"
-        aria-orientation="vertical"
+        role={config.maxActiveRows > 0 ? 'tablist' : 'list'}
+        aria-orientation={config.maxActiveRows > 0 ? 'vertical' : undefined}
         aria-label="Career timeline"
         className={`${styles.list} ${config.rowGap}`}
         style={{

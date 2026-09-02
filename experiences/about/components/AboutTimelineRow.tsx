@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
+import Link from 'next/link';
 import type { AboutTimelineAlignment } from './AboutTimeline.config';
 import styles from './AboutTimeline.module.css';
 import {
@@ -29,16 +30,29 @@ export interface AboutTimelineRowProps {
   panelId: string;
   caption: string;
   line?: string;
-  category?: string;
-  categorySeparator: string;
-  /** Real selection state (`row.slideIndex === activeIndex`) — drives ARIA
-   * (`aria-selected`) and the marker's own fill class. Hover never touches
-   * this — only a row's own marker/title opacity change on hover (see
-   * `markerOpacity`/`titleOpacity` below); every other row, and every other
-   * property of the hovered row itself, stays exactly as its real selection
-   * state already made it. */
+  appendix?: string;
+  appendixSeparator: string;
+  appendixClassName: string;
+  /** Pointer reveal becomes true only after the timeline's hover activation
+   * delay. Keyboard focus remains an independent accessible reveal path. */
+  appendixVisible: boolean;
+  /** Real selection state (`row.slideIndex === activeIndex`) — drives the
+   * marker's own fill class and, when selection is enabled, tab semantics.
+   * Hover may provide text emphasis for an otherwise inactive row. */
   active: boolean;
+  /** When false, rows behave as a normal list item: every row is keyboard
+   * reachable and no row is exposed as selected. */
+  selectionEnabled: boolean;
   tabIndex: number;
+  /** Only meaningful while `selectionEnabled` is false (`config.maxActiveRows
+   * === 0`) — when present, this row renders as a real link (`next/link`) to
+   * this URL instead of a selection button, so a zero-active-rows timeline
+   * can act as a plain list of navigable links rather than a dead list.
+   * Ignored while `selectionEnabled` is true: an active timeline's rows stay
+   * selection buttons even if a caller also supplies `href`, since tab
+   * semantics and link navigation don't compose. Absent (the pre-existing
+   * behavior) keeps every row a selection-less but non-navigating button. */
+  href?: string;
   /** Resolved marker fill/outline color — either the active slide's own
    * accent, a fixed custom color, or the row title's own active color, see
    * `AboutTimeline.tsx`'s own `resolvedMarkerColor`. */
@@ -70,19 +84,24 @@ export interface AboutTimelineRowProps {
   /** Joined padding/margin Tailwind classes for the supporting line span —
    * `config.rowDescriptionPadding*`/`-Margin*`. */
   descriptionClassName: string;
+  /** Whether this row's circular marker is rendered. The rule remains an
+   * independent control so it can still be used as a quiet chronology rail. */
+  markerVisible: boolean;
+  /** Whether the optional supporting line is rendered. */
+  descriptionVisible: boolean;
   ruleVisible: boolean;
   alignment: AboutTimelineAlignment;
   transitionDurationMs: number;
   transitionEasingCss: string;
-  categoryRevealDelayMs: number;
+  appendixRevealDelayMs: number;
   onSelect: () => void;
-  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement | HTMLAnchorElement>) => void;
   /** Pointer-hover start — `AboutTimeline.tsx`'s own delay timer decides
    * whether/when this actually flips `visuallyActive` for this row. */
   onPointerEnter: () => void;
   /** Pointer-hover end — always immediate, no delay on the way out. */
   onPointerLeave: () => void;
-  rowRef: (element: HTMLButtonElement | null) => void;
+  rowRef: (element: HTMLButtonElement | HTMLAnchorElement | null) => void;
   /** `config.markerGradientEnabled` — see that field's own doc comment
    * (`AboutTimeline.config.ts`). Only ever actually mounts the WebGL
    * gradient while this AND `active` are both true — the marker's flat
@@ -102,8 +121,7 @@ export interface AboutTimelineRowProps {
 
 /**
  * ART-01/ART-02 (about-IA-timeline-copy-rework) — standard sentence case, no
- * small caps/letterspacing/uppercase, no serif (the serif stays exclusive to
- * the H1). ART-05: one hairline-rule marker per row, hollow while inactive,
+ * small caps/letterspacing/uppercase. ART-05: one hairline-rule marker per row, hollow while inactive,
  * filled with the resolved marker color while active — the fill itself
  * switching on is the state signal, opacity is only ever a secondary
  * pairing (A11Y-04), never the sole carrier.
@@ -125,10 +143,14 @@ export function AboutTimelineRow({
   panelId,
   caption,
   line,
-  category,
-  categorySeparator,
+  appendix,
+  appendixSeparator,
+  appendixClassName,
+  appendixVisible,
   active,
+  selectionEnabled,
   tabIndex,
+  href,
   markerColor,
   markerOpacity,
   titleColor,
@@ -137,11 +159,13 @@ export function AboutTimelineRow({
   descriptionColor,
   descriptionOpacity,
   descriptionClassName,
+  markerVisible,
+  descriptionVisible,
   ruleVisible,
   alignment,
   transitionDurationMs,
   transitionEasingCss,
-  categoryRevealDelayMs,
+  appendixRevealDelayMs,
   onSelect,
   onKeyDown,
   onPointerEnter,
@@ -164,38 +188,19 @@ export function AboutTimelineRow({
   // canvas nobody can see (fill is 0 while inactive), so this is never more
   // than one concurrent WebGL instance across all five rows, not one per
   // row.
-  const showMarkerGradient = gradientEnabled && active && Boolean(gradientSlide) && Boolean(gradientMotion) && Boolean(gradientConfig);
+  const showMarkerGradient = markerVisible && gradientEnabled && active && Boolean(gradientSlide) && Boolean(gradientMotion) && Boolean(gradientConfig);
   const normalizedLine = typeof line === 'string' ? line.trim() : '';
-  const normalizedCategory = typeof category === 'string' ? category.trim() : '';
+  const normalizedAppendix = typeof appendix === 'string' ? appendix.trim() : '';
   const markerGradientActivity = resolveAbstractPostDockGradientActivity({
     config: STATIC_MARKER_GRADIENT_PERFORMANCE_CONFIG,
     isActive: false,
     isDockVisible,
     isDocumentVisible,
   });
-  return (
-    <li className={styles.item}>
-      <button
-        ref={rowRef}
-        type="button"
-        id={id}
-        role="tab"
-        aria-selected={active}
-        aria-controls={panelId}
-        tabIndex={tabIndex}
-        onClick={onSelect}
-        onKeyDown={onKeyDown}
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-        data-alignment={alignment}
-        className={styles.row}
-        style={{
-          '--about-timeline-transition-ms': `${transitionDurationMs}ms`,
-          '--about-timeline-transition-easing': transitionEasingCss,
-          '--about-timeline-category-reveal-delay-ms': `${categoryRevealDelayMs}ms`,
-        } as CSSProperties}
-      >
-        {ruleVisible ? <span aria-hidden="true" className={styles.rule} /> : null}
+  const rowContent = (
+    <>
+      {ruleVisible ? <span aria-hidden="true" className={styles.rule} /> : null}
+      {markerVisible ? (
         <span
           ref={markerRef}
           aria-hidden="true"
@@ -215,40 +220,91 @@ export function AboutTimelineRow({
             />
           ) : null}
         </span>
-        <span className={styles.content}>
+      ) : null}
+      <span className={styles.content}>
+        <span
+          className={`${styles.caption} ${titleClassName}`}
+        >
           <span
-            className={`${styles.caption} ${titleClassName}`}
+            className={styles.captionText}
+            style={{ color: titleColor, opacity: titleOpacity }}
           >
-            <span
-              className={styles.captionText}
-              style={{ color: titleColor, opacity: titleOpacity }}
-            >
-              {caption}
-            </span>
-            {normalizedCategory ? (
-              <span
-                aria-hidden="true"
-                className={styles.category}
-                style={{
-                  color: descriptionColor,
-                  '--about-timeline-category-opacity': descriptionOpacity,
-                } as CSSProperties}
-              >
-                <span className={styles.categorySeparator}>{categorySeparator}</span>
-                {normalizedCategory}
-              </span>
-            ) : null}
+            {caption}
           </span>
-          {normalizedLine ? (
+          {normalizedAppendix ? (
             <span
-              className={`${styles.line} ${descriptionClassName}`}
-              style={{ color: descriptionColor, opacity: descriptionOpacity }}
+              className={`${styles.appendix} ${appendixClassName}`}
+              style={{
+                color: descriptionColor,
+                '--about-timeline-appendix-opacity': descriptionOpacity,
+              } as CSSProperties}
             >
-              {normalizedLine}
+              <span className={styles.appendixSeparator}>{appendixSeparator}</span>
+              {normalizedAppendix}
             </span>
           ) : null}
         </span>
-      </button>
+        {descriptionVisible && normalizedLine ? (
+          <span
+            className={`${styles.line} ${descriptionClassName}`}
+            style={{ color: descriptionColor, opacity: descriptionOpacity }}
+          >
+            {normalizedLine}
+          </span>
+        ) : null}
+      </span>
+    </>
+  );
+
+  // A row is only ever a link (real navigation, no tab semantics) while the
+  // timeline has no selection concept at all (`!selectionEnabled`, i.e.
+  // `config.maxActiveRows === 0`) AND the caller actually supplied a
+  // destination — otherwise it stays the existing selection button, so
+  // AboutTimeline keeps working as either a tablist (about.tsx/abstract.tsx)
+  // or a plain non-navigating list (any `href`-less zero-selection caller),
+  // unchanged.
+  const sharedProps = {
+    id,
+    tabIndex,
+    onKeyDown,
+    onPointerEnter,
+    onPointerLeave,
+    'data-alignment': alignment,
+    'data-marker-visible': markerVisible,
+    'data-rule-visible': ruleVisible,
+    'data-appendix-visible': appendixVisible,
+    className: styles.row,
+    style: {
+      '--about-timeline-transition-ms': `${transitionDurationMs}ms`,
+      '--about-timeline-transition-easing': transitionEasingCss,
+      '--about-timeline-appendix-reveal-delay-ms': `${appendixRevealDelayMs}ms`,
+    } as CSSProperties,
+  };
+
+  return (
+    <li className={styles.item}>
+      {!selectionEnabled && href ? (
+        <Link
+          ref={rowRef}
+          href={href}
+          onClick={onSelect}
+          {...sharedProps}
+        >
+          {rowContent}
+        </Link>
+      ) : (
+        <button
+          ref={rowRef}
+          type="button"
+          role={selectionEnabled ? 'tab' : undefined}
+          aria-selected={selectionEnabled ? active : undefined}
+          aria-controls={selectionEnabled ? panelId : undefined}
+          onClick={onSelect}
+          {...sharedProps}
+        >
+          {rowContent}
+        </button>
+      )}
     </li>
   );
 }

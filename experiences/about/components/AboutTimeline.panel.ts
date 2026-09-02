@@ -30,7 +30,7 @@ import {
 import { FONT_SIZE_OPTIONS, FONT_WEIGHT_OPTIONS, MAX_WIDTH_OPTIONS } from '../../../components/tailwindTypographyScale';
 import {
   DEFAULT_ABOUT_TIMELINE_CONFIG,
-  CATEGORY_SEPARATOR_OPTIONS,
+  APPENDIX_SEPARATOR_OPTIONS,
   MARKER_SIZE_OPTIONS,
   RULE_WEIGHT_OPTIONS,
   type AboutTimelineConfig,
@@ -53,7 +53,11 @@ const whenCustomMarkerColor = (config: Readonly<AboutTimelineConfig>) => (
 );
 const whenRuleVisible = (config: Readonly<AboutTimelineConfig>) => config.ruleVisible;
 const whenMarkerGradientEnabled = (config: Readonly<AboutTimelineConfig>) => config.markerGradientEnabled;
-const whenRowCategoryEnabled = (config: Readonly<AboutTimelineConfig>) => config.rowCategoryEnabled;
+const whenRowAppendixEnabled = (config: Readonly<AboutTimelineConfig>) => config.rowAppendixEnabled;
+const ITEM_FONT_FAMILY_OPTIONS = [
+  { label: 'SANS', value: 'font-sans' },
+  { label: 'SERIF', value: 'font-serif' },
+] as const;
 
 /**
  * CMP-04 (about-IA-timeline-copy-rework) — same scope/registry pattern as
@@ -97,6 +101,22 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     key: 'markerSizeClassName',
     label: 'Marker size',
     options: MARKER_SIZE_OPTIONS,
+  },
+  {
+    kind: 'boolean',
+    key: 'markerVisible',
+    label: 'Show marker',
+    description: 'Shows the circular marker for each item. With the rule also off, hiding markers releases the marker gutter.',
+  },
+  {
+    kind: 'number',
+    key: 'maxActiveRows',
+    label: 'Max active rows',
+    description: 'Set to 0 for a normal hoverable list with no selected row. The current selection model supports one active row.',
+    min: 0,
+    max: 1,
+    step: 1,
+    integer: true,
   },
   {
     kind: 'boolean',
@@ -209,6 +229,24 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     step: 0.1,
   },
   {
+    kind: 'boolean',
+    key: 'rowDescriptionVisible',
+    label: 'Show row description',
+    description: 'Shows each item\'s optional supporting line. This does not affect the timeline lead-in description above the rows.',
+  },
+  {
+    kind: 'enum',
+    key: 'rowTitleFontFamily',
+    label: 'Row title font',
+    options: ITEM_FONT_FAMILY_OPTIONS,
+  },
+  {
+    kind: 'enum',
+    key: 'rowDescriptionFontFamily',
+    label: 'Row description font',
+    options: ITEM_FONT_FAMILY_OPTIONS,
+  },
+  {
     kind: 'select',
     key: 'rowTitleFontWeightClassName',
     label: 'Row title font weight',
@@ -272,6 +310,15 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
   },
   {
     kind: 'number',
+    key: 'hoverDescriptionOpacity',
+    label: 'Hover description opacity',
+    description: 'Opacity the hovered row\'s supporting line rises to during pointer hover.',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    kind: 'number',
     key: 'hoverDelayMs',
     label: 'Hover delay',
     description: 'Time the pointer must stay over a row before its hover state takes effect. Leaving early cancels it — no delay on the way out.',
@@ -283,28 +330,42 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
   },
   {
     kind: 'boolean',
-    key: 'rowCategoryEnabled',
-    label: 'Show row category',
-    description: 'Off by default. On reveals a row category beside the title only while the title itself is hovered or keyboard-focused.',
+    key: 'rowAppendixEnabled',
+    label: 'Show title appendix',
+    description: 'Reveals optional row metadata inline after the title once hover is active, or when the row receives keyboard focus.',
   },
   {
     kind: 'enum',
-    key: 'rowCategorySeparator',
-    label: 'Category separator',
-    options: CATEGORY_SEPARATOR_OPTIONS,
-    visibleWhen: whenRowCategoryEnabled,
+    key: 'rowAppendixSeparator',
+    label: 'Appendix separator',
+    options: APPENDIX_SEPARATOR_OPTIONS,
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'enum',
+    key: 'rowAppendixFontFamily',
+    label: 'Appendix font',
+    options: ITEM_FONT_FAMILY_OPTIONS,
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'select',
+    key: 'rowAppendixFontSizeClassName',
+    label: 'Appendix font size',
+    options: FONT_SIZE_OPTIONS,
+    visibleWhen: whenRowAppendixEnabled,
   },
   {
     kind: 'number',
-    key: 'rowCategoryRevealDelayMs',
-    label: 'Category reveal delay',
-    description: 'Delay before the hover-only category appears beside the title.',
+    key: 'rowAppendixRevealDelayMs',
+    label: 'Appendix reveal delay',
+    description: 'Additional delay after the row hover state activates before the appendix appears.',
     min: 0,
     max: 2000,
     step: 10,
     unit: 'ms',
     integer: true,
-    visibleWhen: whenRowCategoryEnabled,
+    visibleWhen: whenRowAppendixEnabled,
   },
   // Padding and margin are tiered by breakpoint; the ALL SIZES tab is only
   // for controls that deliberately stay single-value across every
@@ -533,6 +594,12 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
         ],
       },
     ],
+  },
+  {
+    kind: 'text',
+    key: 'description',
+    label: 'Timeline description',
+    description: 'Lead-in copy rendered above the timeline rows. Leave empty to omit it.',
   },
   {
     kind: 'select',

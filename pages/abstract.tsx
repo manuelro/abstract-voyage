@@ -4379,6 +4379,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   onSelect={handleTimelineActiveIndexChange}
                   accentColor={carouselAndListItems[articleActiveIndex]?.accent ?? '#ffffff'}
                   columnBackgroundColor={colors.narrowColumnColor}
+                  description={abstractTimelineConfig.description || undefined}
                   config={abstractTimelineConfig}
                   prefersReducedMotion={coverFlowPrefersReducedMotion}
                   panelId={ABSTRACT_TIMELINE_PANEL_ID}

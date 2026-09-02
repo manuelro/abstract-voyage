@@ -76,7 +76,13 @@ export type AboutTimelineMarkerColorMode = 'accent' | 'custom' | 'text';
  * AboutTimeline.tsx's own doc comment), so there is no narrower tier for a
  * second value to ever apply to. */
 export type AboutTimelineAlignment = 'left' | 'right';
-export type AboutTimelineCategorySeparator = '·' | '⋅';
+export type AboutTimelineAppendixSeparator = '·' | '⋅';
+/** @deprecated Use `AboutTimelineAppendixSeparator`. */
+export type AboutTimelineCategorySeparator = AboutTimelineAppendixSeparator;
+/** The two intentional editorial families available to a timeline item's
+ * title and supporting line. Kept separate so a page can establish
+ * hierarchy without creating a second row component. */
+export type AboutTimelineItemFontFamily = 'font-sans' | 'font-serif';
 
 /** Square icon-style dimension catalog for the marker dot — same literal
  * "complete w-N h-N combo per option" shape
@@ -109,10 +115,12 @@ export const RULE_WEIGHT_OPTIONS = [
 ] as const;
 export type AboutTimelineRuleWeightClass = typeof RULE_WEIGHT_OPTIONS[number]['value'];
 
-export const CATEGORY_SEPARATOR_OPTIONS = [
+export const APPENDIX_SEPARATOR_OPTIONS = [
   { label: 'MIDDLE DOT', value: '·' },
   { label: 'DOT OPERATOR', value: '⋅' },
 ] as const;
+/** @deprecated Use `APPENDIX_SEPARATOR_OPTIONS`. */
+export const CATEGORY_SEPARATOR_OPTIONS = APPENDIX_SEPARATOR_OPTIONS;
 
 /**
  * about-IA-timeline-copy-rework (CMP-03) — component-owned config for
@@ -186,6 +194,13 @@ export type AboutTimelineConfig = {
   rowGap: GapClass;
   /** Diameter of the marker dot — literal `w-N h-N` combo class. */
   markerSizeClassName: AboutTimelineMarkerSizeClass;
+  /** On (default): renders each row's circular marker. Off removes the
+   * marker; when the rule is also off, the marker gutter is released too. */
+  markerVisible: boolean;
+  /** Maximum number of selected rows. The current selection model supports
+   * zero or one: zero turns the component into a hoverable, traversable list
+   * with no active row. */
+  maxActiveRows: number;
   /** On (default): renders the hairline vertical rule the markers sit on.
    * Off: rule omitted entirely (rows still show their own marker). */
   ruleVisible: boolean;
@@ -259,6 +274,13 @@ export type AboutTimelineConfig = {
    * its title. */
   rowDescriptionMinContrastActive: number;
   rowDescriptionMinContrastInactive: number;
+  /** Whether the row's optional supporting line is rendered. This affects
+   * item descriptions only, never the separate lead-in timeline description. */
+  rowDescriptionVisible: boolean;
+  /** Font family for a row's title. */
+  rowTitleFontFamily: AboutTimelineItemFontFamily;
+  /** Font family for a row's supporting line. */
+  rowDescriptionFontFamily: AboutTimelineItemFontFamily;
   /** Font weight of a row's own title (caption) — literal Tailwind
    * `font-*` class, applied identically regardless of active/inactive state
    * (see this type's own doc comment on font weight never being a state
@@ -297,18 +319,29 @@ export type AboutTimelineConfig = {
   /** Same hover-pop treatment as `hoverMarkerOpacity` above, applied to the
    * hovered row's own title (caption) opacity instead. */
   hoverTitleOpacity: number;
+  /** Opacity of the hovered row's supporting line. */
+  hoverDescriptionOpacity: number;
   /** Delay, in milliseconds, between the pointer entering a row and that
    * row's hover state actually taking effect — leaving before this elapses
    * cancels it outright (no delay on the way out, only on the way in). */
   hoverDelayMs: number;
-  /** Off by default: row metadata/category is omitted entirely. On: a row
-   * with a `category` value reveals it beside the title only while the title
-   * itself is hovered or keyboard-focused. */
-  rowCategoryEnabled: boolean;
-  /** Separator shown between title and category while category reveal is on. */
-  rowCategorySeparator: AboutTimelineCategorySeparator;
-  /** CSS transition delay before the hover-only category becomes visible. */
-  rowCategoryRevealDelayMs: number;
+  /** Off by default: optional row metadata is omitted. On: a row with an
+   * `appendix` value reveals it inline after the title once the row's hover
+   * state is active, or when the row receives keyboard focus. */
+  rowAppendixEnabled: boolean;
+  /** Separator inserted between the title and its appendix. */
+  rowAppendixSeparator: AboutTimelineAppendixSeparator;
+  /** Font family used by the appendix independently of the title. */
+  rowAppendixFontFamily: AboutTimelineItemFontFamily;
+  /** Font size used by the appendix independently of the title and row
+   * description. */
+  rowAppendixFontSizeClassName: FontSizeClass;
+  /** Additional delay after hover activation before the appendix appears. */
+  rowAppendixRevealDelayMs: number;
+  /** @deprecated Compatibility aliases for copied page configs. */
+  rowCategoryEnabled?: boolean;
+  rowCategorySeparator?: AboutTimelineCategorySeparator;
+  rowCategoryRevealDelayMs?: number;
   /** Padding around a row's own title (caption) specifically — four
    * independent literal Tailwind classes per property, this repo's shared
    * per-side spacing catalogs, tiered by breakpoint (operator ask) — same
@@ -465,6 +498,8 @@ export type AboutTimelineConfig = {
    * above, since the description is a different kind of object (a lead-in
    * sentence, not a row). */
   descriptionFontSizeClassName: FontSizeClass;
+  /** Lead-in copy rendered above the timeline rows. An empty string omits it. */
+  description: string;
   /** Opacity of the lead-in description text — this element has no active/
    * inactive state of its own, so a single value (unlike the per-row title/
    * description opacity pairs above). */
@@ -487,6 +522,8 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   maxWidthClassName: 'max-w-sm',
   rowGap: 'gap-8',
   markerSizeClassName: 'w-6 h-6',
+  markerVisible: true,
+  maxActiveRows: 1,
   ruleVisible: false,
   ruleWeightClassName: 'w-px',
   markerColorMode: 'custom',
@@ -508,6 +545,9 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowTitleMinContrastInactive: 4,
   rowDescriptionMinContrastActive: 5,
   rowDescriptionMinContrastInactive: 4,
+  rowDescriptionVisible: true,
+  rowTitleFontFamily: 'font-sans',
+  rowDescriptionFontFamily: 'font-sans',
   rowTitleFontWeightClassName: 'font-medium',
   rowTitleFontSizeClassName: 'text-sm',
   rowDescriptionFontSizeClassName: 'text-sm',
@@ -517,10 +557,13 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowDescriptionOpacityInactive: 0.6,
   hoverMarkerOpacity: 1,
   hoverTitleOpacity: 1,
+  hoverDescriptionOpacity: 1,
   hoverDelayMs: 150,
-  rowCategoryEnabled: false,
-  rowCategorySeparator: '·',
-  rowCategoryRevealDelayMs: 180,
+  rowAppendixEnabled: false,
+  rowAppendixSeparator: '·',
+  rowAppendixFontFamily: 'font-sans',
+  rowAppendixFontSizeClassName: 'text-sm',
+  rowAppendixRevealDelayMs: 180,
   rowTitlePaddingTopClassName: 'pt-0',
   rowTitlePaddingRightClassName: 'pr-0',
   rowTitlePaddingBottomClassName: 'pb-0',
@@ -618,6 +661,7 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   descriptionMarginBottomLgClassName: 'lg:mb-0',
   descriptionMarginLeftLgClassName: 'lg:ml-0',
   descriptionFontSizeClassName: 'text-base',
+  description: 'More than a decade of consulting and contract work, in the order it happened.',
   descriptionOpacity: 1,
   descriptionMinContrast: 4.5,
   transitionDurationMs: 550,
@@ -666,13 +710,14 @@ const MARGIN_LEFT_LG_VALUES: ReadonlyArray<MarginLeftLgClass> = MARGIN_LEFT_LG_O
 const MAX_WIDTH_VALUES: ReadonlyArray<MaxWidthClass> = MAX_WIDTH_OPTIONS.map(option => option.value);
 const FONT_SIZE_VALUES: ReadonlyArray<FontSizeClass> = FONT_SIZE_OPTIONS.map(option => option.value);
 const FONT_WEIGHT_VALUES: ReadonlyArray<FontWeightClass> = FONT_WEIGHT_OPTIONS.map(option => option.value);
+const ITEM_FONT_FAMILIES: ReadonlyArray<AboutTimelineItemFontFamily> = ['font-sans', 'font-serif'];
 const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
   'linear', 'standard', 'expressive', 'viscous', 'gentle',
 ];
 const MARKER_COLOR_MODES: ReadonlyArray<AboutTimelineMarkerColorMode> = ['accent', 'custom', 'text'];
 const ALIGNMENTS: ReadonlyArray<AboutTimelineAlignment> = ['left', 'right'];
-const CATEGORY_SEPARATORS: ReadonlyArray<AboutTimelineCategorySeparator> =
-  CATEGORY_SEPARATOR_OPTIONS.map(option => option.value);
+const APPENDIX_SEPARATORS: ReadonlyArray<AboutTimelineAppendixSeparator> =
+  APPENDIX_SEPARATOR_OPTIONS.map(option => option.value);
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
@@ -684,12 +729,17 @@ const clampRange = (value: number, min: number, max: number, fallback: number) =
 export function normalizeAboutTimelineConfig(
   config: Partial<AboutTimelineConfig> | undefined,
 ): AboutTimelineConfig {
+  const raw = config ?? {};
   const base = { ...DEFAULT_ABOUT_TIMELINE_CONFIG, ...(config ?? {}) };
   const D = DEFAULT_ABOUT_TIMELINE_CONFIG;
   return {
     maxWidthClassName: token(base.maxWidthClassName, MAX_WIDTH_VALUES, D.maxWidthClassName),
     rowGap: token(base.rowGap, GAP_VALUES, D.rowGap),
     markerSizeClassName: token(base.markerSizeClassName, MARKER_SIZE_VALUES, D.markerSizeClassName),
+    markerVisible: base.markerVisible !== false,
+    maxActiveRows: Number.isFinite(base.maxActiveRows)
+      ? Math.min(1, Math.max(0, Math.round(base.maxActiveRows)))
+      : D.maxActiveRows,
     ruleVisible: base.ruleVisible !== false,
     ruleWeightClassName: token(base.ruleWeightClassName, RULE_WEIGHT_VALUES, D.ruleWeightClassName),
     markerColorMode: token(base.markerColorMode, MARKER_COLOR_MODES, D.markerColorMode),
@@ -713,6 +763,11 @@ export function normalizeAboutTimelineConfig(
     rowDescriptionMinContrastInactive: clampRange(
       base.rowDescriptionMinContrastInactive, 1, 21, D.rowDescriptionMinContrastInactive,
     ),
+    rowDescriptionVisible: base.rowDescriptionVisible !== false,
+    rowTitleFontFamily: token(base.rowTitleFontFamily, ITEM_FONT_FAMILIES, D.rowTitleFontFamily),
+    rowDescriptionFontFamily: token(
+      base.rowDescriptionFontFamily, ITEM_FONT_FAMILIES, D.rowDescriptionFontFamily,
+    ),
     rowTitleFontWeightClassName: token(
       base.rowTitleFontWeightClassName, FONT_WEIGHT_VALUES, D.rowTitleFontWeightClassName,
     ),
@@ -732,11 +787,31 @@ export function normalizeAboutTimelineConfig(
     ),
     hoverMarkerOpacity: clampRange(base.hoverMarkerOpacity, 0, 1, D.hoverMarkerOpacity),
     hoverTitleOpacity: clampRange(base.hoverTitleOpacity, 0, 1, D.hoverTitleOpacity),
+    hoverDescriptionOpacity: clampRange(
+      base.hoverDescriptionOpacity, 0, 1, D.hoverDescriptionOpacity,
+    ),
     hoverDelayMs: clampRange(base.hoverDelayMs, 0, 2000, D.hoverDelayMs),
-    rowCategoryEnabled: base.rowCategoryEnabled === true,
-    rowCategorySeparator: token(base.rowCategorySeparator, CATEGORY_SEPARATORS, D.rowCategorySeparator),
-    rowCategoryRevealDelayMs: clampRange(
-      base.rowCategoryRevealDelayMs, 0, 2000, D.rowCategoryRevealDelayMs,
+    rowAppendixEnabled: typeof raw.rowAppendixEnabled === 'boolean'
+      ? raw.rowAppendixEnabled
+      : typeof raw.rowCategoryEnabled === 'boolean'
+        ? raw.rowCategoryEnabled
+        : D.rowAppendixEnabled,
+    rowAppendixSeparator: token(
+      raw.rowAppendixSeparator ?? raw.rowCategorySeparator ?? D.rowAppendixSeparator,
+      APPENDIX_SEPARATORS,
+      D.rowAppendixSeparator,
+    ),
+    rowAppendixFontFamily: token(
+      base.rowAppendixFontFamily, ITEM_FONT_FAMILIES, D.rowAppendixFontFamily,
+    ),
+    rowAppendixFontSizeClassName: token(
+      base.rowAppendixFontSizeClassName, FONT_SIZE_VALUES, D.rowAppendixFontSizeClassName,
+    ),
+    rowAppendixRevealDelayMs: clampRange(
+      raw.rowAppendixRevealDelayMs ?? raw.rowCategoryRevealDelayMs ?? D.rowAppendixRevealDelayMs,
+      0,
+      2000,
+      D.rowAppendixRevealDelayMs,
     ),
     rowTitlePaddingTopClassName: token(
       base.rowTitlePaddingTopClassName, PADDING_TOP_VALUES, D.rowTitlePaddingTopClassName,
@@ -1001,6 +1076,7 @@ export function normalizeAboutTimelineConfig(
     descriptionFontSizeClassName: token(
       base.descriptionFontSizeClassName, FONT_SIZE_VALUES, D.descriptionFontSizeClassName,
     ),
+    description: typeof base.description === 'string' ? base.description : D.description,
     descriptionOpacity: clampRange(base.descriptionOpacity, 0, 1, D.descriptionOpacity),
     descriptionMinContrast: clampRange(base.descriptionMinContrast, 1, 21, D.descriptionMinContrast),
     transitionDurationMs: clampRange(base.transitionDurationMs, 0, 1000, D.transitionDurationMs),

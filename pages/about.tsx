@@ -204,11 +204,6 @@ const ABOUT_TIMELINE_ROWS = [
   },
 ] as const;
 
-// Plain lead-in text for AboutTimeline's own `description` prop — no
-// heading, no digits/dates (QA-01 still applies: every date lives in
-// ABOUT_TIMELINE_ROWS above, never here).
-const ABOUT_TIMELINE_DESCRIPTION = 'More than a decade of consulting and contract work, in the order it happened.';
-
 // `**word**` runs render brighter, `[text](href)` runs are inline links
 // (see renderEmphasisText in helpers/textEmphasis.tsx) — a lightweight,
 // source-only way to mark each paragraph's important words/routes without a
@@ -1600,7 +1595,7 @@ function AboutPageContent() {
                   onSelect={setActiveSlideIndex}
                   accentColor={aboutSlides[activeSlideIndex]?.accent ?? '#ffffff'}
                   columnBackgroundColor={colors.narrowColumnColor}
-                  description={ABOUT_TIMELINE_DESCRIPTION}
+                  description={aboutTimelineConfig.description || undefined}
                   config={aboutTimelineConfig}
                   prefersReducedMotion={prefersReducedMotion}
                   panelId={ABOUT_TIMELINE_PANEL_ID}
