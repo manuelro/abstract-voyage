@@ -76,6 +76,20 @@ export type ColorConfigField<
   kind: 'color';
 };
 
+export type TextConfigField<
+  TConfig extends object,
+  TKey extends StringKeyOf<TConfig>,
+> = ConfigFieldBase<TConfig, TKey> & {
+  kind: 'text';
+};
+
+type StringInputConfigField<
+  TConfig extends object,
+  TKey extends StringKeyOf<TConfig>,
+> = ConfigFieldBase<TConfig, TKey> & {
+  kind: 'color' | 'text';
+};
+
 /**
  * A button that computes an arbitrary multi-key patch and applies it on
  * click — the generic primitive behind PolymorphicLayoutConfig's own
@@ -110,7 +124,7 @@ export type ConfigFieldDefinition<TConfig extends object> = {
         : TConfig[TKey] extends string
           ? EnumConfigField<TConfig, TKey, Extract<TConfig[TKey], string>>
             | SelectConfigField<TConfig, TKey, Extract<TConfig[TKey], string>>
-            | ColorConfigField<TConfig, TKey>
+            | StringInputConfigField<TConfig, TKey>
           : never;
 }[StringKeyOf<TConfig>];
 
@@ -243,7 +257,7 @@ export type ConfigScopeDefinition<TConfig extends object> = {
 };
 
 export type RuntimeConfigFieldDefinition = {
-  kind: 'boolean' | 'number' | 'enum' | 'select' | 'color';
+  kind: 'boolean' | 'number' | 'enum' | 'select' | 'color' | 'text';
   key: string;
   label: string;
   description?: string;

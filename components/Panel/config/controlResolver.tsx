@@ -15,6 +15,7 @@ import {
   Select,
   SubLabel,
   TabStrip,
+  TextInput,
   Toggle,
 } from '../index';
 import { deriveSurfaceColor } from '../../../helpers/surfaceColorDerivation';
@@ -115,6 +116,17 @@ function ConfigFieldControl({
         <ColorInput
           label={field.label}
           value={typeof value === 'string' ? value : ''}
+          onChange={nextValue => binding.updateField(field.key, nextValue)}
+        />
+      );
+    }
+
+    if (field.kind === 'text') {
+      return (
+        <TextInput
+          label={field.label}
+          value={typeof value === 'string' ? value : ''}
+          description={field.description}
           onChange={nextValue => binding.updateField(field.key, nextValue)}
         />
       );

@@ -139,6 +139,10 @@ function validateField(
     fail(definition, `color field "${field.key}" has a non-string default`);
   }
 
+  if (field.kind === 'text' && typeof defaultValue !== 'string') {
+    fail(definition, `text field "${field.key}" has a non-string default`);
+  }
+
   if (field.kind === 'enum' || field.kind === 'select') {
     if (typeof defaultValue !== 'string') {
       fail(definition, `${field.kind} field "${field.key}" has a non-string default`);

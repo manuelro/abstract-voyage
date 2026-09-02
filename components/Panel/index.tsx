@@ -1246,6 +1246,32 @@ export function ColorInput({ label, value, onChange }: { label: string; value: s
   );
 }
 
+export function TextInput({
+  label,
+  value,
+  description,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  description?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className={styles.colorControl}>
+      <span className={styles.controlLabel}>{label}</span>
+      <input
+        className={styles.textInput}
+        type="text"
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        aria-label={label}
+      />
+      {description && <div className={styles.description}>{description}</div>}
+    </label>
+  );
+}
+
 // ── SummaryRow ────────────────────────────────────────────────────────────────
 
 export function PanelSummary({ children }: { children: ReactNode }) {

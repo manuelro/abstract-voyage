@@ -96,6 +96,9 @@ export function configScopeToStorybookMeta(
       case 'color':
         control = 'color';
         break;
+      case 'text':
+        control = 'text';
+        break;
       case 'number':
         // min/max/step are guaranteed present for a 'number'-kind field —
         // enforced by validateConfigScopeDefinition at scope-definition
