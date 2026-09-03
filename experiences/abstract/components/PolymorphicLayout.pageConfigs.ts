@@ -590,13 +590,13 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // Was '#dadbe2' — parity fix, same reason as wideColumnCustomColorWide
   // above (colorSourceWide's own doc comment).
   narrowColumnCustomColorWide: '#cbcbe1',
-  narrowColumnCustomColorLg: '#cbcbe1',
+  narrowColumnCustomColorLg: '#2c2c3f',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
   narrowColumnSurfaceOffsetLg: 0,
   splitBandLeftCustomColorWide: '#d1d1e6',
-  splitBandLeftCustomColorLg: '#d1d1e6',
+  splitBandLeftCustomColorLg: '#282839',
   splitBandRightCustomColorWide: '#27307c',
   splitBandRightCustomColorLg: '#27307c',
   splitBandWidthTier: 'stacked',
