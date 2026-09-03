@@ -624,10 +624,12 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
  */
 export const POST_LAB_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   ...DEFAULT_POLYMORPHIC_LAYOUT_CONFIG,
-  splitBandLeftModeLg: 'syncWithColumnBelow',
-  splitBandLeftCustomColorLg: '#d1d1e6',
-  wideColumnCustomColorLg: '#f1f2f9',
-  narrowColumnCustomColorLg: '#2c2c3f',
+  splitBandLeftModeLg: 'custom',
+  splitBandLeftCustomColorLg: '#d8d9ea',
+  splitBandRightModeLg: 'custom',
+  splitBandRightCustomColorLg: '#dedfed',
+  wideColumnCustomColorLg: '#d7d9ea',
+  narrowColumnCustomColorLg: '#dedfed',
   narrowColumnContentWidthLg: 'lg:max-w-[60%]',
   narrowColumnContentPaddingLeftLg: 'lg:pl-0',
   narrowColumnContentPaddingRightLg: 'lg:pr-7',
