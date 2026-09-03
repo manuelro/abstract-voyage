@@ -27,7 +27,7 @@ import { POST_LAB_POLYMORPHIC_LAYOUT_CONFIG } from '../experiences/abstract/comp
 export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   ...POST_LAB_POLYMORPHIC_LAYOUT_CONFIG,
   wideColumnContentPaddingLeftLg: 'lg:pl-2',
-  wideColumnContentPaddingTopLg: 'lg:pt-0',
+  wideColumnContentPaddingTopLg: 'lg:pt-5',
   wideColumnContentPaddingBottomLg: 'lg:pb-0',
 }
 
@@ -39,18 +39,19 @@ export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
 // showing about's copy on the journal index.
 export const DEFAULT_JOURNAL_TIMELINE_CONFIG: AboutTimelineConfig = normalizeAboutTimelineConfig({
   ...DEFAULT_ABOUT_TIMELINE_CONFIG,
-  rowGap: 'gap-7',
+  rowGap: 'gap-10',
   markerVisible: true,
   markerSizeClassName: 'w-2.5 h-2.5',
   markerColorMode: 'text',
   markerCustomColor: '#6c6b94',
   hoverMarkerOpacity: 0.4,
-  markerIdleOpacity: 0.31,
+  markerIdleOpacity: 0.18,
   markerActiveOpacity: 0.55,
   markerGradientEnabled: false,
-  rowTitleMinContrastActive: 7.6,
-  rowDescriptionMinContrastActive: 5.7,
-  rowDescriptionMinContrastInactive: 3,
+  rowTitleMinContrastActive: 6,
+  rowTitleMinContrastInactive: 4.5,
+  rowDescriptionMinContrastActive: 4,
+  rowDescriptionMinContrastInactive: 4.2,
   descriptionOpacity: 0.49,
   rowAppendixEnabled: true,
   rowAppendixOpacity: 0.65,
