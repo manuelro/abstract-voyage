@@ -46,7 +46,7 @@ export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   wideColumnContentMaxWidthLg: 'lg:max-w-md',
   wideColumnTextAlignWide: 'md:text-right',
   wideColumnContentPaddingLeftWide: 'md:pl-0',
-  wideColumnContentPaddingLeftLg: 'lg:pl-14',
+  wideColumnContentPaddingLeftLg: 'lg:pl-2',
   wideColumnContentPaddingRightWide: 'md:pr-7',
   wideColumnContentPaddingRightLg: 'lg:pr-0',
   wideColumnContentPaddingTopWide: 'md:pt-9',
@@ -68,7 +68,7 @@ export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
 export const DEFAULT_JOURNAL_TIMELINE_CONFIG: AboutTimelineConfig = normalizeAboutTimelineConfig({
   ...DEFAULT_ABOUT_TIMELINE_CONFIG,
   rowGap: 'gap-7',
-  markerVisible: false,
+  markerVisible: true,
   markerSizeClassName: 'w-2.5 h-2.5',
   markerColorMode: 'text',
   markerCustomColor: '#6c6b94',
