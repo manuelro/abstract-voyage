@@ -58,5 +58,5 @@ export const DEFAULT_JOURNAL_TIMELINE_CONFIG: AboutTimelineConfig = normalizeAbo
 
 export const DEFAULT_JOURNAL_CARD_APPEARANCE_CONFIG: CardAppearanceConfig = normalizeCardAppearanceConfig({
   ...DEFAULT_CARD_APPEARANCE_CONFIG,
-  activeTextOpacity: 1,
+  activeTextOpacity: 0.85,
 })
