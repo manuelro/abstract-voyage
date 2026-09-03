@@ -33,7 +33,7 @@ export type MobilePinnedArticleSectionConfig = {
 
 export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   visibleRowsLargePhone: 3,
-  visibleRowsSmallPhone: 2,
+  visibleRowsSmallPhone: 3,
   smallPhoneMaxHeightPx: 700,
   expandedPanelHeightPercent: 76,
   carouselHeightPercent: 62,
