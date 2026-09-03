@@ -338,6 +338,16 @@ export type AboutTimelineConfig = {
   rowAppendixFontSizeClassName: FontSizeClass;
   /** Additional delay after hover activation before the appendix appears. */
   rowAppendixRevealDelayMs: number;
+  /** Opacity the appendix renders at once revealed (hover or keyboard
+   * focus) — independent of `rowDescriptionOpacityActive`/`-Inactive`/
+   * `hoverDescriptionOpacity` above. The appendix has no active/inactive
+   * state of its own to begin with (it's either hidden at `opacity: 0`,
+   * `AboutTimeline.module.css`'s own base rule, or revealed at this value,
+   * that same module's own `[data-appendix-visible='true']` rule), so a
+   * single value is enough — matching `descriptionOpacity`'s own "no
+   * active/inactive state" shape above, not the row title/description
+   * active/inactive pairs. */
+  rowAppendixOpacity: number;
   /** @deprecated Compatibility aliases for copied page configs. */
   rowCategoryEnabled?: boolean;
   rowCategorySeparator?: AboutTimelineCategorySeparator;
@@ -564,6 +574,11 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowAppendixFontFamily: 'font-sans',
   rowAppendixFontSizeClassName: 'text-sm',
   rowAppendixRevealDelayMs: 180,
+  // 1 — matches AboutTimeline.module.css's own pre-existing
+  // `var(--about-timeline-appendix-opacity, 1)` fallback, so introducing
+  // this field is zero visual change for every existing page until an
+  // operator tunes it.
+  rowAppendixOpacity: 1,
   rowTitlePaddingTopClassName: 'pt-0',
   rowTitlePaddingRightClassName: 'pr-0',
   rowTitlePaddingBottomClassName: 'pb-0',
@@ -813,6 +828,7 @@ export function normalizeAboutTimelineConfig(
       2000,
       D.rowAppendixRevealDelayMs,
     ),
+    rowAppendixOpacity: clampRange(base.rowAppendixOpacity, 0, 1, D.rowAppendixOpacity),
     rowTitlePaddingTopClassName: token(
       base.rowTitlePaddingTopClassName, PADDING_TOP_VALUES, D.rowTitlePaddingTopClassName,
     ),

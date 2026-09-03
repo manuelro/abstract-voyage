@@ -278,6 +278,7 @@ export function AboutTimeline({
         appendixSeparator={config.rowAppendixSeparator}
         appendixClassName={`${config.rowAppendixFontFamily} ${config.rowAppendixFontSizeClassName}`}
         appendixVisible={isHoveredRow}
+        appendixOpacity={config.rowAppendixOpacity}
         active={selected}
         selectionEnabled={selectionEnabled}
         tabIndex={selectionEnabled ? (selected ? 0 : -1) : 0}
@@ -326,7 +327,7 @@ export function AboutTimeline({
     config.hoverTitleOpacity, config.hoverMarkerOpacity, config.hoverDescriptionOpacity,
     config.rowAppendixEnabled, config.rowAppendixSeparator,
     config.rowAppendixFontFamily, config.rowAppendixFontSizeClassName,
-    config.rowAppendixRevealDelayMs,
+    config.rowAppendixRevealDelayMs, config.rowAppendixOpacity,
     titleClassName, rowDescriptionClassName,
     config.markerIdleOpacity, config.markerActiveOpacity,
     config.markerGradientEnabled, gradientSlides, gradientPaletteStates,

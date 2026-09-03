@@ -36,6 +36,10 @@ export interface AboutTimelineRowProps {
   /** Pointer reveal becomes true only after the timeline's hover activation
    * delay. Keyboard focus remains an independent accessible reveal path. */
   appendixVisible: boolean;
+  /** Opacity the appendix renders at once revealed — `config.rowAppendixOpacity`,
+   * independent of `descriptionOpacity` below (that prop only ever
+   * describes the row's own supporting line). */
+  appendixOpacity: number;
   /** Real selection state (`row.slideIndex === activeIndex`) — drives the
    * marker's own fill class and, when selection is enabled, tab semantics.
    * Hover may provide text emphasis for an otherwise inactive row. */
@@ -147,6 +151,7 @@ export function AboutTimelineRow({
   appendixSeparator,
   appendixClassName,
   appendixVisible,
+  appendixOpacity,
   active,
   selectionEnabled,
   tabIndex,
@@ -236,7 +241,7 @@ export function AboutTimelineRow({
               className={`${styles.appendix} ${appendixClassName}`}
               style={{
                 color: descriptionColor,
-                '--about-timeline-appendix-opacity': descriptionOpacity,
+                '--about-timeline-appendix-opacity': appendixOpacity,
               } as CSSProperties}
             >
               <span className={styles.appendixSeparator}>{appendixSeparator}</span>

@@ -367,6 +367,16 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     integer: true,
     visibleWhen: whenRowAppendixEnabled,
   },
+  {
+    kind: 'number',
+    key: 'rowAppendixOpacity',
+    label: 'Appendix opacity',
+    description: 'Opacity the appendix renders at once revealed (hover or keyboard focus) — independent of the row description opacity fields, since the appendix has no active/inactive state of its own.',
+    min: 0,
+    max: 1,
+    step: 0.01,
+    visibleWhen: whenRowAppendixEnabled,
+  },
   // Padding and margin are tiered by breakpoint; the ALL SIZES tab is only
   // for controls that deliberately stay single-value across every
   // breakpoint, such as marker hover opacity.
