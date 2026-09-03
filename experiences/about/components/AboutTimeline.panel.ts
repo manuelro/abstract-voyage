@@ -27,7 +27,13 @@ import {
   MARGIN_LEFT_WIDE_OPTIONS,
   MARGIN_LEFT_LG_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
-import { FONT_SIZE_OPTIONS, FONT_WEIGHT_OPTIONS, MAX_WIDTH_OPTIONS } from '../../../components/tailwindTypographyScale';
+import {
+  FONT_SIZE_OPTIONS,
+  MD_FONT_SIZE_OPTIONS,
+  LG_FONT_SIZE_OPTIONS,
+  FONT_WEIGHT_OPTIONS,
+  MAX_WIDTH_OPTIONS,
+} from '../../../components/tailwindTypographyScale';
 import {
   DEFAULT_ABOUT_TIMELINE_CONFIG,
   APPENDIX_SEPARATOR_OPTIONS,
@@ -467,6 +473,8 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Description',
             fields: [
+              { kind: 'text', key: 'description', label: 'Timeline description', description: 'Lead-in copy rendered below 768px. Leave empty to omit it.' },
+              { kind: 'select', key: 'descriptionFontSizeClassName', label: 'Description font size', options: FONT_SIZE_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingTopClassName', label: 'Padding top', options: PADDING_TOP_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingRightClassName', label: 'Padding right', options: PADDING_RIGHT_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingBottomClassName', label: 'Padding bottom', options: PADDING_BOTTOM_OPTIONS },
@@ -529,6 +537,8 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Description',
             fields: [
+              { kind: 'text', key: 'descriptionWide', label: 'Timeline description', description: 'Lead-in copy rendered from 768px through 1023px. Leave empty to omit it.' },
+              { kind: 'select', key: 'descriptionFontSizeWideClassName', label: 'Description font size', options: MD_FONT_SIZE_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingTopWideClassName', label: 'Padding top', options: PADDING_TOP_WIDE_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingRightWideClassName', label: 'Padding right', options: PADDING_RIGHT_WIDE_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingBottomWideClassName', label: 'Padding bottom', options: PADDING_BOTTOM_WIDE_OPTIONS },
@@ -591,6 +601,8 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Description',
             fields: [
+              { kind: 'text', key: 'descriptionLg', label: 'Timeline description', description: 'Lead-in copy rendered from 1024px. Leave empty to omit it.' },
+              { kind: 'select', key: 'descriptionFontSizeLgClassName', label: 'Description font size', options: LG_FONT_SIZE_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingTopLgClassName', label: 'Padding top', options: PADDING_TOP_LG_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingRightLgClassName', label: 'Padding right', options: PADDING_RIGHT_LG_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingBottomLgClassName', label: 'Padding bottom', options: PADDING_BOTTOM_LG_OPTIONS },
@@ -604,18 +616,6 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
         ],
       },
     ],
-  },
-  {
-    kind: 'text',
-    key: 'description',
-    label: 'Timeline description',
-    description: 'Lead-in copy rendered above the timeline rows. Leave empty to omit it.',
-  },
-  {
-    kind: 'select',
-    key: 'descriptionFontSizeClassName',
-    label: 'Description font size',
-    options: FONT_SIZE_OPTIONS,
   },
   {
     kind: 'number',

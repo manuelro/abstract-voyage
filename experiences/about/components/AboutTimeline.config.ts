@@ -53,9 +53,13 @@ import {
 } from '../../../components/tailwindSpacingScale';
 import {
   FONT_SIZE_OPTIONS,
+  MD_FONT_SIZE_OPTIONS,
+  LG_FONT_SIZE_OPTIONS,
   FONT_WEIGHT_OPTIONS,
   MAX_WIDTH_OPTIONS,
   type FontSizeClass,
+  type MdFontSizeClass,
+  type LgFontSizeClass,
   type FontWeightClass,
   type MaxWidthClass,
 } from '../../../components/tailwindTypographyScale';
@@ -126,8 +130,8 @@ export const CATEGORY_SEPARATOR_OPTIONS = APPENDIX_SEPARATOR_OPTIONS;
  * about-IA-timeline-copy-rework (CMP-03) — component-owned config for
  * `AboutTimeline`/`AboutTimelineRow`, mirroring `AboutMobileAccordion.config
  * .ts`'s own shape exactly (a single flat config type + `DEFAULT_*` +
- * `normalize*`, no tabs/breakpoint split — this component is desktop-only,
- * see `AboutTimeline.tsx`'s own doc comment).
+ * `normalize*`; breakpoint-specific lead-in copy and typography are explicit
+ * fields so the panel can tune each responsive tier independently.
  *
  * Every discrete/spacing/sizing field below stores a literal, JIT-visible
  * Tailwind class — never a raw px number assembled into an inline style —
@@ -508,8 +512,14 @@ export type AboutTimelineConfig = {
    * above, since the description is a different kind of object (a lead-in
    * sentence, not a row). */
   descriptionFontSizeClassName: FontSizeClass;
+  descriptionFontSizeWideClassName: MdFontSizeClass;
+  descriptionFontSizeLgClassName: LgFontSizeClass;
   /** Lead-in copy rendered above the timeline rows. An empty string omits it. */
   description: string;
+  /** Tablet copy for the lead-in description. */
+  descriptionWide: string;
+  /** Desktop copy for the lead-in description. */
+  descriptionLg: string;
   /** Opacity of the lead-in description text — this element has no active/
    * inactive state of its own, so a single value (unlike the per-row title/
    * description opacity pairs above). */
@@ -676,7 +686,11 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   descriptionMarginBottomLgClassName: 'lg:mb-0',
   descriptionMarginLeftLgClassName: 'lg:ml-0',
   descriptionFontSizeClassName: 'text-base',
+  descriptionFontSizeWideClassName: 'md:text-base',
+  descriptionFontSizeLgClassName: 'lg:text-base',
   description: 'More than a decade of consulting and contract work, in the order it happened.',
+  descriptionWide: 'More than a decade of consulting and contract work, in the order it happened.',
+  descriptionLg: 'More than a decade of consulting and contract work, in the order it happened.',
   descriptionOpacity: 1,
   descriptionMinContrast: 4.5,
   transitionDurationMs: 550,
@@ -724,6 +738,8 @@ const MARGIN_LEFT_WIDE_VALUES: ReadonlyArray<MarginLeftWideClass> =
 const MARGIN_LEFT_LG_VALUES: ReadonlyArray<MarginLeftLgClass> = MARGIN_LEFT_LG_OPTIONS.map(option => option.value);
 const MAX_WIDTH_VALUES: ReadonlyArray<MaxWidthClass> = MAX_WIDTH_OPTIONS.map(option => option.value);
 const FONT_SIZE_VALUES: ReadonlyArray<FontSizeClass> = FONT_SIZE_OPTIONS.map(option => option.value);
+const MD_FONT_SIZE_VALUES: ReadonlyArray<MdFontSizeClass> = MD_FONT_SIZE_OPTIONS.map(option => option.value);
+const LG_FONT_SIZE_VALUES: ReadonlyArray<LgFontSizeClass> = LG_FONT_SIZE_OPTIONS.map(option => option.value);
 const FONT_WEIGHT_VALUES: ReadonlyArray<FontWeightClass> = FONT_WEIGHT_OPTIONS.map(option => option.value);
 const ITEM_FONT_FAMILIES: ReadonlyArray<AboutTimelineItemFontFamily> = ['font-sans', 'font-serif'];
 const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
@@ -1092,7 +1108,15 @@ export function normalizeAboutTimelineConfig(
     descriptionFontSizeClassName: token(
       base.descriptionFontSizeClassName, FONT_SIZE_VALUES, D.descriptionFontSizeClassName,
     ),
+    descriptionFontSizeWideClassName: token(
+      base.descriptionFontSizeWideClassName, MD_FONT_SIZE_VALUES, D.descriptionFontSizeWideClassName,
+    ),
+    descriptionFontSizeLgClassName: token(
+      base.descriptionFontSizeLgClassName, LG_FONT_SIZE_VALUES, D.descriptionFontSizeLgClassName,
+    ),
     description: typeof base.description === 'string' ? base.description : D.description,
+    descriptionWide: typeof base.descriptionWide === 'string' ? base.descriptionWide : D.descriptionWide,
+    descriptionLg: typeof base.descriptionLg === 'string' ? base.descriptionLg : D.descriptionLg,
     descriptionOpacity: clampRange(base.descriptionOpacity, 0, 1, D.descriptionOpacity),
     descriptionMinContrast: clampRange(base.descriptionMinContrast, 1, 21, D.descriptionMinContrast),
     transitionDurationMs: clampRange(base.transitionDurationMs, 0, 1000, D.transitionDurationMs),

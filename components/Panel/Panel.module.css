@@ -464,12 +464,20 @@
   transition: opacity var(--panel-motion-fast) ease;
 }
 
-.componentSectionToggle {
-  width: 100%;
+.componentSectionHeader {
   min-height: var(--panel-section-height);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+}
+
+.componentSectionToggle {
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: var(--panel-section-height);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   gap: 10px;
   padding: 0;
   border: 0;
@@ -477,6 +485,20 @@
   color: var(--panel-text-muted);
   cursor: pointer;
   transition: color var(--panel-motion-fast) ease;
+}
+
+.componentSectionChevronToggle {
+  width: 28px;
+  min-width: 28px;
+  height: var(--panel-section-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
 }
 
 .componentSection[data-open='true'] .componentSectionToggle {
@@ -511,10 +533,8 @@
 }
 
 .componentOwnerIndicator {
-  position: absolute;
-  z-index: 1;
-  top: 50%;
-  left: calc(100% + 8px);
+  position: relative;
+  flex: 0 1 auto;
   box-sizing: border-box;
   width: max-content;
   min-width: 7px;
@@ -528,8 +548,7 @@
   background: var(--panel-owner-accent);
   color: var(--panel-owner-ink);
   pointer-events: none;
-  transform: translateY(-50%);
-  transform-origin: left center;
+  transform-origin: right center;
   transition:
     max-width var(--panel-motion-disclosure) var(--panel-easing),
     height var(--panel-motion-standard) var(--panel-easing),
@@ -550,7 +569,7 @@
     transform var(--panel-motion-standard) var(--panel-easing);
 }
 
-.componentSectionToggle:focus-visible .componentOwnerIndicator,
+.componentSectionHeader:focus-within .componentOwnerIndicator,
 .componentSection[data-open='true'] .componentOwnerIndicator {
   max-width: 142px;
   height: 18px;
@@ -558,7 +577,38 @@
   box-shadow: 0 3px 12px rgba(240, 200, 75, 0.14);
 }
 
-.componentSectionToggle:focus-visible .componentOwnerName,
+.copyButtonIcon {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.panelButton.copyButtonIcon:hover,
+.panelButton.copyButtonIcon:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.copyIcon {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+.componentSectionHeader:focus-within .componentOwnerName,
 .componentSection[data-open='true'] .componentOwnerName {
   opacity: 1;
   transform: translateX(0);
@@ -624,6 +674,7 @@
 .panelButton:focus-visible,
 .panelTitle:focus-visible,
 .componentSectionToggle:focus-visible,
+.componentSectionChevronToggle:focus-visible,
 .sectionToggle:focus-visible,
 .segmentButton:focus-visible,
 .valueInput:focus-visible {
@@ -758,7 +809,9 @@
 .sectionToggle:hover .sectionChevron,
 .sectionToggle:focus-visible .sectionChevron,
 .componentSectionToggle:hover .sectionChevron,
-.componentSectionToggle:focus-visible .sectionChevron {
+.componentSectionToggle:focus-visible .sectionChevron,
+.componentSectionChevronToggle:hover .sectionChevron,
+.componentSectionChevronToggle:focus-visible .sectionChevron {
   color: var(--panel-text-secondary);
 }
 

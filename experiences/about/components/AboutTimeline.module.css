@@ -225,6 +225,31 @@
   text-align: left;
 }
 
+.descriptionTablet,
+.descriptionDesktop {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .descriptionMobile {
+    display: none;
+  }
+
+  .descriptionTablet {
+    display: inline;
+  }
+}
+
+@media (min-width: 1024px) {
+  .descriptionTablet {
+    display: none;
+  }
+
+  .descriptionDesktop {
+    display: inline;
+  }
+}
+
 .description[data-alignment='right'] {
   text-align: right;
 }

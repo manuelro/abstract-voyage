@@ -69,6 +69,7 @@ export function ConfigScopeRenderer({ binding }: { binding: ConfigScopeBinding }
       title={binding.definition.title}
       summary={binding.definition.summary}
       configText={configText}
+      configPath={binding.definition.copy.targetFile}
       open={open}
       onToggle={toggle}
       isGlobal={binding.global}

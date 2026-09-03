@@ -26,6 +26,15 @@ export const MD_FONT_SIZE_OPTIONS = [
 ] as const;
 export type MdFontSizeClass = typeof MD_FONT_SIZE_OPTIONS[number]['value'];
 
+export const LG_FONT_SIZE_OPTIONS = [
+  { label: 'lg:text-xs', value: 'lg:text-xs' }, { label: 'lg:text-sm', value: 'lg:text-sm' },
+  { label: 'lg:text-base', value: 'lg:text-base' }, { label: 'lg:text-lg', value: 'lg:text-lg' },
+  { label: 'lg:text-xl', value: 'lg:text-xl' }, { label: 'lg:text-2xl', value: 'lg:text-2xl' },
+  { label: 'lg:text-3xl', value: 'lg:text-3xl' }, { label: 'lg:text-4xl', value: 'lg:text-4xl' },
+  { label: 'lg:text-5xl', value: 'lg:text-5xl' }, { label: 'lg:text-6xl', value: 'lg:text-6xl' },
+] as const;
+export type LgFontSizeClass = typeof LG_FONT_SIZE_OPTIONS[number]['value'];
+
 export const FONT_WEIGHT_OPTIONS = [
   { label: 'font-normal', value: 'font-normal' },
   { label: 'font-medium', value: 'font-medium' },

@@ -75,6 +75,8 @@ export interface AboutTimelineProps {
    * anything) — see `AboutTimeline.module.css`'s own `.description` rule.
    * Omitted entirely when not supplied (no empty spacer left behind). */
   description?: string;
+  descriptionWide?: string;
+  descriptionLg?: string;
   config: AboutTimelineConfig;
   prefersReducedMotion: boolean;
   /** A11Y-01 — the id of the single dock region these tabs control (see
@@ -108,10 +110,9 @@ export interface AboutTimelineProps {
 const TAB_ID_PREFIX = 'about-timeline-tab';
 
 /**
- * CMP-01 (about-IA-timeline-copy-rework) — the desktop-only left-column
- * career timeline (see CMP-06 for its mount point, INT-06 for why mobile
- * has no equivalent: the accordion is multi-expand and doesn't map onto a
- * single activeIndex). A real ARIA tablist (A11Y-01/02/03): rows sit in an
+ * CMP-01 (about-IA-timeline-copy-rework) — the career timeline used by the
+ * desktop left column and the mobile pinned article section. A real ARIA
+ * tablist (A11Y-01/02/03): rows sit in an
  * `<ol>` (chronological order must survive CSS being stripped), keyboard
  * arrow/Home/End navigation with a roving tabindex (A11Y-02), one tab stop
  * for the whole set.
@@ -123,6 +124,8 @@ export function AboutTimeline({
   accentColor,
   columnBackgroundColor,
   description,
+  descriptionWide,
+  descriptionLg,
   config,
   prefersReducedMotion,
   panelId,
@@ -365,6 +368,12 @@ export function AboutTimeline({
     0,
   );
 
+  const descriptionByBreakpoint = {
+    mobile: description ?? config.description,
+    tablet: descriptionWide ?? config.descriptionWide,
+    desktop: descriptionLg ?? config.descriptionLg,
+  };
+
   return (
     <div
       className={[
@@ -388,7 +397,7 @@ export function AboutTimeline({
         '--about-timeline-title-line-height': `${titleFontSizeRem * 1.3}rem`,
       } as CSSProperties}
     >
-      {description ? (
+      {descriptionByBreakpoint.mobile || descriptionByBreakpoint.tablet || descriptionByBreakpoint.desktop ? (
         <p
           className={[
             styles.description,
@@ -413,6 +422,8 @@ export function AboutTimeline({
             config.descriptionMarginTopLgClassName, config.descriptionMarginRightLgClassName,
             config.descriptionMarginBottomLgClassName, config.descriptionMarginLeftLgClassName,
             config.descriptionFontSizeClassName,
+            config.descriptionFontSizeWideClassName,
+            config.descriptionFontSizeLgClassName,
           ].join(' ')}
           data-alignment={config.alignment}
           style={{
@@ -423,7 +434,9 @@ export function AboutTimeline({
             '--about-timeline-description-indent-extra-lg': `${descriptionIndentExtraLgPx}px`,
           } as CSSProperties}
         >
-          {description}
+          <span className={styles.descriptionMobile}>{descriptionByBreakpoint.mobile}</span>
+          <span className={styles.descriptionTablet}>{descriptionByBreakpoint.tablet}</span>
+          <span className={styles.descriptionDesktop}>{descriptionByBreakpoint.desktop}</span>
         </p>
       ) : null}
       <ol

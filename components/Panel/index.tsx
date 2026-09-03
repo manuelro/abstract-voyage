@@ -63,6 +63,7 @@ export function ConfigCopyButton({
   label = 'COPY CONFIG',
   ariaLabel,
   disabled = false,
+  iconOnly = false,
 }: {
   text: string;
   label?: string;
@@ -71,6 +72,8 @@ export function ConfigCopyButton({
    * "COPY DIFF" passes true when there's nothing to copy (text is empty),
    * rather than showing a misleading "COPIED" for a no-op clipboard write. */
   disabled?: boolean;
+  /** Render the compact copy glyph used beside a component path label. */
+  iconOnly?: boolean;
 }) {
   const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const resetTimerRef = useRef<number | null>(null);
@@ -102,14 +105,20 @@ export function ConfigCopyButton({
   return (
     <button
       type="button"
-      className={`${styles.panelButton} ${styles.copyButton}`}
+      className={`${styles.panelButton} ${styles.copyButton} ${iconOnly ? styles.copyButtonIcon : ''}`}
       onClick={handleCopy}
       disabled={disabled}
       aria-label={status === 'idle' ? (ariaLabel ?? label) : visibleLabel}
+      title={status === 'idle' ? (ariaLabel ?? label) : visibleLabel}
       aria-live="polite"
       data-status={status}
     >
-      {visibleLabel}
+      {iconOnly ? (
+        <svg className={styles.copyIcon} viewBox="0 0 18 18" aria-hidden="true">
+          <rect x="6" y="6" width="8" height="9" rx="1" />
+          <path d="M4 12V4.5A1.5 1.5 0 0 1 5.5 3H11" />
+        </svg>
+      ) : visibleLabel}
     </button>
   );
 }
@@ -430,6 +439,7 @@ export function ComponentConfigSection({
   title,
   summary,
   configText,
+  configPath,
   open,
   onToggle,
   isGlobal = false,
@@ -441,6 +451,7 @@ export function ComponentConfigSection({
   title: string;
   summary?: string;
   configText: string;
+  configPath?: string;
   open: boolean;
   onToggle: () => void;
   /** Renders a static light-blue dot next to the title — this scope's live
@@ -460,6 +471,9 @@ export function ComponentConfigSection({
   children: ReactNode;
 }) {
   const contentId = useId();
+  const relativeConfigPath = configPath
+    ? `./${configPath.replace(/^\.\//, '')}`
+    : '';
 
   return (
     <section
@@ -468,29 +482,47 @@ export function ComponentConfigSection({
       onPointerEnter={onHoverIntentStart}
       onPointerLeave={onHoverIntentCancel}
     >
-      <button
-        type="button"
-        className={styles.componentSectionToggle}
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls={contentId}
-        aria-label={`${title}, ${component} configuration${isGlobal ? ', shared globally across every page' : ''}`}
-      >
-        <span className={styles.componentSectionTitleWrap}>
-          <span className={styles.componentSectionTitle}>{title}</span>
-          {isGlobal ? (
-            <span
-              className={styles.componentGlobalIndicator}
-              aria-hidden="true"
-              title="Global — shared across every page; editing it here affects all of them"
-            />
-          ) : null}
-          <span className={styles.componentOwnerIndicator} aria-hidden="true">
-            <span className={styles.componentOwnerName}>{component}</span>
+      <div className={styles.componentSectionHeader}>
+        <button
+          type="button"
+          className={styles.componentSectionToggle}
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls={contentId}
+          aria-label={`${title}, ${component} configuration${isGlobal ? ', shared globally across every page' : ''}`}
+        >
+          <span className={styles.componentSectionTitleWrap}>
+            <span className={styles.componentSectionTitle}>{title}</span>
+            {isGlobal ? (
+              <span
+                className={styles.componentGlobalIndicator}
+                aria-hidden="true"
+                title="Global — shared across every page; editing it here affects all of them"
+              />
+            ) : null}
           </span>
+        </button>
+        <span className={styles.componentOwnerIndicator} aria-hidden="true">
+          <span className={styles.componentOwnerName}>{component}</span>
         </span>
-        <span className={styles.sectionChevron} aria-hidden="true" />
-      </button>
+        {relativeConfigPath ? (
+          <ConfigCopyButton
+            text={relativeConfigPath}
+            iconOnly
+            ariaLabel={`Copy config path ${relativeConfigPath}`}
+          />
+        ) : null}
+        <button
+          type="button"
+          className={styles.componentSectionChevronToggle}
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls={contentId}
+          aria-label={`${open ? 'Collapse' : 'Expand'} ${title} configuration`}
+        >
+          <span className={styles.sectionChevron} aria-hidden="true" />
+        </button>
+      </div>
       <div
         id={contentId}
         className={styles.sectionDisclosure}
