@@ -17,8 +17,13 @@ import {
 export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   ...DEFAULT_POLYMORPHIC_LAYOUT_CONFIG,
   wideColumnSide: 'right',
-  wideColumnCustomColorLg: '#14142f',
-  narrowColumnCustomColorLg: '#14142f',
+  wideColumnCustomColor: '#2c2c3f',
+  narrowColumnCustomColor: '#242438',
+  wideColumnCustomColorWide: '#2c2c3f',
+  narrowColumnCustomColorWide: '#242438',
+  wideColumnCustomColorLg: '#2c2c3f',
+  narrowColumnCustomColorLg: '#242438',
+  splitBandLeftCustomColorLg: '#2c2c3f',
   wideColumnContentContainer: 'full-bleed',
   narrowColumnContentContainer: 'full-bleed',
 }
