@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T23:19:58.197Z",
+  "generatedAt": "2026-09-03T23:22:46.039Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -184,6 +184,14 @@
       "exports": [
         "POST_LAB_ARTICLE_READING_SCOPE_ID",
         "POST_LAB_ARTICLE_READING_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection.panel.ts",
+      "stub": "experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection.panel.stub.ts",
+      "exports": [
+        "MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID",
+        "MOBILE_PINNED_ARTICLE_SECTION_PANEL"
       ]
     },
     {

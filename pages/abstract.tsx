@@ -95,6 +95,15 @@ import {
 } from '../experiences/abstract/components/CoverFlow/CoverFlow.config';
 import { COVER_FLOW_SCOPE_ID } from '../experiences/abstract/components/CoverFlow/CoverFlow.panel';
 import {
+  MobilePinnedArticleSection,
+  type MobilePinnedCarouselControls,
+} from '../experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection';
+import {
+  DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
+  MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID,
+  normalizeMobilePinnedArticleSectionConfig,
+} from '../experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection.config';
+import {
   useArticleListCoverFlowSync,
   useArticleHashSync,
 } from '../experiences/abstract/components/ArticleListCoverFlowSync/useArticleListCoverFlowSync';
@@ -406,6 +415,9 @@ function AbstractNarrowColumnStack({
   top,
   bottom,
 }: AbstractNarrowColumnStackProps) {
+  if (!bottom) {
+    return <div className="w-full min-w-0">{top}</div>;
+  }
   const region = (
     position: 'top' | 'bottom',
     content: ReactNode,
@@ -1522,6 +1534,9 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // aboutSlides is. For /abstract, the article topic is metadata rather
   // than a permanent supporting line: it only appears through
   // AboutTimeline's opt-in hover category reveal.
+  // Also the mobile pinned section's own rows prop — same array, not a
+  // mobile-specific copy, so the mobile list is the exact same timeline data
+  // (including the category/appendix field) as the desktop instance below.
   const abstractTimelineRows = useMemo<ReadonlyArray<AboutTimelineRowData>>(
     () => carouselAndListItems.map((item, index) => ({
       caption: item.title,
@@ -1682,6 +1697,16 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // versa.
   const [coverFlowConfig, setCoverFlowConfig] =
     useState(() => normalizeCoverFlowConfig(DEFAULT_COVER_FLOW_CONFIG));
+  const [mobilePinnedArticleSectionConfig, setMobilePinnedArticleSectionConfig] =
+    useState(() => normalizeMobilePinnedArticleSectionConfig(
+      DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
+    ));
+  const mobileHeroRowMinHeightCss =
+    `calc(100svh - ${splitColumnHeaderHeightPx ?? 0}px - ${mobilePinnedArticleSectionConfig.peekHeightSvh}svh)`;
+  const mobileCoverFlowConfig = useMemo(() => ({
+    ...coverFlowConfig,
+    enableScroll: false,
+  }), [coverFlowConfig]);
   const [abstractTimelineConfig, setAbstractTimelineConfig] =
     useState<AboutTimelineConfig>(() => normalizeAboutTimelineConfig(DEFAULT_ABSTRACT_TIMELINE_CONFIG));
   // Shared across every page via SharedDesignConfigProvider (pages/_app.tsx)
@@ -2259,6 +2284,14 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       defaultValue: normalizeCoverFlowConfig(DEFAULT_COVER_FLOW_CONFIG),
     }),
     createConfigScopeBinding({
+      definition: abstractConfigPanelRegistry.resolve(MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID),
+      value: mobilePinnedArticleSectionConfig,
+      onChange: setMobilePinnedArticleSectionConfig,
+      defaultValue: normalizeMobilePinnedArticleSectionConfig(
+        DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
+      ),
+    }),
+    createConfigScopeBinding({
       definition: SPLIT_COLUMN_CARD_STACK_DEFINITION,
       value: splitColumnCardStackConfig,
       onChange: setSplitColumnCardStackConfig,
@@ -2298,6 +2331,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     editorialHeroConfig,
     splitColumnHeroConfig,
     coverFlowConfig,
+    mobilePinnedArticleSectionConfig,
     cardAppearanceConfig,
     abstractTimelineConfig,
     siteHeaderColorOverride,
@@ -3555,6 +3589,27 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       setArticleActiveIndex(index, 'list');
     });
   }, [setArticleActiveIndex]);
+  const handleMobileScrollActiveIndexChange = useCallback((index: number) => {
+    startTransition(() => {
+      setArticleActiveIndex(index, 'external');
+    });
+  }, [setArticleActiveIndex]);
+  // Deliberately NOT wrapped in startTransition, unlike the scroll-driven
+  // handler above. This fires for exactly one discrete, user-initiated
+  // moment: tapping a row in the expanded mobile list. MobilePinnedArticle
+  // Section's own closePanel() reveals the (until-now covered) CoverFlow by
+  // flipping `expanded` via a normal, non-transitioned setState — if this
+  // index commit were still deferred as a transition, that urgent re-render
+  // could land first and briefly (or, once caught in the wrong render,
+  // persistently) show CoverFlow's isActive/distanceFromActive styling
+  // (driven by the raw activeIndex prop, not the already-correct local
+  // `position` MotionValue driving its transforms) pointed at the
+  // previously active row instead of the one just tapped. Committing
+  // synchronously guarantees `articleActiveIndex` already matches the
+  // tapped row by the time that reveal render happens.
+  const handleMobileArticleIndexCommit = useCallback((index: number) => {
+    setArticleActiveIndex(index, 'external');
+  }, [setArticleActiveIndex]);
   const articleSlugs = useMemo(
     () => carouselAndListItems.map(item => item.slug),
     [carouselAndListItems],
@@ -4317,7 +4372,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         // via <PolymorphicLayout>'s own buildWideColumnClassName. No
         // page-level justify-* override lives here: Polymorphic Layout's
         // base/tablet/desktop values are the sole vertical-position source.
-        wideColumnClassName={`flex flex-col gap-6 ${styles.abstractStackedRow}`}
+        wideColumnClassName={`flex flex-col gap-6 ${styles.abstractStackedRow} ${styles.mobilePinnedWideColumn}`}
         wideColumnStyle={{
           minHeight: wideColumnRowMinHeightCss,
           backgroundColor: colors.wideColumnColor,
@@ -4329,7 +4384,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         // reserves its measured height above a box that still ends flush
         // with the viewport bottom. PolymorphicLayout disables this mode
         // automatically while the columns stack on mobile.
-        wideColumnContentViewportMinHeight={wideColumnRowMinHeightCss}
+        wideColumnContentViewportMinHeight={isCoverFlowDesktopTier ? wideColumnRowMinHeightCss : undefined}
         narrowColumnClassName={[
           // No 'items-center' here anymore — the narrow column's own real
           // vertical-centering slack (from narrowColumnStyle's own minHeight
@@ -4351,12 +4406,17 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           // narrowColumnClassName since both columns share the identical
           // 100dvh-floor mechanism.
           styles.abstractStackedRow,
+          styles.mobileHeroColumn,
         ].join(' ')}
         narrowColumnStyle={{
           minHeight: narrowColumnRowMinHeightCss,
           backgroundColor: colors.narrowColumnColor,
-        }}
-        narrowColumnContentViewportMinHeight={narrowColumnRowMinHeightCss}
+          '--mobile-hero-column-height':
+            mobileHeroRowMinHeightCss,
+        } as CSSProperties}
+        narrowColumnContentViewportMinHeight={isCoverFlowDesktopTier
+          ? narrowColumnRowMinHeightCss
+          : mobileHeroRowMinHeightCss}
         // wideColumn/narrowColumn below are raw content — no page-level
         // WideColumnContent/NarrowColumnContent composition. PolymorphicLayout
         // itself wraps both automatically now that wideColumnContentContainer/
@@ -4372,37 +4432,91 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             ref={coverFlowSectionAnchorRef}
             data-abstract-cover-flow-section="true"
             className="relative h-full w-full"
-            style={isCoverFlowDesktopTier ? undefined : { height: '62dvh' }}
             role="tabpanel"
             id={ABSTRACT_TIMELINE_PANEL_ID}
-            aria-live="polite"
+            aria-live={isCoverFlowDesktopTier ? 'polite' : undefined}
           >
-            <div className="absolute" style={coverFlowWideColumnStyle}>
-              <CoverFlow
-                items={carouselAndListItems}
-                activeIndex={articleActiveIndex}
-                onActiveIndexChange={handleCoverFlowActiveIndexChange}
-                renderItem={renderCoverFlowItem}
-                config={coverFlowConfig}
-                cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
-                prefersReducedMotion={coverFlowPrefersReducedMotion}
-                // Same live CtaButtonConfig instance renderCoverFlowItem
-                // already threads into AbstractJournalLabHueFadeCard as
-                // ctaConfig — CoverFlow's own vertical-fit math needs its
-                // proximity scale/lift/tilt maxima to reserve headroom for
-                // that same hover physics, not a second, independently
-                // guessed envelope. tiltMaxDegrees only applies when
-                // tiltEnabled is actually on — otherwise useCardLiftPhysics
-                // never rotates the card at all, so reserving tilt headroom
-                // for it would just shrink the card for no visual reason.
-                hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
-                hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
-                hoverMaxTiltDeg={
-                  normalizedCtaButtonConfig.tiltEnabled ? normalizedCtaButtonConfig.tiltMaxDegrees : 0
-                }
-                hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
-              />
-            </div>
+            {isCoverFlowDesktopTier ? (
+              <div className="absolute" style={coverFlowWideColumnStyle}>
+                <CoverFlow
+                  items={carouselAndListItems}
+                  activeIndex={articleActiveIndex}
+                  onActiveIndexChange={handleCoverFlowActiveIndexChange}
+                  renderItem={renderCoverFlowItem}
+                  config={coverFlowConfig}
+                  cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
+                  prefersReducedMotion={coverFlowPrefersReducedMotion}
+                  hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
+                  hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
+                  hoverMaxTiltDeg={
+                    normalizedCtaButtonConfig.tiltEnabled ? normalizedCtaButtonConfig.tiltMaxDegrees : 0
+                  }
+                  hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
+                />
+              </div>
+            ) : (
+              <div style={{ width: '100vw', marginLeft: 'calc(50% - 50vw)' }}>
+                <MobilePinnedArticleSection
+                  itemCount={carouselAndListItems.length}
+                  rows={abstractTimelineRows}
+                  activeIndex={articleActiveIndex}
+                  onActiveIndexChange={handleMobileScrollActiveIndexChange}
+                  onActiveIndexCommit={handleMobileArticleIndexCommit}
+                  carouselColor={colors.wideColumnColor}
+                  panelColor={colors.wideColumnColor}
+                  config={mobilePinnedArticleSectionConfig}
+                  renderCarousel={(controls: MobilePinnedCarouselControls) => (
+                    <CoverFlow
+                      items={carouselAndListItems}
+                      activeIndex={controls.activeIndex}
+                      onActiveIndexChange={controls.onIndexRequest}
+                      renderItem={renderCoverFlowItem}
+                      config={mobileCoverFlowConfig}
+                      cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
+                      prefersReducedMotion={coverFlowPrefersReducedMotion}
+                      hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
+                      hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
+                      hoverMaxTiltDeg={
+                        normalizedCtaButtonConfig.tiltEnabled
+                          ? normalizedCtaButtonConfig.tiltMaxDegrees
+                          : 0
+                      }
+                      hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
+                      externalDriver={{
+                        position: controls.position,
+                        animatePosition: controls.animatePosition,
+                        onPositionRequest: controls.onIndexRequest,
+                        onGeometryChange: controls.onGeometryChange,
+                        onDragStart: controls.onDragScrollStart,
+                        onDrag: controls.onDragScroll,
+                        onDragEnd: controls.onDragScrollEnd,
+                      }}
+                      accessibilityHidden
+                    />
+                  )}
+                  renderList={({ activeIndex, rows: listRows, onSelect }) => (
+                    <AboutTimeline
+                      rows={listRows}
+                      activeIndex={activeIndex}
+                      onSelect={onSelect}
+                      accentColor={carouselAndListItems[activeIndex]?.accent ?? '#ffffff'}
+                      columnBackgroundColor={colors.wideColumnColor}
+                      description={abstractTimelineConfig.description || undefined}
+                      config={abstractTimelineConfig}
+                      prefersReducedMotion={coverFlowPrefersReducedMotion}
+                      panelId={ABSTRACT_TIMELINE_PANEL_ID}
+                      // Same exact marker-gradient inputs as the desktop
+                      // instance below, not a mobile-specific subset — see
+                      // that instance's own doc comment.
+                      gradientSlides={carouselAndListItems}
+                      gradientPaletteStates={coverFlowPalettes}
+                      gradientMotion={coverFlowLiquidSliderMotion}
+                      gradientConfig={journalDockSliderConfig}
+                    />
+                  )}
+                />
+              </div>
+            )}
           </div>
         )}
         narrowColumn={(
@@ -4444,7 +4558,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                 />
               </div>
             )}
-            bottom={(
+            bottom={isCoverFlowDesktopTier ? (
               <div data-abstract-article-list-section="true">
                 <AboutTimeline
                   rows={abstractTimelineRows}
@@ -4469,7 +4583,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   gradientConfig={journalDockSliderConfig}
                 />
               </div>
-            )}
+            ) : null}
           />
         )}
       >

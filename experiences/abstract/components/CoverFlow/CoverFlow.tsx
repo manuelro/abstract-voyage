@@ -37,6 +37,33 @@ export type CoverFlowItemGeometry = {
   height: number;
 };
 
+/** Geometry published to an externally-driven CoverFlow. `horizontalStepPx`
+ * is the exact transform-space distance between adjacent card centres. It is
+ * deliberately distinct from `activeCardWidthPx`: coverflow neighbours can
+ * overlap, so card width is not necessarily the scroll travel distance. */
+export type CoverFlowExternalGeometry = {
+  activeCardWidthPx: number;
+  horizontalStepPx: number;
+};
+
+/** Lets a parent own CoverFlow's continuous position. This is intentionally
+ * a separate contract from the normal index-controlled interaction: the
+ * parent maps its own input surface, such as document scroll, to `position`,
+ * and CoverFlow only renders that position or requests a destination. */
+export type CoverFlowExternalDriver = {
+  position: number;
+  /** Use CoverFlow's established spring when the external owner changes the
+   * destination programmatically, such as selecting a row in the expanded
+   * mobile list. Continuous page scrolling leaves this false so movement
+   * remains exactly 1:1 with the finger. */
+  animatePosition?: boolean;
+  onPositionRequest: (index: number) => void;
+  onGeometryChange?: (geometry: CoverFlowExternalGeometry) => void;
+  onDragStart?: () => void;
+  onDrag?: (deltaX: number) => void;
+  onDragEnd?: (velocityX: number) => void;
+};
+
 /** Per-element delay, ms, within the opt-in staggered reveal sequence (see
  * CoverFlowConfig's own `staggeredCardRevealEnabled` doc comment for the
  * full cognitive-load ordering rationale) — topic tag first, CTA last.
@@ -135,6 +162,14 @@ export interface CoverFlowProps<T> {
   hoverTiltPerspectivePx?: number;
   className?: string;
   onItemClick?: (item: T, index: number) => void;
+  /** Optional continuous external-driver contract. On mobile, the pinned
+   * section supplies page-scroll progress so vertical pixels and active-card
+   * horizontal pixels stay in direct 1:1 correspondence. */
+  externalDriver?: CoverFlowExternalDriver;
+  /** Mobile list owns keyboard navigation, so its paired carousel is hidden
+   * from the accessibility tree and any links inside its unchanged card
+   * renderer are removed from sequential focus. */
+  accessibilityHidden?: boolean;
 }
 
 function clampIndex(index: number, length: number) {
@@ -264,6 +299,8 @@ export function CoverFlow<T>({
   hoverTiltPerspectivePx = 1000,
   className,
   onItemClick,
+  externalDriver,
+  accessibilityHidden = false,
 }: CoverFlowProps<T>) {
   const safeInitial = clampIndex(activeIndex, items.length);
   const [isDragging, setIsDragging] = useState(false);
@@ -295,7 +332,41 @@ export function CoverFlow<T>({
 
   const scrollX = useMotionValue(safeInitial);
   const springX = useSpring(scrollX, { stiffness: 150, damping: 30, mass: 1 });
-  const effectiveScrollX = prefersReducedMotion ? scrollX : springX;
+  const externallyControlled = externalDriver !== undefined;
+  const externalDriverRef = useRef(externalDriver);
+  externalDriverRef.current = externalDriver;
+  const effectiveScrollX = prefersReducedMotion
+    || (externallyControlled && !externalDriver?.animatePosition)
+    ? scrollX
+    : springX;
+
+  useEffect(() => {
+    if (!externalDriver) return;
+    scrollX.set(clampIndex(externalDriver.position, items.length));
+  }, [externalDriver?.position, items.length, scrollX]);
+
+  useEffect(() => {
+    const onGeometryChange = externalDriverRef.current?.onGeometryChange;
+    if (!onGeometryChange) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const activeCard = containerRef.current?.querySelector<HTMLElement>(
+        '[data-cover-flow-active="true"]',
+      );
+      const renderedWidth = activeCard?.offsetWidth ?? itemWidth;
+      onGeometryChange({
+        activeCardWidthPx: renderedWidth,
+        horizontalStepPx: centerGap,
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeIndex, centerGap, itemWidth]);
+
+  useEffect(() => {
+    if (!accessibilityHidden) return;
+    containerRef.current
+      ?.querySelectorAll<HTMLElement>('a, button, [tabindex]')
+      .forEach(element => element.setAttribute('tabindex', '-1'));
+  }, [accessibilityHidden, activeIndex, items]);
 
   // "Settled" tracks activeIndex, not internal jump bookkeeping — a drag or
   // wheel gesture only ever settles once its own jumpToIndex/onDragEnd call
@@ -362,14 +433,18 @@ export function CoverFlow<T>({
     const clamped = clampIndex(activeIndex, items.length);
     if (clamped !== activeIndexRef.current) {
       activeIndexRef.current = clamped;
-      scrollX.set(clamped);
+      if (!externallyControlled) scrollX.set(clamped);
     }
-  }, [activeIndex, items.length, scrollX]);
+  }, [activeIndex, externallyControlled, items.length, scrollX]);
 
   const jumpToIndex = useCallback(
     (index: number) => {
       const clamped = clampIndex(index, items.length);
       if (clamped === activeIndexRef.current) return;
+      if (externalDriverRef.current) {
+        externalDriverRef.current.onPositionRequest(clamped);
+        return;
+      }
       activeIndexRef.current = clamped;
       scrollX.set(clamped);
       onActiveIndexChangeRef.current(clamped);
@@ -422,10 +497,26 @@ export function CoverFlow<T>({
     [jumpToIndex],
   );
 
-  const onDragStart = useCallback(() => setIsDragging(true), []);
+  const externalDragActiveRef = useRef(false);
+  const onDragStart = useCallback(() => {
+    if (!externalDriverRef.current) setIsDragging(true);
+  }, []);
 
   const onDrag = useCallback(
     (_: unknown, info: PanInfo) => {
+      const driver = externalDriverRef.current;
+      if (driver) {
+        if (!externalDragActiveRef.current) {
+          const horizontalIntent = Math.abs(info.offset.x) >= 8
+            && Math.abs(info.offset.x) > Math.abs(info.offset.y);
+          if (!horizontalIntent) return;
+          externalDragActiveRef.current = true;
+          setIsDragging(true);
+          driver.onDragStart?.();
+        }
+        driver.onDrag?.(info.delta.x);
+        return;
+      }
       scrollX.set(scrollX.get() - info.delta.x / (centerGap * 0.8));
     },
     [centerGap, scrollX],
@@ -434,6 +525,13 @@ export function CoverFlow<T>({
   const onDragEnd = useCallback(
     (_: unknown, info: PanInfo) => {
       setIsDragging(false);
+      const driver = externalDriverRef.current;
+      if (driver) {
+        const wasExternallyDragging = externalDragActiveRef.current;
+        externalDragActiveRef.current = false;
+        if (wasExternallyDragging) driver.onDragEnd?.(info.velocity.x);
+        return;
+      }
       const projected = scrollX.get() - info.velocity.x * 0.002;
       const clamped = clampIndex(Math.round(projected), items.length);
       if (clamped !== activeIndexRef.current) {
@@ -451,9 +549,15 @@ export function CoverFlow<T>({
     <motion.div
       ref={setContainerRef}
       className={`relative w-full h-full flex flex-col justify-center items-center overflow-hidden ${className ?? ''}`}
-      style={{ perspective: config.perspectivePx, perspectiveOrigin, cursor: isDragging ? 'grabbing' : 'grab' }}
-      role="region"
-      aria-label="Cover Flow"
+      style={{
+        perspective: prefersReducedMotion && externallyControlled ? 'none' : config.perspectivePx,
+        perspectiveOrigin,
+        cursor: isDragging ? 'grabbing' : 'grab',
+        touchAction: externallyControlled ? 'pan-y' : undefined,
+      }}
+      role={accessibilityHidden ? undefined : 'region'}
+      aria-label={accessibilityHidden ? undefined : 'Cover Flow'}
+      aria-hidden={accessibilityHidden || undefined}
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0}
@@ -464,7 +568,9 @@ export function CoverFlow<T>({
     >
       <div
         className="relative w-full h-full flex items-center justify-center"
-        style={{ transformStyle: 'preserve-3d' }}
+        style={{
+          transformStyle: prefersReducedMotion && externallyControlled ? 'flat' : 'preserve-3d',
+        }}
       >
         {items.map((item, index) => (
           <CoverFlowItem
@@ -486,6 +592,8 @@ export function CoverFlow<T>({
             renderItem={renderItem}
             onCardClick={handleCardClick}
             reveal={reveal}
+            dataActive={index === activeIndex}
+            flattenPerspective={prefersReducedMotion && externallyControlled}
           />
         ))}
       </div>
@@ -511,6 +619,8 @@ interface CardProps<T> {
   renderItem: CoverFlowRenderItem<T>;
   onCardClick: (item: T, index: number) => void;
   reveal: CoverFlowCardReveal;
+  dataActive: boolean;
+  flattenPerspective: boolean;
 }
 
 function CoverFlowItemInner<T>({
@@ -531,6 +641,8 @@ function CoverFlowItemInner<T>({
   renderItem,
   onCardClick,
   reveal,
+  dataActive,
+  flattenPerspective,
 }: CardProps<T>) {
   const rotateY = useTransform(scrollX, (value) => {
     if (reduceMotion) return 0;
@@ -575,6 +687,7 @@ function CoverFlowItemInner<T>({
   return (
     <motion.div
       className="absolute top-1/2 left-1/2 will-change-transform"
+      data-cover-flow-active={dataActive}
       style={{
         width,
         height,
@@ -583,7 +696,7 @@ function CoverFlowItemInner<T>({
         x,
         z,
         rotateY,
-        transformStyle: 'preserve-3d',
+        transformStyle: flattenPerspective ? 'flat' : 'preserve-3d',
         cursor,
       }}
       onClick={() => onCardClick(item, index)}

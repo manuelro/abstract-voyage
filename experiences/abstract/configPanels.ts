@@ -82,6 +82,10 @@ import {
   ABSTRACT_TIMELINE_SCOPE_ID,
 } from './components/AbstractTimeline.panel';
 import {
+  MOBILE_PINNED_ARTICLE_SECTION_PANEL,
+  MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID,
+} from './components/MobilePinnedArticleSection/MobilePinnedArticleSection.panel';
+import {
   ABSTRACT_TIMELINE_CONTENT_PANEL,
   ABSTRACT_TIMELINE_CONTENT_SCOPE_ID,
 } from '../../pages/abstract.panel';
@@ -165,6 +169,8 @@ export const abstractConfigPanelRegistry = defineConfigScopeRegistry({
     CARD_APPEARANCE_PANEL,
   [ABSTRACT_TIMELINE_SCOPE_ID]:
     ABSTRACT_TIMELINE_PANEL,
+  [MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID]:
+    MOBILE_PINNED_ARTICLE_SECTION_PANEL,
   [ABSTRACT_TIMELINE_CONTENT_SCOPE_ID]:
     ABSTRACT_TIMELINE_CONTENT_PANEL,
 });

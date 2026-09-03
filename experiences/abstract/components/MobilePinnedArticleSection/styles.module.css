@@ -1,0 +1,162 @@
+.outer {
+  position: relative;
+  width: 100%;
+  background: var(--mobile-pinned-carousel-color);
+}
+
+.stickyViewport {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  background: var(--mobile-pinned-carousel-color);
+}
+
+/* Body locking removes the document's scroll container while the article
+ * panel is open. Keep the pinned viewport visible as a temporary overlay so
+ * the section does not fall back to its off-screen document position. */
+.stickyViewport[data-expanded='true'] {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  width: 100%;
+}
+
+.carousel {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(var(--mobile-pinned-carousel-percent) * 1%);
+  opacity: 1;
+  transition: opacity 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stickyViewport[data-expanded='true'] .carousel {
+  opacity: 0.7;
+}
+
+.panel {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(var(--mobile-pinned-list-percent) * 1svh);
+  overflow: clip;
+  background: rgb(from var(--mobile-pinned-panel-color) r g b / var(--mobile-pinned-panel-opacity));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: height 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.panel[data-expanded='true'] {
+  height: calc(var(--mobile-pinned-expanded-percent) * 1svh);
+}
+
+.rowsViewport {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* Rows render at their own natural size now (the exact same AboutTimeline
+   * config/markup as desktop — no forced per-row height here anymore, that
+   * was the mobile-only stretch that made rows read as "too far apart").
+   * Top-anchored to match the expanded list below, rather than centered in
+   * the leftover space below the collapsed (naturally shorter) row count. */
+  justify-content: flex-start;
+  padding: 0 1.5rem;
+  /* `clip` prevents the collapsed list from becoming a dead-end scroll
+   * container. Vertical gestures therefore continue to the document while
+   * the panel still clips rows to its own bounds. */
+  overflow: clip;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel[data-expanded='true'] .rowsViewport {
+  /* Expanded is the full list, potentially taller than the panel — scrolls
+   * instead of clipping. Already top-anchored via the base rule above. */
+  overflow-y: auto;
+}
+
+.timeline {
+  width: 100%;
+}
+
+.timeline > :global(div) {
+  width: 100%;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.timeline :global(button[role='tab'] span) {
+  text-shadow:
+    -1px 0 0 rgba(0, 0, 0, 0.92),
+    1px 0 0 rgba(0, 0, 0, 0.92),
+    0 -1px 0 rgba(0, 0, 0, 0.92),
+    0 1px 0 rgba(0, 0, 0, 0.92),
+    var(--about-dock-text-shadow, 0 8px 28px rgba(0, 0, 0, 0.48));
+}
+
+.collapseSurface {
+  position: absolute;
+  z-index: 3;
+  inset: 0 0 auto;
+  height: calc((100 - var(--mobile-pinned-expanded-percent)) * 1svh);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.peekTarget {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: calc(var(--mobile-pinned-peek-height) * 1svh);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.peekTarget[data-active='false'] {
+  pointer-events: none;
+}
+
+.snapPoint {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 767px) {
+  :global(html[data-mobile-pinned-snap-active]):has(.outer) {
+    scroll-snap-type: y proximity;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .carousel {
+    transition: none;
+  }
+}

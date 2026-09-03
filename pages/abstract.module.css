@@ -387,6 +387,14 @@
   .abstractStackedRow {
     min-height: auto !important;
   }
+
+  .mobilePinnedWideColumn {
+    padding: 0 !important;
+  }
+
+  .mobileHeroColumn {
+    min-height: var(--mobile-hero-column-height) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
