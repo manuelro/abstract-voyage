@@ -22,8 +22,9 @@ import {
 import { AboutTimeline, type AboutTimelineRowData } from '../experiences/about/components/AboutTimeline'
 import { normalizeAboutTimelineConfig, type AboutTimelineConfig } from '../experiences/about/components/AboutTimeline.config'
 import { normalizePolymorphicLayoutConfig, type PolymorphicLayoutConfig } from '../experiences/abstract/components/PolymorphicLayout.config'
-import { DEFAULT_CARD_APPEARANCE_CONFIG, normalizeCardAppearanceConfig, type CardAppearanceConfig } from '../experiences/abstract/components/Card/config/appearance'
+import { normalizeCardAppearanceConfig, type CardAppearanceConfig } from '../experiences/abstract/components/Card/config/appearance'
 import {
+  DEFAULT_JOURNAL_CARD_APPEARANCE_CONFIG,
   DEFAULT_JOURNAL_TIMELINE_CONFIG,
   JOURNAL_POLYMORPHIC_LAYOUT_CONFIG,
 } from './journal.config'
@@ -49,7 +50,7 @@ export default function JournalPage({ posts }: JournalProps) {
     normalizeAboutTimelineConfig(DEFAULT_JOURNAL_TIMELINE_CONFIG)
   ))
   const [cardAppearanceConfig, setCardAppearanceConfig] = useState<CardAppearanceConfig>(() => (
-    normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG)
+    normalizeCardAppearanceConfig(DEFAULT_JOURNAL_CARD_APPEARANCE_CONFIG)
   ))
   const timelineRows = useMemo<AboutTimelineRowData[]>(() => posts.map((post, index) => ({
     caption: post.title,
@@ -128,7 +129,7 @@ export default function JournalPage({ posts }: JournalProps) {
                 bindings={bindings}
                 onReset={() => {
                   setTimelineConfig(normalizeAboutTimelineConfig(DEFAULT_JOURNAL_TIMELINE_CONFIG))
-                  setCardAppearanceConfig(normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG))
+                  setCardAppearanceConfig(normalizeCardAppearanceConfig(DEFAULT_JOURNAL_CARD_APPEARANCE_CONFIG))
                   setLayoutConfig(normalizePolymorphicLayoutConfig(JOURNAL_POLYMORPHIC_LAYOUT_CONFIG))
                 }}
               />
