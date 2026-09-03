@@ -9,54 +9,26 @@ import {
   type CardAppearanceConfig,
 } from '../experiences/abstract/components/Card/config/appearance'
 import {
-  DEFAULT_POLYMORPHIC_LAYOUT_CONFIG,
   normalizePolymorphicLayoutConfig,
   type PolymorphicLayoutConfig,
 } from '../experiences/abstract/components/PolymorphicLayout.config'
+import { POST_LAB_POLYMORPHIC_LAYOUT_CONFIG } from '../experiences/abstract/components/PolymorphicLayout.pageConfigs'
 
-// Wide-column desktop (Wide/Lg tier) fields below mirror /about's own
-// narrow column (ABOUT_POLYMORPHIC_LAYOUT_CONFIG, experiences/abstract/
-// components/PolymorphicLayout.pageConfigs.ts) field-for-field
-// (narrowColumn* -> wideColumn*) — /about's timeline lives in its narrow
-// column, journal's lives in its wide column, so this is the parity mapping
-// that puts the same desktop styling behind both. splitBandRight* mirrors
-// about's splitBandLeft* instead of splitBandRight*: both pages share
-// wideColumnSide: 'right', so about's narrow (timeline) column sits under
-// the header's LEFT band while journal's wide (timeline) column sits under
-// the header's RIGHT band — mapping by physical position, not by field name.
-// Only fields that actually diverge from DEFAULT_POLYMORPHIC_LAYOUT_CONFIG's
-// own wide-column desktop values are listed; base/mobile tier is untouched.
+// Full field-for-field parity with /posts-lab's own instance
+// (POST_LAB_POLYMORPHIC_LAYOUT_CONFIG, experiences/abstract/components/
+// PolymorphicLayout.pageConfigs.ts) — both pages share wideColumnSide:
+// 'right' already, so unlike /about (whose narrow/wide columns are
+// mirrored relative to journal's), no field-name translation is needed
+// here; every field below is a direct copy of posts-lab's own resolved
+// value, not a re-derivation. This is a one-time value copy (spread at
+// module load), not a live link — a future change to posts-lab's own
+// instance won't retroactively change journal's; re-sync explicitly if
+// parity should be kept going forward.
 export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
-  ...DEFAULT_POLYMORPHIC_LAYOUT_CONFIG,
-  wideColumnSide: 'right',
-  wideColumnCustomColor: '#2c2c3f',
-  narrowColumnCustomColor: '#242438',
-  wideColumnCustomColorWide: '#cbcbe1',
-  narrowColumnCustomColorWide: '#242438',
-  wideColumnCustomColorLg: '#2c2c3f',
-  narrowColumnCustomColorLg: '#282839',
-  splitBandLeftModeLg: 'custom',
-  splitBandLeftCustomColorLg: '#2c2c3f',
-  wideColumnContentContainer: 'full-bleed',
-  narrowColumnContentContainer: 'full-bleed',
-  wideColumnContentAlignWide: 'items-end',
-  wideColumnContentAlignLg: 'items-end',
-  wideColumnContentWidthWide: 'md:max-w-[100%]',
-  wideColumnContentWidthLg: 'lg:max-w-[100%]',
-  wideColumnContentMaxWidthLg: 'lg:max-w-md',
-  wideColumnTextAlignWide: 'md:text-right',
-  wideColumnContentPaddingLeftWide: 'md:pl-0',
+  ...POST_LAB_POLYMORPHIC_LAYOUT_CONFIG,
   wideColumnContentPaddingLeftLg: 'lg:pl-2',
-  wideColumnContentPaddingRightWide: 'md:pr-7',
-  wideColumnContentPaddingRightLg: 'lg:pr-0',
-  wideColumnContentPaddingTopWide: 'md:pt-9',
   wideColumnContentPaddingTopLg: 'lg:pt-0',
-  wideColumnContentPaddingBottomWide: 'md:pb-0',
   wideColumnContentPaddingBottomLg: 'lg:pb-0',
-  splitBandRightModeWide: 'custom',
-  splitBandRightModeLg: 'custom',
-  splitBandRightCustomColorWide: '#d1d1e6',
-  splitBandRightCustomColorLg: '#282839',
 }
 
 // Full parity with /about's own timeline (DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG,
