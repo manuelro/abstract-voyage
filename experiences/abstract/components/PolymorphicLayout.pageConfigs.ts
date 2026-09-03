@@ -104,8 +104,11 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // prop (the column's real color, independent of the band) instead of
   // pageSurfaceConfig.color — so 'transparent' is correct and safe here
   // again at every tier, matching what this field always should have meant.
+  // Lg tier deliberately overridden back to 'custom' below (see
+  // splitBandRightCustomColorLg) for the /abstract-Journal color-parity
+  // pass — 'transparent' remains the supported default at every other tier.
   splitBandRightModeWide: 'transparent',
-  splitBandRightModeLg: 'transparent',
+  splitBandRightModeLg: 'custom',
   contentContainer: 'bounded',
   wideColumnContentContainer: 'bounded',
   wideColumnContentHeight: 'full',
@@ -303,17 +306,17 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   colorSourceWide: 'custom',
   colorSourceLg: 'custom',
   wideColumnCustomColorWide: '#14142f',
-  wideColumnCustomColorLg: '#14142f',
+  wideColumnCustomColorLg: '#282839',
   narrowColumnCustomColorWide: '#cbcbe1',
-  narrowColumnCustomColorLg: '#cbcbe1',
+  narrowColumnCustomColorLg: '#242433',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
   narrowColumnSurfaceOffsetLg: 0,
   splitBandLeftCustomColorWide: '#d1d1e6',
-  splitBandLeftCustomColorLg: '#d1d1e6',
+  splitBandLeftCustomColorLg: '#282839',
   splitBandRightCustomColorWide: '#0e1230',
-  splitBandRightCustomColorLg: '#cbcbe1',
+  splitBandRightCustomColorLg: '#242433',
   splitBandWidthTier: 'stacked',
   splitBandWidthTierWide: '38/62',
   splitBandWidthTierLg: '38/62',
