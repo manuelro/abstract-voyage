@@ -65,7 +65,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnWidthTierMd: '38/62',
   narrowColumnWidthTierLg: '38/62',
   stackedColumnOrder: 'narrowFirst',
-  wideColumnHeaderBehavior: 'float',
+  wideColumnHeaderBehavior: 'pushDown',
   narrowColumnHeaderBehavior: 'float',
   legibilityScrimEnabled: false,
   wideColumnClearsFloatingHeader: false,
