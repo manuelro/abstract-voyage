@@ -624,7 +624,7 @@ export const POST_LAB_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   splitBandLeftModeLg: 'syncWithColumnBelow',
   splitBandLeftCustomColorLg: '#d1d1e6',
   wideColumnCustomColorLg: '#f1f2f9',
-  narrowColumnCustomColorLg: '#656572',
+  narrowColumnCustomColorLg: '#2c2c3f',
   narrowColumnContentWidthLg: 'lg:max-w-[60%]',
   narrowColumnContentPaddingLeftLg: 'lg:pl-0',
   narrowColumnContentPaddingRightLg: 'lg:pr-7',
