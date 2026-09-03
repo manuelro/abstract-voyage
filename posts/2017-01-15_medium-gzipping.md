@@ -4,7 +4,7 @@
 
 
 title: Gzipping and minification solve different problems
-excerpt: "Explains the difference between gzip compression and minification and how both improve web performance and bandwidth usage."
+excerpt: "One removes characters from your source, the other compresses what travels over the wire. Using either alone leaves the other's savings on the table."
 author: "Manu"
 url: https://abstractvoyage.medium.com/gzipping-vs-minification-what-the-heck-ba698fa6037c
 source:

@@ -4,7 +4,7 @@
 
 
 title: Technical debt works like a credit card
-excerpt: "Explains what technical debt is, why it accumulates, and how teams can manage it to keep software maintainable."
+excerpt: "Both extremes fail. Ship nothing until it is perfect and you never ship; borrow without repaying and the interest eventually takes the whole team."
 author: "Manu"
 url: https://abstractvoyage.medium.com/your-company-is-in-debt-technically-46ade0eea37
 source:

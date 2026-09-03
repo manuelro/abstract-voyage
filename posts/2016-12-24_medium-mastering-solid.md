@@ -1,6 +1,6 @@
 ---
 title: The five SOLID principles, one at a time
-excerpt: "A practical guide to the SOLID principles in object-oriented programming and how they improve maintainable software architecture."
+excerpt: "Single responsibility through dependency inversion, each with a short example of the problem it exists to prevent."
 author: "Manu"
 url: https://abstractvoyage.medium.com/mastering-solid-programming-principles-3ba15c5df942
 source:

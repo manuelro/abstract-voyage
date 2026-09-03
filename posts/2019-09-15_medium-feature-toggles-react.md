@@ -1,10 +1,6 @@
 ---
-
-
-
-
 title: Real-time feature toggles with React and LaunchDarkly
-excerpt: "Walkthrough of real-time feature flags in React using LaunchDarkly to manage releases safely and continuously."
+excerpt: "A working implementation with higher-order components and streaming updates, so flags change in a running app without a redeploy."
 author: "Manu"
 url: https://abstractvoyage.medium.com/real-time-feature-toggling-with-react-and-launchdarkly-1d4c40c117df
 source:

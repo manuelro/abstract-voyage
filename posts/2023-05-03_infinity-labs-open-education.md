@@ -1,6 +1,6 @@
 ---
 title: 'Infinity Labs, and why engineering education should be free'
-excerpt: "Announces Infinity Labs, a free open education initiative offering software engineering learning resources and videos."
+excerpt: "A free open education channel for software engineers, built on the premise that access to learning is a right rather than a privilege."
 author: "Manu"
 featured: false
 tags:

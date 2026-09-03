@@ -4,7 +4,7 @@
 
 
 title: The DOM, from nodes to events
-excerpt: "Introduces the Document Object Model (DOM), explaining how web pages are structured and how JavaScript interacts with nodes and events."
+excerpt: "How the browser turns markup into a tree, how nodes relate to each other, and where JavaScript actually attaches when you bind an event."
 author: "Manu"
 url: https://abstractvoyage.medium.com/understanding-the-dom-basics-1c0b35970d90
 source:

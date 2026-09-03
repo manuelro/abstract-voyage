@@ -1,6 +1,6 @@
 ---
 title: Five years of tech leading, unfiltered
-excerpt: "A retrospective on five years of technical leadership, covering people management, decision-making, and career growth."
+excerpt: "The recognition and the freedom, alongside the noise absorbed, the accountability carried, and the time given up. Worth it anyway."
 author: "Manu"
 url: https://abstractvoyage.medium.com/the-technical-leads-path-a-retrospective-to-my-first-5-years-leading-people-21e44e690aff
 source:

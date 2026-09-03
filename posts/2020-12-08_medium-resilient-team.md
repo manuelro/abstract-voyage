@@ -1,6 +1,6 @@
 ---
 title: The Tech Lead is a dependency your team should outgrow
-excerpt: "Explores how tech leads build resilient teams in Scrum and coordinate effectively across roles and responsibilities."
+excerpt: "Coordination is a function, not a person. When every member can perform it, the team stops having a single point of failure at the top."
 author: "Manu"
 url: https://abstractvoyage.medium.com/the-resilient-team-the-tech-lead-role-and-the-coordination-function-in-scrum-bdce438d0988
 source:

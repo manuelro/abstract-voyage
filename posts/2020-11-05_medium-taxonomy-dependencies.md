@@ -1,6 +1,6 @@
 ---
 title: Four kinds of dependency, and which ones carry real risk
-excerpt: "Analyzes dependency types in software engineering and the risk tradeoffs they introduce across systems and teams."
+excerpt: "Sorted by whether a dependency is inherent or imposed, and whether it sits inside the system or outside it. Only one of the four combinations is hard to undo."
 author: "Manu"
 url: https://abstractvoyage.medium.com/a-reflection-on-the-taxonomy-of-dependencies-in-software-engineering-and-their-associated-risk-864e3a4c881
 source:
