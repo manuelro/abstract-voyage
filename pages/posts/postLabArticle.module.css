@@ -38,6 +38,11 @@
   color: var(--article-heading-ink);
 }
 
+.articleContent :global(strong) {
+  color: var(--article-strong-ink);
+  font-weight: var(--article-strong-weight);
+}
+
 .articleContent :global(a) {
   color: var(--article-link-ink);
   text-decoration-color: var(--article-divider);

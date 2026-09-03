@@ -157,6 +157,10 @@ export function resolvePostLabArticlePresentation({
     minContrast: config.linkTextMinContrast,
     pigmentIntensity: config.linkPigmentIntensity,
   });
+  const strongSource = config.strongColorMode === 'custom'
+    ? validColor(config.strongCustomColor, bodyInk)
+    : bodyInk;
+  const strongInk = withAlpha(strongSource, config.strongOpacity);
   const articleSource = colord(articleSurface);
   const codeSurface = config.codeSurfaceMode === 'custom'
     ? validColor(config.codeSurfaceColor, '#0f172a')
@@ -179,6 +183,7 @@ export function resolvePostLabArticlePresentation({
     mutedInk,
     metadataInk: withAlpha(mutedInk, config.metadataOpacity),
     linkInk,
+    strongInk,
     dividerInk: withAlpha(bodyInk, config.tableDividerOpacity),
     figureBorderInk: withAlpha(bodyInk, config.figureBorderOpacity),
     codeSurface,

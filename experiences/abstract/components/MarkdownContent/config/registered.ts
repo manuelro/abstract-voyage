@@ -35,6 +35,7 @@ import {
 export type MarkdownContentFontFamily = FontFamilyClass
 export type MarkdownContentTextColorMode = 'column' | 'surface' | 'custom'
 export type MarkdownContentCodeSurfaceMode = 'derived-dark' | 'derived-light' | 'custom'
+export type MarkdownContentStrongColorMode = 'inherit' | 'custom'
 
 /** Every structural or typographic dimension uses a literal Tailwind token.
  * Numeric controls remain only where the browser or color engine needs a
@@ -72,6 +73,15 @@ export type MarkdownContentConfig = {
   bodyLeading: LeadingClass
   bodyTracking: TrackingClass
   paragraphMarginBottom: MarginBottomClass
+  /** Governs `<strong>`/`**bold**` phrases within the article body. Distinct
+   * from bodyText*'s own contrast-derived pigment controls — 'inherit' scales
+   * the already-derived bodyInk by strongOpacity (matches today's plain-bold
+   * look at opacity 1), 'custom' swaps in strongCustomColor as the base
+   * before applying that same opacity. */
+  strongColorMode: MarkdownContentStrongColorMode
+  strongCustomColor: string
+  strongOpacity: number
+  strongFontWeight: FontWeightClass
   headingFontFamily: MarkdownContentFontFamily
   headingFontWeight: FontWeightClass
   headingLeading: LeadingClass
@@ -140,6 +150,10 @@ export const DEFAULT_POST_LAB_ARTICLE_CONFIG = {
   bodyLeading: 'leading-relaxed',
   bodyTracking: 'tracking-normal',
   paragraphMarginBottom: 'mb-5',
+  strongColorMode: 'inherit',
+  strongCustomColor: '#1f2937',
+  strongOpacity: 1,
+  strongFontWeight: 'font-semibold',
   headingFontFamily: 'font-serif',
   headingFontWeight: 'font-medium',
   headingLeading: 'leading-tight',
@@ -197,6 +211,7 @@ const family = (value: string, fallback: MarkdownContentFontFamily): MarkdownCon
       : value === 'inherit' ? 'inherit' : fallback
 )
 const textColorMode = (value: string): MarkdownContentTextColorMode => value === 'surface' || value === 'custom' ? value : 'column'
+const strongColorMode = (value: string): MarkdownContentStrongColorMode => value === 'custom' ? value : 'inherit'
 const codeSurfaceMode = (value: string): MarkdownContentCodeSurfaceMode => value === 'derived-light' || value === 'custom' ? value : 'derived-dark'
 
 export function normalizePostLabArticleConfig(config: Partial<MarkdownContentConfig> | undefined): MarkdownContentConfig {
@@ -228,6 +243,10 @@ export function normalizePostLabArticleConfig(config: Partial<MarkdownContentCon
     bodyLeading: token(base.bodyLeading, values(LEADING_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyLeading),
     bodyTracking: token(base.bodyTracking, values(TRACKING_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyTracking),
     paragraphMarginBottom: token(base.paragraphMarginBottom, values(MARGIN_BOTTOM_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.paragraphMarginBottom),
+    strongColorMode: strongColorMode(base.strongColorMode),
+    strongCustomColor: color(base.strongCustomColor, DEFAULT_POST_LAB_ARTICLE_CONFIG.strongCustomColor),
+    strongOpacity: clamp(base.strongOpacity, 0, 1, DEFAULT_POST_LAB_ARTICLE_CONFIG.strongOpacity),
+    strongFontWeight: token(base.strongFontWeight, values(FONT_WEIGHT_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.strongFontWeight),
     headingFontFamily: family(base.headingFontFamily, DEFAULT_POST_LAB_ARTICLE_CONFIG.headingFontFamily),
     headingFontWeight: token(base.headingFontWeight, values(FONT_WEIGHT_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.headingFontWeight),
     headingLeading: token(base.headingLeading, values(LEADING_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.headingLeading),

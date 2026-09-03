@@ -83,6 +83,18 @@ import { firstSplitTierPrefix } from '../../experiences/abstract/components/Spli
 // helpers/postArticle.ts so metadata, reading time, and adjacent navigation
 // all use the same source values.
 
+// `<strong>` tags come from markdown-it's dangerouslySetInnerHTML output
+// (MarkdownContent.tsx), not real JSX elements, so articleConfig.strongFontWeight's
+// literal Tailwind token can't be applied as a className the way titleFontWeight/
+// headingFontWeight are — it's converted to the numeric CSS value here instead and
+// consumed via --article-strong-weight (postLabArticle.module.css).
+const STRONG_FONT_WEIGHT_CSS_VALUE: Record<MarkdownContentConfig['strongFontWeight'], string> = {
+  'font-normal': '400',
+  'font-medium': '500',
+  'font-semibold': '600',
+  'font-bold': '700',
+}
+
 export default function PostLab({
   slug,
   publishedDate,
@@ -291,6 +303,8 @@ export default function PostLab({
     '--article-muted-ink': articlePresentation.mutedInk,
     '--article-metadata-ink': articlePresentation.metadataInk,
     '--article-link-ink': articlePresentation.linkInk,
+    '--article-strong-ink': articlePresentation.strongInk,
+    '--article-strong-weight': STRONG_FONT_WEIGHT_CSS_VALUE[articleConfig.strongFontWeight],
     '--article-divider': articlePresentation.dividerInk,
   }) as CSSProperties, [articleConfig, articlePresentation])
 

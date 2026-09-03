@@ -25,6 +25,7 @@ export type MarkdownContentPresentation = {
   mutedInk: string
   metadataInk: string
   linkInk: string
+  strongInk: string
   dividerInk: string
   figureBorderInk: string
   codeSurface: string
