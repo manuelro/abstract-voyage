@@ -157,22 +157,32 @@ export { ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG } from '../experiences/abstract/comp
 
 // /abstract's own default for the shared AboutTimeline component (see
 // experiences/abstract/components/AbstractTimeline.panel.ts's own doc
-// comment) — starts identical to /about's DEFAULT_ABOUT_TIMELINE_CONFIG (the
-// "must use the current default" ask), re-exported under its own symbol so
-// the panel's "copy to source" tooling has a real, page-specific target to
-// write into once an operator diverges this page's own values, without ever
-// touching /about's.
+// comment) — full parity with /about's own timeline
+// (DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG, pages/about.config.ts) for every
+// field the shared "Timeline" panel exposes: same base
+// (DEFAULT_ABOUT_TIMELINE_CONFIG) + the same overrides that page applies.
+// `description` is the one deliberate exception: it's page content (a
+// lead-in sentence), not styling, so /abstract keeps its own copy instead of
+// about's bio-page sentence. Re-exported under its own symbol so the panel's
+// "copy to source" tooling has a real, page-specific target to write into
+// once an operator diverges this page's own values, without ever touching
+// /about's.
 export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   ...DEFAULT_ABOUT_TIMELINE_CONFIG,
   rowGap: 'gap-5',
   markerSizeClassName: 'w-2.5 h-2.5',
-  markerCustomColor: '#242732',
+  markerColorMode: 'text',
+  markerCustomColor: '#6c6b94',
   hoverMarkerOpacity: 0.4,
-  markerActiveOpacity: 0.7,
+  markerIdleOpacity: 0.31,
+  markerActiveOpacity: 0.55,
+  markerGradientEnabled: false,
   rowTitleFontSizeClassName: 'text-xs',
-  rowDescriptionFontSizeClassName: 'text-xs',
-  description: 'Essays on software, design, and the systems and teams that shape how we build',
-  descriptionOpacity: 0.77,
+  rowTitleMinContrastActive: 7.6,
+  rowDescriptionMinContrastActive: 5.7,
+  rowDescriptionMinContrastInactive: 3,
+  description: 'Essays on software design, and the systems and teams that shape how we build',
+  descriptionOpacity: 0.61,
   rowAppendixEnabled: false,
   rowAppendixRevealDelayMs: 340,
   rowAppendixSeparator: '⋅',
