@@ -187,11 +187,11 @@ export const DEFAULT_POST_LAB_ARTICLE_CONFIG = {
   tableRowPaddingY: 'py-3',
   tableDividerOpacity: 0.14,
   codeSurfaceMode: 'derived-dark',
-  codeSurfaceColor: '#0f172a',
-  codeTextMinContrast: 4.5,
+  codeSurfaceColor: '#d8d9ea',
+  codeTextMinContrast: 3,
   codeRadius: 'rounded-lg',
-  codePadding: 'p-4',
-  codeFontSize: 'text-sm',
+  codePadding: 'p-3.5',
+  codeFontSize: 'text-xs',
   codeLeading: 'leading-relaxed',
 } satisfies MarkdownContentConfig
 
