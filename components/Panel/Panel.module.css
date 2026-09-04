@@ -577,7 +577,8 @@
   box-shadow: 0 3px 12px rgba(240, 200, 75, 0.14);
 }
 
-.copyButtonIcon {
+.copyIconControl {
+  box-sizing: border-box;
   width: 28px;
   min-width: 28px;
   height: 28px;
@@ -586,16 +587,36 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border-color: transparent;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
+  color: var(--panel-text-subtle);
+  cursor: pointer;
+  transition: color var(--panel-motion-fast) var(--panel-easing);
 }
 
-.panelButton.copyButtonIcon:hover,
-.panelButton.copyButtonIcon:focus-visible {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
+.copyIconControl:hover,
+.copyIconControl:focus-visible {
+  color: var(--panel-text);
+}
+
+.copyIconControl:active {
+  color: var(--panel-text-secondary);
+}
+
+.copyIconControl[data-status='copied'] {
+  color: var(--panel-success);
+}
+
+.copyIconControl[data-status='error'] {
+  color: var(--panel-error);
+}
+
+.copyIconControl:disabled {
+  color: var(--panel-text-subtle);
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .copyIcon {
@@ -606,6 +627,14 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.4;
+  transition:
+    opacity var(--panel-motion-fast) var(--panel-easing),
+    transform var(--panel-motion-fast) var(--panel-easing);
+}
+
+.copyIconControl:active .copyIcon {
+  opacity: 0.62;
+  transform: scale(0.9);
 }
 
 .componentSectionHeader:focus-within .componentOwnerName,
@@ -672,6 +701,7 @@
 }
 
 .panelButton:focus-visible,
+.copyIconControl:focus-visible,
 .panelTitle:focus-visible,
 .componentSectionToggle:focus-visible,
 .componentSectionChevronToggle:focus-visible,
@@ -1588,6 +1618,8 @@
   .componentSectionSummary,
   .componentOwnerIndicator,
   .componentOwnerName,
+  .copyIconControl,
+  .copyIcon,
   .description,
   .summary,
   .panelButton,

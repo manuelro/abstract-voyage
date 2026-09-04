@@ -105,7 +105,9 @@ export function ConfigCopyButton({
   return (
     <button
       type="button"
-      className={`${styles.panelButton} ${styles.copyButton} ${iconOnly ? styles.copyButtonIcon : ''}`}
+      className={iconOnly
+        ? styles.copyIconControl
+        : `${styles.panelButton} ${styles.copyButton}`}
       onClick={handleCopy}
       disabled={disabled}
       aria-label={status === 'idle' ? (ariaLabel ?? label) : visibleLabel}
