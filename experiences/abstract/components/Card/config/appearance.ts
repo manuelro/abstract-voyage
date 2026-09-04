@@ -51,9 +51,10 @@ const pickAppearance = (config: SplitColumnCardStackConfig): CardAppearanceConfi
   Object.fromEntries(appearanceKeys.map(key => [key, config[key]])) as CardAppearanceConfig
 );
 
-export const DEFAULT_CARD_APPEARANCE_CONFIG: CardAppearanceConfig = pickAppearance(
-  DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG,
-);
+export const DEFAULT_CARD_APPEARANCE_CONFIG: CardAppearanceConfig = {
+  ...pickAppearance(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG),
+  neighborTextMinContrast: 8.1,
+};
 
 export function normalizeCardAppearanceConfig(
   config: Partial<CardAppearanceConfig> | undefined,
