@@ -1686,6 +1686,12 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // live Card stack scope also feeds its inactive-card presentation here.
   const [splitColumnCardStackConfig, setSplitColumnCardStackConfig] =
     useState(() => normalizeSplitColumnCardStackConfig(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG));
+  // BUGS-AUDIT-COVERFLOW-NEIGHBOR-COLOR.md (2026-09-03): the old shared
+  // defaults (neighborFlatFillOpacity: 1, neighborFlatFillToneOffset: -0.45)
+  // compounded to a flat fill that was reliably near-black regardless of the
+  // configured neighbor background. DEFAULT_CARD_APPEARANCE_CONFIG has since
+  // been retuned to a much lower opacity, so this page follows the shared
+  // default directly rather than pinning its own 0/0 override.
   const [cardAppearanceConfig, setCardAppearanceConfig] =
     useState<CardAppearanceConfig>(() => normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG));
   // CoverFlow and the narrow column's AboutTimeline remain independently
