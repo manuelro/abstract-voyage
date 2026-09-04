@@ -141,7 +141,7 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           kind: 'number',
           key: 'inactiveCardColumnDarkeningStep',
           label: 'Inactive card column darkening step',
-          description: 'Opt-in: each inactive card position adds this blend step toward the resolved column color. Zero disables it; larger values make the change between cards stronger and cap the outer cards at the column color.',
+          description: 'Opt-in: each inactive card position past the immediate neighbor adds this blend step toward the resolved column color. The immediate neighbor itself (idle, and the same card mid-transition on its way to becoming active) always renders the Card Appearance panel\'s own configured neighbor color exactly, unaffected by this step — this only recedes cards deeper in the stack. Zero disables the recede entirely; larger values make the change between deeper cards stronger and cap the outermost cards at the column color.',
           min: 0,
           max: 1,
           step: 0.01,

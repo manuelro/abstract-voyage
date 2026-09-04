@@ -40,9 +40,26 @@ export type CoverFlowConfig = {
   stackSpacingToCenterGapRatio: number;
   rotationDeg: number;
   /** Signed-looking distance progression is intentionally represented as a
-   * non-negative blend step: each inactive position adds this fraction of
-   * the remaining distance toward the caller's column color. Zero preserves
-   * the configured inactive face exactly (opt-out). */
+   * non-negative blend step: each inactive position *past the first* (see
+   * below) adds this fraction of the remaining distance toward the caller's
+   * column color. Zero preserves the configured inactive face exactly
+   * (opt-out).
+   *
+   * The immediate neighbor (distanceFromActive === 1 — the card at rest
+   * beside the active one, and the same card mid-transition on its way to
+   * becoming active) is always exempt: it renders the caller's own
+   * unmodified neighbor surface color (Card Appearance's
+   * neighborBackgroundMode/neighborFlatFillOpacity/-ToneOffset), identically
+   * whether idle or transitioning, so an operator's Card Appearance choices
+   * are never silently overridden by this step for the one card an end user
+   * actually watches during a transition (BUGS-AUDIT-COVERFLOW-NEIGHBOR-
+   * COLOR.md, 2026-09-03 — a shipped default step this close to 1 previously
+   * made even that first neighbor read as a near-flat, near-black panel,
+   * masking the real configured neighbor color entirely and producing a
+   * visible mismatch against the resting idle look). This field only ever
+   * recedes cards genuinely deeper in the stack (distance 2, 3, …) toward
+   * the column background — see pages/abstract.tsx's own
+   * columnDarkeningAmount for the exact `(distance - 1) * step` formula. */
   inactiveCardColumnDarkeningStep: number;
   /** CSS `perspective`, px — one flat value across every tier. */
   perspectivePx: number;

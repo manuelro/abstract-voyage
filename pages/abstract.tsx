@@ -3820,9 +3820,32 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     // ArticleCard's shared detailsVisible gate, so the configured exit
     // delay/duration/easing apply to the entire card information layer.
     const revealDelaysMs = reveal.stagger?.elementDelaysMs ?? COVER_FLOW_UNSTAGGERED_REVEAL_DELAYS_MS;
+    // BUGS-AUDIT-COVERFLOW-NEIGHBOR-COLOR.md (2026-09-03): distanceFromActive
+    // starts at 1 for the *closest* inactive neighbor — the exact same card
+    // that's the steady-state "idle neighbor" at rest AND the incoming card
+    // mid-transition (its own isActive flag flips the instant the click
+    // lands; only its position animates smoothly afterward, per
+    // CoverFlow.tsx's own distanceFromActive: Math.abs(index - activeIndex)).
+    // The un-offset `distanceFromActive * step` below used to apply a full
+    // step of darkening to that same distance-1 card in both states — a
+    // config with any real darkening step (the shipped default is 0.96, near
+    // the darkeningAmount=1 ceiling) meant the "idle neighbor" reference look
+    // was never actually distance-1's own true color: operators tuning this
+    // knob against the resting idle cards were unknowingly also tuning how
+    // dark the incoming card flashes, with no way to decouple the two.
+    // `- 1` makes distance-1 the true zero-darkening baseline — it always
+    // renders coverFlowStackPresentationBase.surfaceColor exactly (the same,
+    // single, already fully-configured Card Appearance neighbor color:
+    // neighborBackgroundMode/neighborFlatFillOpacity/neighborFlatFillToneOffset
+    // — see coverFlowNeighborCardSurfaceColor above), identically whether
+    // idle or transitioning. inactiveCardColumnDarkeningStep now only
+    // recedes cards genuinely deeper in the stack (distance 2+) toward the
+    // column background — its own documented "each inactive position"
+    // framing, now actually starting from the first position that isn't
+    // already the neighbor baseline.
     const columnDarkeningAmount = Math.min(
       1,
-      position.distanceFromActive * coverFlowConfig.inactiveCardColumnDarkeningStep,
+      Math.max(0, position.distanceFromActive - 1) * coverFlowConfig.inactiveCardColumnDarkeningStep,
     );
     const coverFlowCardSurfaceColor = !isActive
       && cardAppearanceConfig.neighborFrameMode === 'flat-fill'
