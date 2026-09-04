@@ -681,6 +681,26 @@ const FLOATING_HEADER_CLEARANCE_BASE_KEYS = new Set<keyof PolymorphicLayoutConfi
   'narrowColumnClearsFloatingHeader',
 ]);
 
+// Appended to each *ColumnContentPaddingTop(Wide/Lg) field's own description
+// below — bugs audit, 2026-09-03 ("narrow column padding top not applied
+// until very large options"): PolymorphicLayout.tsx's own
+// wideColumnClearsFloatingHeaderStyle/narrowColumnClearsFloatingHeaderStyle
+// (see that file's own doc comment on *ColumnClearsFloatingHeader) replace
+// this value's rendered padding-top with `max(configuredPx, live header
+// bottom + 24px)` as an inline style whenever the matching *ColumnClears-
+// FloatingHeader toggle (same tier) is on — a real, correct mechanism, not a
+// column-height calculation bug, but one that was completely invisible from
+// this field alone: a configured value below that live floor has genuinely
+// zero visible effect until raised past it, which reads exactly like "this
+// control is disconnected." Root-caused via live DOM inspection (the
+// operator's own screenshot showed the exact `padding-top: calc(...)` inline
+// override and its `max(...)` viewport-height sibling) before this note was
+// added, precisely to stop the next reader from re-diagnosing the same thing
+// as a layout/height-math defect.
+function floatingHeaderPaddingTopFloorNote(column: 'Wide' | 'Narrow', tierLabel: string): string {
+  return ` While "${column} column clears floating header${tierLabel}" above is on, this value is a floor, not a fixed distance — it's silently topped up to the header's own live-measured bottom edge (+24px) whenever the configured value is smaller, with no visible effect until raised past that live threshold. Turn that toggle off for this value to apply exactly as selected.`;
+}
+
 // POLYMORPHIC_LAYOUT_BASE_FIELDS's own device-agnostic subset (md/lg-tier
 // column-split fields excluded — those live under their own Tablet/Desktop
 // tabs below), computed once and split by HEADER_SPLIT_BAND_KEYS into the
@@ -1742,7 +1762,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'subgroup',
                           label: 'Padding',
                           fields: [
-                            { kind: 'select', key: 'wideColumnContentPaddingTop', debugHighlightIds: ['WIDE COLUMN'], label: 'Padding top', options: PADDING_TOP_OPTIONS },
+                            { kind: 'select', key: 'wideColumnContentPaddingTop', debugHighlightIds: ['WIDE COLUMN'], label: 'Padding top', description: `Below tablet width.${floatingHeaderPaddingTopFloorNote('Wide', ' (mobile)')}`, options: PADDING_TOP_OPTIONS },
                             { kind: 'select', key: 'wideColumnContentPaddingRight', debugHighlightIds: ['WIDE COLUMN'], label: 'Padding right', options: PADDING_RIGHT_OPTIONS },
                             { kind: 'select', key: 'wideColumnContentPaddingBottom', debugHighlightIds: ['WIDE COLUMN'], label: 'Padding bottom', options: PADDING_BOTTOM_OPTIONS },
                             { kind: 'select', key: 'wideColumnContentPaddingLeft', debugHighlightIds: ['WIDE COLUMN'], label: 'Padding left', options: PADDING_LEFT_OPTIONS },
@@ -1768,7 +1788,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'subgroup',
                           label: 'Padding',
                           fields: [
-                            { kind: 'select', key: 'narrowColumnContentPaddingTop', debugHighlightIds: ['NARROW COLUMN'], label: 'Padding top', options: PADDING_TOP_OPTIONS },
+                            { kind: 'select', key: 'narrowColumnContentPaddingTop', debugHighlightIds: ['NARROW COLUMN'], label: 'Padding top', description: `Below tablet width.${floatingHeaderPaddingTopFloorNote('Narrow', ' (mobile)')}`, options: PADDING_TOP_OPTIONS },
                             { kind: 'select', key: 'narrowColumnContentPaddingRight', debugHighlightIds: ['NARROW COLUMN'], label: 'Padding right', options: PADDING_RIGHT_OPTIONS },
                             { kind: 'select', key: 'narrowColumnContentPaddingBottom', debugHighlightIds: ['NARROW COLUMN'], label: 'Padding bottom', options: PADDING_BOTTOM_OPTIONS },
                             { kind: 'select', key: 'narrowColumnContentPaddingLeft', debugHighlightIds: ['NARROW COLUMN'], label: 'Padding left', options: PADDING_LEFT_OPTIONS },
@@ -2006,7 +2026,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                               key: 'wideColumnContentPaddingTopWide',
                               debugHighlightIds: ['WIDE COLUMN'],
                               label: 'Padding top (≥ tablet)',
-                              description: 'Same as padding top, md and up.',
+                              description: `Same as padding top, md and up.${floatingHeaderPaddingTopFloorNote('Wide', ' (≥ tablet)')}`,
                               options: PADDING_TOP_WIDE_OPTIONS,
                             },
                             {
@@ -2088,7 +2108,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                               key: 'narrowColumnContentPaddingTopWide',
                               debugHighlightIds: ['TABLE OF CONTENTS'],
                               label: 'Padding top (≥ tablet)',
-                              description: 'Same as padding top, md and up.',
+                              description: `Same as padding top, md and up.${floatingHeaderPaddingTopFloorNote('Narrow', ' (≥ tablet)')}`,
                               options: PADDING_TOP_WIDE_OPTIONS,
                             },
                             {
@@ -2351,7 +2371,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                               key: 'wideColumnContentPaddingTopLg',
                               debugHighlightIds: ['WIDE COLUMN'],
                               label: 'Padding top (≥ desktop)',
-                              description: 'Same as padding top, lg and up.',
+                              description: `Same as padding top, lg and up.${floatingHeaderPaddingTopFloorNote('Wide', ' (≥ desktop)')}`,
                               options: PADDING_TOP_LG_OPTIONS,
                             },
                             {
@@ -2433,7 +2453,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                               key: 'narrowColumnContentPaddingTopLg',
                               debugHighlightIds: ['TABLE OF CONTENTS'],
                               label: 'Padding top (≥ desktop)',
-                              description: 'Same as padding top, lg and up.',
+                              description: `Same as padding top, lg and up.${floatingHeaderPaddingTopFloorNote('Narrow', ' (≥ desktop)')}`,
                               options: PADDING_TOP_LG_OPTIONS,
                             },
                             {
