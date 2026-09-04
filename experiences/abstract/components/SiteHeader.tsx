@@ -596,7 +596,13 @@ export function SiteHeader({
     <Link
       aria-label="Abstract Voyage home"
       className={`${styles.synthAffordance} ${normalized.logoWidth} ${normalized.desktopLogoWidth} pointer-events-auto relative flex min-h-[2.75rem] max-w-full shrink-0 items-center justify-center md:justify-start ${extraClassName}`}
-      href="/abstract"
+      // '/' (Next.js's own index route), not '/abstract' — pages/index.tsx
+      // re-exports this exact page as the site's real homepage, so
+      // '/abstract' is a duplicate route of the canonical '/', never the
+      // other way around. A visitor landing on '/abstract' directly (its
+      // own real, separately indexable URL) previously got a logo link
+      // back to that same duplicate route instead of the canonical one.
+      href="/"
       ref={ref}
       style={{ maxWidth: `${effectiveWordmarkConfig.maxWidthPx}px` }}
     >
