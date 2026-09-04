@@ -62,7 +62,7 @@ export const DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG = {
   bottomRegionPercent: 62,
   invertOrder: false,
   topHorizontalAlign: 'stretch',
-  topVerticalAlign: 'end',
+  topVerticalAlign: 'start',
   bottomHorizontalAlign: 'end',
   bottomVerticalAlign: 'end',
 } satisfies AbstractNarrowColumnStackConfig;
