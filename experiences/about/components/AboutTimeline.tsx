@@ -373,6 +373,10 @@ export function AboutTimeline({
     tablet: descriptionWide ?? config.descriptionWide,
     desktop: descriptionLg ?? config.descriptionLg,
   };
+  const sharedDescription = descriptionByBreakpoint.mobile === descriptionByBreakpoint.tablet
+    && descriptionByBreakpoint.mobile === descriptionByBreakpoint.desktop
+    ? descriptionByBreakpoint.mobile
+    : null;
 
   return (
     <div
@@ -434,9 +438,15 @@ export function AboutTimeline({
             '--about-timeline-description-indent-extra-lg': `${descriptionIndentExtraLgPx}px`,
           } as CSSProperties}
         >
-          <span className={styles.descriptionMobile}>{descriptionByBreakpoint.mobile}</span>
-          <span className={styles.descriptionTablet}>{descriptionByBreakpoint.tablet}</span>
-          <span className={styles.descriptionDesktop}>{descriptionByBreakpoint.desktop}</span>
+          {sharedDescription !== null ? (
+            sharedDescription
+          ) : (
+            <>
+              <span className={styles.descriptionMobile}>{descriptionByBreakpoint.mobile}</span>
+              <span className={styles.descriptionTablet}>{descriptionByBreakpoint.tablet}</span>
+              <span className={styles.descriptionDesktop}>{descriptionByBreakpoint.desktop}</span>
+            </>
+          )}
         </p>
       ) : null}
       <ol
