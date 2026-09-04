@@ -215,8 +215,8 @@ const ALL_SIZES_FIELDS = [
       {
         kind: 'boolean',
         key: 'headlineMatchesBodySize',
-        label: 'Match body size (bold)',
-        description: 'Renders the headline at the same font size as the paragraph copy below (every breakpoint), forced bold, instead of its own larger heading-size trio. Also relaxes the headline\'s tight display line-height/letter-spacing to the paragraph\'s own rhythm, since those are tuned for a much bigger size and read as broken once the headline wraps at body size.',
+        label: 'Match body size',
+        description: 'Renders the headline at the same font size as the paragraph copy below (every breakpoint), instead of its own larger heading-size trio. Heading weight below (not this toggle) is what keeps it reading as a heading. Also relaxes the headline\'s tight display line-height/letter-spacing to the paragraph\'s own rhythm, since those are tuned for a much bigger size and read as broken once the headline wraps at body size.',
       },
       {
         kind: 'enum',
@@ -227,6 +227,18 @@ const ALL_SIZES_FIELDS = [
           { label: 'INHERIT', value: 'inherit' },
           { label: 'SANS', value: 'sans' },
           { label: 'SERIF', value: 'serif' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'headlineFontWeight',
+        label: 'Heading weight',
+        description: 'Font-weight of the headline itself — previously hardcoded (bold only while Match body size above is on; the browser\'s own default h1 bold otherwise), with no operator control. Independent of Emphasis weight below, which only affects **word**-marked accents in the paragraph copy.',
+        options: [
+          { label: 'NORMAL', value: 'font-normal' },
+          { label: 'MEDIUM', value: 'font-medium' },
+          { label: 'SEMIBOLD', value: 'font-semibold' },
+          { label: 'BOLD', value: 'font-bold' },
         ],
       },
       {

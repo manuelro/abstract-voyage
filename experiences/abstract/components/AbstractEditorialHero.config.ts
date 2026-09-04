@@ -170,6 +170,17 @@ export type AbstractEditorialHeroConfig = {
   headlineFontSizeMid: AbstractEditorialHeroHeadlineFontSizeMid;
   headlineFontSizeWide: AbstractEditorialHeroHeadlineFontSizeWide;
   headlineFontFamily: AbstractEditorialHeroFontFamily;
+  /** Literal Tailwind font-weight class for the headline — previously
+   * hardcoded (`'font-bold'` only while headlineMatchesBodySize is on;
+   * unset the rest of the time, silently falling back to the `<h1>` UA
+   * stylesheet's own bold), so an operator had no way to make the headline
+   * lighter, or to make it visually agree with a custom emphasisFontWeight
+   * chosen for **word** accents in the paragraph below. Independent field,
+   * not a forced mirror of emphasisFontWeight — a page may legitimately
+   * want a bold headline over lighter-weight accent words or vice versa.
+   * Default 'font-bold' reproduces both of the prior hardcoded paths
+   * exactly, so adding this field alone changes nothing. */
+  headlineFontWeight: AbstractEditorialHeroEmphasisFontWeight;
   /** Same three-way choice as headlineFontFamily, applied to the paragraph
    * copy (and eyebrow/supporting text, which inherit .root's font-family)
    * instead of the headline. Unlike the headline, there is no site-wide
@@ -179,8 +190,8 @@ export type AbstractEditorialHeroConfig = {
   /** Opt-in: makes the headline render at the same font size as the
    * paragraph copy below (bodyFontSize-prefixed — same trio the paragraphs
    * use, at every breakpoint) instead of its own headlineFontSize-prefixed
-   * trio, and forces font-bold so it still
-   * reads as the heading by weight alone. Also relaxes the headline's own
+   * trio. headlineFontWeight above (not this field) is what keeps it
+   * reading as the heading by weight regardless. Also relaxes the headline's own
    * tight display line-height/letter-spacing to the paragraph's
    * copyLineHeight/copyLetterSpacingEm — those are tuned for a big display
    * size and read as broken (colliding lines, over-tightened tracking) once
@@ -261,6 +272,7 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   headlineFontSizeMid: 'md:text-3xl',
   headlineFontSizeWide: 'lg:text-lg',
   headlineFontFamily: 'sans',
+  headlineFontWeight: 'font-bold',
   paragraphFontFamily: 'inherit',
   headlineMatchesBodySize: true,
   headlineMaxWidth: 'max-w-prose',
@@ -435,6 +447,11 @@ export function normalizeAbstractEditorialHeroConfig(
       base.headlineFontFamily,
       FONT_FAMILIES,
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.headlineFontFamily,
+    ),
+    headlineFontWeight: token(
+      base.headlineFontWeight,
+      EMPHASIS_FONT_WEIGHTS,
+      DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.headlineFontWeight,
     ),
     paragraphFontFamily: token(
       base.paragraphFontFamily,

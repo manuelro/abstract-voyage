@@ -333,7 +333,7 @@ export function AbstractEditorialHero({
               normalized.headlineMatchesBodySize
                 ? normalized.bodyFontSizeWide
                 : normalized.headlineFontSizeWide
-            } ${normalized.headlineMatchesBodySize ? 'font-bold' : ''} relative m-0 p-0 w-full ${normalized.headlineMaxWidth}`}
+            } ${normalized.headlineFontWeight} relative m-0 p-0 w-full ${normalized.headlineMaxWidth}`}
             data-headline-fill={normalized.headlineFillMode}
             data-headline-match-body-size={normalized.headlineMatchesBodySize ? 'true' : 'false'}
           >
