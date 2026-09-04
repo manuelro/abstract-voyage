@@ -82,8 +82,15 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   headerSplitBandEnabled: true,
   splitBandLeftMode: 'syncWithColumnBelow',
   splitBandLeftCustomColor: '#0e1230',
-  splitBandLeftModeWide: 'custom',
-  splitBandLeftModeLg: 'custom',
+  // PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md Part B.2: was 'custom'
+  // (a fixed hex, splitBandLeftCustomColorWide below, now inert) — the only
+  // tier that didn't match its own siblings (base/Lg are both
+  // 'syncWithColumnBelow'). That inconsistency is what let the header
+  // wordmark's own contrast reference silently diverge from the narrow
+  // column's real color at this one tier, contributing to the wordmark/hero
+  // text-color mismatch reported live. Synced now, matching base/Lg.
+  splitBandLeftModeWide: 'syncWithColumnBelow',
+  splitBandLeftModeLg: 'syncWithColumnBelow',
   splitBandRightMode: 'custom',
   splitBandRightCustomColor: '#cbcbe1',
   // Regression history (nav text rendering as washed-out gray/near-
@@ -311,17 +318,17 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   colorSourceWide: 'custom',
   colorSourceLg: 'custom',
   wideColumnCustomColorWide: '#14142f',
-  wideColumnCustomColorLg: '#b2b2c7',
+  wideColumnCustomColorLg: '#D6D5E0',
   narrowColumnCustomColorWide: '#cbcbe1',
-  narrowColumnCustomColorLg: '#bdbdd0',
+  narrowColumnCustomColorLg: '#616170',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
   narrowColumnSurfaceOffsetLg: 0,
   splitBandLeftCustomColorWide: '#d1d1e6',
-  splitBandLeftCustomColorLg: '#282839',
+  splitBandLeftCustomColorLg: '#6E6D80',
   splitBandRightCustomColorWide: '#0e1230',
-  splitBandRightCustomColorLg: '#282839',
+  splitBandRightCustomColorLg: '#D6D5E0',
   splitBandWidthTier: 'stacked',
   splitBandWidthTierWide: '38/62',
   splitBandWidthTierLg: '38/62',

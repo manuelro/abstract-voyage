@@ -68,6 +68,33 @@ export interface AboutTimelineProps {
    * text color this component resolves (the row title/description pairs,
    * and the lead-in `description` below) is computed against. */
   columnBackgroundColor: string;
+  /** PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md Part C — when supplied,
+   * used verbatim for every idle-state text color this component resolves
+   * (row title/description while inactive, and the lead-in `description`
+   * below), bypassing rowTitleMinContrastInactive/rowDescriptionMinContrast
+   * Inactive/descriptionMinContrast entirely. Additive and page-scoped:
+   * omitted, this component's existing independent contrast resolution is
+   * byte-identical to before these props existed — /about's own usage is
+   * untouched either way. */
+  bodyColorOverride?: string;
+  /** Same contract as bodyColorOverride above, for every active/hovered-state
+   * text color (row title/description while active or hovered) — bypasses
+   * rowTitleMinContrastActive/rowDescriptionMinContrastActive. Named
+   * "highlight" (not "active") to match the shared role vocabulary this
+   * color is drawn from — the same token AbstractEditorialHero's own
+   * **word** emphasis and inline links use. */
+  highlightColorOverride?: string;
+  /** Bypasses rowTitleMinContrastInactive/etc.'s own opacity siblings
+   * (rowTitleOpacityInactive/rowDescriptionOpacityInactive) for idle rows —
+   * paired with bodyColorOverride above (GlobalTypographyConfig's own
+   * bodyOpacity), since AboutTimelineRow already applies color and opacity
+   * as two separate style properties, not one alpha-blended color. */
+  bodyOpacityOverride?: number;
+  /** Same contract as bodyOpacityOverride above, for active/hovered rows —
+   * bypasses rowTitleOpacityActive/hoverTitleOpacity/rowDescriptionOpacity
+   * Active/hoverDescriptionOpacity (hover and active share one role/override,
+   * same as the color pair above). */
+  highlightOpacityOverride?: number;
   /** Plain lead-in text rendered above the rows, no heading semantics —
    * describes the timeline itself. Indented to start at the same x-position
    * a row's own caption text starts at (the marker/rule column's own
@@ -123,6 +150,10 @@ export function AboutTimeline({
   onSelect,
   accentColor,
   columnBackgroundColor,
+  bodyColorOverride,
+  highlightColorOverride,
+  bodyOpacityOverride,
+  highlightOpacityOverride,
   description,
   descriptionWide,
   descriptionLg,
@@ -179,20 +210,24 @@ export function AboutTimeline({
   // lightness bias requested, just a contrast floor, matching
   // resolvedDescriptionColor's own reasoning below.
   const resolvedRowTitleColorActive = useMemo(
-    () => resolveContrastAwareTextColor(columnBackgroundColor, config.rowTitleMinContrastActive, 0),
-    [columnBackgroundColor, config.rowTitleMinContrastActive],
+    () => highlightColorOverride
+      ?? resolveContrastAwareTextColor(columnBackgroundColor, config.rowTitleMinContrastActive, 0),
+    [columnBackgroundColor, config.rowTitleMinContrastActive, highlightColorOverride],
   );
   const resolvedRowTitleColorInactive = useMemo(
-    () => resolveContrastAwareTextColor(columnBackgroundColor, config.rowTitleMinContrastInactive, 0),
-    [columnBackgroundColor, config.rowTitleMinContrastInactive],
+    () => bodyColorOverride
+      ?? resolveContrastAwareTextColor(columnBackgroundColor, config.rowTitleMinContrastInactive, 0),
+    [columnBackgroundColor, config.rowTitleMinContrastInactive, bodyColorOverride],
   );
   const resolvedRowDescriptionColorActive = useMemo(
-    () => resolveContrastAwareTextColor(columnBackgroundColor, config.rowDescriptionMinContrastActive, 0),
-    [columnBackgroundColor, config.rowDescriptionMinContrastActive],
+    () => highlightColorOverride
+      ?? resolveContrastAwareTextColor(columnBackgroundColor, config.rowDescriptionMinContrastActive, 0),
+    [columnBackgroundColor, config.rowDescriptionMinContrastActive, highlightColorOverride],
   );
   const resolvedRowDescriptionColorInactive = useMemo(
-    () => resolveContrastAwareTextColor(columnBackgroundColor, config.rowDescriptionMinContrastInactive, 0),
-    [columnBackgroundColor, config.rowDescriptionMinContrastInactive],
+    () => bodyColorOverride
+      ?? resolveContrastAwareTextColor(columnBackgroundColor, config.rowDescriptionMinContrastInactive, 0),
+    [columnBackgroundColor, config.rowDescriptionMinContrastInactive, bodyColorOverride],
   );
   // 'text' mode matches the row title's own ACTIVE color specifically — the
   // marker's own fill state already means "this row is active," so it reads
@@ -203,8 +238,9 @@ export function AboutTimeline({
       ? resolvedRowTitleColorActive
       : accentColor;
   const resolvedDescriptionColor = useMemo(
-    () => resolveContrastAwareTextColor(columnBackgroundColor, config.descriptionMinContrast, 0),
-    [columnBackgroundColor, config.descriptionMinContrast],
+    () => bodyColorOverride
+      ?? resolveContrastAwareTextColor(columnBackgroundColor, config.descriptionMinContrast, 0),
+    [columnBackgroundColor, config.descriptionMinContrast, bodyColorOverride],
   );
 
   const focusRow = useCallback((index: number) => {
@@ -296,15 +332,19 @@ export function AboutTimeline({
         titleColor={isHoveredRow || selected ? resolvedRowTitleColorActive : resolvedRowTitleColorInactive}
         descriptionColor={isHoveredRow || selected ? resolvedRowDescriptionColorActive : resolvedRowDescriptionColorInactive}
         descriptionOpacity={isHoveredRow
-          ? config.hoverDescriptionOpacity
-          : (selected ? config.rowDescriptionOpacityActive : config.rowDescriptionOpacityInactive)}
+          ? (highlightOpacityOverride ?? config.hoverDescriptionOpacity)
+          : (selected
+            ? (highlightOpacityOverride ?? config.rowDescriptionOpacityActive)
+            : (bodyOpacityOverride ?? config.rowDescriptionOpacityInactive))}
         markerVisible={config.markerVisible}
         descriptionVisible={config.rowDescriptionVisible}
         ruleVisible={config.ruleVisible}
         alignment={config.alignment}
         titleOpacity={isHoveredRow
-          ? config.hoverTitleOpacity
-          : (selected ? config.rowTitleOpacityActive : config.rowTitleOpacityInactive)}
+          ? (highlightOpacityOverride ?? config.hoverTitleOpacity)
+          : (selected
+            ? (highlightOpacityOverride ?? config.rowTitleOpacityActive)
+            : (bodyOpacityOverride ?? config.rowTitleOpacityInactive))}
         markerOpacity={isHoveredRow
           ? config.hoverMarkerOpacity
           : (selected ? config.markerActiveOpacity : config.markerIdleOpacity)}
@@ -334,6 +374,7 @@ export function AboutTimeline({
     config.ruleVisible, config.alignment,
     config.rowTitleOpacityActive, config.rowTitleOpacityInactive,
     config.hoverTitleOpacity, config.hoverMarkerOpacity, config.hoverDescriptionOpacity,
+    bodyOpacityOverride, highlightOpacityOverride,
     config.rowAppendixEnabled, config.rowAppendixSeparator,
     config.rowAppendixFontFamily, config.rowAppendixFontSizeClassName,
     config.rowAppendixRevealDelayMs, config.rowAppendixOpacity,
@@ -407,7 +448,8 @@ export function AboutTimeline({
         '--about-timeline-title-line-height': `${titleFontSizeRem * 1.3}rem`,
       } as CSSProperties}
     >
-      {descriptionByBreakpoint.mobile || descriptionByBreakpoint.tablet || descriptionByBreakpoint.desktop ? (
+      {config.descriptionVisible
+        && (descriptionByBreakpoint.mobile || descriptionByBreakpoint.tablet || descriptionByBreakpoint.desktop) ? (
         <p
           className={[
             styles.description,

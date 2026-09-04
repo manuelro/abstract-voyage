@@ -219,6 +219,12 @@ const ALL_SIZES_FIELDS = [
         description: 'Renders the headline at the same font size as the paragraph copy below (every breakpoint), instead of its own larger heading-size trio. Heading weight below (not this toggle) is what keeps it reading as a heading. Also relaxes the headline\'s tight display line-height/letter-spacing to the paragraph\'s own rhythm, since those are tuned for a much bigger size and read as broken once the headline wraps at body size.',
       },
       {
+        kind: 'boolean',
+        key: 'headlineInlineWithParagraph',
+        label: 'Inline with first paragraph',
+        description: 'Merges the headline into the first paragraph\'s own text run instead of its own block above the supporting copy — that paragraph\'s own text continues right after it, on the same line. Independent of Match body size above: that toggle only decides whether the merged headline keeps its own larger heading size/weight or drops to body size, not whether it merges at all. Off (default) keeps today\'s stacked headline-then-paragraphs layout.',
+      },
+      {
         kind: 'enum',
         key: 'headlineFontFamily',
         label: 'Heading font',

@@ -182,6 +182,7 @@ export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   rowDescriptionMinContrastActive: 5.7,
   rowDescriptionMinContrastInactive: 3,
   description: 'Essays',
+  descriptionVisible: false,
   descriptionFontSizeClassName: 'text-sm',
   alignment: 'right',
   descriptionOpacity: 0.61,

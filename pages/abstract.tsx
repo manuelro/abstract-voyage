@@ -65,7 +65,10 @@ import {
   DEFAULT_PAGE_SURFACE_CONFIG,
   normalizePageSurfaceConfig,
 } from '../components/PageSurface.config';
-import { DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG } from '../components/GlobalTypography.config';
+import {
+  DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
+  resolveTypographyColors,
+} from '../components/GlobalTypography.config';
 import { DEFAULT_LAYOUT_DEBUG_CONFIG } from '../components/LayoutDebug.config';
 import { useSharedDesignConfig } from '../components/SharedDesignConfigProvider';
 import { useAbstractDesignConfig } from '../experiences/abstract/components/AbstractDesignConfigProvider';
@@ -1722,7 +1725,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const {
     pageSurfaceConfig, setPageSurfaceConfig,
     ctaButtonConfig, setCtaButtonConfig,
-    setGlobalTypographyConfig,
+    globalTypographyConfig, setGlobalTypographyConfig,
     panelShellConfig, setPanelShellConfig,
     setLayoutDebugConfig,
   } = useSharedDesignConfig();
@@ -2042,6 +2045,22 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const colors = usePolymorphicLayoutColors(
     splitColumnLayoutConfig, normalizedPageSurfaceConfig.color, paletteColorResolver,
   );
+  // PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md Part C — one resolved
+  // "ink" + title/body/highlight role set per real background region,
+  // computed once here and threaded into the header/hero/timeline via each
+  // component's own additive *ColorOverride prop (SiteHeader.tsx,
+  // AbstractEditorialHero.tsx, AboutTimeline.tsx — all optional, all
+  // undefined for every other page/caller). Resolved separately per region
+  // (not once and reused everywhere) even though the header and the narrow
+  // column now agree by construction (PolymorphicLayout.pageConfigs.ts's
+  // own splitBandLeftModeWide fix, Part B.2) — each region still derives
+  // from its own real, physically-painted background, so a future
+  // divergence (an operator setting the header band to a genuinely custom
+  // color again) degrades to "two correctly-resolved regions that happen to
+  // differ," never "one region resolved against the wrong background."
+  const headerTypography = resolveTypographyColors(colors.actualLeftSegmentColor, globalTypographyConfig);
+  const narrowColumnTypography = resolveTypographyColors(colors.narrowColumnColor, globalTypographyConfig);
+  const wideColumnTypography = resolveTypographyColors(colors.wideColumnColor, globalTypographyConfig);
   // The authoring shell belongs visually to the surface at the viewport's
   // right edge. In split-column mode it inherits that physical column's
   // resolved color; the classic layout falls back to the page surface
@@ -4368,6 +4387,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             logoStops={heroHeaderLogoStops}
             wordmarkConfig={wordmarkConfig}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
+            titleColorOverride={headerTypography.titleColor}
+            titleOpacityOverride={headerTypography.titleOpacity}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
             // Unlike /about's own conditional Spacefield-visible override,
             // this page has no runtime need to force the band regardless of
@@ -4531,6 +4552,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                       onSelect={onSelect}
                       accentColor={carouselAndListItems[activeIndex]?.accent ?? '#ffffff'}
                       columnBackgroundColor={colors.wideColumnColor}
+                      bodyColorOverride={wideColumnTypography.bodyColor}
+                      highlightColorOverride={wideColumnTypography.highlightColor}
+                      bodyOpacityOverride={wideColumnTypography.bodyOpacity}
+                      highlightOpacityOverride={wideColumnTypography.highlightOpacity}
                       description={abstractTimelineConfig.description || undefined}
                       config={abstractTimelineConfig}
                       prefersReducedMotion={coverFlowPrefersReducedMotion}
@@ -4585,6 +4610,12 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                 layoutMode={gridLayoutActive ? 'editorial' : heroLayoutMode}
                 surfaceColor={normalizedPageSurfaceConfig.color}
                 columnBackgroundColor={colors.narrowColumnColor}
+                titleColorOverride={narrowColumnTypography.titleColor}
+                bodyColorOverride={narrowColumnTypography.bodyColor}
+                highlightColorOverride={narrowColumnTypography.highlightColor}
+                titleOpacityOverride={narrowColumnTypography.titleOpacity}
+                bodyOpacityOverride={narrowColumnTypography.bodyOpacity}
+                highlightOpacityOverride={narrowColumnTypography.highlightOpacity}
                 />
               </div>
             )}
@@ -4596,6 +4627,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   onSelect={handleTimelineActiveIndexChange}
                   accentColor={carouselAndListItems[articleActiveIndex]?.accent ?? '#ffffff'}
                   columnBackgroundColor={colors.narrowColumnColor}
+                  bodyColorOverride={narrowColumnTypography.bodyColor}
+                  highlightColorOverride={narrowColumnTypography.highlightColor}
+                  bodyOpacityOverride={narrowColumnTypography.bodyOpacity}
+                  highlightOpacityOverride={narrowColumnTypography.highlightOpacity}
                   description={abstractTimelineConfig.description || undefined}
                   config={abstractTimelineConfig}
                   prefersReducedMotion={coverFlowPrefersReducedMotion}

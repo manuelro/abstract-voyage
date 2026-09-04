@@ -531,6 +531,14 @@ export type AboutTimelineConfig = {
   descriptionWide: string;
   /** Desktop copy for the lead-in description. */
   descriptionLg: string;
+  /** Whether the lead-in description is rendered at all, independent of
+   * whether description/descriptionWide/descriptionLg above actually hold
+   * text — previously the only way to hide it was to blank out the text
+   * itself at every breakpoint, discarding it rather than just toggling its
+   * visibility. True (default) reproduces today's exact behavior (shown
+   * whenever text is present) unchanged. Distinct from rowDescriptionVisible
+   * above, which affects item descriptions only, never this lead-in text. */
+  descriptionVisible: boolean;
   /** Opacity of the lead-in description text — this element has no active/
    * inactive state of its own, so a single value (unlike the per-row title/
    * description opacity pairs above). */
@@ -703,6 +711,7 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   description: 'More than a decade of consulting and contract work, in the order it happened.',
   descriptionWide: 'More than a decade of consulting and contract work, in the order it happened.',
   descriptionLg: 'More than a decade of consulting and contract work, in the order it happened.',
+  descriptionVisible: true,
   descriptionOpacity: 1,
   descriptionMinContrast: 4.5,
   transitionDurationMs: 550,
@@ -1132,6 +1141,7 @@ export function normalizeAboutTimelineConfig(
     description: typeof base.description === 'string' ? base.description : D.description,
     descriptionWide: typeof base.descriptionWide === 'string' ? base.descriptionWide : D.descriptionWide,
     descriptionLg: typeof base.descriptionLg === 'string' ? base.descriptionLg : D.descriptionLg,
+    descriptionVisible: base.descriptionVisible !== false,
     descriptionOpacity: clampRange(base.descriptionOpacity, 0, 1, D.descriptionOpacity),
     descriptionMinContrast: clampRange(base.descriptionMinContrast, 1, 21, D.descriptionMinContrast),
     transitionDurationMs: clampRange(base.transitionDurationMs, 0, 1000, D.transitionDurationMs),

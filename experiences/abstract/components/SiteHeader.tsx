@@ -172,6 +172,29 @@ export type SiteHeaderProps = {
    * omits it, falling back to pageSurfaceConfig.color below, same as the
    * right segment's own fallback. */
   physicalLeftColumnColor?: string;
+  /** PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md Part C — when supplied,
+   * used verbatim as the wordmark's own flat color, bypassing
+   * resolveSiteHeaderLogoStops entirely (every colorMode). Additive and
+   * page-scoped: WordmarkConfig stays the identical shared, cross-page
+   * state it always was (about/contact/postsLab are untouched), this is
+   * purely an escape hatch for a page that's resolved its own "title" role
+   * color from GlobalTypographyConfig's resolveTypographyColors and wants
+   * the wordmark to render that exact value instead of independently
+   * re-deriving one — the same class of bug (two components nominally
+   * meaning "the same color," actually computed by two different paths)
+   * this whole plan exists to close. Omit for every page not opting in. */
+  titleColorOverride?: string;
+  /** Same contract as titleColorOverride above — applied as the logo link's
+   * own CSS `opacity` (the wordmark has no existing opacity mechanism of its
+   * own to bypass, so it previously always rendered fully opaque regardless
+   * of titleColorOverride). Without this, a caller resolving
+   * titleColorOverride against a diluted target opacity (GlobalTypography-
+   * Config's own titleOpacity) gets a color calibrated to survive a dilution
+   * that then never actually happens: the resolver searches for an
+   * ever-darker/lighter ink as its target opacity falls, on the assumption
+   * the caller will render it at that same reduced opacity. Omit for every
+   * page not opting in — logo renders at its own full, unchanged opacity. */
+  titleOpacityOverride?: number;
   /** Only meaningful in 'adaptive' colorMode — the adaptive-ink feature
    * abstract.tsx's own live-gradient hero drives. Omit for any page (like
    * contact.tsx) with no such background to sample from; 'custom' colorMode
@@ -341,6 +364,8 @@ export function SiteHeader({
   logoStops: adaptiveLogoStops,
   wordmarkConfig,
   physicalLeftColumnColor,
+  titleColorOverride,
+  titleOpacityOverride,
   dataInkTone,
   navBandActive = false,
   navBandCanvasRef,
@@ -494,15 +519,17 @@ export function SiteHeader({
   // fallback here (flat normalized.logoColor) only matters if a page runs
   // 'adaptive' mode without supplying anything, which never happens for
   // any current caller but keeps this component correct regardless.
-  const resolvedLogoStops = resolveSiteHeaderLogoStops(
-    effectiveWordmarkConfig,
-    pageSurfaceConfig.color,
-    physicalLeftColumnColor ?? pageSurfaceConfig.color,
-    adaptiveLogoStops ?? [
-      { color: effectiveWordmarkConfig.color, at: 0 },
-      { color: effectiveWordmarkConfig.color, at: 100 },
-    ],
-  );
+  const resolvedLogoStops = titleColorOverride
+    ? [{ color: titleColorOverride, at: 0 }, { color: titleColorOverride, at: 100 }]
+    : resolveSiteHeaderLogoStops(
+      effectiveWordmarkConfig,
+      pageSurfaceConfig.color,
+      physicalLeftColumnColor ?? pageSurfaceConfig.color,
+      adaptiveLogoStops ?? [
+        { color: effectiveWordmarkConfig.color, at: 0 },
+        { color: effectiveWordmarkConfig.color, at: 100 },
+      ],
+    );
 
   // Live-preview support for the Wordmark panel (operator ask: "any knob
   // ... let us visualize the change in the UI on knobs update"). Color
@@ -604,7 +631,10 @@ export function SiteHeader({
       // back to that same duplicate route instead of the canonical one.
       href="/"
       ref={ref}
-      style={{ maxWidth: `${effectiveWordmarkConfig.maxWidthPx}px` }}
+      style={{
+        maxWidth: `${effectiveWordmarkConfig.maxWidthPx}px`,
+        opacity: titleOpacityOverride,
+      }}
     >
       <Logo
         // Remounts (replaying the intro stagger from scratch) only when an

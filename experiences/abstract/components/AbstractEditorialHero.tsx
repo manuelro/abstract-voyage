@@ -69,6 +69,44 @@ type AbstractEditorialHeroProps = {
    * page surface). Falls back to surfaceColor when omitted, so a page not
    * opting into 'column' mode needs no change. */
   columnBackgroundColor?: string;
+  /** PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md Part C — when supplied,
+   * used verbatim as the headline's own color (bypassing copyColorMode
+   * entirely) and as the emphasis-word/link color (bypassing
+   * emphasisWordOpacity's own tint, though not its opacity — see
+   * renderEmphasisText's own doc comment). Additive and page-scoped, same
+   * contract as SiteHeader's own titleColorOverride: this component's
+   * existing copyColorMode/emphasisFontWeight fields stay fully independent
+   * and untouched for every caller that doesn't supply this. */
+  titleColorOverride?: string;
+  /** Same contract as titleColorOverride above, for the paragraph's own
+   * color (bypasses paragraphTextColorMode). */
+  bodyColorOverride?: string;
+  /** Same contract as titleColorOverride above, for **word**-marked
+   * emphasis runs and inline links (bypasses emphasisWordOpacity's implicit
+   * "same color as body, just less dim" — this is a genuinely distinct
+   * color, not an opacity step on resolvedParagraphTextColor). */
+  highlightColorOverride?: string;
+  /** Bypasses emphasisDimOpacity for the paragraph's own non-emphasis text —
+   * paired with bodyColorOverride above (GlobalTypographyConfig's own
+   * bodyOpacity), since this component already applies color and opacity as
+   * two separate style properties (renderEmphasisText's own dimOpacity
+   * param), not one alpha-blended color. */
+  bodyOpacityOverride?: number;
+  /** Same contract as bodyOpacityOverride above, for emphasis words/links
+   * (bypasses emphasisWordOpacity). */
+  highlightOpacityOverride?: number;
+  /** Same contract as bodyOpacityOverride above, for the headline — applied
+   * as this element's own CSS `opacity` (the headline has no existing
+   * opacity mechanism of its own to bypass, unlike bodyOpacityOverride/
+   * emphasisDimOpacity above; it previously always rendered fully opaque
+   * regardless of titleColorOverride). Without this, a caller resolving
+   * titleColorOverride against a diluted target opacity (GlobalTypography-
+   * Config's own titleOpacity — see resolveTypographyColors' own doc
+   * comment) gets a color calibrated to survive a dilution that then never
+   * actually happens: the resolver searches for an ever-darker/lighter ink
+   * as its target opacity falls, on the assumption the caller will render it
+   * at that same reduced opacity, same as body/highlight already do. */
+  titleOpacityOverride?: number;
   layoutMode: 'full' | 'editorial';
   copyInkTone: AbstractEditorialHeroInkTone;
   actionInkTone: AbstractEditorialHeroInkTone;
@@ -90,6 +128,12 @@ export function AbstractEditorialHero({
   heroCtaComposerConfig,
   surfaceColor = DEFAULT_PAGE_SURFACE_CONFIG.color,
   columnBackgroundColor,
+  titleColorOverride,
+  bodyColorOverride,
+  highlightColorOverride,
+  bodyOpacityOverride,
+  highlightOpacityOverride,
+  titleOpacityOverride,
   layoutMode,
   copyInkTone,
   actionInkTone,
@@ -126,14 +170,14 @@ export function AbstractEditorialHero({
   // as three independent resolutions (not one shared derived value) since
   // each field's own mode/offset is independently configurable in the panel.
   const resolvedColumnBackgroundColor = columnBackgroundColor ?? surfaceColor;
-  const resolvedCopyColor = normalized.copyColorMode === 'surface'
+  const resolvedCopyColor = titleColorOverride ?? (normalized.copyColorMode === 'surface'
     ? deriveSurfaceColor(surfaceColor, normalized.copySurfaceOffset)
     : normalized.copyColorMode === 'column'
       ? resolveContrastAwareTextColor(
         resolvedColumnBackgroundColor, normalized.copyMinContrast, normalized.copySurfaceOffset,
       )
-      : normalized.copyColor;
-  const resolvedParagraphTextColor = normalized.paragraphTextColorMode === 'surface'
+      : normalized.copyColor);
+  const resolvedParagraphTextColor = bodyColorOverride ?? (normalized.paragraphTextColorMode === 'surface'
     ? deriveSurfaceColor(surfaceColor, normalized.paragraphSurfaceOffset)
     : normalized.paragraphTextColorMode === 'column'
       ? resolveContrastAwareTextColor(
@@ -141,7 +185,7 @@ export function AbstractEditorialHero({
         normalized.paragraphMinContrast,
         normalized.paragraphSurfaceOffset,
       )
-      : normalized.paragraphTextColor;
+      : normalized.paragraphTextColor);
   const resolvedEyebrowColor = normalized.eyebrowColorMode === 'surface'
     ? deriveSurfaceColor(surfaceColor, normalized.eyebrowSurfaceOffset)
     : normalized.eyebrowColorMode === 'column'
@@ -283,6 +327,50 @@ export function AbstractEditorialHero({
       : 'var(--site-font-sans)',
   } as CSSProperties;
 
+  // Shared between the standalone-<h1> layout (default) and the inline-with-
+  // first-paragraph layout below — same size/weight classes and same
+  // gradient-vs-plain content, just a different wrapping element/position.
+  const headlineSizeClassName = `${
+    normalized.headlineMatchesBodySize ? normalized.bodyFontSizeNarrow : normalized.headlineFontSizeNarrow
+  } ${
+    normalized.headlineMatchesBodySize ? normalized.bodyFontSizeMid : normalized.headlineFontSizeMid
+  } ${
+    normalized.headlineMatchesBodySize ? normalized.bodyFontSizeWide : normalized.headlineFontSizeWide
+  } ${normalized.headlineFontWeight}`;
+  // Opt-in (AbstractEditorialHeroConfig.headlineInlineWithParagraph's own
+  // doc comment) — independent of headlineMatchesBodySize (that field only
+  // controls the merged headline's own font-size/weight, matching the h1
+  // path below), gated only on there being a first paragraph to merge into.
+  const inlineHeadlineActive = normalized.headlineInlineWithParagraph
+    && paragraphs.length > 0;
+  const headlineContent = gradientHeadlineActive ? (
+    <>
+      {/* `block` (below) is what the standalone-<h1> layout needs: the
+          canvas overlay is a sibling of this span, absolutely positioned via
+          the outer h1/span's own `relative`, so it doesn't strictly require
+          this specific span to be block — but the h1 already is anyway, so
+          it was harmless there. It's NOT harmless once this same content
+          renders inside the inline role="heading" span (inlineHeadlineActive
+          below): a `block` span inside an otherwise-inline flow forces its
+          own line regardless of surrounding text, permanently defeating the
+          "merge into the paragraph's own text run" this whole path exists
+          for — confirmed live (computed style showed the inline span's color
+          and font-size already matched the paragraph byte-for-byte; only the
+          layout still broke onto its own line, traced to this exact class). */}
+      <span aria-hidden="true" className={`${styles.headlineText} ${inlineHeadlineActive ? '' : 'block'}`}>
+        <span data-gradient-headline-text="true">
+          {headline}
+        </span>
+      </span>
+      <canvas
+        ref={headlineCanvasRef}
+        aria-hidden="true"
+        className={styles.headlineCanvas}
+        data-gradient-headline-canvas="true"
+      />
+    </>
+  ) : headline;
+
   return (
     <div
       className={[
@@ -317,42 +405,19 @@ export function AbstractEditorialHero({
           closer to this text than PolymorphicLayout's own content box). */}
       <div className={`${styles.copyColumn} pointer-events-auto relative min-w-0 ${contentWidthClassName}`}>
         <div className="min-w-0">
-          <h1
-            ref={setHeadlineElementRef}
-            aria-label={headline}
-            id="abstract-hero-title"
-            className={`${styles.leadBlock} ${
-              normalized.headlineMatchesBodySize
-                ? normalized.bodyFontSizeNarrow
-                : normalized.headlineFontSizeNarrow
-            } ${
-              normalized.headlineMatchesBodySize
-                ? normalized.bodyFontSizeMid
-                : normalized.headlineFontSizeMid
-            } ${
-              normalized.headlineMatchesBodySize
-                ? normalized.bodyFontSizeWide
-                : normalized.headlineFontSizeWide
-            } ${normalized.headlineFontWeight} relative m-0 p-0 w-full ${normalized.headlineMaxWidth}`}
-            data-headline-fill={normalized.headlineFillMode}
-            data-headline-match-body-size={normalized.headlineMatchesBodySize ? 'true' : 'false'}
-          >
-            {gradientHeadlineActive ? (
-              <>
-                <span aria-hidden="true" className={`${styles.headlineText} block`}>
-                  <span data-gradient-headline-text="true">
-                    {headline}
-                  </span>
-                </span>
-                <canvas
-                  ref={headlineCanvasRef}
-                  aria-hidden="true"
-                  className={styles.headlineCanvas}
-                  data-gradient-headline-canvas="true"
-                />
-              </>
-            ) : headline}
-          </h1>
+          {inlineHeadlineActive ? null : (
+            <h1
+              ref={setHeadlineElementRef}
+              aria-label={headline}
+              id="abstract-hero-title"
+              className={`${styles.leadBlock} ${headlineSizeClassName} relative m-0 p-0 w-full ${normalized.headlineMaxWidth}`}
+              data-headline-fill={normalized.headlineFillMode}
+              data-headline-match-body-size={normalized.headlineMatchesBodySize ? 'true' : 'false'}
+              style={{ opacity: titleOpacityOverride }}
+            >
+              {headlineContent}
+            </h1>
+          )}
           {paragraphs.length > 0 ? (
             <div
               className={`${styles.supportingCopy} ${normalized.bodyFontSizeNarrow} ${normalized.bodyFontSizeMid} ${normalized.bodyFontSizeWide} ${normalized.leadGap} ${normalized.leadGapWide} ${normalized.leadGapLg} grid gap-[28px] w-full ${normalized.paragraphMaxWidth}`}
@@ -360,11 +425,52 @@ export function AbstractEditorialHero({
             >
               {paragraphs.map((paragraph, index) => (
                 <p key={index} className={`${styles.copyBlock} m-0 p-0`}>
+                  {inlineHeadlineActive && index === 0 ? (
+                    <>
+                      {/* role="heading"/aria-level, not a nested <h1> — a
+                          heading element isn't valid phrasing content inside
+                          a <p>, so this keeps the same level-1 heading
+                          semantics screen readers rely on (still targeted by
+                          this page's own aria-labelledby="abstract-hero-title")
+                          without invalid markup. */}
+                      <span
+                        ref={setHeadlineElementRef}
+                        role="heading"
+                        aria-level={1}
+                        aria-label={headline}
+                        id="abstract-hero-title"
+                        className={`${styles.leadBlock} ${headlineSizeClassName} relative`}
+                        data-headline-fill={normalized.headlineFillMode}
+                        data-headline-match-body-size={normalized.headlineMatchesBodySize ? 'true' : 'false'}
+                        data-headline-inline="true"
+                        // .supportingCopy (this span's own ancestor once
+                        // inline) sets an explicit `color` for the paragraph
+                        // copy — CSS inheritance would otherwise hand that
+                        // same color to this span too, silently discarding
+                        // resolvedCopyColor/titleColorOverride the moment the
+                        // headline stops living outside .supportingCopy (the
+                        // standalone <h1> path above never hits this, so it
+                        // only ever surfaced here). An explicit color here
+                        // wins regardless of DOM position. Same reasoning for
+                        // opacity: the ancestor <p> has none of its own, but
+                        // titleOpacityOverride still needs applying at this
+                        // exact element, matching the standalone <h1> path.
+                        style={{
+                          color: resolvedCopyColor,
+                          opacity: titleOpacityOverride,
+                        }}
+                      >
+                        {headlineContent}
+                      </span>
+                      {' '}
+                    </>
+                  ) : null}
                   {renderEmphasisText(
                     paragraph,
-                    normalized.emphasisDimOpacity,
-                    normalized.emphasisWordOpacity,
+                    bodyOpacityOverride ?? normalized.emphasisDimOpacity,
+                    highlightOpacityOverride ?? normalized.emphasisWordOpacity,
                     normalized.emphasisFontWeight,
+                    highlightColorOverride,
                   )}
                 </p>
               ))}

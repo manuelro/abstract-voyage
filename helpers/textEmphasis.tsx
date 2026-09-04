@@ -44,6 +44,20 @@ export function renderEmphasisText(
   dimOpacity: number,
   emphasisOpacity: number,
   emphasisClassName?: string,
+  // PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md Part C — when supplied,
+  // applied as this run's own explicit `color` (both the **word** span and
+  // the link), rather than the run inheriting whatever color its ancestor
+  // paragraph resolved (today's only behavior, still exactly what happens
+  // when this is omitted). A flat, opacity-free color — GlobalTypography-
+  // Config's own resolveTypographyColors returns a bare ink hex, never an
+  // alpha-baked rgba (an earlier version of this function assumed the
+  // latter and hardcoded this run's own opacity to 1 whenever a color
+  // override was present, silently discarding emphasisOpacity — fixed:
+  // opacity is always this run's own emphasisOpacity/dimOpacity argument,
+  // independent of whether a color override is supplied). Undefined for
+  // every existing caller (About's narrative slides, AbstractPostDock,
+  // contact.tsx) is byte-identical to before this param existed.
+  emphasisColorOverride?: string,
 ): ReactNode[] {
   return text
     .split(EMPHASIS_OR_LINK_PATTERN)
@@ -75,6 +89,7 @@ export function renderEmphasisText(
             // still read 'solid'). Inline style has no such dependency.
             style={{
               opacity: emphasisOpacity,
+              color: emphasisColorOverride,
               textDecorationLine: 'underline',
               textDecorationStyle: 'dotted',
               textDecorationThickness: '1px',
@@ -87,7 +102,13 @@ export function renderEmphasisText(
       }
       const emphasisMatch = part.match(EMPHASIS_PATTERN);
       return emphasisMatch ? (
-        <span key={index} className={emphasisClassName} style={{ opacity: emphasisOpacity }}>{emphasisMatch[1]}</span>
+        <span
+          key={index}
+          className={emphasisClassName}
+          style={{ opacity: emphasisOpacity, color: emphasisColorOverride }}
+        >
+          {emphasisMatch[1]}
+        </span>
       ) : (
         <span key={index} style={{ opacity: dimOpacity }}>{part}</span>
       );

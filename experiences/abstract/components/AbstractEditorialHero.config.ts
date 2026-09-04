@@ -198,6 +198,24 @@ export type AbstractEditorialHeroConfig = {
    * the headline wraps at body size. Overrides the headline-size fields
    * while on; those fields' own panel controls hide accordingly. */
   headlineMatchesBodySize: boolean;
+  /** Opt-in — merges the headline into the first paragraph's own text run
+   * instead of rendering it as its own block above the supporting copy:
+   * "Headline text first paragraph's own copy continues right after it,
+   * on the same line." Independent of headlineMatchesBodySize: that field
+   * only decides which size/weight classes the merged headline keeps (its
+   * own display size, or the body's), not whether it merges at all — a
+   * headline at its own larger display size still flows into the paragraph,
+   * it just wraps onto its own line(s) first while doing so. Renders as an
+   * inline, ARIA level-1 heading (a `<span role="heading" aria-level="1">`,
+   * not a literal `<h1>` — headings aren't valid phrasing content inside a
+   * `<p>`, so this keeps the heading semantics screen readers rely on
+   * without invalid markup) rather than a second, separate element. False
+   * (default) reproduces today's exact stacked headline-then-paragraphs
+   * layout — this field alone changes nothing until an operator opts in.
+   * Ignored (treated as off) whenever there are no paragraphs to merge
+   * into, matching this field's own opt-in condition rather than silently
+   * rendering nothing. */
+  headlineInlineWithParagraph: boolean;
   headlineMaxWidth: AbstractEditorialHeroHeadlineMaxWidth;
   contentMaxWidth: AbstractEditorialHeroContentMaxWidth;
   bodyFontSizeNarrow: AbstractEditorialHeroBodyFontSizeNarrow;
@@ -270,11 +288,12 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   headlineShadowScale: 1,
   headlineFontSizeNarrow: 'text-3xl',
   headlineFontSizeMid: 'md:text-3xl',
-  headlineFontSizeWide: 'lg:text-lg',
+  headlineFontSizeWide: 'lg:text-xl',
   headlineFontFamily: 'sans',
-  headlineFontWeight: 'font-medium',
+  headlineFontWeight: 'font-normal',
   paragraphFontFamily: 'inherit',
   headlineMatchesBodySize: true,
+  headlineInlineWithParagraph: true,
   headlineMaxWidth: 'max-w-prose',
   contentMaxWidth: 'max-w-sm',
   bodyFontSizeNarrow: 'text-lg',
@@ -459,6 +478,7 @@ export function normalizeAbstractEditorialHeroConfig(
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphFontFamily,
     ),
     headlineMatchesBodySize: base.headlineMatchesBodySize === true,
+    headlineInlineWithParagraph: base.headlineInlineWithParagraph === true,
     headlineMaxWidth: token(
       base.headlineMaxWidth,
       EDITORIAL_HERO_MAX_WIDTHS,

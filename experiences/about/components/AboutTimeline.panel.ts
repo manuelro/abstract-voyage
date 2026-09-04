@@ -625,6 +625,12 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     ],
   },
   {
+    kind: 'boolean',
+    key: 'descriptionVisible',
+    label: 'Show timeline description',
+    description: 'Shows the lead-in description above the rows, independent of whether description/descriptionWide/descriptionLg hold text. Distinct from "Show row description", which affects item descriptions only.',
+  },
+  {
     kind: 'number',
     key: 'descriptionOpacity',
     label: 'Description opacity',
