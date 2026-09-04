@@ -272,7 +272,7 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   headlineFontSizeMid: 'md:text-3xl',
   headlineFontSizeWide: 'lg:text-lg',
   headlineFontFamily: 'sans',
-  headlineFontWeight: 'font-bold',
+  headlineFontWeight: 'font-medium',
   paragraphFontFamily: 'inherit',
   headlineMatchesBodySize: true,
   headlineMaxWidth: 'max-w-prose',
@@ -283,12 +283,12 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   paragraphMaxWidth: 'max-w-xl',
   leadGap: 'mt-7',
   leadGapWide: 'md:mt-10',
-  leadGapLg: 'lg:mt-2',
+  leadGapLg: 'lg:mt-5',
   copyLineHeight: 1.55,
   copyLetterSpacingEm: -0.03,
   emphasisDimOpacity: 0.5,
   emphasisWordOpacity: 0.88,
-  emphasisFontWeight: 'font-medium',
+  emphasisFontWeight: 'font-normal',
   composerVisible: false,
 } satisfies AbstractEditorialHeroConfig;
 
