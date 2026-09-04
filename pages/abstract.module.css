@@ -301,6 +301,13 @@
   }
 }
 
+@media (min-width: 768px) {
+  .splitColumnViewport {
+    height: 100dvh;
+    overflow-y: hidden;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .navLink:hover {
     color: var(--hero-ink);

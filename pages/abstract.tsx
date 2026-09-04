@@ -4266,6 +4266,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       // now-inconsistent margin instead of containing it).
       <PolymorphicLayout
         config={splitColumnLayoutConfig}
+        className={styles.splitColumnViewport}
         pageSurfaceConfig={normalizedPageSurfaceConfig}
         paletteColorResolver={paletteColorResolver}
         headerWrapperRef={splitColumnHeaderWrapperRef}
