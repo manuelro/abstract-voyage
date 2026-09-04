@@ -133,7 +133,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   cardAspectRatio: 4 / 3,
   stackSpacingToCenterGapRatio: 0.45,
   rotationDeg: 31,
-  inactiveCardColumnDarkeningStep: 0,
+  inactiveCardColumnDarkeningStep: 0.96,
   perspectivePx: 4000,
   perspectiveOriginXPercent: 50,
   perspectiveOriginYPercent: 50,
