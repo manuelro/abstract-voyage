@@ -248,7 +248,7 @@ function useCoverFlowGeometry(
     // lands. No fixed pixel ceiling — see CoverFlow.config.ts's own
     // cardWidthRatio doc comment for why a ceiling makes the ratio a no-op.
     let itemWidth = containerWidthPx && containerWidthPx > 0
-      ? Math.max(config.minCardWidthPx, containerWidthPx * cardWidthRatio)
+      ? Math.min(containerWidthPx, Math.max(config.minCardWidthPx, containerWidthPx * cardWidthRatio))
       : config.referenceWidthPx;
     let itemHeight = itemWidth * config.cardAspectRatio;
     // config.cardAspectRatio is never deformed: whenever the available
