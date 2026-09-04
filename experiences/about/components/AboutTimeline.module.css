@@ -40,11 +40,13 @@
 
 /* config.alignment: 'right' (AboutTimeline.tsx) — row-reverse puts .content
    (the last DOM child) first visually, i.e. on the left, with .marker
-   trailing on the right; padding/text-align mirror to match. */
+   trailing flush to the right boundary. The left-aligned presentation keeps
+   its marker lane; the right-aligned presentation intentionally does not
+   add a second, hidden gutter after its marker. */
 .row[data-alignment='right'] {
   flex-direction: row-reverse;
   padding-left: 0;
-  padding-right: calc(var(--about-timeline-marker-size, 9px) + 0.9rem);
+  padding-right: 0;
   text-align: right;
 }
 
@@ -52,10 +54,6 @@
    than leaving a misleading empty indent before every title. */
 .row[data-marker-visible='false'][data-rule-visible='false'] {
   padding-left: 0;
-}
-
-.row[data-alignment='right'][data-marker-visible='false'][data-rule-visible='false'] {
-  padding-right: 0;
 }
 
 .row:focus-visible {
@@ -204,22 +202,13 @@
 }
 
 /* Plain lead-in text above the rows (AboutTimeline.tsx's own `description`
-   prop) — indented to start at the exact same x-position a row's own
-   caption text starts at, so the marker/rule column's horizontal space
-   above it reads as deliberately empty rather than misaligned, at every
-   breakpoint tier. The indent side's own left/right padding is computed
-   HERE (not inline) since it must combine the structural marker-offset
-   with the operator's own configurable `descriptionPaddingLeft/
-   -RightClassName` (and its `-Wide`/`-Lg` tiers) on that same side — a
-   plain Tailwind class on that side would silently collide with this same
-   property. AboutTimeline.tsx only supplies the "extra" operator-
-   configured amount per tier, as the `--about-timeline-description-
-   indent-extra(-wide|-lg)` custom properties below; top/bottom padding and
-   all four margin sides have no such structural offset to combine with, so
-   those apply as plain Tailwind classes instead (AboutTimeline.tsx's own
-   className list). font-size/color/opacity come from config too;
-   text-align mirrors `.row`'s own alignment via the shared `data-alignment`
-   attribute. */
+   prop). Left alignment reserves the marker lane so the text and row
+   captions share an edge. Right alignment ends flush to the component edge;
+   its marker is already at that edge and must not manufacture a second
+   trailing gutter. The left indent combines the structural marker offset
+   with the operator-configured padding. AboutTimeline.tsx supplies that
+   extra amount as a CSS custom property; top/bottom padding and all margins
+   remain panel-configurable. */
 .description {
   line-height: 1.4;
   text-align: left;
@@ -260,21 +249,9 @@
   );
 }
 
-.description[data-alignment='right'] {
-  padding-right: calc(
-    var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra, 0px)
-  );
-}
-
 @media (min-width: 768px) {
   .description[data-alignment='left'] {
     padding-left: calc(
-      var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-wide, 0px)
-    );
-  }
-
-  .description[data-alignment='right'] {
-    padding-right: calc(
       var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-wide, 0px)
     );
   }
@@ -283,12 +260,6 @@
 @media (min-width: 1024px) {
   .description[data-alignment='left'] {
     padding-left: calc(
-      var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-lg, 0px)
-    );
-  }
-
-  .description[data-alignment='right'] {
-    padding-right: calc(
       var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-lg, 0px)
     );
   }
