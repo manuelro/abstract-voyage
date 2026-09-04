@@ -6,6 +6,10 @@ import {
   type MarginTopLgClass,
   type MarginTopWideClass,
 } from '../../../components/tailwindSpacingScale';
+import {
+  MAX_WIDTH_OPTIONS,
+  type MaxWidthClass,
+} from '../../../components/tailwindTypographyScale';
 import type { PolymorphicLayoutContentContainerAlign } from './PolymorphicLayout.config';
 
 export type AbstractEditorialHeroHorizontalPlacement =
@@ -69,29 +73,13 @@ export type AbstractEditorialHeroBodyFontSizeNarrow = `text-${AbstractEditorialH
 export type AbstractEditorialHeroBodyFontSizeMid = `md:text-${AbstractEditorialHeroFontSizeToken}`;
 export type AbstractEditorialHeroBodyFontSizeWide = `lg:text-${AbstractEditorialHeroFontSizeToken}`;
 /**
- * Independent Tailwind max-width tokens for the headline and the paragraph
- * copy — previously both were bound to one shared contentMaxWidthPx cap on
- * the whole copy column, which is what made the headline wrap far short of
- * the actual available row width (see the max-w-full default below: the
- * headline defaults to using 100% of its column, same as the user's ask).
- * Kept as separate types (rather than one shared union) since a sane
- * headline width and a sane paragraph reading width are different scales —
- * 'max-w-[18ch]' makes sense for a big display headline, not for body copy.
+ * All editorial measures use the shared typography scale. The timeline
+ * exposes this exact catalog in its Max width control, so a selected token
+ * means the same physical cap wherever it appears on /abstract.
  */
-export type AbstractEditorialHeroHeadlineMaxWidth =
-  | 'max-w-full'
-  | 'max-w-7xl'
-  | 'max-w-6xl'
-  | 'max-w-5xl'
-  | 'max-w-4xl'
-  | 'max-w-[18ch]';
-export type AbstractEditorialHeroParagraphMaxWidth =
-  | 'max-w-full'
-  | 'max-w-3xl'
-  | 'max-w-2xl'
-  | 'max-w-xl'
-  | 'max-w-lg'
-  | 'max-w-[54ch]';
+export type AbstractEditorialHeroHeadlineMaxWidth = MaxWidthClass;
+export type AbstractEditorialHeroParagraphMaxWidth = MaxWidthClass;
+export type AbstractEditorialHeroContentMaxWidth = MaxWidthClass;
 /**
  * 'surface' (default) renders the headline in the hero's own surfaceColor —
  * text visible only through its shadow, an embossed/color-matched look.
@@ -182,6 +170,12 @@ export type AbstractEditorialHeroConfig = {
   headlineFontSizeMid: AbstractEditorialHeroHeadlineFontSizeMid;
   headlineFontSizeWide: AbstractEditorialHeroHeadlineFontSizeWide;
   headlineFontFamily: AbstractEditorialHeroFontFamily;
+  /** Same three-way choice as headlineFontFamily, applied to the paragraph
+   * copy (and eyebrow/supporting text, which inherit .root's font-family)
+   * instead of the headline. Unlike the headline, there is no site-wide
+   * "body font" in GlobalTypographyConfig to inherit from — 'inherit' here
+   * just means today's unconditional default (sans), unchanged. */
+  paragraphFontFamily: AbstractEditorialHeroFontFamily;
   /** Opt-in: makes the headline render at the same font size as the
    * paragraph copy below (bodyFontSize-prefixed — same trio the paragraphs
    * use, at every breakpoint) instead of its own headlineFontSize-prefixed
@@ -194,6 +188,7 @@ export type AbstractEditorialHeroConfig = {
    * while on; those fields' own panel controls hide accordingly. */
   headlineMatchesBodySize: boolean;
   headlineMaxWidth: AbstractEditorialHeroHeadlineMaxWidth;
+  contentMaxWidth: AbstractEditorialHeroContentMaxWidth;
   bodyFontSizeNarrow: AbstractEditorialHeroBodyFontSizeNarrow;
   bodyFontSizeMid: AbstractEditorialHeroBodyFontSizeMid;
   bodyFontSizeWide: AbstractEditorialHeroBodyFontSizeWide;
@@ -245,7 +240,7 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   paragraphTextColor: '#ffffff',
   paragraphTextColorMode: 'column',
   paragraphSurfaceOffset: 0,
-  paragraphMinContrast: 5.2,
+  paragraphMinContrast: 6,
   eyebrowColor: '#85858b',
   eyebrowColorMode: 'surface',
   eyebrowSurfaceOffset: 0,
@@ -264,18 +259,20 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   headlineShadowScale: 1,
   headlineFontSizeNarrow: 'text-3xl',
   headlineFontSizeMid: 'md:text-3xl',
-  headlineFontSizeWide: 'lg:text-3xl',
-  headlineFontFamily: 'inherit',
-  headlineMatchesBodySize: false,
-  headlineMaxWidth: 'max-w-full',
+  headlineFontSizeWide: 'lg:text-lg',
+  headlineFontFamily: 'sans',
+  paragraphFontFamily: 'inherit',
+  headlineMatchesBodySize: true,
+  headlineMaxWidth: 'max-w-prose',
+  contentMaxWidth: 'max-w-sm',
   bodyFontSizeNarrow: 'text-lg',
   bodyFontSizeMid: 'md:text-base',
   bodyFontSizeWide: 'lg:text-base',
   paragraphMaxWidth: 'max-w-xl',
   leadGap: 'mt-7',
   leadGapWide: 'md:mt-10',
-  leadGapLg: 'lg:mt-7',
-  copyLineHeight: 1.7,
+  leadGapLg: 'lg:mt-2',
+  copyLineHeight: 1.55,
   copyLetterSpacingEm: -0.03,
   emphasisDimOpacity: 0.5,
   emphasisWordOpacity: 0.88,
@@ -314,12 +311,8 @@ const BODY_FONT_SIZE_MID: ReadonlyArray<AbstractEditorialHeroBodyFontSizeMid> =
   HEADLINE_FONT_SIZE_MID;
 const BODY_FONT_SIZE_WIDE: ReadonlyArray<AbstractEditorialHeroBodyFontSizeWide> =
   HEADLINE_FONT_SIZE_WIDE;
-const HEADLINE_MAX_WIDTHS: ReadonlyArray<AbstractEditorialHeroHeadlineMaxWidth> = [
-  'max-w-full', 'max-w-7xl', 'max-w-6xl', 'max-w-5xl', 'max-w-4xl', 'max-w-[18ch]',
-];
-const PARAGRAPH_MAX_WIDTHS: ReadonlyArray<AbstractEditorialHeroParagraphMaxWidth> = [
-  'max-w-full', 'max-w-3xl', 'max-w-2xl', 'max-w-xl', 'max-w-lg', 'max-w-[54ch]',
-];
+const EDITORIAL_HERO_MAX_WIDTHS: ReadonlyArray<MaxWidthClass> =
+  MAX_WIDTH_OPTIONS.map(option => option.value);
 const LEAD_GAP_VALUES: ReadonlyArray<MarginTopClass> =
   MARGIN_TOP_OPTIONS.map(option => option.value);
 const LEAD_GAP_WIDE_VALUES: ReadonlyArray<MarginTopWideClass> =
@@ -443,11 +436,21 @@ export function normalizeAbstractEditorialHeroConfig(
       FONT_FAMILIES,
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.headlineFontFamily,
     ),
+    paragraphFontFamily: token(
+      base.paragraphFontFamily,
+      FONT_FAMILIES,
+      DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphFontFamily,
+    ),
     headlineMatchesBodySize: base.headlineMatchesBodySize === true,
     headlineMaxWidth: token(
       base.headlineMaxWidth,
-      HEADLINE_MAX_WIDTHS,
+      EDITORIAL_HERO_MAX_WIDTHS,
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.headlineMaxWidth,
+    ),
+    contentMaxWidth: token(
+      base.contentMaxWidth,
+      EDITORIAL_HERO_MAX_WIDTHS,
+      DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.contentMaxWidth,
     ),
     bodyFontSizeNarrow: token(
       base.bodyFontSizeNarrow,
@@ -466,7 +469,7 @@ export function normalizeAbstractEditorialHeroConfig(
     ),
     paragraphMaxWidth: token(
       base.paragraphMaxWidth,
-      PARAGRAPH_MAX_WIDTHS,
+      EDITORIAL_HERO_MAX_WIDTHS,
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphMaxWidth,
     ),
     leadGap: token(

@@ -9,11 +9,15 @@
      see AbstractEditorialHero.tsx) is consumed by .leadBlock alone below,
      not here — heading serif/sans must never leak into the paragraph copy
      that also inherits from this rule. */
-  /* The split-column composition is not mounted beneath .heroZone, which
-     owns --hero-sans in the classic presentation. Fall back directly to the
-     app-wide Instrument Sans variable so body copy never inherits a
-     surrounding display/heading serif context. */
-  font-family: var(--hero-sans, var(--site-font-sans)), -apple-system, BlinkMacSystemFont;
+  /* --active-body-font (set inline from paragraphFontFamily, resolved sans
+     by default) takes priority; the --hero-sans/--site-font-sans chain
+     behind it is only a defensive fallback for the (never-expected) case
+     where that inline var is somehow unset. The split-column composition is
+     not mounted beneath .heroZone, which owns --hero-sans in the classic
+     presentation — that's why the app-wide Instrument Sans variable is next
+     in the chain, so body copy never inherits a surrounding display/heading
+     serif context on its own. */
+  font-family: var(--active-body-font, var(--hero-sans, var(--site-font-sans))), -apple-system, BlinkMacSystemFont;
   line-height: var(--editorial-copy-line-height);
   letter-spacing: var(--editorial-copy-letter-spacing);
 }

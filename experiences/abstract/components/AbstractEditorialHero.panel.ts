@@ -7,6 +7,7 @@ import {
   MARGIN_TOP_OPTIONS,
   MARGIN_TOP_WIDE_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
+import { MAX_WIDTH_OPTIONS } from '../../../components/tailwindTypographyScale';
 import {
   DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG,
   FONT_SIZE_TOKENS,
@@ -230,31 +231,35 @@ const ALL_SIZES_FIELDS = [
       },
       {
         kind: 'enum',
-        key: 'headlineMaxWidth',
-        label: 'Heading width',
-        description: 'Maximum width of the headline itself, independent from the paragraph copy below. Defaults to FULL (100% of the row) — narrow this down for a more traditional display-headline measure.',
+        key: 'paragraphFontFamily',
+        label: 'Body font',
+        description: 'Inherit (default) keeps this component\'s own unconditional default (sans) — unlike the heading font above, there is no site-wide body-font setting to follow. Sans/Serif pin the paragraph, eyebrow, and supporting copy regardless.',
         options: [
-          { label: 'FULL (100%)', value: 'max-w-full' },
-          { label: '7XL (80rem)', value: 'max-w-7xl' },
-          { label: '6XL (72rem)', value: 'max-w-6xl' },
-          { label: '5XL (64rem)', value: 'max-w-5xl' },
-          { label: '4XL (56rem)', value: 'max-w-4xl' },
-          { label: '18 CHARACTERS', value: 'max-w-[18ch]' },
+          { label: 'INHERIT', value: 'inherit' },
+          { label: 'SANS', value: 'sans' },
+          { label: 'SERIF', value: 'serif' },
         ],
       },
       {
-        kind: 'enum',
+        kind: 'select',
+        key: 'contentMaxWidth',
+        label: 'Content max width',
+        description: 'Caps the headline and paragraph together as one column. This is the same shared max-width scale used by the Timeline panel.',
+        options: MAX_WIDTH_OPTIONS,
+      },
+      {
+        kind: 'select',
+        key: 'headlineMaxWidth',
+        label: 'Heading max width',
+        description: 'Caps the headline independently from the paragraph copy.',
+        options: MAX_WIDTH_OPTIONS,
+      },
+      {
+        kind: 'select',
         key: 'paragraphMaxWidth',
-        label: 'Paragraph width',
-        description: 'Maximum width of the paragraph copy, independent from the headline above. Set to FULL to let it use 100% of the row instead.',
-        options: [
-          { label: 'FULL (100%)', value: 'max-w-full' },
-          { label: '3XL (48rem)', value: 'max-w-3xl' },
-          { label: '2XL (42rem)', value: 'max-w-2xl' },
-          { label: 'XL (36rem)', value: 'max-w-xl' },
-          { label: 'LG (32rem)', value: 'max-w-lg' },
-          { label: '54 CHARACTERS', value: 'max-w-[54ch]' },
-        ],
+        label: 'Paragraph max width',
+        description: 'Caps the supporting paragraph copy independently from the headline.',
+        options: MAX_WIDTH_OPTIONS,
       },
       {
         kind: 'number',

@@ -104,6 +104,18 @@ export function AbstractEditorialHero({
   const resolvedHeadlineFontFamily = normalized.headlineFontFamily === 'inherit'
     ? globalTypographyConfig.headingFontFamily
     : normalized.headlineFontFamily;
+  // No site-wide "body font" exists in GlobalTypographyConfig to inherit
+  // from (headline's own 'inherit' above follows headingFontFamily) —
+  // 'inherit' here just resolves to 'sans', matching this component's own
+  // unconditional default before this field existed.
+  const resolvedParagraphFontFamily = normalized.paragraphFontFamily === 'inherit'
+    ? 'sans'
+    : normalized.paragraphFontFamily;
+  // A flex item otherwise shrink-wraps to its content, which makes larger
+  // max-width choices indistinguishable. Establish the available row width
+  // first, then let the selected ceiling constrain it. The headline and
+  // paragraph use the same grow-then-cap rule at their own level below.
+  const contentWidthClassName = `w-full ${normalized.contentMaxWidth}`;
   // 'surface': the same one base color driving everything else on this hero
   // (surfaceColor, above) run through deriveSurfaceColor with this field's
   // own *SurfaceOffset — the CtaButtonConfig auto-color pattern, applied to
@@ -262,6 +274,13 @@ export function AbstractEditorialHero({
     '--active-heading-font': resolvedHeadlineFontFamily === 'serif'
       ? 'var(--site-font-serif)'
       : 'var(--site-font-sans)',
+    // Same reasoning as --active-heading-font above — always resolves to a
+    // defined var so the whole font-family declaration on .root (consumed
+    // by .copyBlock/.supportingCopy/the eyebrow via inheritance) can't be
+    // invalidated by an unresolvable reference.
+    '--active-body-font': resolvedParagraphFontFamily === 'serif'
+      ? 'var(--site-font-serif)'
+      : 'var(--site-font-sans)',
   } as CSSProperties;
 
   return (
@@ -286,22 +305,17 @@ export function AbstractEditorialHero({
       data-layout-mode={layoutMode}
       style={style}
     >
-      {/* The column shrink-wraps to its (independently capped) content —
-          headlineMaxWidth/paragraphMaxWidth (independent Tailwind max-w-*
-          tokens) cap the headline and the paragraph copy separately,
-          directly on each element — rather than claiming the row's full
-          width itself. It must NOT be w-full (or any max-w-full-equivalent
-          class): a flex item that always spans edge-to-edge leaves
-          justify-content on the row above (horizontalPlacement) nothing to
-          do, since there's no leftover space in the row left to distribute.
-          No width utility is needed to keep it from overflowing either —
-          flex items already default to flex-shrink: 1, so this column
-          shrinks to fit the row on its own like any other flex child. */}
+      {/* The column fills its available row before contentMaxWidth caps it.
+          This is essential: a shrink-wrapped flex item cannot reveal a
+          selected cap larger than its intrinsic text width. Once capped,
+          horizontalPlacement still positions the resulting column within
+          any remaining row space. Headline and paragraph caps are applied
+          independently to their own full-width boxes below. */}
       {/* Text-align is owned by PolymorphicLayout's own narrowColumnTextAlign/
           Wide/Lg (2026-08-20 — this component no longer carries its own
           competing textAlignment field, which won every time by sitting
           closer to this text than PolymorphicLayout's own content box). */}
-      <div className={`${styles.copyColumn} pointer-events-auto relative min-w-0`}>
+      <div className={`${styles.copyColumn} pointer-events-auto relative min-w-0 ${contentWidthClassName}`}>
         <div className="min-w-0">
           <h1
             ref={setHeadlineElementRef}
@@ -319,7 +333,7 @@ export function AbstractEditorialHero({
               normalized.headlineMatchesBodySize
                 ? normalized.bodyFontSizeWide
                 : normalized.headlineFontSizeWide
-            } ${normalized.headlineMatchesBodySize ? 'font-bold' : ''} relative m-0 p-0 ${normalized.headlineMaxWidth}`}
+            } ${normalized.headlineMatchesBodySize ? 'font-bold' : ''} relative m-0 p-0 w-full ${normalized.headlineMaxWidth}`}
             data-headline-fill={normalized.headlineFillMode}
             data-headline-match-body-size={normalized.headlineMatchesBodySize ? 'true' : 'false'}
           >
@@ -341,7 +355,7 @@ export function AbstractEditorialHero({
           </h1>
           {paragraphs.length > 0 ? (
             <div
-              className={`${styles.supportingCopy} ${normalized.bodyFontSizeNarrow} ${normalized.bodyFontSizeMid} ${normalized.bodyFontSizeWide} ${normalized.leadGap} ${normalized.leadGapWide} ${normalized.leadGapLg} grid gap-[28px] ${normalized.paragraphMaxWidth}`}
+              className={`${styles.supportingCopy} ${normalized.bodyFontSizeNarrow} ${normalized.bodyFontSizeMid} ${normalized.bodyFontSizeWide} ${normalized.leadGap} ${normalized.leadGapWide} ${normalized.leadGapLg} grid gap-[28px] w-full ${normalized.paragraphMaxWidth}`}
               data-editorial-supporting-copy="true"
             >
               {paragraphs.map((paragraph, index) => (
