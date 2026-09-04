@@ -233,9 +233,13 @@ export function AboutTimeline({
     focusRow(nextIndex);
   }, [rows, onSelect, focusRow]);
 
-  const titleClassName = [
+  // Split out of the shared box below so each row can swap in its own
+  // active/idle weight (rowTitleFontWeightClassName/-Active) — the same
+  // per-row branch resolvedRowTitleColorActive/-Inactive already uses,
+  // rather than the box's own once-computed, identical-for-every-row string.
+  const titleBoxClassName = [
     config.rowTitleFontFamily,
-    config.rowTitleFontWeightClassName, config.rowTitleFontSizeClassName,
+    config.rowTitleFontSizeClassName,
     config.rowTitlePaddingTopClassName, config.rowTitlePaddingRightClassName,
     config.rowTitlePaddingBottomClassName, config.rowTitlePaddingLeftClassName,
     config.rowTitlePaddingTopWideClassName, config.rowTitlePaddingRightWideClassName,
@@ -249,6 +253,8 @@ export function AboutTimeline({
     config.rowTitleMarginTopLgClassName, config.rowTitleMarginRightLgClassName,
     config.rowTitleMarginBottomLgClassName, config.rowTitleMarginLeftLgClassName,
   ].join(' ');
+  const titleClassNameInactive = `${config.rowTitleFontWeightClassName} ${titleBoxClassName}`;
+  const titleClassNameActive = `${config.rowTitleFontWeightClassNameActive} ${titleBoxClassName}`;
   const rowDescriptionClassName = [
     config.rowDescriptionFontFamily,
     config.rowDescriptionFontSizeClassName,
@@ -302,7 +308,7 @@ export function AboutTimeline({
         markerOpacity={isHoveredRow
           ? config.hoverMarkerOpacity
           : (selected ? config.markerActiveOpacity : config.markerIdleOpacity)}
-        titleClassName={titleClassName}
+        titleClassName={isHoveredRow || selected ? titleClassNameActive : titleClassNameInactive}
         descriptionClassName={rowDescriptionClassName}
         transitionDurationMs={transitionDurationMs}
         transitionEasingCss={transitionEasingCss}
@@ -331,7 +337,7 @@ export function AboutTimeline({
     config.rowAppendixEnabled, config.rowAppendixSeparator,
     config.rowAppendixFontFamily, config.rowAppendixFontSizeClassName,
     config.rowAppendixRevealDelayMs, config.rowAppendixOpacity,
-    titleClassName, rowDescriptionClassName,
+    titleClassNameActive, titleClassNameInactive, rowDescriptionClassName,
     config.markerIdleOpacity, config.markerActiveOpacity,
     config.markerGradientEnabled, gradientSlides, gradientPaletteStates,
     gradientMotion, gradientConfig,

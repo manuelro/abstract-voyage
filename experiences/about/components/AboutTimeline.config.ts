@@ -162,13 +162,16 @@ export const CATEGORY_SEPARATOR_OPTIONS = APPENDIX_SEPARATOR_OPTIONS;
  * of the three can be nudged without affecting the other two or the
  * component's own outer box.
  *
- * Font weight is deliberately never a state signal on this component
- * (operator fix): the only thing that tells an end user which row is
- * active is color/opacity (marker fill switching on, row text brightening)
- * — every row renders at one fixed weight regardless of active state.
- * `rowTitleFontWeightClassName` (opt-in, default `font-normal`) picks what
- * that one fixed weight is — a static appearance choice applied identically
- * to every row, not a per-state signal, so this rule still holds.
+ * Font weight was deliberately never a state signal on this component for a
+ * while (operator fix): color/opacity (marker fill switching on, row text
+ * brightening) alone told an end user which row is active, and every row
+ * rendered at one fixed weight regardless of active state.
+ * `rowTitleFontWeightClassName`/`rowTitleFontWeightClassNameActive` (both
+ * opt-in, defaulting equal to each other — see DEFAULT_ABOUT_TIMELINE_CONFIG
+ * — so adding this pair alone changes nothing) now let an operator diverge
+ * the hovered/selected row's own weight from the idle rows', the same way
+ * `rowTitleMinContrastActive`/`-Inactive` already diverge color — a
+ * deliberate reversal of the earlier rule, not an oversight.
  *
  * `alignment` supersedes the page-driven text-align wiring an earlier pass
  * threaded in from `splitColumnLayoutConfig.narrowColumnTextAlign*`
@@ -285,12 +288,20 @@ export type AboutTimelineConfig = {
   rowTitleFontFamily: AboutTimelineItemFontFamily;
   /** Font family for a row's supporting line. */
   rowDescriptionFontFamily: AboutTimelineItemFontFamily;
-  /** Font weight of a row's own title (caption) — literal Tailwind
-   * `font-*` class, applied identically regardless of active/inactive state
-   * (see this type's own doc comment on font weight never being a state
-   * signal). Opt-in: defaults to `font-normal`, the same weight this
-   * component always rendered at before this field existed. */
+  /** Font weight of an inactive/idle row's own title (caption) — literal
+   * Tailwind `font-*` class. Opt-in: defaults to `font-normal`, the same
+   * weight this component always rendered at before this field existed.
+   * See `rowTitleFontWeightClassNameActive` below for the hovered/selected
+   * row's own weight — the two used to be forced equal (see this type's
+   * former doc comment on font weight never being a state signal); an
+   * operator can now diverge them the same way `rowTitleMinContrastActive`/
+   * `-Inactive` already diverge color. */
   rowTitleFontWeightClassName: FontWeightClass;
+  /** Font weight of the hovered/selected row's own title — see
+   * `rowTitleFontWeightClassName` above. Defaults to that same field's own
+   * default (`font-medium`, DEFAULT_ABOUT_TIMELINE_CONFIG), so adding this
+   * field alone changes nothing until an operator diverges it. */
+  rowTitleFontWeightClassNameActive: FontWeightClass;
   /** Font size of a row's own title (caption) — literal Tailwind `text-*`
    * class, independent of the supporting line's own size below and of the
    * lead-in `descriptionFontSizeClassName` further down (a different kind of
@@ -569,6 +580,7 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowTitleFontFamily: 'font-sans',
   rowDescriptionFontFamily: 'font-sans',
   rowTitleFontWeightClassName: 'font-medium',
+  rowTitleFontWeightClassNameActive: 'font-medium',
   rowTitleFontSizeClassName: 'text-sm',
   rowDescriptionFontSizeClassName: 'text-sm',
   rowTitleOpacityActive: 1,
@@ -801,6 +813,9 @@ export function normalizeAboutTimelineConfig(
     ),
     rowTitleFontWeightClassName: token(
       base.rowTitleFontWeightClassName, FONT_WEIGHT_VALUES, D.rowTitleFontWeightClassName,
+    ),
+    rowTitleFontWeightClassNameActive: token(
+      base.rowTitleFontWeightClassNameActive, FONT_WEIGHT_VALUES, D.rowTitleFontWeightClassNameActive,
     ),
     rowTitleFontSizeClassName: token(
       base.rowTitleFontSizeClassName, FONT_SIZE_VALUES, D.rowTitleFontSizeClassName,

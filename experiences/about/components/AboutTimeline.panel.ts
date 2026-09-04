@@ -255,8 +255,15 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
   {
     kind: 'select',
     key: 'rowTitleFontWeightClassName',
-    label: 'Row title font weight',
-    description: 'Opt-in — off (font-normal) by default. Applied identically to every row regardless of active/inactive state; never a state signal on its own.',
+    label: 'Row title font weight (idle)',
+    description: 'Weight of an idle row\'s own title. See "Row title font weight (active)" below for the hovered/selected row\'s own weight.',
+    options: FONT_WEIGHT_OPTIONS,
+  },
+  {
+    kind: 'select',
+    key: 'rowTitleFontWeightClassNameActive',
+    label: 'Row title font weight (active)',
+    description: 'Weight of the hovered/selected row\'s own title. Defaults equal to the idle weight above, so adding this control alone changes nothing until diverged.',
     options: FONT_WEIGHT_OPTIONS,
   },
   {
