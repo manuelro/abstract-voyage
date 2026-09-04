@@ -145,17 +145,22 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // wired into this page's own PolymorphicLayout 'bounded' path and its own
   // shared "Polymorphic Layout" panel (pages/abstract.panel.ts's
   // POLYMORPHIC_LAYOUT_FIELDS), so this is a config-value change only.
-  // max-w-xl (36rem) matches this page's own AbstractEditorialHero
-  // paragraphMaxWidth default exactly (that component's own already-tuned
-  // value, not a new number) — the container now caps at least as wide as
-  // what the paragraph already targets, and for the first time also reins
-  // in the previously fully-unconstrained headline to that same measure.
+  // Update: the lg tier used to carry its own 'lg:max-w-lg' cap here (and,
+  // worth noting for history, that value never actually matched this
+  // comment's own stated intent above — max-w-lg is 32rem/512px, one
+  // Tailwind step narrower than the max-w-xl/36rem/576px it was meant to
+  // mirror, so it was silently clipping paragraphMaxWidth's own default
+  // the whole time). Removed now that AbstractEditorialHero owns a real,
+  // dedicated whole-column cap of its own (contentMaxWidth,
+  // AbstractEditorialHero.config.ts) — the two caps only ever fought each
+  // other (whichever was smaller silently won), and contentMaxWidth is the
+  // one meant to be authoritative per that field's own contract.
   narrowColumnContentMaxWidth: 'none',
   narrowColumnContentMaxWidthWide: 'none',
-  narrowColumnContentMaxWidthLg: 'lg:max-w-lg',
+  narrowColumnContentMaxWidthLg: 'none',
   narrowColumnTextAlign: 'text-left',
   narrowColumnTextAlignWide: 'md:text-right',
-  narrowColumnTextAlignLg: 'lg:text-right',
+  narrowColumnTextAlignLg: 'lg:text-left',
   wideColumnContentAlign: 'items-end',
   wideColumnContentAlignWide: 'items-end',
   wideColumnContentAlignLg: 'items-end',
@@ -306,15 +311,15 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   colorSourceWide: 'custom',
   colorSourceLg: 'custom',
   wideColumnCustomColorWide: '#14142f',
-  wideColumnCustomColorLg: '#242433',
+  wideColumnCustomColorLg: '#b2b2c7',
   narrowColumnCustomColorWide: '#cbcbe1',
-  narrowColumnCustomColorLg: '#282839',
+  narrowColumnCustomColorLg: '#bdbdd0',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
   narrowColumnSurfaceOffsetLg: 0,
   splitBandLeftCustomColorWide: '#d1d1e6',
-  splitBandLeftCustomColorLg: '#242433',
+  splitBandLeftCustomColorLg: '#282839',
   splitBandRightCustomColorWide: '#0e1230',
   splitBandRightCustomColorLg: '#282839',
   splitBandWidthTier: 'stacked',
