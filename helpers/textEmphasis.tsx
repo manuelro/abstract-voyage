@@ -56,6 +56,16 @@ export function renderEmphasisText(
           <Link
             key={index}
             href={href}
+            // Same emphasisClassName (font-weight) as a **word** run below —
+            // a link is already visually distinguished by its dotted
+            // underline, but the caller's chosen emphasis weight (e.g.
+            // AbstractEditorialHero's emphasisFontWeight) is one visual
+            // language for "this text is called out," and a link left at
+            // the surrounding paragraph's own weight read as a third,
+            // unrelated treatment. undefined for every caller that omits
+            // emphasisClassName (About's narrative slides, contact.tsx) —
+            // byte-identical to before for those.
+            className={emphasisClassName}
             // Plain inline text-decoration, not Tailwind's decoration-dotted/
             // decoration-1 utilities: this file lives in helpers/, which
             // tailwind.config.js's own `content` glob list doesn't scan (only
