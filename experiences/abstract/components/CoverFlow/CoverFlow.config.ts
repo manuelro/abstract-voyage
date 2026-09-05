@@ -146,7 +146,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   cardDistanceRatioLg: 1.5,
   cardWidthRatio: 0.83,
   cardWidthRatioMd: DEFAULT_CARD_WIDTH_RATIO,
-  cardWidthRatioLg: 0.69,
+  cardWidthRatioLg: 0.4,
   cardAspectRatio: 4 / 3,
   stackSpacingToCenterGapRatio: 0.45,
   rotationDeg: 31,
