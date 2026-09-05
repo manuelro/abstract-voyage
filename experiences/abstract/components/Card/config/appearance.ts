@@ -53,6 +53,7 @@ const pickAppearance = (config: SplitColumnCardStackConfig): CardAppearanceConfi
 
 export const DEFAULT_CARD_APPEARANCE_CONFIG: CardAppearanceConfig = {
   ...pickAppearance(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG),
+  activeTextOpacity: 1,
   neighborBackgroundOffset: -0.01,
   neighborTextOffset: -0.09,
   neighborTextMinContrast: 4.6,
