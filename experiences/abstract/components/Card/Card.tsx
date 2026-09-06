@@ -17,6 +17,9 @@ export function Card({ appearanceConfig, stackPresentation, ...props }: CardProp
       ...stackPresentation,
       headerOpacity: appearanceConfig.activeHeaderOpacity,
       textOpacity: appearanceConfig.activeTextOpacity,
+      scrimOpacity: stackPresentation.state === 'active'
+        ? appearanceConfig.activeScrimOpacity
+        : appearanceConfig.neighborScrimOpacity,
       transitionDurationMs: appearanceConfig.stepTiltDurationMs,
       transitionEasingCss: stackPresentation.transitionEasingCss,
       gradientRevealDurationMs: appearanceConfig.neighborGradientRevealDurationMs,

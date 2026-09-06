@@ -42,12 +42,14 @@ export const CARD_APPEARANCE_PANEL = defineConfigScope<CardAppearanceConfig>({
       fields: [
         { kind: 'number', key: 'activeHeaderOpacity', label: 'Header opacity', min: 0, max: 1, step: 0.01 },
         { kind: 'number', key: 'activeTextOpacity', label: 'Text opacity', min: 0, max: 1, step: 0.01 },
+        { kind: 'number', key: 'activeScrimOpacity', label: 'Dark overlay (scrim) opacity', min: 0, max: 1, step: 0.01 },
       ],
     },
     {
       kind: 'group',
       label: 'Inactive card surface',
       fields: [
+        { kind: 'number', key: 'neighborScrimOpacity', label: 'Dark overlay (scrim) opacity', min: 0, max: 1, step: 0.01 },
         { kind: 'enum', key: 'neighborFrameMode', label: 'Surface treatment', options: frameModes },
         { kind: 'enum', key: 'neighborBackgroundMode', label: 'Surface source', options: backgroundModes },
         { kind: 'color', key: 'neighborBackgroundCustomColor', label: 'Custom surface color', visibleWhen: config => config.neighborBackgroundMode === 'custom' },

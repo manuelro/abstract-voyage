@@ -10,6 +10,8 @@ import {
 export type CardAppearanceConfig = Pick<SplitColumnCardStackConfig,
   | 'activeHeaderOpacity'
   | 'activeTextOpacity'
+  | 'activeScrimOpacity'
+  | 'neighborScrimOpacity'
   | 'neighborGradientRevealDurationMs'
   | 'neighborGradientRevealEasing'
   | 'neighborGradientRevealBlurPx'
@@ -36,6 +38,7 @@ export type CardAppearanceConfig = Pick<SplitColumnCardStackConfig,
 
 const appearanceKeys: ReadonlyArray<keyof CardAppearanceConfig> = [
   'activeHeaderOpacity', 'activeTextOpacity',
+  'activeScrimOpacity', 'neighborScrimOpacity',
   'neighborGradientRevealDurationMs', 'neighborGradientRevealEasing',
   'neighborGradientRevealBlurPx', 'neighborShadowFadeDurationMs',
   'neighborShadowFadeEasing', 'stepTiltDurationMs', 'stepTiltEasing',
@@ -54,6 +57,7 @@ const pickAppearance = (config: SplitColumnCardStackConfig): CardAppearanceConfi
 export const DEFAULT_CARD_APPEARANCE_CONFIG: CardAppearanceConfig = {
   ...pickAppearance(DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG),
   activeTextOpacity: 1,
+  activeScrimOpacity: 0,
   neighborBackgroundMode: 'transparent',
   neighborBackgroundOffset: 0.71,
   neighborTextColor: '#241b69',

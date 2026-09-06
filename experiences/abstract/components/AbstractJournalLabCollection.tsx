@@ -691,6 +691,17 @@ export type HueFadeCardProps = {
      * own doc comments (CardStackSlot.tsx). */
     headerOpacity: number;
     textOpacity: number;
+    /** Opt-in — opacity (0-1) of ArticleCard's own text-legibility scrim
+     * (`.scrim`, `--article-card-scrim-color`), already resolved for
+     * whichever state (`active`/`inactive`) this card is in. Optional and
+     * omitted by CardStack.tsx's own presentation object (CardStackSlot.tsx's
+     * `CardStackSlotPresentation` has no equivalent field) — that caller's
+     * cards keep ArticleCard.module.css's own hardcoded scrim values
+     * (0.1 active / transparent inactive) exactly as before this field
+     * existed. Only CoverFlow's own `Card.tsx` adapter currently supplies
+     * this, sourced from `CardAppearanceConfig.activeScrimOpacity`/
+     * `neighborScrimOpacity`. */
+    scrimOpacity?: number;
     transitionDurationMs: number;
     transitionEasingCss: string;
     transitionDelayMs: number;
@@ -1273,6 +1284,16 @@ export function AbstractJournalLabHueFadeCard({
     // hex, not calc()-driven), so these are simply inert there regardless.
     '--article-card-header-opacity': stackPresentation.headerOpacity,
     '--article-card-text-opacity': stackPresentation.textOpacity,
+    // Overrides ArticleCard.module.css's own hardcoded scrim colors
+    // (rgba(0,0,0,0.1) active / transparent inactive) with an operator-
+    // tunable opacity already resolved for this card's own active/inactive
+    // state (Card.tsx's own resolvedStackPresentation) — omitted entirely
+    // when the caller doesn't supply scrimOpacity (CardStack.tsx's own
+    // presentation object has no such field), so that caller's cards keep
+    // the module's original hardcoded values byte-for-byte.
+    ...(stackPresentation.scrimOpacity !== undefined ? {
+      '--article-card-scrim-color': `rgba(0, 0, 0, ${stackPresentation.scrimOpacity})`,
+    } : null),
     // Overrides ArticleCard.module.css's own [data-appearance='neutral']
     // block's fixed label/meta/title/excerpt/separator/CTA color and topic-
     // tag border-color, making both operator-tunable instead of the two

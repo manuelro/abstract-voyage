@@ -566,6 +566,23 @@ export type SplitColumnCardStackConfig = {
    * opacity. Independent field so an operator can dim the meta chrome
    * without touching the actual headline/summary text, or vice versa. */
   activeTextOpacity: number;
+  /** Opacity (0-1) of the active (gradient-appearance) card's own text-
+   * legibility scrim — a flat black wash between the gradient mesh and the
+   * text content (ArticleCard.module.css's own `.scrim`), read through
+   * `--article-card-scrim-color` (AbstractJournalLabCollection.tsx's own
+   * stackAppearanceStyle). 0.1 (default) reproduces that module's own
+   * hardcoded `rgba(0, 0, 0, 0.1)` byte-for-byte. Independent of
+   * activeHeaderOpacity/activeTextOpacity above: those dim specific text
+   * elements' own alpha, this darkens the whole card surface underneath
+   * all of them (including the untouched background gradient itself). */
+  activeScrimOpacity: number;
+  /** Same mechanism as activeScrimOpacity above, applied to the inactive/
+   * neutral-appearance card instead. 0 (default) reproduces
+   * ArticleCard.module.css's own `[data-appearance='neutral']` block's
+   * hardcoded `transparent` byte-for-byte — a settled neighbor's already-
+   * tuned flat surface color doesn't need an extra legibility wash the way
+   * the busy animated gradient mesh does. */
+  neighborScrimOpacity: number;
 };
 
 export const DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG = {
@@ -651,6 +668,8 @@ export const DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG = {
   dwellThresholdMs: 1000,
   activeHeaderOpacity: 1,
   activeTextOpacity: 0.85,
+  activeScrimOpacity: 0.1,
+  neighborScrimOpacity: 0,
 } satisfies SplitColumnCardStackConfig;
 
 const WIDTH_VALUES: ReadonlyArray<WidthClass> = WIDTH_OPTIONS.map(option => option.value);
@@ -830,6 +849,8 @@ export function normalizeSplitColumnCardStackConfig(
     dwellThresholdMs: clamp(base.dwellThresholdMs, 150, 3000, D.dwellThresholdMs),
     activeHeaderOpacity: clamp(base.activeHeaderOpacity, 0, 1, D.activeHeaderOpacity),
     activeTextOpacity: clamp(base.activeTextOpacity, 0, 1, D.activeTextOpacity),
+    activeScrimOpacity: clamp(base.activeScrimOpacity, 0, 1, D.activeScrimOpacity),
+    neighborScrimOpacity: clamp(base.neighborScrimOpacity, 0, 1, D.neighborScrimOpacity),
   };
 }
 
