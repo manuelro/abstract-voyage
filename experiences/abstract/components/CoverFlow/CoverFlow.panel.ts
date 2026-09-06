@@ -146,6 +146,15 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           max: 1,
           step: 0.01,
         },
+        {
+          kind: 'number',
+          key: 'inactiveCardHoverAmplitudeStep',
+          label: 'Inactive card hover amplitude step',
+          description: 'Opt-in: each step of distance from the active card recedes both live-proximity engines\' own hover ceiling by this fraction, toward a flat (non-hoverable, non-brightening) card — the CTA Button engine\'s scale/lift/tilt AND the gradient/hologram engine\'s brightness/saturation/hue-shift/pan response, together, including the immediate neighbor, unlike the darkening step above, since a lingering hover ceiling (not a resting-color identity) is exactly what lets a card still gliding past the pointer after leaving the active slot visibly snap or brighten when its hover effect finally releases. Zero disables the recede entirely.',
+          min: 0,
+          max: 1,
+          step: 0.01,
+        },
       ],
     },
     {

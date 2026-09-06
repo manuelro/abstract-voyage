@@ -61,6 +61,44 @@ export type CoverFlowConfig = {
    * the column background — see pages/abstract.tsx's own
    * columnDarkeningAmount for the exact `(distance - 1) * step` formula. */
   inactiveCardColumnDarkeningStep: number;
+  /** Opt-in: recedes EVERY live-proximity effect a card can carry — not just
+   * the hover/proximity-lift ceiling (CoverFlow's own `hoverMaxScale`/
+   * `hoverMaxLiftPx`/`hoverMaxTiltDeg`), but also the gradient/hologram
+   * engine's own proximity-driven brightness/saturation/hue-shift/pan
+   * response (`AbstractPostDockHologramConfig.brightnessBoost`/
+   * `saturationBoost`/`hueShiftAmount`/`offsetGain`) — the further a card
+   * sits from the active slot. Both are independent live-pointer
+   * subscriptions on the same card (`useCardLiftPhysics` for scale/lift/
+   * tilt, a separate `usePointerProximity` feeding the gradient mesh for
+   * brightness/saturation/hue), so both need the identical taper or a card
+   * can still visibly brighten/saturate on settle even after its scale/tilt
+   * ceiling has already been zeroed (AUDIT-COVERFLOW-PROXIMITY-JUMP.md).
+   * Unlike `inactiveCardColumnDarkeningStep` above, this deliberately does
+   * NOT exempt distance-1: that exemption exists there to protect an
+   * operator's configured *resting* neighbor color/identity, a concern that
+   * doesn't transfer here, since tapering either engine's live-hover
+   * ceiling never touches a card's resting (unhovered/idle) appearance —
+   * only what happens if a cursor still lingers over it. The immediate
+   * neighbor is in fact the single most likely position for this to matter
+   * in practice: it's the slot spatially closest to wherever the card just
+   * left, and — on this page's own split-column layout — often the one
+   * physically adjacent to the list a user just clicked in (confirmed live
+   * against the real repro layout). See pages/abstract.tsx's own per-card
+   * `ctaConfig`/`journalHologramConfig` for the exact `1 - min(1, distance *
+   * step)` amplitude multiplier applied to `proximityScale`/
+   * `proximityLiftPx`/`tiltMaxDegrees` before `useCardLiftPhysics`, and to
+   * `brightnessBoost`/`saturationBoost`/`hueShiftAmount`/`offsetGain`
+   * before the gradient mesh — distance 0 (the active card itself) is
+   * always multiplier 1 by construction, no separate exemption needed.
+   * Exists because a card that has already left the active slot can still
+   * sit under a stationary cursor while CoverFlow's own position spring
+   * carries it further out — a full-amplitude ceiling that far from a
+   * card's own resting focus is what makes any residual settle timing read
+   * as a visible snap/brighten rather than a receding, secondary element.
+   * Zero preserves every card's hover ceiling on both engines exactly as
+   * configured regardless of distance (opt-out, byte-identical to every
+   * caller before this field existed). */
+  inactiveCardHoverAmplitudeStep: number;
   /** CSS `perspective`, px — one flat value across every tier. */
   perspectivePx: number;
   /** CSS `perspective-origin`, percent of the coverflow's own container box. */
@@ -151,6 +189,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   stackSpacingToCenterGapRatio: 2,
   rotationDeg: 40,
   inactiveCardColumnDarkeningStep: 1,
+  inactiveCardHoverAmplitudeStep: 1,
   perspectivePx: 2440,
   perspectiveOriginXPercent: 50,
   perspectiveOriginYPercent: 50,
@@ -186,6 +225,8 @@ const ROTATION_DEG_MIN = 0;
 const ROTATION_DEG_MAX = 90;
 const INACTIVE_CARD_COLUMN_DARKENING_STEP_MIN = 0;
 const INACTIVE_CARD_COLUMN_DARKENING_STEP_MAX = 1;
+const INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MIN = 0;
+const INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MAX = 1;
 const DEPTH_PX_MIN = 0;
 const DEPTH_PX_MAX = 2000;
 const REFERENCE_WIDTH_PX_MIN = 50;
@@ -231,6 +272,11 @@ export function normalizeCoverFlowConfig(
       base.inactiveCardColumnDarkeningStep,
       INACTIVE_CARD_COLUMN_DARKENING_STEP_MIN,
       INACTIVE_CARD_COLUMN_DARKENING_STEP_MAX,
+    ),
+    inactiveCardHoverAmplitudeStep: clamp(
+      base.inactiveCardHoverAmplitudeStep,
+      INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MIN,
+      INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MAX,
     ),
     perspectivePx: clamp(base.perspectivePx, PERSPECTIVE_PX_MIN, PERSPECTIVE_PX_MAX),
     perspectiveOriginXPercent: clamp(

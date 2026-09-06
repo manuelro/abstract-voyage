@@ -3880,6 +3880,46 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         columnDarkeningAmount,
       )
       : coverFlowStackPresentationBase.surfaceColor;
+    // AUDIT-COVERFLOW-PROXIMITY-JUMP.md recommendation #3: taper the hover
+    // engine's own scale/lift/tilt ceiling the further a card sits from the
+    // active slot — unlike columnDarkeningAmount above, this deliberately
+    // includes distance-1 (see CoverFlow.config.ts's own
+    // inactiveCardHoverAmplitudeStep doc comment for why that exemption
+    // doesn't transfer here: confirmed live against the real repro layout
+    // that the immediate neighbor is the slot most likely to still be under
+    // the cursor right after a list click). Distance 0 (the active card)
+    // always resolves to multiplier 1 by construction, no separate check
+    // needed. A card that's already left the active slot can still sit
+    // under a stationary cursor while CoverFlow's own position spring
+    // carries it further out; shrinking how far its hover effect can push it
+    // leaves any residual settle-timing mismatch far less amplitude to
+    // visibly snap with.
+    const hoverAmplitudeMultiplier = 1 - Math.min(
+      1,
+      position.distanceFromActive * coverFlowConfig.inactiveCardHoverAmplitudeStep,
+    );
+    const cardCtaConfig = hoverAmplitudeMultiplier >= 1 ? normalizedCtaButtonConfig : {
+      ...normalizedCtaButtonConfig,
+      proximityScale: 1 + (normalizedCtaButtonConfig.proximityScale - 1) * hoverAmplitudeMultiplier,
+      proximityLiftPx: normalizedCtaButtonConfig.proximityLiftPx * hoverAmplitudeMultiplier,
+      tiltMaxDegrees: normalizedCtaButtonConfig.tiltMaxDegrees * hoverAmplitudeMultiplier,
+    };
+    // Same taper, second live-proximity engine: the gradient/hologram mesh's
+    // own brightness/saturation/hue-shift/pan response is a completely
+    // separate usePointerProximity subscription from useCardLiftPhysics
+    // above (AbstractJournalLabCollection.tsx's own second usePointerProximity
+    // call, feeding LiquidGradientAdapter's hologramInteraction) — tapering
+    // ctaConfig alone leaves this one at full amplitude, so a departing card
+    // can still visibly brighten/saturate on settle even after its scale/
+    // tilt ceiling is already zeroed. See CoverFlow.config.ts's own
+    // inactiveCardHoverAmplitudeStep doc comment.
+    const cardHologramConfig = hoverAmplitudeMultiplier >= 1 ? dockHologramConfig : {
+      ...dockHologramConfig,
+      offsetGain: dockHologramConfig.offsetGain * hoverAmplitudeMultiplier,
+      hueShiftAmount: dockHologramConfig.hueShiftAmount * hoverAmplitudeMultiplier,
+      saturationBoost: dockHologramConfig.saturationBoost * hoverAmplitudeMultiplier,
+      brightnessBoost: dockHologramConfig.brightnessBoost * hoverAmplitudeMultiplier,
+    };
     return (
       <div
         className={`cover-flow-card ${isActive ? 'cover-flow-card--active' : 'cover-flow-card--inactive'}`}
@@ -3904,12 +3944,12 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           basePalette={coverFlowPalettes?.[index] ?? null}
           influencedPalette={coverFlowPalettes?.[index] ?? null}
           visualSlide={article}
-          journalHologramConfig={dockHologramConfig}
+          journalHologramConfig={cardHologramConfig}
           cardWidthPx={geometry.width}
           cardHeightPx={geometry.height}
           cardRadius={resolvedCollectionDockLayoutConfig.cardRadius}
           layoutConfig={resolvedCollectionDockLayoutConfig}
-          ctaConfig={normalizedCtaButtonConfig}
+          ctaConfig={cardCtaConfig}
           reveal={COVER_FLOW_DISABLED_REVEAL}
           detailsRevealSettled={cardDetailsRevealSettled}
           staggerRevealDelaysMs={revealDelaysMs}
@@ -3938,7 +3978,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     journalDockSliderConfig, coverFlowPalettes, dockHologramConfig, resolvedCollectionDockLayoutConfig,
     normalizedCtaButtonConfig, coverFlowStackPresentationBase, coverFlowContentInsetCqw,
     coverFlowColumnBackgroundColor, coverFlowConfig.inactiveCardColumnDarkeningStep,
-    cardAppearanceConfig,
+    coverFlowConfig.inactiveCardHoverAmplitudeStep, cardAppearanceConfig,
   ]);
 
   return (
