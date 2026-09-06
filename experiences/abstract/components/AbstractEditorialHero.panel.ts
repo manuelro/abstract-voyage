@@ -398,6 +398,12 @@ const ALL_SIZES_FIELDS = [
     label: 'Emphasis',
     fields: [
       {
+        kind: 'boolean',
+        key: 'emphasisHighlightEnabled',
+        label: 'Highlight pivot words',
+        description: 'On (default): the two **word**-marked pivot words per paragraph (and [text](href) links) render with the weight/opacity/color settings below. Off: every word in the paragraph — pivot or not — renders identically, as plain body text; links keep their dotted underline (a functional "this is clickable" cue, not a decorative highlight) but otherwise blend in. Never affects the headline — it doesn\'t use this highlighting mechanism at all, on or off.',
+      },
+      {
         kind: 'enum',
         key: 'emphasisFontWeight',
         label: 'Emphasis weight',
@@ -408,6 +414,7 @@ const ALL_SIZES_FIELDS = [
           { label: 'SEMIBOLD', value: 'font-semibold' },
           { label: 'BOLD', value: 'font-bold' },
         ],
+        visibleWhen: config => config.emphasisHighlightEnabled,
       },
       {
         kind: 'number',
@@ -426,6 +433,7 @@ const ALL_SIZES_FIELDS = [
         min: 0.88,
         max: 1,
         step: 0.01,
+        visibleWhen: config => config.emphasisHighlightEnabled,
       },
     ],
   },

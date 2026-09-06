@@ -465,13 +465,24 @@ export function AbstractEditorialHero({
                       {' '}
                     </>
                   ) : null}
-                  {renderEmphasisText(
-                    paragraph,
-                    bodyOpacityOverride ?? normalized.emphasisDimOpacity,
-                    highlightOpacityOverride ?? normalized.emphasisWordOpacity,
-                    normalized.emphasisFontWeight,
-                    highlightColorOverride,
-                  )}
+                  {(() => {
+                    const resolvedDimOpacity = bodyOpacityOverride ?? normalized.emphasisDimOpacity;
+                    // Opt-out path (AbstractEditorialHeroConfig.emphasisHighlightEnabled's
+                    // own doc comment): pass the same opacity for both roles and
+                    // omit className/color override, so **word**/[text](href)
+                    // runs render identically to plain body text — never
+                    // touches the headline, which doesn't route through
+                    // renderEmphasisText at all.
+                    return renderEmphasisText(
+                      paragraph,
+                      resolvedDimOpacity,
+                      normalized.emphasisHighlightEnabled
+                        ? (highlightOpacityOverride ?? normalized.emphasisWordOpacity)
+                        : resolvedDimOpacity,
+                      normalized.emphasisHighlightEnabled ? normalized.emphasisFontWeight : undefined,
+                      normalized.emphasisHighlightEnabled ? highlightColorOverride : undefined,
+                    );
+                  })()}
                 </p>
               ))}
             </div>

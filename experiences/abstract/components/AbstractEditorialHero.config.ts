@@ -233,6 +233,21 @@ export type AbstractEditorialHeroConfig = {
   leadGapLg: MarginTopLgClass;
   copyLineHeight: number;
   copyLetterSpacingEm: number;
+  /** Opt-in — off (`false`) renders every `**word**`/`[text](href)` run in
+   * the paragraph copy identically to plain body text: same opacity as
+   * everything else (no separate Emphasis word opacity/Base word opacity
+   * split below), no Emphasis weight, no highlightColorOverride. A link
+   * still keeps its own dotted underline (that's a functional "this is
+   * clickable" affordance, not a decorative highlight, so it survives this
+   * toggle) but otherwise reads as ordinary copy. True (default) reproduces
+   * today's exact highlighted-pivot-word behavior unchanged — this field
+   * alone changes nothing until an operator opts out. Scoped to the
+   * paragraph copy only: the headline is never routed through
+   * renderEmphasisText in the first place (it's rendered as a literal
+   * string, with or without this field), so it has no highlighting to turn
+   * off and is always fully excepted from this toggle regardless of its
+   * value. */
+  emphasisHighlightEnabled: boolean;
   /** About page's own emphasis mechanism (renderEmphasisText,
    * helpers/textEmphasis.tsx), reused verbatim here — but NOT
    * About's own literal 0.45/0.95 values, which were tuned against About's
@@ -242,7 +257,8 @@ export type AbstractEditorialHeroConfig = {
    * pushing past that point are trading body-text contrast for a stronger
    * fade deliberately, not by accident. emphasisFontWeight below is the
    * primary, contrast-safe highlight cue; this opacity pair is a secondary
-   * fine-tune on top of it. */
+   * fine-tune on top of it. Ignored (see emphasisHighlightEnabled above)
+   * whenever highlighting itself is off. */
   emphasisDimOpacity: number;
   emphasisWordOpacity: number;
   /** Literal Tailwind font-weight class applied to the emphasis run only
@@ -305,6 +321,7 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   leadGapLg: 'lg:mt-5',
   copyLineHeight: 1.55,
   copyLetterSpacingEm: -0.03,
+  emphasisHighlightEnabled: true,
   emphasisDimOpacity: 0.5,
   emphasisWordOpacity: 0.88,
   emphasisFontWeight: 'font-normal',
@@ -536,6 +553,7 @@ export function normalizeAbstractEditorialHeroConfig(
       0.02,
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.copyLetterSpacingEm,
     ),
+    emphasisHighlightEnabled: base.emphasisHighlightEnabled !== false,
     // Floor of 0.5 is an explicit operator override of the previous 0.88
     // (the lowest value that held the locked 4.5:1 body-contrast floor
     // against this hero's own copyColor/surface pairing) — see the type's
