@@ -583,7 +583,7 @@ export const DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG = {
   showArrowControlsEnabled: false,
   neighborRotationDeg: 0,
   neighborScaleDownPercent: 0.04,
-  neighborOpacity: 0.55,
+  neighborOpacity: 0.43,
   neighborGradientRevealDurationMs: 500,
   neighborGradientRevealEasing: 'gentle',
   neighborGradientRevealBlurPx: 24,
