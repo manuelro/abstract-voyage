@@ -130,6 +130,38 @@ export type CoverFlowConfig = {
    * framer-motion doesn't expose a "has this spring settled" event, only a
    * continuously-updating value. */
   activeSettleDelayMs: number;
+  /** Ramps this card's own scale/lift/tilt (useCardLiftPhysics) and every
+   * proximity-driven hologram term — pan (offsetX/Y), hue shift, saturation
+   * boost, and brightness boost alike (GradientRenderer's own
+   * hologramOffsetX/Y/hologramHueShift/hologramSaturationBoost/
+   * hologramBrightnessBoost) — ceiling from 0 up to 1 as it starts
+   * transitioning to active, and symmetrically back down to
+   * 0 as it lands inactive — a continuous, time-driven counterpart to
+   * `inactiveCardHoverAmplitudeStep` above, which does the same "recede
+   * toward a flat, non-hoverable card" job but keyed on distance-from-active
+   * instead of elapsed time (see that field's own doc comment). This one
+   * exists because distance is always 0 for the active card itself — it
+   * structurally can't help while the incoming card's own position spring
+   * is still sliding into place but its proximity response is already at
+   * full strength (the still-unaddressed half of
+   * AUDIT-COVERFLOW-PROXIMITY-JUMP.md's original diagnosis).
+   *
+   * 0-1, same bounds and same "0 disables it" convention as
+   * `inactiveCardHoverAmplitudeStep` — 0 is instant, byte-identical to
+   * today's behavior; 1 is maximally gradual. Internally converted to a
+   * real duration via the fixed, non-operator-facing
+   * `ACTIVATION_RAMP_REFERENCE_DURATION_MS` reference below (the same
+   * "ratio against a fixed reference" shape `depthPxAtReferenceWidth`/
+   * `referenceWidthPx` already use above) rather than exposed as a literal
+   * millisecond value directly — time doesn't share `inactiveCardHover
+   * AmplitudeStep`'s own distance-step scale, so a literal "step per ms"
+   * copy of that field's shape would cram every practically useful value
+   * into an imprecise, unintuitive sliver of a 0-1 dial. Both directions
+   * share one duration and easing (`useCardLiftPhysics`'s own
+   * `ctaConfig.stateExitEasing`) — see pages/abstract.tsx's own
+   * `renderCoverFlowItem` for where the ratio is resolved into an effective
+   * duration and threaded down to both engines. */
+  activationRampRate: number;
   /** Once a card settles as active (see activeSettleDelayMs above), every
    * one of its own content elements — meta row, title, excerpt, and CTA
    * alike — joins the same reveal/exit gate. This toggle only controls the
@@ -178,6 +210,12 @@ export type CoverFlowConfig = {
 const DEFAULT_CARD_WIDTH_RATIO = 0.62;
 const DEFAULT_PERSPECTIVE_PX = 1000;
 
+/** Non-operator-facing — see `activationRampRate`'s own doc comment for why
+ * this is a fixed reference rather than a panel field. 800ms matches the
+ * position spring's own real settle-time upper bound (the same derivation
+ * `activeSettleDelayMs`'s original audit already used). */
+export const ACTIVATION_RAMP_REFERENCE_DURATION_MS = 800;
+
 export const DEFAULT_COVER_FLOW_CONFIG = {
   cardDistanceRatio: 1.5,
   cardDistanceRatioMd: 1.1,
@@ -201,6 +239,10 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   scrollThresholdPx: 100,
   clickVsDragThresholdPx: 6,
   activeSettleDelayMs: 120,
+  // Echoes inactiveCardHoverAmplitudeStep's own original (later-superseded)
+  // default — a familiar starting point to tune live from, giving 400ms
+  // under ACTIVATION_RAMP_REFERENCE_DURATION_MS above.
+  activationRampRate: 0,
   staggeredCardRevealEnabled: true,
   staggeredCardRevealStepMs: 90,
   // Matches components/ArticleCard.detailFade.ts's own
@@ -243,6 +285,8 @@ const CARD_ASPECT_RATIO_MIN = 0.2;
 const CARD_ASPECT_RATIO_MAX = 5;
 const ACTIVE_SETTLE_DELAY_MS_MIN = 0;
 const ACTIVE_SETTLE_DELAY_MS_MAX = 3000;
+const ACTIVATION_RAMP_RATE_MIN = 0;
+const ACTIVATION_RAMP_RATE_MAX = 1;
 const STAGGERED_CARD_REVEAL_STEP_MS_MIN = 0;
 const STAGGERED_CARD_REVEAL_STEP_MS_MAX = 1000;
 const STAGGERED_CARD_REVEAL_ELEMENT_DURATION_MS_MIN = 0;
@@ -296,6 +340,9 @@ export function normalizeCoverFlowConfig(
     ),
     activeSettleDelayMs: clamp(
       base.activeSettleDelayMs, ACTIVE_SETTLE_DELAY_MS_MIN, ACTIVE_SETTLE_DELAY_MS_MAX,
+    ),
+    activationRampRate: clamp(
+      base.activationRampRate, ACTIVATION_RAMP_RATE_MIN, ACTIVATION_RAMP_RATE_MAX,
     ),
     staggeredCardRevealEnabled: base.staggeredCardRevealEnabled === true,
     staggeredCardRevealStepMs: clamp(

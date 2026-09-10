@@ -69,6 +69,9 @@ export function LiquidGradientAdapter({
   hologramDampingReleaseMs = DEFAULT_CTA_BUTTON_CONFIG.proximityReleaseMs,
   gaussianProximityOffsetXRef = null,
   outputTreatment = DEFAULT_GRADIENT_OUTPUT_TREATMENT,
+  isActive = false,
+  activationRampDurationMs = 0,
+  activationRampEasingCss = 'ease-out',
 }: {
   slide: SliderSlide;
   motion: ReturnType<typeof useLiquidSliderMotion>;
@@ -108,6 +111,36 @@ export function LiquidGradientAdapter({
   /** Optional final-fragment material treatment. The default color mode is a
    * no-op and preserves the journal renderer; labs opt into metal luminance. */
   outputTreatment?: GradientOutputTreatment;
+  /** Opt-in: this instance's own current "role" for the activation ramp
+   * below (e.g. a card stack's `stackActiveSlide`) — true while it holds
+   * the active/centered role. Only the *transitions* matter; see
+   * `activationRampDurationMs` below. false (default): matches every
+   * existing caller, which never passes this. */
+  isActive?: boolean;
+  /** Opt-in: recedes `hologramResponseStrength` — the shared envelope
+   * `hologramOffsetX`/`-Y` (the gradient field's own pan), `hologramHueShift`,
+   * `hologramSaturationBoost`, `hologramBrightnessBoost`, and
+   * `outputTreatmentInteractionStrength` (metal-luminance mode) are all
+   * derived from — toward 0 for this many ms after `isActive` flips false,
+   * and symmetrically ramps it back up to full strength over the same
+   * duration after `isActive` flips true — the render-loop counterpart to
+   * `useCardLiftPhysics`'s own identically named option
+   * (components/proximity/useCardLiftPhysics.ts), sharing the same duration
+   * so both engines move in lockstep. Originally scoped to
+   * `hologramBrightnessBoost` alone (sixth pass), then widened to the other
+   * three derived terms individually (seventh pass) — tenth pass centralized
+   * it onto the shared envelope itself instead, so every current *and
+   * future* reader of `hologramResponseStrength` inherits the same damping
+   * with no separate wiring (see PLAN-COVERFLOW-ACTIVE-CARD-SETTLE-RAMP.md's
+   * tenth-pass revision note). 0 (default): every existing caller sees zero
+   * behavior change. */
+  activationRampDurationMs?: number;
+  /** CSS easing for the ramp above — pass the same token driving the
+   * `useCardLiftPhysics` side (that hook's own `config.stateExitEasing`) so
+   * both engines feel like one coordinated motion rather than two
+   * independently-tuned ones. Inert whenever `activationRampDurationMs` is
+   * 0. */
+  activationRampEasingCss?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const motionValuesRef = useRef<LiquidSliderMotionValues>(NEUTRAL_MOTION_VALUES);
@@ -172,6 +205,24 @@ export function LiquidGradientAdapter({
     lastFrame: 0,
     hasDragged: false,
   });
+  // Activation ramp (see isActive/activationRampDurationMs's own doc
+  // comments above) — same render-time flip-detection idiom
+  // useCardLiftPhysics.ts uses for its own previousForceElevatedRef: a plain
+  // timestamp, updated the instant isActive flips, read every render-loop
+  // frame to compute hologramRampProgress inline. Seeded at -Infinity so
+  // the very first render always resolves to full ceiling regardless of
+  // isActive's initial value — the ramp only ever applies to a later
+  // transition, never to a freshly-mounted instance.
+  const isActiveRef = useRef(isActive);
+  const activationRampDurationMsRef = useRef(activationRampDurationMs);
+  const activationRampEasingCssRef = useRef(activationRampEasingCss);
+  const previousIsActiveForRampRef = useRef(isActive);
+  const activationRampRoleChangedAtMsRef = useRef(Number.NEGATIVE_INFINITY);
+  const activationRampEasingFnRef = useRef<{ css: string; fn: (progress: number) => number } | null>(null);
+  if (previousIsActiveForRampRef.current !== isActive) {
+    previousIsActiveForRampRef.current = isActive;
+    activationRampRoleChangedAtMsRef.current = performance.now();
+  }
   activityRef.current = activity;
   hologramConfigRef.current = hologramConfig;
   hologramInteractionRef.current = hologramInteraction;
@@ -179,6 +230,9 @@ export function LiquidGradientAdapter({
   hologramDampingReleaseMsRef.current = hologramDampingReleaseMs;
   gaussianProximityOffsetXRefRef.current = gaussianProximityOffsetXRef;
   outputTreatmentRef.current = outputTreatment;
+  isActiveRef.current = isActive;
+  activationRampDurationMsRef.current = activationRampDurationMs;
+  activationRampEasingCssRef.current = activationRampEasingCss;
 
   // Canvas blur driver: legacy softness plus the master-bus smoothing, with
   // extra blur headroom when the master knob is engaged (blur px = var · 2.4).
@@ -494,6 +548,39 @@ export function LiquidGradientAdapter({
         } else {
           hologramResponseStrength = targetStrength;
         }
+        // Activation ramp — one progress value (0-1) recedes every
+        // proximity-driven hologram term below toward 0 as this card lands
+        // inactive, and ramps them all back up together as it becomes
+        // active (see isActive/activationRampDurationMs's own doc comments
+        // above). Originally scoped to hologramBrightnessBoost alone (sixth
+        // pass), then widened to the other three derived terms individually
+        // (seventh pass). Tenth pass: applied once, directly to
+        // hologramResponseStrength itself, instead of separately to each of
+        // the four terms below — the same number, computed once. This also
+        // means outputTreatmentInteractionStrength (below, metal-luminance
+        // mode only) now automatically reads the damped value with no code
+        // change of its own, closing the one place a still-transitioning
+        // card's own "how loud am I allowed to be" state wasn't reaching a
+        // reader of this envelope. Applied *after* hologramStrengthRef.current
+        // is updated above, so next frame's attack/release step still chases
+        // the real, undamped proximity signal — only this frame's output is
+        // damped, not the stored envelope itself.
+        const activationRampDurationMsValue = activationRampDurationMsRef.current;
+        let hologramRampProgress = 1;
+        if (activationRampDurationMsValue > 0) {
+          const elapsedMs = now - activationRampRoleChangedAtMsRef.current;
+          const rawProgress = clamp(elapsedMs / activationRampDurationMsValue, 0, 1);
+          const easingCss = activationRampEasingCssRef.current;
+          if (activationRampEasingFnRef.current?.css !== easingCss) {
+            activationRampEasingFnRef.current = {
+              css: easingCss,
+              fn: createCssEasingFunction(easingCss),
+            };
+          }
+          const easedProgress = activationRampEasingFnRef.current.fn(rawProgress);
+          hologramRampProgress = isActiveRef.current ? easedProgress : 1 - easedProgress;
+        }
+        hologramResponseStrength *= hologramRampProgress;
         // Offset pans opposite the tilt, like a layer sitting behind glass;
         // hue ties to the horizontal axis only — the classic "colour shifts
         // as you turn it side to side" iridescent cue. Sign/axis choices

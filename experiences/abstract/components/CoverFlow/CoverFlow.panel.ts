@@ -255,6 +255,15 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           integer: true,
         },
         {
+          kind: 'number',
+          key: 'activationRampRate',
+          label: 'Activation ramp rate',
+          description: 'Ramps this card\'s own scale/lift/tilt AND every proximity-driven hologram term (pan, hue shift, saturation boost, brightness boost) ceiling from 0 up to 1 as it starts transitioning to active, and symmetrically back to 0 as it lands inactive — the continuous, time-driven counterpart to "Inactive card hover amplitude step" above (which does the same job keyed on distance instead), built specifically for the active card itself, since distance is always 0 there. 0 disables the ramp (instant, today\'s behavior); 1 is maximally gradual.',
+          min: 0,
+          max: 1,
+          step: 0.01,
+        },
+        {
           kind: 'boolean',
           key: 'staggeredCardRevealEnabled',
           label: 'Staggered element reveal',

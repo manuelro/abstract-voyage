@@ -15,6 +15,7 @@ import React, {
 import ArticleCard, { type ArticleCardTypographyScale } from '../../../components/ArticleCard';
 import type { SectionHeadingConfig } from '../../../components/SectionHeading.config';
 import {
+  CTA_BUTTON_MOTION_EASINGS,
   DEFAULT_CTA_BUTTON_CONFIG,
   type CtaButtonConfig,
 } from '../../../components/CtaButton/config/registered';
@@ -607,6 +608,20 @@ export type HueFadeCardProps = {
    *     covering both stack-only behaviors this card opts into.
    */
   stackActiveSlide?: boolean;
+  /** Opt-in: effective duration (ms) of the activation ramp — recedes this
+   * card's own scale/lift/tilt (via `useCardLiftPhysics`'s identically named
+   * option) and every proximity-driven hologram term — pan (offsetX/Y), hue
+   * shift, saturation boost, and brightness boost alike (via
+   * `LiquidGradientAdapter`'s `isActive`/`activationRampDurationMs`) —
+   * ceiling toward 0 for this long after `stackActiveSlide` flips false,
+   * and symmetrically back up over the same duration after it flips true —
+   * both engines driven by this exact `stackActiveSlide` value, so scale/
+   * lift/tilt/hologram all move together as one ramp rather than several
+   * independently-timed ones. 0 (default): every existing caller sees zero
+   * behavior change — the ceiling always resolves to 1. Only CoverFlow's
+   * own `Card.tsx` adapter (`pages/abstract.tsx`) currently resolves this
+   * from `CoverFlowConfig.activationRampRate`. */
+  activationRampDurationMs?: number;
   /** Opt-in, stack-only: this card is CardStack.tsx's own non-active
    * neighbor slot (`offset !== 0`) that has *settled* — no step is in
    * flight (`!step.isTransitioning`). Only in that settled state do the
@@ -803,6 +818,7 @@ export function AbstractJournalLabHueFadeCard({
   meshActivity,
   ctaConfig = CTA,
   stackActiveSlide = false,
+  activationRampDurationMs = 0,
   stackNeighborSettled = false,
   stackSlotAnimating = false,
   stackPresentationTransitioning = false,
@@ -944,7 +960,28 @@ export function AbstractJournalLabHueFadeCard({
     // Flat/non-stack cards and neighbors (stackActiveSlide false) keep the
     // engine's own default directional shadow, unaffected.
     centeredShadow: stackActiveSlide,
+    // Ramps this card's own scale/lift/tilt ceiling from 0 up to 1 as it
+    // starts transitioning to active (stackActiveSlide flips true), and
+    // symmetrically back to 0 as it lands inactive — see
+    // activationRampDurationMs's own doc comment on HueFadeCardProps.
+    activationRampActive: stackActiveSlide,
+    activationRampDurationMs,
   });
+  // Own copy of the same "when did stackActiveSlide last flip" bookkeeping
+  // useCardLiftPhysics.ts tracks internally for its own proximity
+  // subscription (that one is encapsulated inside the hook, not reachable
+  // from here) — this one drives the hologram engine's own subscription's
+  // livelyUntilMs below, keeping ITS proximity signal fresh over the exact
+  // same window, for the identical reason. Also reused by the ambient
+  // sweep's own tilt ramp further down (see its own onFrame callback) —
+  // same flip, same window, one shared timestamp rather than a third copy.
+  const hologramRoleChangedAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const previousStackActiveSlideForHologramRef = useRef(stackActiveSlide);
+  if (previousStackActiveSlideForHologramRef.current !== stackActiveSlide) {
+    previousStackActiveSlideForHologramRef.current = stackActiveSlide;
+    hologramRoleChangedAtRef.current = performance.now();
+  }
+  const ambientSweepRampEasingCacheRef = useRef<{ css: string; fn: (progress: number) => number } | null>(null);
   const proximityRef = usePointerProximity<HTMLElement>({
     attackMs: ctaConfig.proximityAttackMs,
     disabled:
@@ -954,6 +991,14 @@ export function AbstractJournalLabHueFadeCard({
       !journalHologramConfig.enabled,
     freeze: stackSlotAnimating,
     easing: ctaConfig.proximityEasing,
+    // See useCardLiftPhysics.ts's own identically-purposed livelyUntilMs
+    // comment and usePointerProximity.ts's own doc comment on the option
+    // itself — keeps this subscription's rect/target fresh (not just this
+    // card's visible hologram amplitude ramped) while this card's own box
+    // may still be mid position-transition.
+    livelyUntilMs: activationRampDurationMs > 0
+      ? hologramRoleChangedAtRef.current + activationRampDurationMs
+      : 0,
     onChange: (_element, state) => {
       interactionRef.current = state;
     },
@@ -1210,8 +1255,34 @@ export function AbstractJournalLabHueFadeCard({
           tiltElement.style.removeProperty('--reveal-tilt-y');
           return;
         }
-        tiltElement.style.setProperty('--reveal-tilt-x', `${(-y * proximity * maxDeg).toFixed(3)}deg`);
-        tiltElement.style.setProperty('--reveal-tilt-y', `${(x * proximity * maxDeg).toFixed(3)}deg`);
+        // Same activation ramp as the rest of this card's own proximity
+        // response (see useCardLiftPhysics's tiltX/tiltY and
+        // GradientRenderer's hologramResponseStrength) — this callback only
+        // ever runs for a card that's already active or becoming active
+        // (the containing effect bails out unless stackActiveSlide is true,
+        // above), so unlike those two consumers there's no "receding" half
+        // to branch for; a plain rising ceiling is the whole story here.
+        let ambientSweepRampCeiling = 1;
+        if (activationRampDurationMs > 0) {
+          const elapsedMs = performance.now() - hologramRoleChangedAtRef.current;
+          const rawProgress = clamp(elapsedMs / activationRampDurationMs, 0, 1);
+          const easingCss = CTA_BUTTON_MOTION_EASINGS[ctaConfig.stateExitEasing];
+          if (ambientSweepRampEasingCacheRef.current?.css !== easingCss) {
+            ambientSweepRampEasingCacheRef.current = {
+              css: easingCss,
+              fn: createCssEasingFunction(easingCss),
+            };
+          }
+          ambientSweepRampCeiling = ambientSweepRampEasingCacheRef.current.fn(rawProgress);
+        }
+        tiltElement.style.setProperty(
+          '--reveal-tilt-x',
+          `${(-y * proximity * maxDeg * ambientSweepRampCeiling).toFixed(3)}deg`,
+        );
+        tiltElement.style.setProperty(
+          '--reveal-tilt-y',
+          `${(x * proximity * maxDeg * ambientSweepRampCeiling).toFixed(3)}deg`,
+        );
       } : undefined,
     });
     // ambientSweepSignature already covers every journalHologramConfig
@@ -1332,6 +1403,16 @@ export function AbstractJournalLabHueFadeCard({
           hologramInteraction={interactionRef}
           hologramDampingAttackMs={ctaConfig.proximityAttackMs}
           hologramDampingReleaseMs={ctaConfig.proximityReleaseMs}
+          // Same activation ramp as useCardLiftPhysics above, applied to
+          // every proximity-driven hologram term — offsetX/Y (the field's
+          // own pan), hueShift, saturationBoost, and brightnessBoost alike
+          // (see GradientRenderer.tsx's own isActive/activationRampDurationMs
+          // doc comments) — driven by the identical stackActiveSlide flip
+          // and duration, so scale/lift/tilt/hologram all move together as
+          // one ramp.
+          isActive={stackActiveSlide}
+          activationRampDurationMs={activationRampDurationMs}
+          activationRampEasingCss={CTA_BUTTON_MOTION_EASINGS[ctaConfig.stateExitEasing]}
         />
       ) : null}
       {stackPresentation ? (

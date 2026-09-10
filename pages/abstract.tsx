@@ -93,6 +93,7 @@ import type { AbstractJournalLabFlipSlot } from '../experiences/abstract/compone
 import { CTA_BUTTON_MOTION_EASINGS } from '../components/CtaButton/config/registered';
 import { CoverFlow, type CoverFlowCardReveal } from '../experiences/abstract/components/CoverFlow/CoverFlow';
 import {
+  ACTIVATION_RAMP_REFERENCE_DURATION_MS,
   DEFAULT_COVER_FLOW_CONFIG,
   normalizeCoverFlowConfig,
 } from '../experiences/abstract/components/CoverFlow/CoverFlow.config';
@@ -3920,6 +3921,17 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       saturationBoost: dockHologramConfig.saturationBoost * hoverAmplitudeMultiplier,
       brightnessBoost: dockHologramConfig.brightnessBoost * hoverAmplitudeMultiplier,
     };
+    // PLAN-COVERFLOW-ACTIVE-CARD-SETTLE-RAMP.md: the still-unaddressed half
+    // of AUDIT-COVERFLOW-PROXIMITY-JUMP.md's diagnosis — hoverAmplitudeMultiplier
+    // above is keyed on distanceFromActive, always 0 for the active card
+    // itself, so it structurally cannot recede the *incoming* card's own
+    // proximity ceiling while its position spring is still sliding into
+    // place. This is the time-driven counterpart: resolved once here from
+    // the operator-facing 0-1 ratio into a real duration (see
+    // CoverFlowConfig.activationRampRate's own doc comment), then threaded
+    // down to both proximity engines identically.
+    const activationRampDurationMs =
+      coverFlowConfig.activationRampRate * ACTIVATION_RAMP_REFERENCE_DURATION_MS;
     return (
       <div
         className={`cover-flow-card ${isActive ? 'cover-flow-card--active' : 'cover-flow-card--inactive'}`}
@@ -3964,6 +3976,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           meshActivity={isMeshLive ? 'continuous' : 'frozen'}
           stackNeighborSettled={!isActive && !isMeshLive}
           stackActiveSlide={isActive}
+          activationRampDurationMs={activationRampDurationMs}
           stackPresentation={{
             ...coverFlowStackPresentationBase,
             surfaceColor: coverFlowCardSurfaceColor,
@@ -3978,7 +3991,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     journalDockSliderConfig, coverFlowPalettes, dockHologramConfig, resolvedCollectionDockLayoutConfig,
     normalizedCtaButtonConfig, coverFlowStackPresentationBase, coverFlowContentInsetCqw,
     coverFlowColumnBackgroundColor, coverFlowConfig.inactiveCardColumnDarkeningStep,
-    coverFlowConfig.inactiveCardHoverAmplitudeStep, cardAppearanceConfig,
+    coverFlowConfig.inactiveCardHoverAmplitudeStep, coverFlowConfig.activationRampRate,
+    cardAppearanceConfig,
   ]);
 
   return (

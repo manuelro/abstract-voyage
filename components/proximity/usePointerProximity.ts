@@ -24,6 +24,35 @@ export type PointerProximityOptions = {
    * proximity/tilt data as the *box* changes rather than as any real
    * pointer movement, decaying it well before it's actually meant to. */
   freeze?: boolean;
+  /** Opt-in: an absolute `performance.now()`-style deadline (not a duration)
+   * — while `performance.now() < livelyUntilMs`, this subscriber's rect is
+   * re-measured on *every* frame (bypassing the normal ">160ms since last
+   * measurement" throttle below) and this subscriber alone keeps the
+   * shared frame loop scheduling (bypassing the normal "stop once every
+   * subscriber's damped value has caught up to its target" idle check) —
+   * regardless of whether its own damped proximity has already converged.
+   *
+   * Exists for the opposite reason `freeze` does, for the identical real-
+   * world trigger: an element whose own bounding box is being animated by
+   * something other than pointer movement (a card stack's own position
+   * spring). `freeze` handles that by holding the last computed value
+   * still, accepting a visibly two-staged freeze→release read once the
+   * animation ends. This handles it by staying maximally fresh instead —
+   * continuously re-measuring and re-computing against the box's *current*
+   * position for as long as it might still be moving — so a consumer that
+   * *also* ramps its own visible amplitude smoothly over that same window
+   * (see `useCardLiftPhysics`'s own `activationRampDurationMs`) never has
+   * to fall back to a stale, frozen proximity reading once that window
+   * ends; the signal itself stays live and accurate throughout, matching
+   * the ramp's own continuous character rather than introducing a second,
+   * unrelated two-stage transition.
+   *
+   * 0 (default): every existing caller sees zero behavior change —
+   * `performance.now()` is always positive, so `time < 0` never holds. An
+   * absolute deadline, not a duration, so the caller only has to compute
+   * it once per role change (e.g. `roleChangedAt + activationRampDurationMs`)
+   * rather than re-derive "how much longer" on every render. */
+  livelyUntilMs?: number;
   onChange?: (element: HTMLElement, state: PointerProximityState) => void;
   positionResponseMs?: number;
   radiusPx?: number;
@@ -68,6 +97,7 @@ const DEFAULT_OPTIONS: ResolvedPointerProximityOptions = {
   disabled: false,
   easing: 'smootherstep',
   freeze: false,
+  livelyUntilMs: 0,
   onChange: undefined,
   positionResponseMs: 95,
   radiusPx: 240,
@@ -111,8 +141,16 @@ const stepFrame = (time: number) => {
     // for why a fresh rect (the element's own box mid-animation) is exactly
     // what must *not* factor in while frozen.
     if (options.freeze) return;
+    // See livelyUntilMs's own doc comment — while this subscriber's own
+    // deadline hasn't passed, treat its rect as always-stale (re-measure
+    // every frame) regardless of the normal throttle below, so a box still
+    // being carried into place by something other than the pointer (a
+    // position spring) can't leave this subscriber computing against where
+    // that box *used to be*.
+    const forceLive = time < options.livelyUntilMs;
     if (
       !subscriber.rect ||
+      forceLive ||
       (pointerActive && time - subscriber.rectMeasuredAt > 160)
     ) {
       subscriber.rect = subscriber.element.getBoundingClientRect();
@@ -160,7 +198,13 @@ const stepFrame = (time: number) => {
       subscriber.currentY = nextY;
       writeProximity(subscriber);
     }
-    if (next !== target || nextX !== targetPosition.x || nextY !== targetPosition.y) {
+    // forceLive also keeps the shared loop scheduling on its own, even
+    // once this subscriber's own damped value has already caught up to
+    // whatever target its (possibly still-changing) rect produced this
+    // frame — otherwise the loop could go idle exactly the frame after a
+    // stale rect momentarily converges, and never wake back up to correct
+    // itself once the box's real position changes again.
+    if (next !== target || nextX !== targetPosition.x || nextY !== targetPosition.y || forceLive) {
       unsettled = true;
     }
   });
@@ -328,6 +372,7 @@ export function usePointerProximity<TElement extends HTMLElement>(
     options.disabled,
     options.easing,
     options.freeze,
+    options.livelyUntilMs,
     options.onChange,
     options.positionResponseMs,
     options.radiusPx,

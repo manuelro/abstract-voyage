@@ -176,6 +176,27 @@ export type UseCardLiftPhysicsOptions = {
    * unlike liftAxis: 'y', where the element genuinely displaces upward and
    * a downward-leaning shadow is the physically correct read. */
   centeredShadow?: boolean;
+  /** Opt-in: this instance's own current "role" for the activation ramp
+   * below (e.g. a card stack's `stackActiveSlide`) — true while it holds
+   * the active/centered role, false otherwise. Only the *transitions*
+   * (true→false, false→true) matter; the value itself is otherwise inert.
+   * false (default): matches every existing caller, which never flips this,
+   * so the ramp below never fires for them regardless of
+   * `activationRampDurationMs`. */
+  activationRampActive?: boolean;
+  /** Opt-in: recedes `composeAndApply`'s own scale/lift/tilt output — not
+   * `elevationPx` itself, so this stays fully orthogonal to whichever
+   * mechanism (a live proximity frame, a discrete press/focus/release
+   * tween, `forceElevated`) currently owns that value — toward a flat,
+   * non-hoverable ceiling of 0 for `activationRampDurationMs` after
+   * `activationRampActive` flips false, and symmetrically ramps back up to
+   * a full ceiling of 1 over the same duration after it flips true. Time-
+   * driven only (elapsed since the last flip), independent of proximity or
+   * distance. 0 (default): every existing caller sees zero behavior change
+   * — the ceiling always resolves to 1, exactly as if this didn't exist.
+   * Uses `config.stateExitEasing` for both directions (symmetry is the
+   * point) rather than a second, independently-tunable easing field. */
+  activationRampDurationMs?: number;
 };
 
 /**
@@ -207,6 +228,8 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
   shadowTarget = 'transform',
   liftAxis = 'y',
   centeredShadow = false,
+  activationRampActive = false,
+  activationRampDurationMs = 0,
 }: UseCardLiftPhysicsOptions) {
   const elementRef = useRef<TElement | null>(null);
   const pressedRef = useRef(false);
@@ -226,6 +249,27 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
   const shadowEasingCacheRef = useRef<{ css: string; fn: EasingFunction } | null>(null);
   const rotationDegRef = useRef(rotationDeg);
   rotationDegRef.current = rotationDeg;
+
+  // Activation ramp (see activationRampDurationMs's own doc comment above).
+  // Same render-time flip-detection idiom as previousForceElevatedRef
+  // further down, reused for this second, independent signal: a plain
+  // timestamp, updated the instant activationRampActive flips, read every
+  // composeAndApply call to compute progress inline — no tween object, no
+  // separate target/direction state. Seeded at -Infinity so the very first
+  // render (before any real flip has ever happened) always resolves to a
+  // full 1 ceiling regardless of activationRampActive's initial value — the
+  // ramp only ever applies to a later transition, never to a freshly-
+  // mounted instance.
+  const activationRampRoleChangedAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const previousActivationRampActiveRef = useRef(activationRampActive);
+  const activationRampTransitionPendingRef = useRef(false);
+  const activationRampFrameRef = useRef(0);
+  const activationRampEasingCacheRef = useRef<{ css: string; fn: EasingFunction } | null>(null);
+  if (previousActivationRampActiveRef.current !== activationRampActive) {
+    previousActivationRampActiveRef.current = activationRampActive;
+    activationRampRoleChangedAtRef.current = performance.now();
+    activationRampTransitionPendingRef.current = true;
+  }
 
   const elevationShadowOptions = useMemo(() => ({
     enabled: config.shadowEngineEnabled,
@@ -290,12 +334,35 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
     const hoverElevation = Math.max(config.shadowElevationHoverPx, 0.001);
     const liftGain = config.proximityLiftPx / hoverElevation;
     const scaleGain = (config.proximityScale - 1) / hoverElevation;
-    const lift = elevationPx * liftGain;
-    const scale = 1 + elevationPx * scaleGain;
+    // Activation ramp ceiling (0-1) — applied as the very last step before
+    // lift/scale/tilt are written to the transform, deliberately after
+    // elevationPx has already been resolved by whichever mechanism owns it
+    // (a live proximity frame, a discrete tween, forceElevated), so this
+    // stays fully orthogonal to that gating rather than woven into it. See
+    // activationRampDurationMs's own doc comment above.
+    const activationRampDurationEffectiveMs = prefersReducedMotion() ? 0 : activationRampDurationMs;
+    let activationRampCeiling = 1;
+    if (activationRampDurationEffectiveMs > 0) {
+      const elapsedMs = performance.now() - activationRampRoleChangedAtRef.current;
+      const rawProgress = Math.min(1, Math.max(0, elapsedMs / activationRampDurationEffectiveMs));
+      const activationRampEasingCss = CTA_BUTTON_MOTION_EASINGS[config.stateExitEasing];
+      if (activationRampEasingCacheRef.current?.css !== activationRampEasingCss) {
+        activationRampEasingCacheRef.current = {
+          css: activationRampEasingCss,
+          fn: createCssEasingFunction(activationRampEasingCss),
+        };
+      }
+      const easedProgress = activationRampEasingCacheRef.current.fn(rawProgress);
+      activationRampCeiling = activationRampActive ? easedProgress : 1 - easedProgress;
+    }
+    const lift = elevationPx * liftGain * activationRampCeiling;
+    const scale = 1 + elevationPx * scaleGain * activationRampCeiling;
     const tiltX = config.tiltEnabled && config.tiltYEnabled
-      ? -y * proximity * config.tiltMaxDegrees
+      ? -y * proximity * config.tiltMaxDegrees * activationRampCeiling
       : 0;
-    const tiltY = config.tiltEnabled ? x * proximity * config.tiltMaxDegrees : 0;
+    const tiltY = config.tiltEnabled
+      ? x * proximity * config.tiltMaxDegrees * activationRampCeiling
+      : 0;
     element.style.transform = [
       projection === 'local'
         ? `perspective(${config.tiltPerspectivePx}px)`
@@ -318,8 +385,11 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
     config.tiltYEnabled,
     config.tiltMaxDegrees,
     config.tiltPerspectivePx,
+    config.stateExitEasing,
     projection,
     liftAxis,
+    activationRampActive,
+    activationRampDurationMs,
   ]);
 
   const resolveTargetElevation = useCallback((proximity: number) => {
@@ -517,6 +587,17 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
     disabled,
     easing: config.proximityEasing,
     freeze,
+    // Keeps this subscriber's own proximity signal fresh (not just its
+    // visible amplitude ramped) for the exact same window the activation
+    // ramp above already animates over — see livelyUntilMs's own doc
+    // comment (usePointerProximity.ts) for why this, not freeze, is the
+    // right tool here: this card's box may still be mid position-transition
+    // (a stack's own spring), and a stale rect measured mid-slide could
+    // otherwise "stick" once this engine's own damped value happens to
+    // catch up to it, never correcting to the box's real final position.
+    livelyUntilMs: activationRampDurationMs > 0
+      ? activationRampRoleChangedAtRef.current + activationRampDurationMs
+      : 0,
     onChange: applyProximity,
     positionResponseMs: config.tiltResponseMs,
     radiusPx: config.proximityRadiusPx,
@@ -585,6 +666,36 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
     resolveTargetElevation,
     runElevationTween,
   ]);
+
+  // Keeps the activation ramp's own progress actually reaching the screen
+  // while nothing else is calling composeAndApply. Unlike GradientRenderer's
+  // own continuously-active WebGL render loop, usePointerProximity's
+  // per-frame loop (below) stops scheduling frames once proximity settles —
+  // if the pointer isn't moving while this card ramps, nothing would
+  // otherwise re-invoke composeAndApply to reflect the changing ceiling: the
+  // number would update in activationRampRoleChangedAtRef but never reach
+  // the transform. A minimal, self-terminating rAF loop — not a reusable
+  // tween utility, just "keep asking for one more frame until the ramp
+  // reaches its target" — covers that gap specifically.
+  useEffect(() => {
+    if (!activationRampTransitionPendingRef.current) return;
+    activationRampTransitionPendingRef.current = false;
+    if (activationRampFrameRef.current) {
+      window.cancelAnimationFrame(activationRampFrameRef.current);
+      activationRampFrameRef.current = 0;
+    }
+    if (activationRampDurationMs <= 0 || prefersReducedMotion()) return;
+    const step = () => {
+      composeAndApply(elevationRef.current);
+      const elapsedMs = performance.now() - activationRampRoleChangedAtRef.current;
+      if (elapsedMs < activationRampDurationMs) {
+        activationRampFrameRef.current = window.requestAnimationFrame(step);
+      } else {
+        activationRampFrameRef.current = 0;
+      }
+    };
+    activationRampFrameRef.current = window.requestAnimationFrame(step);
+  }, [activationRampActive, activationRampDurationMs, composeAndApply]);
 
   // Live panel edits (elevation targets, dev override, engine enable/
   // disable) should be reflected immediately, not just on the next pointer
@@ -657,6 +768,7 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
   useEffect(() => () => {
     if (elevationTweenRef.current) window.cancelAnimationFrame(elevationTweenRef.current);
     if (shadowVisibilityTweenRef.current) window.cancelAnimationFrame(shadowVisibilityTweenRef.current);
+    if (activationRampFrameRef.current) window.cancelAnimationFrame(activationRampFrameRef.current);
   }, []);
 
   const handlePress = useCallback(() => {
