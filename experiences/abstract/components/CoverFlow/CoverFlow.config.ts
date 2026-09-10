@@ -193,7 +193,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   perspectivePx: 2440,
   perspectiveOriginXPercent: 50,
   perspectiveOriginYPercent: 50,
-  depthPxAtReferenceWidth: 170,
+  depthPxAtReferenceWidth: 0,
   referenceWidthPx: 1000,
   minCardWidthPx: 400,
   enableClickToSnap: true,
@@ -202,14 +202,14 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   clickVsDragThresholdPx: 6,
   activeSettleDelayMs: 120,
   staggeredCardRevealEnabled: true,
-  staggeredCardRevealStepMs: 60,
+  staggeredCardRevealStepMs: 90,
   // Matches components/ArticleCard.detailFade.ts's own
   // ARTICLE_CARD_DETAIL_FADE_MS/-EASING_CSS exactly — same reveal language
   // as every other detail-fade on this card, not a competing one.
   staggeredCardRevealElementDurationMs: 480,
   staggeredCardRevealEasingCss: 'ease-out',
   cardRevealExitDelayMs: 20,
-  cardRevealExitDurationMs: 150,
+  cardRevealExitDurationMs: 320,
   cardRevealExitEasingCss: 'ease-out',
 } satisfies CoverFlowConfig;
 
