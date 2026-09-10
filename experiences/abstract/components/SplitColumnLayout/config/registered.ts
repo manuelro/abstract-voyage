@@ -47,7 +47,12 @@ export type SplitColumnLayoutHeaderBehavior = 'pushDown' | 'float';
 // surfaceColorDerivation.ts — the same primitive CtaButtonConfig's own auto
 // colors use), independently offset by wideColumnSurfaceOffset/
 // narrowColumnSurfaceOffset below.
-export type SplitColumnLayoutColorSource = 'none' | 'palette' | 'custom' | 'surface';
+// 'scrollGradient' is a PolymorphicLayoutColorSource-only value
+// (PolymorphicLayout.config.ts) never actually read here — included only so
+// PolymorphicLayout.tsx's own normalizedConfig (a PolymorphicLayoutConfig)
+// stays structurally assignable to the splitColumnLayoutConfig prop
+// SplitColumnPageShell takes (see PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md).
+export type SplitColumnLayoutColorSource = 'none' | 'palette' | 'custom' | 'surface' | 'scrollGradient';
 // 'transparent': this header segment gets no background of its own — the
 // page's own surface shows straight through, same as before either of the
 // two split-band fields below existed. 'custom': splitBand{Left,Right}
@@ -300,7 +305,7 @@ const RATIO_TIERS: ReadonlyArray<SplitColumnRatioTier> = [
 const STACKED_ORDERS: ReadonlyArray<SplitColumnStackedOrder> = ['narrowFirst', 'wideFirst'];
 const HEADER_BEHAVIORS: ReadonlyArray<SplitColumnLayoutHeaderBehavior> = ['pushDown', 'float'];
 const COLOR_SOURCES: ReadonlyArray<SplitColumnLayoutColorSource> = [
-  'none', 'palette', 'custom', 'surface',
+  'none', 'palette', 'custom', 'surface', 'scrollGradient',
 ];
 const BAND_MODES: ReadonlyArray<SplitColumnLayoutBandMode> = [
   'transparent', 'custom', 'syncWithColumnBelow',

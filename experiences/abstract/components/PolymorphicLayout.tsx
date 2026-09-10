@@ -23,6 +23,10 @@ import {
   type PolymorphicLayoutRatioTier,
   type PolymorphicLayoutContentContainerAlign,
 } from './PolymorphicLayout.config';
+import {
+  PolymorphicScrollGradientBackground,
+  type PolymorphicScrollGradientBackgroundProps,
+} from './PolymorphicScrollGradientBackground';
 
 /**
  * The real, shared `PolymorphicLayoutConfig` rendering component — every
@@ -100,12 +104,19 @@ function resolveColumnColor(
   pageSurfaceColor: string,
   paletteColorResolver: ((column: 'wide' | 'narrow') => string) | undefined,
   column: 'wide' | 'narrow',
+  scrollGradientInkColor: string,
 ): string {
   if (colorSource === 'custom') return customColor;
   if (colorSource === 'surface') return deriveSurfaceColor(pageSurfaceColor, surfaceOffset);
   if (colorSource === 'palette') {
     return paletteColorResolver ? paletteColorResolver(column) : COLOR_SOURCE_NONE_FALLBACK;
   }
+  // 'scrollGradient': this column paints transparent (see
+  // wideColumnPaintColor/narrowColumnPaintColor below) so the fixed
+  // full-viewport <PolymorphicScrollGradientBackground> shows through —
+  // but downstream ink/contrast consumers still need a real color to
+  // derive text against, which is what this branch returns.
+  if (colorSource === 'scrollGradient') return scrollGradientInkColor;
   return COLOR_SOURCE_NONE_FALLBACK;
 }
 
@@ -114,6 +125,20 @@ export type PolymorphicLayoutResolvedColors = {
   viewportWidthPx: number | undefined;
   wideColumnColor: string;
   narrowColumnColor: string;
+  /** What actually gets painted as each column's own backgroundColor —
+   * identical to wideColumnColor/narrowColumnColor for every colorSource
+   * except 'scrollGradient', where the column paints 'transparent' instead
+   * (letting the fixed <PolymorphicScrollGradientBackground> show through)
+   * while wideColumnColor/narrowColumnColor keep reporting a real ink color
+   * for every existing downstream contrast consumer to read, unchanged. */
+  wideColumnPaintColor: string;
+  narrowColumnPaintColor: string;
+  /** True when the current tier's resolved colorSource is 'scrollGradient'
+   * — PolymorphicLayout itself uses this to decide whether to mount
+   * <PolymorphicScrollGradientBackground>; scrollGradientResolved below is
+   * only meaningful while this is true. */
+  scrollGradientActive: boolean;
+  scrollGradientResolved: PolymorphicScrollGradientBackgroundProps;
   physicalLeftColumnColor: string;
   physicalRightColumnColor: string;
   resolvedSplitBandLeftColor: string;
@@ -189,14 +214,55 @@ export function usePolymorphicLayoutColors(
   const narrowColumnSurfaceOffset = tier(
     config.narrowColumnSurfaceOffset, config.narrowColumnSurfaceOffsetWide, config.narrowColumnSurfaceOffsetLg,
   );
+  const scrollGradientInkColor = tier(
+    config.scrollGradientInkColor, config.scrollGradientInkColorWide, config.scrollGradientInkColorLg,
+  );
   const wideColumnColor = resolveColumnColor(
     colorSourceResolved, wideColumnCustomColor, wideColumnSurfaceOffset,
-    pageSurfaceColor, paletteColorResolver, 'wide',
+    pageSurfaceColor, paletteColorResolver, 'wide', scrollGradientInkColor,
   );
   const narrowColumnColor = resolveColumnColor(
     colorSourceResolved, narrowColumnCustomColor, narrowColumnSurfaceOffset,
-    pageSurfaceColor, paletteColorResolver, 'narrow',
+    pageSurfaceColor, paletteColorResolver, 'narrow', scrollGradientInkColor,
   );
+  // See PolymorphicLayoutResolvedColors's own doc comment on
+  // wideColumnPaintColor/narrowColumnPaintColor above — everywhere except
+  // 'scrollGradient' these are identical to wideColumnColor/narrowColumnColor
+  // (byte-identical paint behavior to before this colorSource value existed).
+  const scrollGradientActive = colorSourceResolved === 'scrollGradient';
+  const wideColumnPaintColor = scrollGradientActive ? 'transparent' : wideColumnColor;
+  const narrowColumnPaintColor = scrollGradientActive ? 'transparent' : narrowColumnColor;
+  const scrollGradientResolved: PolymorphicScrollGradientBackgroundProps = {
+    baseHue: tier(config.scrollGradientBaseHue, config.scrollGradientBaseHueWide, config.scrollGradientBaseHueLg),
+    hueScheme: tier(
+      config.scrollGradientHueScheme, config.scrollGradientHueSchemeWide, config.scrollGradientHueSchemeLg,
+    ),
+    lightnessMin: tier(
+      config.scrollGradientLightnessMin, config.scrollGradientLightnessMinWide,
+      config.scrollGradientLightnessMinLg,
+    ),
+    chromaMin: tier(
+      config.scrollGradientChromaMin, config.scrollGradientChromaMinWide, config.scrollGradientChromaMinLg,
+    ),
+    mode: tier(config.scrollGradientMode, config.scrollGradientModeWide, config.scrollGradientModeLg),
+    stops: tier(config.scrollGradientStops, config.scrollGradientStopsWide, config.scrollGradientStopsLg),
+    variance: tier(
+      config.scrollGradientVariance, config.scrollGradientVarianceWide, config.scrollGradientVarianceLg,
+    ),
+    centerStretch: tier(
+      config.scrollGradientCenterStretch, config.scrollGradientCenterStretchWide,
+      config.scrollGradientCenterStretchLg,
+    ),
+    seed: tier(config.scrollGradientSeed, config.scrollGradientSeedWide, config.scrollGradientSeedLg),
+    viewportRangeVh: tier(
+      config.scrollGradientViewportRangeVh, config.scrollGradientViewportRangeVhWide,
+      config.scrollGradientViewportRangeVhLg,
+    ),
+    maxDarken: tier(
+      config.scrollGradientMaxDarken, config.scrollGradientMaxDarkenWide, config.scrollGradientMaxDarkenLg,
+    ),
+    tauMs: config.scrollGradientTauMs,
+  };
 
   const physicalLeftColumnColor = config.wideColumnSide === 'left' ? wideColumnColor : narrowColumnColor;
   const physicalRightColumnColor = config.wideColumnSide === 'left' ? narrowColumnColor : wideColumnColor;
@@ -279,6 +345,10 @@ export function usePolymorphicLayoutColors(
     viewportWidthPx,
     wideColumnColor,
     narrowColumnColor,
+    wideColumnPaintColor,
+    narrowColumnPaintColor,
+    scrollGradientActive,
+    scrollGradientResolved,
     physicalLeftColumnColor,
     physicalRightColumnColor,
     resolvedSplitBandLeftColor,
@@ -1097,13 +1167,24 @@ export function PolymorphicLayout({
   );
 
   return (
-    <SplitColumnPageShell
+    <>
+      {colors.scrollGradientActive ? (
+        <PolymorphicScrollGradientBackground {...colors.scrollGradientResolved} />
+      ) : null}
+      <SplitColumnPageShell
       layoutMode={normalizedConfig.layoutMode}
       centeredContentMaxWidth={normalizedConfig.centeredContentMaxWidth}
       centeredContentPaddingX={normalizedConfig.centeredContentPaddingX}
       className={className}
       style={style}
-      backgroundColor={backgroundColor}
+      // Transparent while the fixed <PolymorphicScrollGradientBackground>
+      // is active — <main>'s own opaque background (this prop) paints
+      // after (on top of) that earlier fixed sibling in DOM/paint order,
+      // so it has to step aside the same way the two columns' own
+      // wideColumnPaintColor/narrowColumnPaintColor already do, or the
+      // gradient is fully hidden behind it everywhere <main> extends past
+      // the columns (the header row, any gutter/padding).
+      backgroundColor={colors.scrollGradientActive ? 'transparent' : backgroundColor}
       pageSurfaceConfig={normalizedPageSurfaceConfig}
       header={header}
       headerOverlay={headerOverlay}
@@ -1167,9 +1248,17 @@ export function PolymorphicLayout({
       // is off, this component's own default, so this is byte-identical to
       // before these fields existed for every page that hasn't opted in.
       wideColumnStyle={{
-        backgroundColor: colors.wideColumnColor,
+        backgroundColor: colors.wideColumnPaintColor,
         ...(wideColumnStyle ?? {}),
         ...(wideColumnClearsFloatingHeaderStyle ?? {}),
+        // Forces paint back to transparent even when a page's own
+        // wideColumnStyle above explicitly sets backgroundColor (several
+        // pages redundantly pass colors.wideColumnColor here themselves,
+        // a no-op before wideColumnPaintColor existed since paint === ink
+        // for every other colorSource — no longer true for
+        // 'scrollGradient', where a page's stale override would otherwise
+        // hide the fixed background behind an opaque ink-colored column).
+        ...(colors.scrollGradientActive ? { backgroundColor: colors.wideColumnPaintColor } : {}),
       }}
       // mobileAlignPaddingLeftPx spread last so it always wins over
       // backgroundColor's own object literal — never the reverse — matching
@@ -1180,10 +1269,12 @@ export function PolymorphicLayout({
       // before this prop existed. narrowColumnClearsFloatingHeaderStyle
       // spreads last of all — its own paddingTop always wins.
       narrowColumnStyle={{
-        backgroundColor: colors.narrowColumnColor,
+        backgroundColor: colors.narrowColumnPaintColor,
         ...(narrowColumnStyle ?? {}),
         ...(mobileAlignPaddingLeftPx !== undefined ? { paddingLeft: mobileAlignPaddingLeftPx } : {}),
         ...(narrowColumnClearsFloatingHeaderStyle ?? {}),
+        // See the matching override on wideColumnStyle above — same reason.
+        ...(colors.scrollGradientActive ? { backgroundColor: colors.narrowColumnPaintColor } : {}),
       }}
       contentContainer={normalizedConfig.contentContainer}
       bodyGutterClassName={bodyGutterClassName}
@@ -1195,7 +1286,8 @@ export function PolymorphicLayout({
       onNavAlignmentChange={handleNavAlignmentChange}
     >
       {children}
-    </SplitColumnPageShell>
+      </SplitColumnPageShell>
+    </>
   );
 }
 

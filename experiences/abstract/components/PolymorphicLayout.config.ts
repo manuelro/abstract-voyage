@@ -136,8 +136,21 @@ export type PolymorphicLayoutHeaderBehavior = 'pushDown' | 'float';
 /** 'none': no background, the page surface shows through. 'palette':
  * derived from the card coloring engine's own ramp. 'custom': the two
  * fixed colors below, used verbatim. 'surface': derived from the page
- * surface color, offset by the amounts below. */
-export type PolymorphicLayoutColorSource = 'none' | 'palette' | 'custom' | 'surface';
+ * surface color, offset by the amounts below. 'scrollGradient': a fixed,
+ * full-viewport, scroll-darkening procedural gradient — this column itself
+ * paints transparent so the fixed layer shows through; see
+ * PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md. */
+export type PolymorphicLayoutColorSource = 'none' | 'palette' | 'custom' | 'surface' | 'scrollGradient';
+/** helpers/harmonicGradient.ts's own HueScheme, re-typed locally so this
+ * config file doesn't need a runtime import from that helper just for a
+ * string-union type. 'mono': single hue band around scrollGradientBaseHue.
+ * 'dual-complementary': two opposing hues bridged through the center. */
+export type PolymorphicLayoutScrollGradientHueScheme = 'mono' | 'dual-complementary';
+/** helpers/harmonicGradient.ts's own GradientMode, re-typed locally, same
+ * reason as PolymorphicLayoutScrollGradientHueScheme above. 'center-bright':
+ * bright center, darker edges. 'side-bright': dark center, bright edges —
+ * the legacy scroll-gradient's own default. */
+export type PolymorphicLayoutScrollGradientMode = 'center-bright' | 'side-bright';
 /** 'transparent': this header segment gets no background of its own.
  * 'custom': the fixed color below, used verbatim. 'syncWithColumnBelow':
  * mirrors whichever color the column below it actually resolved to. */
@@ -879,6 +892,69 @@ export type PolymorphicLayoutConfig = {
   wideColumnSurfaceOffsetLg: number;
   narrowColumnSurfaceOffsetWide: number;
   narrowColumnSurfaceOffsetLg: number;
+  /** Used only when this tier's own color source (colorSource/-Wide/-Lg) is
+   * 'scrollGradient' (PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md). The 9
+   * palette knobs `BASE_SYNTH_GRADIENT_CONFIG` (the legacy /posts/<slug>
+   * scroll-gradient, since removed) actually set on helpers/harmonicGradient.ts's
+   * own GradientConfig — the other 6 GradientConfig fields
+   * (hueSpread/secondaryHue/zoom/perStopLightness/perStopChroma/contrast)
+   * are never exposed here, same as the legacy default never set them
+   * either. Base/mobile tier — see the Wide/Lg siblings below. */
+  scrollGradientBaseHue: number;
+  scrollGradientHueScheme: PolymorphicLayoutScrollGradientHueScheme;
+  scrollGradientLightnessMin: number;
+  scrollGradientChromaMin: number;
+  scrollGradientMode: PolymorphicLayoutScrollGradientMode;
+  scrollGradientStops: number;
+  scrollGradientVariance: number;
+  scrollGradientCenterStretch: number;
+  scrollGradientSeed: number;
+  /** Overrides the 9 scrollGradient* palette fields above starting at md
+   * (≥ tablet) — same per-tier shape colorSourceWide/wideColumnCustomColorWide
+   * already have. */
+  scrollGradientBaseHueWide: number;
+  scrollGradientHueSchemeWide: PolymorphicLayoutScrollGradientHueScheme;
+  scrollGradientLightnessMinWide: number;
+  scrollGradientChromaMinWide: number;
+  scrollGradientModeWide: PolymorphicLayoutScrollGradientMode;
+  scrollGradientStopsWide: number;
+  scrollGradientVarianceWide: number;
+  scrollGradientCenterStretchWide: number;
+  scrollGradientSeedWide: number;
+  /** Overrides the Wide tier above starting at lg (≥ desktop). */
+  scrollGradientBaseHueLg: number;
+  scrollGradientHueSchemeLg: PolymorphicLayoutScrollGradientHueScheme;
+  scrollGradientLightnessMinLg: number;
+  scrollGradientChromaMinLg: number;
+  scrollGradientModeLg: PolymorphicLayoutScrollGradientMode;
+  scrollGradientStopsLg: number;
+  scrollGradientVarianceLg: number;
+  scrollGradientCenterStretchLg: number;
+  scrollGradientSeedLg: number;
+  /** Ink/contrast basis while colorSource(-Wide/-Lg) is 'scrollGradient' —
+   * read by every downstream consumer of colors.wideColumnColor/
+   * narrowColumnColor for text-color derivation (PolymorphicLayout.tsx's
+   * own usePolymorphicLayoutColors), independent of the palette knobs above
+   * (a legible ink color does not have to be one of the gradient's own
+   * generated stops). Base/mobile tier. */
+  scrollGradientInkColor: string;
+  scrollGradientInkColorWide: string;
+  scrollGradientInkColorLg: string;
+  /** Scroll distance, in viewport-heights, over which the darken overlay
+   * ramps from 0 to scrollGradientMaxDarken — legacy SCROLL_BG_CONFIG.viewportRangeVh.
+   * Base/mobile tier. */
+  scrollGradientViewportRangeVh: number;
+  scrollGradientViewportRangeVhWide: number;
+  scrollGradientViewportRangeVhLg: number;
+  /** 0–1 ceiling opacity of the scroll-driven black overlay — legacy
+   * SCROLL_BG_CONFIG.maxDarken. Base/mobile tier. */
+  scrollGradientMaxDarken: number;
+  scrollGradientMaxDarkenWide: number;
+  scrollGradientMaxDarkenLg: number;
+  /** Exponential-smoothing time constant (ms) for the scroll-darken overlay
+   * — legacy SCROLL_BG_CONFIG.tauMs. NOT tiered: a "feel" constant, not a
+   * per-viewport concern, unlike every other scrollGradient* field above. */
+  scrollGradientTauMs: number;
   /** Overrides splitBandLeftMode above starting at md (≥ tablet) — same
    * "one segment, one independent picker per breakpoint" shape every other
    * tiered field in this type already has. Shared default mirrors the base
@@ -1027,6 +1103,58 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   narrowColumnCustomColor: '#dadbe2',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
+  // scrollGradient* defaults below (base/Wide/Lg together, unlike
+  // colorSourceWide/-Lg's own split-apart placement further down in this
+  // object) — ported from the legacy /posts/<slug> scroll-gradient's own
+  // BASE_SYNTH_GRADIENT_CONFIG (experiences/synth/gradients/synthGradient.ts,
+  // removed) and SCROLL_BG_CONFIG (experiences/synth/components/SynthLayout.tsx,
+  // removed) — see PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md. All three
+  // tiers start identical, same convention as every other -Wide/-Lg default
+  // in this object: adding these fields alone changes nothing until a page
+  // diverges a tier. baseHue is 215, not the legacy literal 575 — the
+  // generator normalizes hue mod 360 at call time, so 215 is the true
+  // effective value. variance is 1, not the legacy literal 100 — the
+  // generator clamps variance to [0,1] internally, so 100 was always
+  // effectively 1.
+  scrollGradientBaseHue: 215,
+  scrollGradientHueScheme: 'dual-complementary',
+  scrollGradientLightnessMin: 10,
+  scrollGradientChromaMin: 45,
+  scrollGradientMode: 'side-bright',
+  scrollGradientStops: 22,
+  scrollGradientVariance: 1,
+  scrollGradientCenterStretch: 0.3,
+  scrollGradientSeed: 50,
+  scrollGradientBaseHueWide: 215,
+  scrollGradientHueSchemeWide: 'dual-complementary',
+  scrollGradientLightnessMinWide: 10,
+  scrollGradientChromaMinWide: 45,
+  scrollGradientModeWide: 'side-bright',
+  scrollGradientStopsWide: 22,
+  scrollGradientVarianceWide: 1,
+  scrollGradientCenterStretchWide: 0.3,
+  scrollGradientSeedWide: 50,
+  scrollGradientBaseHueLg: 215,
+  scrollGradientHueSchemeLg: 'dual-complementary',
+  scrollGradientLightnessMinLg: 10,
+  scrollGradientChromaMinLg: 45,
+  scrollGradientModeLg: 'side-bright',
+  scrollGradientStopsLg: 22,
+  scrollGradientVarianceLg: 1,
+  scrollGradientCenterStretchLg: 0.3,
+  scrollGradientSeedLg: 50,
+  // Matches the legacy Header.tsx's own light-on-gradient text classes
+  // (text-slate-200/55, text-slate-50).
+  scrollGradientInkColor: '#f8fafc',
+  scrollGradientInkColorWide: '#f8fafc',
+  scrollGradientInkColorLg: '#f8fafc',
+  scrollGradientViewportRangeVh: 1.25,
+  scrollGradientViewportRangeVhWide: 1.25,
+  scrollGradientViewportRangeVhLg: 1.25,
+  scrollGradientMaxDarken: 0.65,
+  scrollGradientMaxDarkenWide: 0.65,
+  scrollGradientMaxDarkenLg: 0.65,
+  scrollGradientTauMs: 550,
   headerSplitBandEnabled: true,
   splitBandLeftMode: 'syncWithColumnBelow',
   splitBandLeftCustomColor: '#d1d1d1',
@@ -1373,7 +1501,13 @@ const WIDE_SIDES: ReadonlyArray<PolymorphicLayoutWideSide> = ['left', 'right'];
 const STACKED_ORDERS: ReadonlyArray<PolymorphicLayoutStackedOrder> = ['narrowFirst', 'wideFirst'];
 const HEADER_BEHAVIORS: ReadonlyArray<PolymorphicLayoutHeaderBehavior> = ['pushDown', 'float'];
 const COLOR_SOURCES: ReadonlyArray<PolymorphicLayoutColorSource> = [
-  'none', 'palette', 'custom', 'surface',
+  'none', 'palette', 'custom', 'surface', 'scrollGradient',
+];
+const SCROLL_GRADIENT_HUE_SCHEMES: ReadonlyArray<PolymorphicLayoutScrollGradientHueScheme> = [
+  'mono', 'dual-complementary',
+];
+const SCROLL_GRADIENT_MODES: ReadonlyArray<PolymorphicLayoutScrollGradientMode> = [
+  'center-bright', 'side-bright',
 ];
 const BAND_MODES: ReadonlyArray<PolymorphicLayoutBandMode> = [
   'transparent', 'custom', 'syncWithColumnBelow',
@@ -1469,6 +1603,122 @@ export function normalizePolymorphicLayoutConfig(
       -1,
       1,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnSurfaceOffset,
+    ),
+    scrollGradientBaseHue: clampRange(
+      base.scrollGradientBaseHue, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientBaseHue,
+    ),
+    scrollGradientHueScheme: token(
+      base.scrollGradientHueScheme, SCROLL_GRADIENT_HUE_SCHEMES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientHueScheme,
+    ),
+    scrollGradientLightnessMin: clampRange(
+      base.scrollGradientLightnessMin, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightnessMin,
+    ),
+    scrollGradientChromaMin: clampRange(
+      base.scrollGradientChromaMin, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientChromaMin,
+    ),
+    scrollGradientMode: token(
+      base.scrollGradientMode, SCROLL_GRADIENT_MODES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMode,
+    ),
+    scrollGradientStops: Math.round(clampRange(
+      base.scrollGradientStops, 2, 64, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientStops,
+    )),
+    scrollGradientVariance: clampRange(
+      base.scrollGradientVariance, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientVariance,
+    ),
+    scrollGradientCenterStretch: clampRange(
+      base.scrollGradientCenterStretch, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientCenterStretch,
+    ),
+    scrollGradientSeed: clampRange(
+      base.scrollGradientSeed, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientSeed,
+    ),
+    scrollGradientBaseHueWide: clampRange(
+      base.scrollGradientBaseHueWide, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientBaseHueWide,
+    ),
+    scrollGradientHueSchemeWide: token(
+      base.scrollGradientHueSchemeWide, SCROLL_GRADIENT_HUE_SCHEMES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientHueSchemeWide,
+    ),
+    scrollGradientLightnessMinWide: clampRange(
+      base.scrollGradientLightnessMinWide, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightnessMinWide,
+    ),
+    scrollGradientChromaMinWide: clampRange(
+      base.scrollGradientChromaMinWide, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientChromaMinWide,
+    ),
+    scrollGradientModeWide: token(
+      base.scrollGradientModeWide, SCROLL_GRADIENT_MODES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientModeWide,
+    ),
+    scrollGradientStopsWide: Math.round(clampRange(
+      base.scrollGradientStopsWide, 2, 64, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientStopsWide,
+    )),
+    scrollGradientVarianceWide: clampRange(
+      base.scrollGradientVarianceWide, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientVarianceWide,
+    ),
+    scrollGradientCenterStretchWide: clampRange(
+      base.scrollGradientCenterStretchWide, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientCenterStretchWide,
+    ),
+    scrollGradientSeedWide: clampRange(
+      base.scrollGradientSeedWide, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientSeedWide,
+    ),
+    scrollGradientBaseHueLg: clampRange(
+      base.scrollGradientBaseHueLg, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientBaseHueLg,
+    ),
+    scrollGradientHueSchemeLg: token(
+      base.scrollGradientHueSchemeLg, SCROLL_GRADIENT_HUE_SCHEMES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientHueSchemeLg,
+    ),
+    scrollGradientLightnessMinLg: clampRange(
+      base.scrollGradientLightnessMinLg, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightnessMinLg,
+    ),
+    scrollGradientChromaMinLg: clampRange(
+      base.scrollGradientChromaMinLg, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientChromaMinLg,
+    ),
+    scrollGradientModeLg: token(
+      base.scrollGradientModeLg, SCROLL_GRADIENT_MODES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientModeLg,
+    ),
+    scrollGradientStopsLg: Math.round(clampRange(
+      base.scrollGradientStopsLg, 2, 64, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientStopsLg,
+    )),
+    scrollGradientVarianceLg: clampRange(
+      base.scrollGradientVarianceLg, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientVarianceLg,
+    ),
+    scrollGradientCenterStretchLg: clampRange(
+      base.scrollGradientCenterStretchLg, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientCenterStretchLg,
+    ),
+    scrollGradientSeedLg: clampRange(
+      base.scrollGradientSeedLg, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientSeedLg,
+    ),
+    scrollGradientInkColor: normalizeColor(
+      base.scrollGradientInkColor, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientInkColor,
+    ),
+    scrollGradientInkColorWide: normalizeColor(
+      base.scrollGradientInkColorWide, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientInkColorWide,
+    ),
+    scrollGradientInkColorLg: normalizeColor(
+      base.scrollGradientInkColorLg, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientInkColorLg,
+    ),
+    scrollGradientViewportRangeVh: clampRange(
+      base.scrollGradientViewportRangeVh, 0.1, 10, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientViewportRangeVh,
+    ),
+    scrollGradientViewportRangeVhWide: clampRange(
+      base.scrollGradientViewportRangeVhWide, 0.1, 10,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientViewportRangeVhWide,
+    ),
+    scrollGradientViewportRangeVhLg: clampRange(
+      base.scrollGradientViewportRangeVhLg, 0.1, 10,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientViewportRangeVhLg,
+    ),
+    scrollGradientMaxDarken: clampRange(
+      base.scrollGradientMaxDarken, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMaxDarken,
+    ),
+    scrollGradientMaxDarkenWide: clampRange(
+      base.scrollGradientMaxDarkenWide, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMaxDarkenWide,
+    ),
+    scrollGradientMaxDarkenLg: clampRange(
+      base.scrollGradientMaxDarkenLg, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMaxDarkenLg,
+    ),
+    scrollGradientTauMs: clampRange(
+      base.scrollGradientTauMs, 0, 5000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientTauMs,
     ),
     headerSplitBandEnabled: base.headerSplitBandEnabled !== false,
     splitBandLeftMode: token(
