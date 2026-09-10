@@ -312,7 +312,7 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   headlineInlineWithParagraph: true,
   headlineMaxWidth: 'max-w-prose',
   contentMaxWidth: 'max-w-md',
-  bodyFontSizeNarrow: 'text-lg',
+  bodyFontSizeNarrow: 'text-base',
   bodyFontSizeMid: 'md:text-base',
   bodyFontSizeWide: 'lg:text-lg',
   paragraphMaxWidth: 'max-w-xl',
