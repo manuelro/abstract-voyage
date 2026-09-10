@@ -62,7 +62,7 @@ export const DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG = {
   bottomRegionPercent: 62,
   invertOrder: false,
   topHorizontalAlign: 'stretch',
-  topVerticalAlign: 'start',
+  topVerticalAlign: 'center',
   bottomHorizontalAlign: 'end',
   bottomVerticalAlign: 'end',
 } satisfies AbstractNarrowColumnStackConfig;
@@ -169,8 +169,9 @@ export { ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG } from '../experiences/abstract/comp
 // /about's.
 export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   ...DEFAULT_ABOUT_TIMELINE_CONFIG,
+  maxWidthClassName: 'max-w-lg',
   rowGap: 'gap-5',
-  markerSizeClassName: 'w-2.5 h-2.5',
+  markerSizeClassName: 'w-3 h-3',
   markerColorMode: 'text',
   markerCustomColor: '#6c6b94',
   hoverMarkerOpacity: 0.4,
@@ -178,6 +179,8 @@ export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   markerActiveOpacity: 0.55,
   markerGradientEnabled: false,
   rowTitleFontSizeClassName: 'text-xs',
+  rowTitleFontWeightClassName: 'font-normal',
+  rowTitleFontWeightClassNameActive: 'font-normal',
   rowTitleMinContrastActive: 7.6,
   rowDescriptionMinContrastActive: 5.7,
   rowDescriptionMinContrastInactive: 3,
