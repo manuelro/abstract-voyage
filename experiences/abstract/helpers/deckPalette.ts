@@ -66,6 +66,11 @@ export type DeckPaletteState = {
    * offsetX/hueOffset above. `null` when the palette is disabled, matching
    * every other palette-derived field's own disabled fallback. */
   paletteScale: number | null;
+  /** gradientScaleX/gradientScaleY — same override-not-multiply "?? " pattern
+   * as paletteScale above, but untiered (no breakpoint awareness needed)
+   * since those two config fields aren't tiered either. */
+  paletteScaleX: number | null;
+  paletteScaleY: number | null;
   paletteNoise: number | null;
   hueInfluenceEnabled: boolean;
   hueInfluenceMix: number;
@@ -770,6 +775,8 @@ export function buildDeckPaletteStates({
       paletteScale: directedPaletteEnabled && paletteConfig
         ? resolvePaletteTier(tier, paletteConfig.gradientScale, paletteConfig.gradientScaleWide, paletteConfig.gradientScaleLg)
         : null,
+      paletteScaleX: paletteConfig ? paletteConfig.gradientScaleX : null,
+      paletteScaleY: paletteConfig ? paletteConfig.gradientScaleY : null,
       paletteNoise: directedPaletteEnabled && paletteConfig
         ? resolvePaletteTier(tier, paletteConfig.gradientNoise, paletteConfig.gradientNoiseWide, paletteConfig.gradientNoiseLg)
         : null,

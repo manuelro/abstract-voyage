@@ -668,6 +668,8 @@ export function LiquidGradientAdapter({
         paletteContrast: paletteState ? paletteState.masterContrast : 1,
         paletteSoftness: paletteState ? paletteState.masterSoftness : 0,
         paletteScale: paletteState ? paletteState.paletteScale : null,
+        paletteScaleX: paletteState ? paletteState.paletteScaleX : null,
+        paletteScaleY: paletteState ? paletteState.paletteScaleY : null,
         paletteNoise: paletteState ? paletteState.paletteNoise : null,
         hueInfluenceEnabled: hueUniforms.mix > 1e-5,
         hueInfluenceMix: hueUniforms.mix,

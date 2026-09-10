@@ -49,6 +49,10 @@ export type SliderGradientConfig = {
   shaderColorSaturation: number;
   shaderColorBrightness: number;
   shaderColorScale: number;
+  /** Independent horizontal/vertical stretch multipliers layered on top of
+   * shaderColorScale above (1..5, default 1 = no added stretch). */
+  shaderColorScaleX: number;
+  shaderColorScaleY: number;
   shaderColorResolution: number;
   shaderColorRandomness: number;
   shaderColorSoftness: number;
@@ -250,6 +254,8 @@ export const DEFAULT_LIQUID_SLIDER_CONFIG: LiquidSliderConfig = {
   shaderColorSaturation: 0.95,
   shaderColorBrightness: 0.78,
   shaderColorScale: 0.5,
+  shaderColorScaleX: 1,
+  shaderColorScaleY: 1,
   shaderColorResolution: 1024,
   shaderColorRandomness: 1,
   shaderColorSoftness: 1,

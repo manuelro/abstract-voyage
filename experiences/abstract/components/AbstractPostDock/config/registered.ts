@@ -678,6 +678,17 @@ export type AbstractPostDockPaletteConfig = {
   /** Same two fields, ≥ desktop width (1024px). */
   gradientScaleLg: number;
   gradientNoiseLg: number;
+  /** Independent horizontal/vertical stretch multipliers layered on top of
+   * `gradientScale` above (1..5, default 1 = no added stretch) — maps
+   * straight through to `SliderGradientConfig`'s own `shaderColorScaleX`/
+   * `shaderColorScaleY`. `gradientScale` still authors the overall zoom
+   * uniformly; these two only pull the horizontal/vertical axes apart from
+   * each other, asymmetrically stretching the mesh. Unlike gradientScale/
+   * gradientNoise, not tiered by breakpoint — no operator ask for per-device
+   * values yet, so kept to the single pair every other field in this scope
+   * uses (see the tiered pair's own "operator ask" doc comment in panel.ts). */
+  gradientScaleX: number;
+  gradientScaleY: number;
   /** Accordion-row distance dimming — maps straight through to
    * LiquidSliderConfig's own `dockDistanceDimming*` fields (a black overlay
    * MagnificationDock already paints over inactive rows, unrelated to the
@@ -750,6 +761,8 @@ export const DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG = {
   gradientNoiseWide: 1,
   gradientScaleLg: 0.55,
   gradientNoiseLg: 0,
+  gradientScaleX: 1,
+  gradientScaleY: 1,
   distanceDimmingEnabled: false,
   distanceDimmingMaxOpacity: 1,
   distanceDimmingBaselineOpacity: 1,
@@ -821,6 +834,8 @@ export function normalizeAbstractPostDockPaletteConfig(
     gradientNoiseWide: clamp01(base.gradientNoiseWide),
     gradientScaleLg: clampRange(base.gradientScaleLg, 0.5, 4),
     gradientNoiseLg: clamp01(base.gradientNoiseLg),
+    gradientScaleX: clampRange(base.gradientScaleX, 1, 5),
+    gradientScaleY: clampRange(base.gradientScaleY, 1, 5),
     distanceDimmingEnabled: Boolean(base.distanceDimmingEnabled),
     distanceDimmingMaxOpacity: clamp01(base.distanceDimmingMaxOpacity),
     distanceDimmingBaselineOpacity: clampRange(

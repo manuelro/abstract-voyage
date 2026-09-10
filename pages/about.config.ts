@@ -419,6 +419,8 @@ export const ABOUT_DEFAULT_DOCK_PALETTE_CONFIG: AbstractPostDockPaletteConfig = 
   gradientNoiseWide: 0.7,
   gradientScaleLg: 0.8,
   gradientNoiseLg: 0,
+  gradientScaleX: 1,
+  gradientScaleY: 1.1,
   distanceDimmingEnabled: true,
   distanceDimmingMaxOpacity: 0.4,
   distanceDimmingBaselineOpacity: 0,
