@@ -677,6 +677,12 @@ type ColumnContentBoxViewportOptions = {
   /** A stacked layout has no shared viewport slot between columns, so the
    * viewport mode deliberately returns to intrinsic content flow there. */
   viewportHeightEnabled?: boolean;
+  /** Applies viewportMinHeight below even while *ColumnContentHeight isn't
+   * 'viewport' — set by wideColumnContentVerticalAlignFullViewportLg's own
+   * caller (PolymorphicLayout.tsx) so that opt-in doesn't require also
+   * switching the column's unrelated *ColumnContentHeight mode to
+   * 'viewport' just to take effect. */
+  forceViewportMode?: boolean;
 };
 
 export function wideColumnContentBoxProps(
@@ -705,7 +711,7 @@ export function wideColumnContentBoxProps(
     verticalAlignLg: config.wideColumnContentVerticalAlignLg,
     minHeight: config.wideColumnContentMinHeight,
     fillHeight: config.wideColumnContentHeight === 'full',
-    viewportMinHeight: config.wideColumnContentHeight === 'viewport'
+    viewportMinHeight: (config.wideColumnContentHeight === 'viewport' || viewportOptions.forceViewportMode)
       && viewportOptions.viewportHeightEnabled !== false
       ? viewportOptions.viewportMinHeight ?? '100dvh'
       : undefined,
@@ -1001,8 +1007,37 @@ export function PolymorphicLayout({
     paddingTop: string,
     paddingBottom: string,
   ): CSSProperties['minHeight'] => `calc(${viewportSlot ?? '100dvh'} - ${paddingTop} - ${paddingBottom})`;
+  // wideColumnContentVerticalAlignFullViewportLg (PolymorphicLayout.config.ts's
+  // own doc comment) — opt-in, off by default: swaps in the raw viewport
+  // unit ('100vh'/'100dvh', chosen by the sibling
+  // wideColumnContentVerticalAlignVisibleViewportLg flag) as the *slot*
+  // usableViewportContentMinHeight centers against, in place of the
+  // page-supplied wideColumnContentViewportMinHeight (whatever "top
+  // segment" reduction a page's own slot subtracts, e.g. /abstract's
+  // CoverFlow row height). Still goes through usableViewportContentMinHeight
+  // and still subtracts this column's own real rendered padding below —
+  // MUST NOT bypass that subtraction. An earlier version of this override
+  // set minHeight to the raw slot directly, skipping the subtraction
+  // entirely; since that padding is applied one layer *outside* this
+  // content box (buildWideColumnClassName, on the grid cell itself, not on
+  // this child), the child's own box then needed slot+padding total, which
+  // is taller than the grid row's own real floor (min-h-[100dvh] on the
+  // page shell) — and because CSS Grid stretches sibling items to match by
+  // default, that inflated the whole row and visibly pushed the *narrow*
+  // column's centered content down with it (reported live, screenshot).
+  // Gated on headerScrollBreakpointTier === 'lg' explicitly, not left to
+  // viewportHeightEnabled alone — that flag is also true at the 'md' tier
+  // for any side-by-side layout, but this override's own name/type promise
+  // "≥ desktop" only. The inline minHeight this feeds isn't a responsive
+  // Tailwind class like verticalAlign/-Wide/-Lg are; without this explicit
+  // tier check the override would silently also apply at tablet width.
+  const wideColumnFullViewportOverrideActive = headerScrollBreakpointTier === 'lg'
+    && normalizedConfig.wideColumnContentVerticalAlignFullViewportLg;
+  const wideColumnFullViewportSlot = normalizedConfig.wideColumnContentVerticalAlignVisibleViewportLg
+    ? '100dvh'
+    : '100vh';
   const wideViewportContentMinHeight = usableViewportContentMinHeight(
-    wideColumnContentViewportMinHeight,
+    wideColumnFullViewportOverrideActive ? wideColumnFullViewportSlot : wideColumnContentViewportMinHeight,
     activeColumnPaddingPx(
       normalizedConfig.wideColumnContentPaddingTop,
       normalizedConfig.wideColumnContentPaddingTopWide,
@@ -1109,6 +1144,7 @@ export function PolymorphicLayout({
             <WideColumnContent {...wideColumnContentBoxProps(normalizedConfig, {
               ...viewportContentBoxOptions,
               viewportMinHeight: wideViewportContentMinHeight,
+              forceViewportMode: wideColumnFullViewportOverrideActive,
             })}>
               {wideColumn}
             </WideColumnContent>

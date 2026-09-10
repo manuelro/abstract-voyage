@@ -581,6 +581,23 @@ export type PolymorphicLayoutConfig = {
   wideColumnContentVerticalAlign: HeaderSegmentJustifyClass;
   wideColumnContentVerticalAlignWide: HeaderSegmentJustifyWideClass;
   wideColumnContentVerticalAlignLg: HeaderSegmentJustifyLgClass;
+  /** Opt-in, ≥ desktop only. Off (false) is byte-identical to today: the
+   * wide column's "Wide column content vertical align (≥ desktop)" tier
+   * keeps centering against its own header-clearance-adjusted content box
+   * (page-supplied viewport slot minus top/bottom padding), exactly as
+   * before this field existed. On: that column's centering ignores the
+   * page's own top-segment insets (floating header clearance, any custom
+   * viewport slot a page supplies) entirely and centers against the raw
+   * viewport height instead. See wideColumnContentVerticalAlignVisibleViewportLg
+   * for which raw viewport unit "the viewport" resolves to. */
+  wideColumnContentVerticalAlignFullViewportLg: boolean;
+  /** Opt-in, ≥ desktop only, and only meaningful while
+   * wideColumnContentVerticalAlignFullViewportLg is also on — inert
+   * otherwise. Off (false): the raw viewport height that flag centers
+   * against is `100vh` (the large/static viewport unit). On: `100dvh` (the
+   * dynamic/"visible" viewport unit, which shrinks live as mobile browser
+   * chrome — address bar, toolbars — appears). */
+  wideColumnContentVerticalAlignVisibleViewportLg: boolean;
   /** Minimum height the content container is guaranteed — a literal class
    * from CONTENT_MIN_HEIGHT_OPTIONS (./tailwindMinHeightScale.ts). A single,
    * untiered value (unlike the alignment fields above): it exists purely to
@@ -1080,6 +1097,8 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   wideColumnContentVerticalAlign: 'justify-start',
   wideColumnContentVerticalAlignWide: 'md:justify-start',
   wideColumnContentVerticalAlignLg: 'lg:justify-start',
+  wideColumnContentVerticalAlignFullViewportLg: false,
+  wideColumnContentVerticalAlignVisibleViewportLg: false,
   narrowColumnContentMinHeight: 'min-h-0',
   wideColumnContentMinHeight: 'min-h-0',
   narrowColumnMobileAlignOffsetPx: 0,
@@ -1592,6 +1611,8 @@ export function normalizePolymorphicLayoutConfig(
     wideColumnContentVerticalAlignLg: token(
       base.wideColumnContentVerticalAlignLg, HEADER_SEGMENT_JUSTIFY_LG_VALUES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wideColumnContentVerticalAlignLg,
     ),
+    wideColumnContentVerticalAlignFullViewportLg: Boolean(base.wideColumnContentVerticalAlignFullViewportLg),
+    wideColumnContentVerticalAlignVisibleViewportLg: Boolean(base.wideColumnContentVerticalAlignVisibleViewportLg),
     narrowColumnContentMinHeight: token(
       base.narrowColumnContentMinHeight,
       CONTENT_MIN_HEIGHT_VALUES,

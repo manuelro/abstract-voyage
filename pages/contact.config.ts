@@ -116,6 +116,8 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   wideColumnContentVerticalAlign: 'justify-start',
   wideColumnContentVerticalAlignWide: 'md:justify-start',
   wideColumnContentVerticalAlignLg: 'lg:justify-start',
+  wideColumnContentVerticalAlignFullViewportLg: false,
+  wideColumnContentVerticalAlignVisibleViewportLg: false,
   wideColumnContentMinHeight: 'min-h-0',
   // Only affects the below-md nav-boundary nudge for a live-measured split
   // seam that never exists here (desktopNavAlignmentActive is always false

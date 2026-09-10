@@ -2273,6 +2273,21 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                       options: HEADER_SEGMENT_JUSTIFY_LG_OPTIONS,
                     },
                     {
+                      kind: 'boolean',
+                      key: 'wideColumnContentVerticalAlignFullViewportLg',
+                      debugHighlightIds: ['READING COLUMN'],
+                      label: 'Wide column vertical align uses full viewport (≥ desktop)',
+                      description: 'Off by default (no visual change). When on, "Wide column content vertical align (≥ desktop)" above stops centering against this column\'s own header-clearance-adjusted content box and centers against the raw viewport height instead, ignoring the positioning of any top segments (floating header clearance, any page-supplied viewport slot).',
+                    },
+                    {
+                      kind: 'boolean',
+                      key: 'wideColumnContentVerticalAlignVisibleViewportLg',
+                      debugHighlightIds: ['READING COLUMN'],
+                      label: 'Full viewport reference uses visible viewport height (≥ desktop)',
+                      description: 'Only takes effect while "Wide column vertical align uses full viewport (≥ desktop)" above is also on. Off: that flag centers against 100vh (the large/static viewport unit). On: centers against 100dvh (the dynamic/"visible" viewport unit, which shrinks live as mobile browser chrome appears).',
+                      visibleWhen: config => config.wideColumnContentVerticalAlignFullViewportLg,
+                    },
+                    {
                       kind: 'group',
                       label: 'Column colors (≥ desktop)',
                       fields: [
