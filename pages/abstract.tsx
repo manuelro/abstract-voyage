@@ -3660,8 +3660,14 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       paletteConfig: dockPaletteConfig,
       hueInfluenceConfig: { ...dockHueInfluenceConfig, transitionEnabled: false, enabled: false },
       activeIndex: null,
+      // Live breakpoint — without this, gradientScale/gradientNoise's own
+      // Wide/Lg tiers silently do nothing for CoverFlow (always resolved the
+      // mobile-tier value regardless of viewport). Same fix View.tsx's own
+      // deckPaletteStates call already applied for the journal/lab grid and
+      // /about's narrative dock — this call site was missed.
+      tier: colors.breakpointTier,
     }),
-    [carouselAndListItems, dockPaletteConfig, dockHueInfluenceConfig],
+    [carouselAndListItems, dockPaletteConfig, dockHueInfluenceConfig, colors.breakpointTier],
   );
 
   // Neighbour "look and feel" — the exact same formula
