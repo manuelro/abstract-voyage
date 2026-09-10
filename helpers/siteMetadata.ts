@@ -2,12 +2,12 @@ export const SITE_METADATA = {
   siteName: 'Abstract Voyage',
   siteUrl: 'https://abstract.voyage',
   authorName: 'Manuel Cerdas',
-  authorJobTitle: 'Creative engineer and AI consultant',
-  defaultTitle: 'Manuel Cerdas - Creative Engineer & AI Consultant | Abstract Voyage',
+  authorJobTitle: 'Software engineer and advisor',
+  defaultTitle: 'Manuel Cerdas, Software Engineer & Advisor | Abstract Voyage',
   defaultDescription:
-    'Manuel Cerdas is a creative engineer and consultant working across AI engineering, product strategy, systems thinking, and expressive web interfaces.',
+    'Manuel Cerdas is a software engineer working across AI products, technical systems, product strategy, and interface design.',
   homeHeading:
-    'Manuel Cerdas - creative engineer and AI consultant exploring systems, craft, and expressive interfaces.',
+    'Manuel Cerdas - software engineer exploring systems, craft, and expressive interfaces.',
   locale: 'en_US',
   defaultOgImagePath: '/og/index.png',
   rssPath: '/feed.xml',

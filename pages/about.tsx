@@ -169,7 +169,7 @@ const SPACEFIELD_DEFINITION =
 // here — see the left/right column rule above ABOUT_EDITORIAL_HEADLINE for
 // why. slideIndex must equal each row's own array position — a row
 // activates the dock slide/accordion item at that index and vice versa
-// (AboutSlidesContext.activeIndex). The 2018-2023 and 2023-2026 ranges
+// (AboutSlidesContext.activeIndex). The 2018-2023 and 2023-2025 ranges
 // deliberately elide the real April-November 2023 gap between them; no
 // per-year granularity is meant here. McKinsey (row index 3) is past
 // employment — tense in AboutTimelineRow's own rendering must reflect that.
@@ -193,12 +193,12 @@ const ABOUT_TIMELINE_ROWS = [
     slideIndex: 2,
   },
   {
-    caption: 'McKinsey, 2023 to 2026',
+    caption: 'McKinsey, 2023 to 2025',
     line: 'Several teams at once, on firm-wide initiatives',
     slideIndex: 3,
   },
   {
-    caption: 'On my own, since 2026',
+    caption: 'On my own, since 2025',
     line: 'A few collaborators, a small number of clients',
     slideIndex: 4,
   },

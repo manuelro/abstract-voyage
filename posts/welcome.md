@@ -2,7 +2,7 @@
 title: "Thinking in systems."
 excerpt: |-
   A journal by Manuel Cerdas.
-  Engineer & consultant. Formerly McKinsey.
+  Software engineer.
   On systems and craft.
 author: "Manu"
 ---

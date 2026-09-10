@@ -489,16 +489,17 @@ const ABSTRACT_NARROW_COLUMN_PALETTE_INDEX = 1;
 const ABSTRACT_EDITORIAL_HEADLINE = 'Abstract Voyage is where I think out loud.';
 // About page's own emphasis markup convention (pages/about.tsx), reused
 // verbatim — `**word**` runs render brighter via renderEmphasisText
-// (helpers/textEmphasis.tsx). The name now lives in the H1 above, so this
-// paragraph opens on "It" instead of re-stating it. "light and sound" is
-// the same linking phrase the About page uses for the same relationship —
-// deliberate repetition, preserved exactly. The closing phrase "on my own
-// terms" links to /about via the shared [text](href) inline-link syntax.
+// (helpers/textEmphasis.tsx). The name lives in the H1 above, so this
+// paragraph opens on "A name" rather than re-stating "Abstract Voyage".
+// "light and sound" is the same linking phrase the About page uses for the
+// same relationship — deliberate repetition, preserved exactly. The closing
+// phrase "The longer arc" links to /about via the shared [text](href)
+// inline-link syntax. McKinsey and the AI/independence turn intentionally
+// live only on /about now, not here.
 const ABSTRACT_EDITORIAL_PARAGRAPH_1 =
-  'It started as a name to write under, loose enough to let me study ' +
-  'whatever held my attention. It began with how **light and sound** relate. That habit ' +
-  'took me to McKinsey, where I kept studying and experimenting. Then AI opened a ' +
-  '**question** I wanted to chase [on my own terms](/about).';
+  'A name I build and write under, kept loose enough to follow whatever holds ' +
+  'my attention. It began with how **light and sound** relate, and I’ve been ' +
+  'turning questions like it into engineering ever since. [The longer arc](/about).';
 const ABSTRACT_EDITORIAL_PARAGRAPHS = [ABSTRACT_EDITORIAL_PARAGRAPH_1];
 
 const COVER_FLOW_DISABLED_REVEAL: CardReveal = {
@@ -4004,8 +4005,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   return (
     <>
       <SeoHead
-        title={buildSiteTitle('Manuel Cerdas — Independent Engineer & Advisor')}
-        description="Independent engineering and advisory across AI products, technical systems, product strategy, and interface design."
+        title={buildSiteTitle('Manuel Cerdas, Software Engineer & Advisor')}
+        description="Software engineering and advisory across AI products, technical systems, product strategy, and interface design."
         canonicalPath="/abstract"
       />
     {abstractPageLayoutConfig.presentationMode === 'classic' ? (
