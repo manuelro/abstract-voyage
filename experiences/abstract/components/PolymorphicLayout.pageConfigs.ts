@@ -74,15 +74,20 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnClearsFloatingHeader: false,
   narrowColumnClearsFloatingHeaderWide: true,
   narrowColumnClearsFloatingHeaderLg: true,
-  colorSource: 'scrollGradient',
+  colorSource: 'custom',
   wideColumnCustomColor: '#d7d7e5',
   narrowColumnCustomColor: '#535369',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
-  // scrollGradient* defaults — this page now opts into colorSource:
-  // 'scrollGradient' above. Same DEFAULT_POLYMORPHIC_LAYOUT_CONFIG values
-  // every other page below also starts from — see
+  // scrollGradientEnabled — root-level override, independent of colorSource
+  // above — this page opts in on the base/mobile tier only (Wide/Lg stay
+  // off below, so desktop/tablet keep the flat colorSource: 'custom' paint
+  // unchanged). Same DEFAULT_POLYMORPHIC_LAYOUT_CONFIG values every other
+  // page below also starts from for the palette/ink/darken fields — see
   // PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md.
+  scrollGradientEnabled: true,
+  scrollGradientEnabledWide: false,
+  scrollGradientEnabledLg: false,
   scrollGradientBaseHue: 215,
   scrollGradientHueScheme: 'dual-complementary',
   scrollGradientLightnessMin: 10,
@@ -416,6 +421,9 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // '#0e1230' placeholder this scope's colorSource: 'surface' had made
   // permanently inert.
   colorSource: 'custom',
+  scrollGradientEnabled: false,
+  scrollGradientEnabledWide: false,
+  scrollGradientEnabledLg: false,
   wideColumnCustomColor: '#6c6c72',
   narrowColumnCustomColor: '#2a2a34',
   wideColumnSurfaceOffset: 0,

@@ -104,19 +104,12 @@ function resolveColumnColor(
   pageSurfaceColor: string,
   paletteColorResolver: ((column: 'wide' | 'narrow') => string) | undefined,
   column: 'wide' | 'narrow',
-  scrollGradientInkColor: string,
 ): string {
   if (colorSource === 'custom') return customColor;
   if (colorSource === 'surface') return deriveSurfaceColor(pageSurfaceColor, surfaceOffset);
   if (colorSource === 'palette') {
     return paletteColorResolver ? paletteColorResolver(column) : COLOR_SOURCE_NONE_FALLBACK;
   }
-  // 'scrollGradient': this column paints transparent (see
-  // wideColumnPaintColor/narrowColumnPaintColor below) so the fixed
-  // full-viewport <PolymorphicScrollGradientBackground> shows through —
-  // but downstream ink/contrast consumers still need a real color to
-  // derive text against, which is what this branch returns.
-  if (colorSource === 'scrollGradient') return scrollGradientInkColor;
   return COLOR_SOURCE_NONE_FALLBACK;
 }
 
@@ -214,22 +207,32 @@ export function usePolymorphicLayoutColors(
   const narrowColumnSurfaceOffset = tier(
     config.narrowColumnSurfaceOffset, config.narrowColumnSurfaceOffsetWide, config.narrowColumnSurfaceOffsetLg,
   );
+  const wideColumnColorFromSource = resolveColumnColor(
+    colorSourceResolved, wideColumnCustomColor, wideColumnSurfaceOffset,
+    pageSurfaceColor, paletteColorResolver, 'wide',
+  );
+  const narrowColumnColorFromSource = resolveColumnColor(
+    colorSourceResolved, narrowColumnCustomColor, narrowColumnSurfaceOffset,
+    pageSurfaceColor, paletteColorResolver, 'narrow',
+  );
+  // Root-level override, independent of colorSource entirely — see
+  // PolymorphicLayoutColorSource/scrollGradientEnabled's own doc comments
+  // (PolymorphicLayout.config.ts). When active, both columns' real
+  // wideColumnColor/narrowColumnColor (the ink/contrast basis every
+  // downstream consumer already reads) switch to scrollGradientInkColor,
+  // and wideColumnPaintColor/narrowColumnPaintColor — everywhere except
+  // this override, identical to wideColumnColor/narrowColumnColor, byte-
+  // identical paint behavior to before scrollGradientEnabled existed —
+  // switch to 'transparent' so the fixed full-viewport
+  // <PolymorphicScrollGradientBackground> shows through instead.
+  const scrollGradientActive = tier(
+    config.scrollGradientEnabled, config.scrollGradientEnabledWide, config.scrollGradientEnabledLg,
+  );
   const scrollGradientInkColor = tier(
     config.scrollGradientInkColor, config.scrollGradientInkColorWide, config.scrollGradientInkColorLg,
   );
-  const wideColumnColor = resolveColumnColor(
-    colorSourceResolved, wideColumnCustomColor, wideColumnSurfaceOffset,
-    pageSurfaceColor, paletteColorResolver, 'wide', scrollGradientInkColor,
-  );
-  const narrowColumnColor = resolveColumnColor(
-    colorSourceResolved, narrowColumnCustomColor, narrowColumnSurfaceOffset,
-    pageSurfaceColor, paletteColorResolver, 'narrow', scrollGradientInkColor,
-  );
-  // See PolymorphicLayoutResolvedColors's own doc comment on
-  // wideColumnPaintColor/narrowColumnPaintColor above — everywhere except
-  // 'scrollGradient' these are identical to wideColumnColor/narrowColumnColor
-  // (byte-identical paint behavior to before this colorSource value existed).
-  const scrollGradientActive = colorSourceResolved === 'scrollGradient';
+  const wideColumnColor = scrollGradientActive ? scrollGradientInkColor : wideColumnColorFromSource;
+  const narrowColumnColor = scrollGradientActive ? scrollGradientInkColor : narrowColumnColorFromSource;
   const wideColumnPaintColor = scrollGradientActive ? 'transparent' : wideColumnColor;
   const narrowColumnPaintColor = scrollGradientActive ? 'transparent' : narrowColumnColor;
   const scrollGradientResolved: PolymorphicScrollGradientBackgroundProps = {

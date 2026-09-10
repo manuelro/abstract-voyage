@@ -136,11 +136,11 @@ export type PolymorphicLayoutHeaderBehavior = 'pushDown' | 'float';
 /** 'none': no background, the page surface shows through. 'palette':
  * derived from the card coloring engine's own ramp. 'custom': the two
  * fixed colors below, used verbatim. 'surface': derived from the page
- * surface color, offset by the amounts below. 'scrollGradient': a fixed,
- * full-viewport, scroll-darkening procedural gradient — this column itself
- * paints transparent so the fixed layer shows through; see
- * PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md. */
-export type PolymorphicLayoutColorSource = 'none' | 'palette' | 'custom' | 'surface' | 'scrollGradient';
+ * surface color, offset by the amounts below. Independent of
+ * scrollGradientEnabled (below) — that's a root-level override which, when
+ * on, takes over both columns' paint/ink regardless of whichever of these
+ * four this resolves to; see PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md. */
+export type PolymorphicLayoutColorSource = 'none' | 'palette' | 'custom' | 'surface';
 /** helpers/harmonicGradient.ts's own HueScheme, re-typed locally so this
  * config file doesn't need a runtime import from that helper just for a
  * string-union type. 'mono': single hue band around scrollGradientBaseHue.
@@ -892,8 +892,18 @@ export type PolymorphicLayoutConfig = {
   wideColumnSurfaceOffsetLg: number;
   narrowColumnSurfaceOffsetWide: number;
   narrowColumnSurfaceOffsetLg: number;
-  /** Used only when this tier's own color source (colorSource/-Wide/-Lg) is
-   * 'scrollGradient' (PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md). The 9
+  /** Root-level override, independent of colorSource/-Wide/-Lg entirely —
+   * when true at the resolved tier, both columns paint transparent and a
+   * fixed, full-viewport, scroll-darkening procedural gradient
+   * (PolymorphicScrollGradientBackground) renders behind everything
+   * (header row included), regardless of whatever colorSource would
+   * otherwise have painted at that tier. Lives at this config's own root,
+   * not nested under any one column's color settings — see
+   * PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md. Base/mobile tier. */
+  scrollGradientEnabled: boolean;
+  scrollGradientEnabledWide: boolean;
+  scrollGradientEnabledLg: boolean;
+  /** Used only while scrollGradientEnabled(-Wide/-Lg) above is true. The 9
    * palette knobs `BASE_SYNTH_GRADIENT_CONFIG` (the legacy /posts/<slug>
    * scroll-gradient, since removed) actually set on helpers/harmonicGradient.ts's
    * own GradientConfig — the other 6 GradientConfig fields
@@ -931,7 +941,7 @@ export type PolymorphicLayoutConfig = {
   scrollGradientVarianceLg: number;
   scrollGradientCenterStretchLg: number;
   scrollGradientSeedLg: number;
-  /** Ink/contrast basis while colorSource(-Wide/-Lg) is 'scrollGradient' —
+  /** Ink/contrast basis while scrollGradientEnabled(-Wide/-Lg) is true —
    * read by every downstream consumer of colors.wideColumnColor/
    * narrowColumnColor for text-color derivation (PolymorphicLayout.tsx's
    * own usePolymorphicLayoutColors), independent of the palette knobs above
@@ -1116,6 +1126,9 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   // effective value. variance is 1, not the legacy literal 100 — the
   // generator clamps variance to [0,1] internally, so 100 was always
   // effectively 1.
+  scrollGradientEnabled: false,
+  scrollGradientEnabledWide: false,
+  scrollGradientEnabledLg: false,
   scrollGradientBaseHue: 215,
   scrollGradientHueScheme: 'dual-complementary',
   scrollGradientLightnessMin: 10,
@@ -1501,7 +1514,7 @@ const WIDE_SIDES: ReadonlyArray<PolymorphicLayoutWideSide> = ['left', 'right'];
 const STACKED_ORDERS: ReadonlyArray<PolymorphicLayoutStackedOrder> = ['narrowFirst', 'wideFirst'];
 const HEADER_BEHAVIORS: ReadonlyArray<PolymorphicLayoutHeaderBehavior> = ['pushDown', 'float'];
 const COLOR_SOURCES: ReadonlyArray<PolymorphicLayoutColorSource> = [
-  'none', 'palette', 'custom', 'surface', 'scrollGradient',
+  'none', 'palette', 'custom', 'surface',
 ];
 const SCROLL_GRADIENT_HUE_SCHEMES: ReadonlyArray<PolymorphicLayoutScrollGradientHueScheme> = [
   'mono', 'dual-complementary',
@@ -1604,6 +1617,9 @@ export function normalizePolymorphicLayoutConfig(
       1,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnSurfaceOffset,
     ),
+    scrollGradientEnabled: base.scrollGradientEnabled === true,
+    scrollGradientEnabledWide: base.scrollGradientEnabledWide === true,
+    scrollGradientEnabledLg: base.scrollGradientEnabledLg === true,
     scrollGradientBaseHue: clampRange(
       base.scrollGradientBaseHue, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientBaseHue,
     ),

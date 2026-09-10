@@ -4573,8 +4573,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   activeIndex={articleActiveIndex}
                   onActiveIndexChange={handleMobileScrollActiveIndexChange}
                   onActiveIndexCommit={handleMobileArticleIndexCommit}
-                  carouselColor={colors.wideColumnColor}
-                  panelColor={colors.wideColumnColor}
+                  carouselColor={colors.wideColumnPaintColor}
+                  panelColor={colors.wideColumnPaintColor}
                   config={mobilePinnedArticleSectionConfig}
                   renderCarousel={(controls: MobilePinnedCarouselControls) => (
                     <CoverFlow

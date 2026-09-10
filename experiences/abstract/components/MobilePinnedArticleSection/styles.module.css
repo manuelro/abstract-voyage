@@ -44,7 +44,20 @@
   grid-template-rows: minmax(0, 1fr);
   height: calc(var(--mobile-pinned-list-percent) * 1svh);
   overflow: clip;
-  background: rgb(from var(--mobile-pinned-panel-color) r g b / var(--mobile-pinned-panel-opacity));
+  /* color-mix, not rgb(from ... r g b / opacity) — the latter discards
+   * --mobile-pinned-panel-color's own alpha entirely (extracting only its
+   * r/g/b channels), so passing 'transparent' (e.g. while
+   * PolymorphicLayoutConfig.scrollGradientEnabled makes the wide column's
+   * own paint transparent) resolved to opaque-black-at-panelOpacity instead
+   * of a genuinely see-through panel. color-mix mixes the two full colors
+   * (including alpha), so 'transparent' in stays fully transparent out,
+   * while every real color keeps blending at --mobile-pinned-panel-opacity
+   * exactly as before. */
+  background: color-mix(
+    in srgb,
+    var(--mobile-pinned-panel-color) calc(var(--mobile-pinned-panel-opacity) * 100%),
+    transparent
+  );
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: height 320ms cubic-bezier(0.22, 1, 0.36, 1);

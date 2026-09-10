@@ -40,6 +40,9 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   // No column background — matches /contact's current flat single-
   // page-surface-color <main>, with no per-column tinting.
   colorSource: 'none',
+  scrollGradientEnabled: false,
+  scrollGradientEnabledWide: false,
+  scrollGradientEnabledLg: false,
   // Inert given colorSource: 'none' — never read, carried over verbatim.
   wideColumnCustomColor: '#0e1230',
   narrowColumnCustomColor: '#0e1230',
