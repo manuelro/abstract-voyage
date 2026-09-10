@@ -66,7 +66,7 @@ export const DEFAULT_CARD_APPEARANCE_CONFIG: CardAppearanceConfig = {
   neighborTextOffset: -0.3,
   neighborTextMinContrast: 4.6,
   neighborBorderColorOffset: 0.35,
-  neighborFrameMode: 'border',
+  neighborFrameMode: 'gradient-mesh',
   neighborFlatFillOpacity: 0.07,
   neighborFlatFillToneOffset: 0,
 };

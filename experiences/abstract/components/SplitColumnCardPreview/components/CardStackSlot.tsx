@@ -19,9 +19,11 @@ import styles from './CardStack.module.css';
 export type CardStackSlotPresentation = {
   state: 'active' | 'inactive';
   surfaceColor: string;
-  /** Whether the inactive face uses its established perimeter or the
-   * config-driven opaque flat fill. */
-  frameMode: 'border' | 'flat-fill';
+  /** Whether the inactive face uses its established perimeter, the
+   * config-driven opaque flat fill, or skips the neutral cover entirely
+   * (see `SplitColumnCardStackConfig.neighborFrameMode`'s own doc
+   * comment for 'gradient-mesh'). */
+  frameMode: 'border' | 'flat-fill' | 'gradient-mesh';
   textColor: string;
   topicBorderColor: string;
   /** The card's own outer border — the exact same textColor, at reduced

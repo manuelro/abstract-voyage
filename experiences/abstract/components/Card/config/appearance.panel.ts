@@ -12,6 +12,7 @@ const motionEasings = [
 const frameModes = [
   { label: 'BORDER', value: 'border' },
   { label: 'FLAT FILL', value: 'flat-fill' },
+  { label: 'GRADIENT MESH', value: 'gradient-mesh' },
 ] as const;
 const backgroundModes = [
   { label: 'SURFACE', value: 'surface' },

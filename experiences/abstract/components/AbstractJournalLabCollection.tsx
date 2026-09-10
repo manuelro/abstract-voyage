@@ -685,7 +685,7 @@ export type HueFadeCardProps = {
     state: 'active' | 'inactive';
     surfaceColor: string;
     /** Inactive-card frame treatment from the shared stack config. */
-    frameMode: 'border' | 'flat-fill';
+    frameMode: 'border' | 'flat-fill' | 'gradient-mesh';
     /** Neighbor (inactive)-only — label/meta/title/excerpt/separator/CTA
      * color, applied as an inline override of ArticleCard.module.css's own
      * `[data-appearance='neutral']` block (see stackAppearanceStyle below).
@@ -1332,6 +1332,18 @@ export function AbstractJournalLabHueFadeCard({
     ? influencedPalette
     : basePalette;
   const inactiveStackPresentation = stackPresentation?.state === 'inactive';
+  // Distinct from inactiveStackPresentation above: true only when this card
+  // is inactive AND actually wants the neutral treatment (border/flat-fill)
+  // — false for 'gradient-mesh', where an inactive card deliberately keeps
+  // the active card's own uncovered mesh + 'gradient' ArticleCard appearance
+  // (light/white ink tuned for a busy animated surface) rather than the
+  // neutral ink palette tuned for a flat/dark one. Gates the neutral text-
+  // color overrides, the stackNeutralSurface cover's own visibility, and
+  // ArticleCard's own appearance prop below — everything else that reacts to
+  // "inactive" regardless of surface treatment (aria-hidden, hover-disable,
+  // excerpt visibility, etc.) still reads the raw inactiveStackPresentation.
+  const inactiveNeutralPresentation = inactiveStackPresentation
+    && stackPresentation?.frameMode !== 'gradient-mesh';
   const stackAppearanceStyle = stackPresentation ? {
     '--article-card-appearance-duration': `${stackPresentation.transitionDurationMs}ms`,
     '--article-card-appearance-easing': stackPresentation.transitionEasingCss,
@@ -1374,7 +1386,7 @@ export function AbstractJournalLabHueFadeCard({
     // properties are simply unread there regardless, but omitting them
     // outright keeps this object's own intent legible without relying on
     // that.
-    ...(inactiveStackPresentation ? {
+    ...(inactiveNeutralPresentation ? {
       '--article-card-label-color': stackPresentation.textColor,
       '--article-card-meta-color': stackPresentation.textColor,
       '--article-card-topic-color': stackPresentation.textColor,
@@ -1419,7 +1431,7 @@ export function AbstractJournalLabHueFadeCard({
         <div
           aria-hidden="true"
           className={`${styles.stackNeutralSurface} ${cardRadius}`}
-          data-visible={inactiveStackPresentation ? 'true' : 'false'}
+          data-visible={inactiveNeutralPresentation ? 'true' : 'false'}
           data-frame-mode={stackPresentation.frameMode}
           // Only while this card is actually crossing the neighbor/active
           // boundary (never at rest, either fully covered or fully
@@ -1509,7 +1521,7 @@ export function AbstractJournalLabHueFadeCard({
               proportionalContentInsetCqw={cardProportionalContentInsetCqw}
               contentBlockHeight={cardContentBlockHeight}
               contentStyle={contentStyle}
-              appearance={inactiveStackPresentation ? 'neutral' : 'gradient'}
+              appearance={inactiveNeutralPresentation ? 'neutral' : 'gradient'}
               excerptVisible={layoutConfig.descriptionVisible}
               excerptHoverOnly={stackActiveSlide ? false : layoutConfig.descriptionHoverReveal}
               // staggerRevealDelaysMs (opt-in) switches the CTA away from

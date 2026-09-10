@@ -319,8 +319,16 @@ export type SplitColumnCardStackConfig = {
    * existing transparent text-tint perimeter. 'flat-fill' instead paints an
    * opaque, flat face derived from the same resolved neighbor text color;
    * this is intentionally a mode rather than a second layer, so cards can
-   * overlap without their fills accumulating. */
-  neighborFrameMode: 'border' | 'flat-fill';
+   * overlap without their fills accumulating. 'gradient-mesh' skips the
+   * neutral cover entirely — no border ring, no flat fill — so the card's
+   * own `LiquidGradientAdapter` mesh shows through completely uncovered,
+   * exactly as it does on the active card. Text/ink also switches to the
+   * active card's own `'gradient'` `ArticleCard` appearance for this mode
+   * (see `AbstractJournalLabCollection.tsx`'s own `inactiveNeutralPresentation`
+   * doc comment) — the neutral ink palette (`neighborTextColor` et al.) is
+   * tuned for legibility over a flat/dark surface, not this mode's own busy
+   * animated mesh. */
+  neighborFrameMode: 'border' | 'flat-fill' | 'gradient-mesh';
   /** Only meaningful when neighborFrameMode is 'flat-fill'. This is the
    * equivalent alpha used to composite the resolved neighbor text color over
    * the card's real surface, yielding one opaque pigment via
@@ -685,7 +693,7 @@ const NEIGHBOR_BACKGROUND_MODES: ReadonlyArray<SplitColumnCardStackConfig['neigh
 const NEIGHBOR_TEXT_COLOR_MODES: ReadonlyArray<SplitColumnCardStackConfig['neighborTextColorMode']> =
   ['custom', 'column'];
 const NEIGHBOR_FRAME_MODES: ReadonlyArray<SplitColumnCardStackConfig['neighborFrameMode']> =
-  ['border', 'flat-fill'];
+  ['border', 'flat-fill', 'gradient-mesh'];
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback

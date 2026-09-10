@@ -288,10 +288,11 @@ export const SPLIT_COLUMN_CARD_STACK_PANEL = defineConfigScope<SplitColumnCardSt
       kind: 'enum',
       key: 'neighborFrameMode',
       label: 'Neighbor edge treatment',
-      description: 'Border preserves the existing faded perimeter. Flat fill replaces that perimeter with an opaque face derived from the same resolved neighbor text color, so overlapping cards do not compound transparency.',
+      description: 'Border preserves the existing faded perimeter. Flat fill replaces that perimeter with an opaque face derived from the same resolved neighbor text color, so overlapping cards do not compound transparency. Gradient mesh skips the neutral cover entirely, showing the card\'s own mesh uncovered (same look as the active card).',
       options: [
         { label: 'BORDER', value: 'border' },
         { label: 'FLAT FILL', value: 'flat-fill' },
+        { label: 'GRADIENT MESH', value: 'gradient-mesh' },
       ],
       visibleWhen: whenEnabled,
     },
