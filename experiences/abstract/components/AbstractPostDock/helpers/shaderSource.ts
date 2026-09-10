@@ -21,6 +21,23 @@ export const SLIDER_PROCEDURAL_COLOR_FRAGMENT_SOURCE = PROCEDURAL_COLOR_FRAGMENT
   // unchanged; the opt-in branch adds a bounded copy of the same wave. This
   // increases displacement without introducing a new frequency, phase, or
   // color trajectory. Zero/disabled therefore keeps the original operations.
+  //
+  // "Gradient noise" (uRandomness) was authored as this exact domain warp —
+  // a position-dependent sine displacement of the field BEFORE colour is
+  // sampled, i.e. it's meant to visibly bend/ripple the mesh itself, not
+  // just nudge hue. At the base shader's own 0.06 coefficient that's true in
+  // principle but reads as barely-there in practice: 0.06 is 6% of one full
+  // hue-cycle period in st-space, independent of uScale zoom (c is already
+  // post-scale here), so even uRandomness = 1 only ever grazes the pattern.
+  //
+  // The knob's own zero point matters here: 0.06 is the field's ORIGINAL,
+  // always-present warp — how the mesh was painted before "Gradient noise"
+  // existed as a tunable knob at all — not a "some noise" starting point the
+  // knob was meant to gate to nothing. So the base 0.06 stays unconditional
+  // (0 on the knob reproduces the original painting exactly), and uRandomness
+  // only ever adds EXTRA warp on top, up to +0.26 (0.32 total) at 1 — the
+  // actual distortion the field's own doc comments always described.
+  // audioWarp (morph/pulse-driven, unrelated to this knob) is untouched.
   .replace(
     `    c.x += (uRandomness * 0.06 + audioWarp) * sin(uTime * 0.037 + uSeed * 1.7 + c.y * 6.2831);
     c.y += (uRandomness * 0.06 + audioWarp * 0.78) * sin(uTime * 0.029 + uSeed * 2.3 + c.x * 6.2831);`,
@@ -28,13 +45,13 @@ export const SLIDER_PROCEDURAL_COLOR_FRAGMENT_SOURCE = PROCEDURAL_COLOR_FRAGMENT
       ? clamp(uDomainCurveBoost, 0.0, 1.0)
       : 0.0;
     float domainWaveX = sin(uTime * 0.037 + uSeed * 1.7 + c.y * 6.2831);
-    float domainAmplitudeX = uRandomness * 0.06 + audioWarp;
+    float domainAmplitudeX = 0.06 + uRandomness * 0.26 + audioWarp;
     c.x += domainAmplitudeX * domainWaveX;
     if (domainCurveBoost > 0.0) {
       c.x += domainAmplitudeX * domainWaveX * domainCurveBoost * 0.65;
     }
     float domainWaveY = sin(uTime * 0.029 + uSeed * 2.3 + c.x * 6.2831);
-    float domainAmplitudeY = uRandomness * 0.06 + audioWarp * 0.78;
+    float domainAmplitudeY = 0.06 + uRandomness * 0.26 + audioWarp * 0.78;
     c.y += domainAmplitudeY * domainWaveY;
     if (domainCurveBoost > 0.0) {
       c.y += domainAmplitudeY * domainWaveY * domainCurveBoost * 0.65;
@@ -63,6 +80,16 @@ export const SLIDER_PROCEDURAL_COLOR_FRAGMENT_SOURCE = PROCEDURAL_COLOR_FRAGMENT
     color *= uBrightness;`,
     `    color = applySaturation(color, uSaturation * (1.0 - clamp(uChromaDuck, 0.0, 1.0)));
     color *= uBrightness;
+    // "Gradient noise" (uRandomness) otherwise only ever wobbles HUE — the
+    // domain-warp shift feeding rainbowColor above. On a heavily chroma-ducked
+    // card (Gaussian pan curve's own recede-toward-ink duck, or any future
+    // consumer's own ducking) that hue wobble reads as near-invisible, since
+    // there's almost no chroma left for a hue shift to move. This is a
+    // second, saturation-independent channel for the exact same uRandomness
+    // signal — a small luminance grain, spatially textured by st so it reads
+    // as mesh noise rather than a flat pulse — so the knob keeps a visible
+    // effect at any duck level. 0 is a no-op, byte-identical to before.
+    color *= 1.0 + uRandomness * 0.05 * sin(uTime * 0.081 + uSeed * 3.1 + st.x * 9.7 - st.y * 7.3);
     color = mix(vec3(0.5), color, clamp(uMasterContrast, 0.0, 2.0));
     vec2 rigUv = clamp(
       (gl_FragCoord.xy / uResolution.xy - vec2(GRADIENT_RIG_INSET)) / GRADIENT_RIG_SPAN,
