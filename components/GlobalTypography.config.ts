@@ -62,12 +62,12 @@ export type GlobalTypographyConfig = {
 
 export const DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG = {
   headingFontFamily: 'sans',
-  titleOpacity: 1,
-  bodyOpacity: 0.38,
-  highlightOpacity: 1,
-  minContrastRatio: 4.3,
+  titleOpacity: 0.8,
+  bodyOpacity: 0.42,
+  highlightOpacity: 0.63,
+  minContrastRatio: 4.5,
   toleranceRatio: 0.3,
-  bodyToleranceRatio: 0.7,
+  bodyToleranceRatio: 0.3,
 } satisfies GlobalTypographyConfig;
 
 const HEADING_FONT_FAMILIES: ReadonlyArray<GlobalHeadingFontFamily> = ['sans', 'serif'];
