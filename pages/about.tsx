@@ -179,27 +179,27 @@ const SPACEFIELD_DEFINITION =
 const ABOUT_TIMELINE_ROWS = [
   {
     caption: 'Where it starts, circa 2010',
-    line: 'Contract work for large corporations, learning the craft on live stakes.',
+    line: 'Contract work for large corporations, learning the craft on live stakes',
     slideIndex: 0,
   },
   {
     caption: 'The question, circa 2017',
-    line: 'Light and sound, and what biomimicry teaches about products.',
+    line: 'Light and sound, and what biomimicry teaches about products',
     slideIndex: 1,
   },
   {
     caption: 'The consulting years, 2018 to 2023',
-    line: 'Contractor, then multiple squads, then whole engagements.',
+    line: 'Contractor, then multiple squads, then whole engagements',
     slideIndex: 2,
   },
   {
     caption: 'McKinsey, 2023 to 2026',
-    line: 'Several teams at once, on firm-wide initiatives.',
+    line: 'Several teams at once, on firm-wide initiatives',
     slideIndex: 3,
   },
   {
     caption: 'On my own, since 2026',
-    line: 'A few collaborators, a small number of clients.',
+    line: 'A few collaborators, a small number of clients',
     slideIndex: 4,
   },
 ] as const;
