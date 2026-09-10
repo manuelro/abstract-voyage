@@ -63,8 +63,11 @@ export type DeckPaletteState = {
    * before reaching this state, since this function has no viewport
    * awareness of its own. Overrides (not multiplies) the base
    * shaderColorScale/shaderColorRandomness uniforms, same "?? " pattern as
-   * offsetX/hueOffset above. `null` when the palette is disabled, matching
-   * every other palette-derived field's own disabled fallback. */
+   * offsetX/hueOffset above. Unlike every other palette-derived field here,
+   * NOT gated behind the Directed-palette toggle — gradientScale/
+   * gradientNoise are shape-only controls, independent of colour direction
+   * (registered.ts's own doc comments), so `null` only when no paletteConfig
+   * is supplied at all. */
   paletteScale: number | null;
   /** gradientScaleX/gradientScaleY — same override-not-multiply "?? " pattern
    * as paletteScale above, but untiered (no breakpoint awareness needed)
@@ -589,7 +592,16 @@ export function buildDeckPaletteStates({
   const hueInfluenceEnabled = Boolean(
     hueInfluenceConfig?.enabled && hueInfluenceConfig.gradeMix > 0,
   );
-  if ((!directedPaletteEnabled && !hueInfluenceEnabled) || slides.length === 0) {
+  // gradientScale/gradientNoise/gradientScaleX/gradientScaleY are shape-only
+  // controls, documented (registered.ts, panel.ts) as independent of the
+  // Directed-palette toggle — so a paletteConfig alone (regardless of its own
+  // `enabled`) is reason enough to keep building states, not just directed
+  // palette or hue influence being on. Without this, those four fields were
+  // reachable in the type system but dead in practice: this function bailed
+  // to `null` whenever an operator turned Directed palette off (with hue
+  // influence also off), so the sliders had zero effect despite their own
+  // copy promising otherwise.
+  if ((!directedPaletteEnabled && !hueInfluenceEnabled && !paletteConfig) || slides.length === 0) {
     return null;
   }
 
@@ -772,12 +784,12 @@ export function buildDeckPaletteStates({
       masterSoftness: directedPaletteEnabled && paletteConfig
         ? paletteConfig.masterSoftness
         : 0,
-      paletteScale: directedPaletteEnabled && paletteConfig
+      paletteScale: paletteConfig
         ? resolvePaletteTier(tier, paletteConfig.gradientScale, paletteConfig.gradientScaleWide, paletteConfig.gradientScaleLg)
         : null,
       paletteScaleX: paletteConfig ? paletteConfig.gradientScaleX : null,
       paletteScaleY: paletteConfig ? paletteConfig.gradientScaleY : null,
-      paletteNoise: directedPaletteEnabled && paletteConfig
+      paletteNoise: paletteConfig
         ? resolvePaletteTier(tier, paletteConfig.gradientNoise, paletteConfig.gradientNoiseWide, paletteConfig.gradientNoiseLg)
         : null,
       hueInfluenceEnabled,
