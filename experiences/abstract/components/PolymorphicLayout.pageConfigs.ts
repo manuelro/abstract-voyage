@@ -373,8 +373,8 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // '#0e1230' placeholder this scope's colorSource: 'surface' had made
   // permanently inert.
   colorSource: 'custom',
-  wideColumnCustomColor: '#cbcbe1',
-  narrowColumnCustomColor: '#68689c',
+  wideColumnCustomColor: '#6c6c72',
+  narrowColumnCustomColor: '#2a2a34',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
   headerSplitBandEnabled: true,
@@ -417,7 +417,7 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // component's own internal reading measure) that happen to agree here.
   narrowColumnContentMaxWidth: 'none',
   narrowColumnContentMaxWidthWide: 'none',
-  narrowColumnContentMaxWidthLg: 'lg:max-w-md',
+  narrowColumnContentMaxWidthLg: 'lg:max-w-xl',
   narrowColumnTextAlign: 'text-left',
   narrowColumnTextAlignWide: 'md:text-right',
   narrowColumnTextAlignLg: 'lg:text-left',
@@ -457,11 +457,11 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnContentPaddingLeftWide: 'md:pl-0',
   narrowColumnContentPaddingLeftLg: 'lg:pl-0',
   narrowColumnContentPaddingRightWide: 'md:pr-7',
-  narrowColumnContentPaddingRightLg: 'lg:pr-0',
+  narrowColumnContentPaddingRightLg: 'lg:pr-14',
   narrowColumnContentPaddingRight: 'pr-14',
   narrowColumnContentPaddingTop: 'pt-10',
   narrowColumnContentPaddingTopWide: 'md:pt-9',
-  narrowColumnContentPaddingTopLg: 'lg:pt-0',
+  narrowColumnContentPaddingTopLg: 'lg:pt-3',
   narrowColumnContentPaddingBottom: 'pb-10',
   narrowColumnContentPaddingBottomWide: 'md:pb-0',
   narrowColumnContentPaddingBottomLg: 'lg:pb-0',
@@ -600,18 +600,18 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // pages/about.tsx's own wideColumnStyle doc comment for the OTHER half of
   // this incident — this value was also, independently, never actually
   // painted anywhere on the page at all until that fix.
-  wideColumnCustomColorWide: '#191929',
-  wideColumnCustomColorLg: '#191929',
+  wideColumnCustomColorWide: '#6c6c72',
+  wideColumnCustomColorLg: '#6c6c72',
   // Was '#dadbe2' — parity fix, same reason as wideColumnCustomColorWide
   // above (colorSourceWide's own doc comment).
-  narrowColumnCustomColorWide: '#cbcbe1',
-  narrowColumnCustomColorLg: '#2c2c3f',
+  narrowColumnCustomColorWide: '#2a2a34',
+  narrowColumnCustomColorLg: '#2a2a34',
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
   narrowColumnSurfaceOffsetLg: 0,
   splitBandLeftCustomColorWide: '#d1d1e6',
-  splitBandLeftCustomColorLg: '#282839',
+  splitBandLeftCustomColorLg: '#272730',
   splitBandRightCustomColorWide: '#27307c',
   splitBandRightCustomColorLg: '#27307c',
   splitBandWidthTier: 'stacked',
