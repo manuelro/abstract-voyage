@@ -165,6 +165,12 @@ export const SITE_HEADER_COLORS_PANEL =
     fields: [
       ...SITE_HEADER_COLOR_FIELDS,
       {
+        kind: 'boolean',
+        key: 'navTextUsesWordmarkGradient',
+        label: 'Navigation text uses wordmark gradient',
+        description: 'Opt-in, independent of the color mode above — mirrors AbstractEditorialHero\'s own "Paragraph uses wordmark gradient" knob. When on and the page supplies wordmark gradient stops, the nav labels (About/Journal/Contact) render through that exact same gradient as one continuous fill, overriding the color mode above for nav text only (the nav border/separator is unaffected). Inert whenever the page hasn\'t supplied wordmark gradient stops (e.g. the active tier has no scroll/wordmark gradient active) — falls back to the color mode above. Not part of SITE_HEADER_COLOR_FIELDS above/SiteHeaderColorOverrideConfig — additive linkage, not a base color the per-page override scope needs to mirror.',
+      },
+      {
         kind: 'group',
         label: 'Navigation type',
         // Nav labels only (About/Journal/Contact) — the logo is vector
@@ -245,6 +251,7 @@ export const SITE_HEADER_COLORS_PANEL =
         label: 'Top bar wrapper',
         fields: [
           { kind: 'enum', key: 'height', label: 'Narrow wrapper height', options: [
+            { label: 'AUTO', value: 'h-auto' },
             { label: 'H-12', value: 'h-12' },
             { label: 'H-14', value: 'h-14' },
             { label: 'H-16', value: 'h-16' },
@@ -256,6 +263,7 @@ export const SITE_HEADER_COLORS_PANEL =
             { label: 'H-40', value: 'h-40' },
           ] },
           { kind: 'enum', key: 'desktopHeight', label: 'Desktop wrapper height', options: [
+            { label: 'AUTO', value: 'md:h-auto' },
             { label: 'H-12', value: 'md:h-12' },
             { label: 'H-14', value: 'md:h-14' },
             { label: 'H-16', value: 'md:h-16' },
@@ -366,6 +374,86 @@ export const SITE_HEADER_COLORS_PANEL =
             { label: 'GAP-2', value: 'gap-2' },
             { label: 'GAP-3', value: 'gap-3' },
           ] },
+          {
+            kind: 'boolean',
+            key: 'mobileNavFlexEnabled',
+            label: 'Narrow nav flex row',
+            description: 'Opt-in: switch the mobile nav from the legacy three-column grid to a full-width flex row so distribution, equal item widths, and dividers can be tuned.',
+          },
+          {
+            kind: 'enum',
+            key: 'mobileNavDistribution',
+            label: 'Narrow nav distribution',
+            description: 'How mobile nav items distribute across the full row while Narrow nav flex row is on.',
+            visibleWhen: config => config.mobileNavFlexEnabled,
+            options: [
+              { label: 'START', value: 'justify-start' },
+              { label: 'CENTER', value: 'justify-center' },
+              { label: 'BETWEEN', value: 'justify-between' },
+              { label: 'AROUND', value: 'justify-around' },
+              { label: 'EVENLY', value: 'justify-evenly' },
+            ],
+          },
+          {
+            kind: 'enum',
+            key: 'mobileNavItemGap',
+            label: 'Narrow nav item gap',
+            description: 'Horizontal gap between mobile nav items and dividers while Narrow nav flex row is on.',
+            visibleWhen: config => config.mobileNavFlexEnabled,
+            options: [
+              { label: 'GAP-X-0', value: 'gap-x-0' },
+              { label: 'GAP-X-1', value: 'gap-x-1' },
+              { label: 'GAP-X-2', value: 'gap-x-2' },
+              { label: 'GAP-X-3', value: 'gap-x-3' },
+              { label: 'GAP-X-4', value: 'gap-x-4' },
+            ],
+          },
+          {
+            kind: 'boolean',
+            key: 'mobileNavEqualItemWidth',
+            label: 'Equal narrow nav items',
+            description: 'While Narrow nav flex row is on, each mobile nav item uses the same horizontal share of the parent row.',
+            visibleWhen: config => config.mobileNavFlexEnabled,
+          },
+          {
+            kind: 'enum',
+            key: 'mobileNavDivider',
+            label: 'Narrow nav divider',
+            description: 'Mobile-only divider between menu items. It inherits the nav text color and renders at 50% opacity.',
+            visibleWhen: config => config.mobileNavFlexEnabled,
+            options: [
+              { label: 'NONE', value: 'hidden' },
+              { label: 'PIPE', value: "before:content-['|']" },
+              { label: 'DOT', value: "before:content-['⋅']" },
+              { label: 'RULE', value: 'border-l' },
+            ],
+          },
+          {
+            kind: 'enum',
+            key: 'mobileNavDividerHeight',
+            label: 'Narrow divider height',
+            description: 'Height for the custom rule divider.',
+            visibleWhen: config => config.mobileNavFlexEnabled && config.mobileNavDivider === 'border-l',
+            options: [
+              { label: 'H-2', value: 'h-2' },
+              { label: 'H-3', value: 'h-3' },
+              { label: 'H-4', value: 'h-4' },
+              { label: 'H-5', value: 'h-5' },
+              { label: 'H-6', value: 'h-6' },
+            ],
+          },
+          {
+            kind: 'enum',
+            key: 'mobileNavDividerWidth',
+            label: 'Narrow divider width',
+            description: 'Visual stroke width for the custom rule divider.',
+            visibleWhen: config => config.mobileNavFlexEnabled && config.mobileNavDivider === 'border-l',
+            options: [
+              { label: 'W-PX', value: 'w-px' },
+              { label: 'W-0.5', value: 'w-0.5' },
+              { label: 'W-1', value: 'w-1' },
+            ],
+          },
           { kind: 'enum', key: 'contactPaddingX', label: 'Contact padding X', options: [
             { label: 'PX-3', value: 'px-3' },
             { label: 'PX-4', value: 'px-4' },

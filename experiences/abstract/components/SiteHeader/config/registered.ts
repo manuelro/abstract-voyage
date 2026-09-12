@@ -97,7 +97,19 @@ export type SiteHeaderNavFontSizeDesktop =
   | 'md:text-xs'
   | 'md:text-sm'
   | 'md:text-base';
+// 'h-auto'/'md:h-auto': the wrapper imposes no height at all (no cap, no
+// floor) — <header> switches from a flex row to a block container and its
+// own content (navSplitOverlay) switches from absolute/inset-0 to relative
+// (in-flow) for that breakpoint, so the box's real height comes from normal
+// document flow instead of this token. See SiteHeader.tsx's own
+// MIN_HEIGHT_BY_HEIGHT/MIN_HEIGHT_BY_DESKTOP_HEIGHT and the header/
+// navSplitOverlay className computation for where this is consumed —
+// fixes the stacked-content overlap a fixed/min height could never solve
+// (the header's real content lives in an absolutely-positioned overlay,
+// which contributes nothing to an ancestor's intrinsic/min-content height
+// regardless of what height token that ancestor carries).
 export type SiteHeaderHeight =
+  | 'h-auto'
   | 'h-12'
   | 'h-14'
   | 'h-16'
@@ -108,6 +120,7 @@ export type SiteHeaderHeight =
   | 'h-36'
   | 'h-40';
 export type SiteHeaderDesktopHeight =
+  | 'md:h-auto'
   | 'md:h-12'
   | 'md:h-14'
   | 'md:h-16'
@@ -170,6 +183,20 @@ export type AbstractHeroNavGap =
   | 'md:gap-8'
   | 'md:gap-10';
 export type AbstractHeroMobileNavGap = 'gap-0' | 'gap-1' | 'gap-2' | 'gap-3';
+export type SiteHeaderMobileNavDistribution =
+  | 'justify-start'
+  | 'justify-center'
+  | 'justify-between'
+  | 'justify-around'
+  | 'justify-evenly';
+export type SiteHeaderMobileNavDivider =
+  | 'hidden'
+  | "before:content-['|']"
+  | "before:content-['⋅']"
+  | 'border-l';
+export type SiteHeaderMobileNavItemGap = 'gap-x-0' | 'gap-x-1' | 'gap-x-2' | 'gap-x-3' | 'gap-x-4';
+export type SiteHeaderMobileNavDividerHeight = 'h-2' | 'h-3' | 'h-4' | 'h-5' | 'h-6';
+export type SiteHeaderMobileNavDividerWidth = 'w-px' | 'w-0.5' | 'w-1';
 export type AbstractHeroContactPaddingX = 'px-3' | 'px-4' | 'px-5' | 'px-6';
 export type AbstractHeroContactPaddingY = 'py-2' | 'py-2.5' | 'py-3' | 'py-4';
 export type AbstractHeroContactBorderWidth = 'border' | 'border-2';
@@ -200,6 +227,21 @@ export type SiteHeaderConfig = {
   logoColor: string;
   navTextColor: string;
   navBorderColor: string;
+  /** Opt-in (default off), independent of colorMode above — mirrors
+   * AbstractEditorialHero's own paragraphUsesWordmarkGradient (that field's
+   * own doc comment, AbstractEditorialHero.config.ts). When on and a page
+   * supplies wordmarkGradientStops (SiteHeaderProps), the nav labels (About/
+   * Journal/Contact) render through that exact same gradient — the one the
+   * wordmark/paragraph already use, not a re-derived approximation — as one
+   * continuous CSS background-clip:text fill per label, overriding
+   * colorMode/navTextColor/navTextSurfaceOffset/columnTextMinContrast
+   * entirely for the nav text color (navBorderColor is untouched — this only
+   * ever targets the label glyphs, never the Contact pill's border). Inert
+   * (falls back to colorMode's existing resolution) whenever the page hasn't
+   * opted in, or hasn't supplied wordmarkGradientStops, or the active tier's
+   * scroll-gradient/wordmark-gradient source is off — byte-identical to
+   * today for every caller not opting in. */
+  navTextUsesWordmarkGradient: boolean;
   // Meaningful while colorMode is 'surface' or 'column' — see that type's
   // own doc comment. The base color each offsets differs by mode (the flat
   // page surface vs. this element's own physical column color) but the
@@ -232,6 +274,28 @@ export type SiteHeaderConfig = {
   gap: SiteHeaderGap;
   desktopGap: SiteHeaderDesktopGap;
   mobileNavGap: AbstractHeroMobileNavGap;
+  /** Off (default): mobile nav keeps the legacy three-column grid. On:
+   * mobile nav switches to a full-width flex row, enabling the distribution
+   * and divider controls below. Desktop keeps the existing md:flex layout. */
+  mobileNavFlexEnabled: boolean;
+  /** Gap between mobile nav items/dividers while mobileNavFlexEnabled is
+   * on. Separate from the legacy mobileNavGap so the flex/divider layout
+   * can be tuned without changing the fallback grid. */
+  mobileNavItemGap: SiteHeaderMobileNavItemGap;
+  /** While mobileNavFlexEnabled is on, controls how the mobile nav items
+   * distribute across the row's available width. */
+  mobileNavDistribution: SiteHeaderMobileNavDistribution;
+  /** While mobileNavFlexEnabled is on, each mobile nav item consumes an
+   * equal share of the row. Useful when the right segment should read as
+   * three evenly weighted destinations instead of three intrinsic labels. */
+  mobileNavEqualItemWidth: boolean;
+  /** Mobile-only divider between primary nav items. Inherits the resolved
+   * nav text color/wordmark gradient and renders at 50% opacity. */
+  mobileNavDivider: SiteHeaderMobileNavDivider;
+  /** Height of the custom mobile divider rule. */
+  mobileNavDividerHeight: SiteHeaderMobileNavDividerHeight;
+  /** Width of the custom mobile divider rule. */
+  mobileNavDividerWidth: SiteHeaderMobileNavDividerWidth;
   navGap: AbstractHeroNavGap;
   contactPaddingX: AbstractHeroContactPaddingX;
   contactPaddingY: AbstractHeroContactPaddingY;
@@ -485,21 +549,22 @@ export const DEFAULT_SITE_HEADER_CONFIG = {
   colorMode: 'column',
   fontFamily: 'serif',
   navUppercase: true,
-  navLetterSpacingEm: 0.13,
-  navFontWeight: 'font-semibold',
+  navLetterSpacingEm: 0.14,
+  navFontWeight: 'font-normal',
   navFontSizeNarrow: 'text-[10px]',
   navFontSizeDesktop: 'md:text-xs',
   logoColor: '#f5f5f5',
   navTextColor: '#787878',
   navBorderColor: '#787878',
+  navTextUsesWordmarkGradient: true,
   logoSurfaceOffset: 0.36,
-  navTextSurfaceOffset: 0.35,
+  navTextSurfaceOffset: 0.26,
   navBorderSurfaceOffset: 0,
   columnTextMinContrast: 14.3,
-  height: 'h-28',
+  height: 'h-auto',
   desktopHeight: 'md:h-28',
-  paddingX: 'px-5',
-  paddingY: 'py-1',
+  paddingX: 'px-8',
+  paddingY: 'py-0',
   desktopPaddingX: 'md:px-12',
   desktopPaddingY: 'md:py-2',
   marginTop: 'mt-0',
@@ -508,9 +573,16 @@ export const DEFAULT_SITE_HEADER_CONFIG = {
   desktopMarginBottom: 'md:mb-0',
   logoWidth: 'w-56',
   desktopLogoWidth: 'md:w-80',
-  gap: 'gap-2',
+  gap: 'gap-1',
   desktopGap: 'md:gap-6',
-  mobileNavGap: 'gap-0',
+  mobileNavGap: 'gap-3',
+  mobileNavFlexEnabled: true,
+  mobileNavItemGap: 'gap-x-4',
+  mobileNavDistribution: 'justify-start',
+  mobileNavEqualItemWidth: true,
+  mobileNavDivider: "before:content-['⋅']",
+  mobileNavDividerHeight: 'h-2',
+  mobileNavDividerWidth: 'w-px',
   navGap: 'md:gap-8',
   contactPaddingX: 'px-5',
   contactPaddingY: 'py-2.5',
@@ -570,10 +642,10 @@ const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallba
 );
 
 const HEIGHTS: ReadonlyArray<SiteHeaderHeight> = [
-  'h-12', 'h-14', 'h-16', 'h-20', 'h-24', 'h-28', 'h-32', 'h-36', 'h-40',
+  'h-auto', 'h-12', 'h-14', 'h-16', 'h-20', 'h-24', 'h-28', 'h-32', 'h-36', 'h-40',
 ];
 const DESKTOP_HEIGHTS: ReadonlyArray<SiteHeaderDesktopHeight> = [
-  'md:h-12', 'md:h-14', 'md:h-16', 'md:h-20', 'md:h-24',
+  'md:h-auto', 'md:h-12', 'md:h-14', 'md:h-16', 'md:h-20', 'md:h-24',
   'md:h-28', 'md:h-32', 'md:h-36', 'md:h-40',
 ];
 const PADDING_X: ReadonlyArray<SiteHeaderPaddingX> = ['px-4', 'px-5', 'px-6', 'px-8'];
@@ -613,6 +685,21 @@ const NAV_GAPS: ReadonlyArray<AbstractHeroNavGap> = [
 ];
 const MOBILE_NAV_GAPS: ReadonlyArray<AbstractHeroMobileNavGap> = [
   'gap-0', 'gap-1', 'gap-2', 'gap-3',
+];
+const MOBILE_NAV_DISTRIBUTIONS: ReadonlyArray<SiteHeaderMobileNavDistribution> = [
+  'justify-start', 'justify-center', 'justify-between', 'justify-around', 'justify-evenly',
+];
+const MOBILE_NAV_DIVIDERS: ReadonlyArray<SiteHeaderMobileNavDivider> = [
+  'hidden', "before:content-['|']", "before:content-['⋅']", 'border-l',
+];
+const MOBILE_NAV_ITEM_GAPS: ReadonlyArray<SiteHeaderMobileNavItemGap> = [
+  'gap-x-0', 'gap-x-1', 'gap-x-2', 'gap-x-3', 'gap-x-4',
+];
+const MOBILE_NAV_DIVIDER_HEIGHTS: ReadonlyArray<SiteHeaderMobileNavDividerHeight> = [
+  'h-2', 'h-3', 'h-4', 'h-5', 'h-6',
+];
+const MOBILE_NAV_DIVIDER_WIDTHS: ReadonlyArray<SiteHeaderMobileNavDividerWidth> = [
+  'w-px', 'w-0.5', 'w-1',
 ];
 const CONTACT_PADDING_X: ReadonlyArray<AbstractHeroContactPaddingX> = [
   'px-3', 'px-4', 'px-5', 'px-6',
@@ -676,6 +763,7 @@ export function normalizeSiteHeaderConfig(
       base.navBorderColor,
       DEFAULT_SITE_HEADER_CONFIG.navBorderColor,
     ),
+    navTextUsesWordmarkGradient: base.navTextUsesWordmarkGradient === true,
     logoSurfaceOffset: clampRange(
       base.logoSurfaceOffset, -1, 1, DEFAULT_SITE_HEADER_CONFIG.logoSurfaceOffset,
     ),
@@ -752,6 +840,33 @@ export function normalizeSiteHeaderConfig(
       base.mobileNavGap,
       MOBILE_NAV_GAPS,
       DEFAULT_SITE_HEADER_CONFIG.mobileNavGap,
+    ),
+    mobileNavFlexEnabled: base.mobileNavFlexEnabled === true,
+    mobileNavItemGap: token(
+      base.mobileNavItemGap,
+      MOBILE_NAV_ITEM_GAPS,
+      DEFAULT_SITE_HEADER_CONFIG.mobileNavItemGap,
+    ),
+    mobileNavDistribution: token(
+      base.mobileNavDistribution,
+      MOBILE_NAV_DISTRIBUTIONS,
+      DEFAULT_SITE_HEADER_CONFIG.mobileNavDistribution,
+    ),
+    mobileNavEqualItemWidth: base.mobileNavEqualItemWidth === true,
+    mobileNavDivider: token(
+      base.mobileNavDivider,
+      MOBILE_NAV_DIVIDERS,
+      DEFAULT_SITE_HEADER_CONFIG.mobileNavDivider,
+    ),
+    mobileNavDividerHeight: token(
+      base.mobileNavDividerHeight,
+      MOBILE_NAV_DIVIDER_HEIGHTS,
+      DEFAULT_SITE_HEADER_CONFIG.mobileNavDividerHeight,
+    ),
+    mobileNavDividerWidth: token(
+      base.mobileNavDividerWidth,
+      MOBILE_NAV_DIVIDER_WIDTHS,
+      DEFAULT_SITE_HEADER_CONFIG.mobileNavDividerWidth,
     ),
     navGap: token(base.navGap, NAV_GAPS, DEFAULT_SITE_HEADER_CONFIG.navGap),
     contactPaddingX: token(

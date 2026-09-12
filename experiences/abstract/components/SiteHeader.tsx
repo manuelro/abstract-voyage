@@ -13,7 +13,9 @@ import {
   normalizeSiteHeaderConfig,
   type SiteHeaderConfig,
   type SiteHeaderContentAlign,
+  type SiteHeaderDesktopHeight,
   type SiteHeaderDesktopMarginTop,
+  type SiteHeaderHeight,
   type SiteHeaderMarginTop,
 } from './SiteHeader/config/registered';
 import { DEFAULT_WORDMARK_CONFIG, type WordmarkConfig } from './SiteHeader/config/wordmark';
@@ -40,6 +42,98 @@ const NEGATIVE_TOP_BY_DESKTOP_MARGIN_TOP: Record<SiteHeaderDesktopMarginTop, str
   'md:mt-4': 'md:-top-4',
   'md:mt-6': 'md:-top-6',
   'md:mt-8': 'md:-top-8',
+};
+// h-* on <header> itself is a hard cap, not a floor: headerLeftContentPaddingTop/
+// headerRightContentPaddingTop (page-authored, fed through
+// buildEffectiveSiteHeaderConfig.ts into headerLeftContentClassName/
+// headerRightContentClassName below) can grow the left/right content cells
+// taller than this fixed box, especially once the inner grid collapses to a
+// single stacked column below md (MD_SPLIT_BAND_GRID_COLS_BY_SIDE) and both
+// cells' padding stacks on top of each other. Because <header> only ever
+// gets `isolate` (not `overflow-hidden`) outside of navBandActive — see this
+// component's own className array below — that overflow was never clipped,
+// it just rendered past the header's own bottom edge and visually collided
+// with whatever the page renders next (confirmed live: PolymorphicLayout's
+// own NARROW COLUMN/BODY debug-overlay boxes overlapping HEADER · RIGHT
+// CONTENT after headerLeftContentPaddingTop/headerRightContentPaddingTop
+// were raised from their 'pt-0' defaults).
+//
+// min-h-* alone (h-12..h-40 mapped to min-h-12..min-h-40 below) turns the
+// cap into a floor, but that alone does NOT fix the overlap above: the
+// header's real content (logo/nav) never renders inside <header>'s own
+// normal-flow box at all — it renders in navSplitOverlay below, which is
+// `position: absolute; inset: 0`, deliberately taken out of flow so it can
+// layer above the decorative split-band background via z-index rather than
+// DOM order. An absolutely positioned descendant contributes NOTHING to an
+// ancestor's intrinsic/min-content height, regardless of whether that
+// ancestor's own height is a fixed token, a min-height, or auto — so
+// min-h-* alone renders identically to h-* whenever (as here) nothing else
+// inside <header> is in normal flow. 'h-auto'/'md:h-auto' below is the real
+// fix: HEIGHT_IS_AUTO/DESKTOP_HEIGHT_IS_AUTO further down switch <header>
+// from `flex` (row) to `block` and navSplitOverlay from `absolute inset-0`
+// to `relative` for that breakpoint, putting the real content back into
+// normal flow so the box's height comes from actual document flow instead
+// of any token at all — this is opt-in (existing h-12..h-40 configs are
+// completely unaffected) since it also changes how the split-band/
+// legibility-scrim decorative backgrounds size (they still auto-match via
+// their own inset-x-0/top/bottom pins against whatever <header>'s real
+// height ends up being, fixed or auto, so this is safe either way).
+//
+// One literal token per key (never interpolated) in both maps below, same
+// reasoning as NEGATIVE_TOP_BY_MARGIN_TOP above — Tailwind's JIT scanner
+// only picks up complete class strings it can find verbatim in source.
+const MIN_HEIGHT_BY_HEIGHT: Record<SiteHeaderHeight, string> = {
+  'h-auto': 'h-auto',
+  'h-12': 'min-h-12',
+  'h-14': 'min-h-14',
+  'h-16': 'min-h-16',
+  'h-20': 'min-h-20',
+  'h-24': 'min-h-24',
+  'h-28': 'min-h-28',
+  'h-32': 'min-h-32',
+  'h-36': 'min-h-36',
+  'h-40': 'min-h-40',
+};
+const MIN_HEIGHT_BY_DESKTOP_HEIGHT: Record<SiteHeaderDesktopHeight, string> = {
+  'md:h-auto': 'md:h-auto',
+  'md:h-12': 'md:min-h-12',
+  'md:h-14': 'md:min-h-14',
+  'md:h-16': 'md:min-h-16',
+  'md:h-20': 'md:min-h-20',
+  'md:h-24': 'md:min-h-24',
+  'md:h-28': 'md:min-h-28',
+  'md:h-32': 'md:min-h-32',
+  'md:h-36': 'md:min-h-36',
+  'md:h-40': 'md:min-h-40',
+};
+// Header display + navSplitOverlay position both key off the same two
+// booleans — 'block'+'relative' (in-flow) for whichever breakpoint(s) are
+// 'h-auto', 'flex'+'absolute' (today's behavior, unchanged) otherwise. Kept
+// as literal, mutually-exclusive per-breakpoint pairs (never both 'flex'
+// and 'block' unprefixed on the same element) so there's no ambiguity about
+// which `display` rule wins — 'items-center'/'justify-center' stay in
+// <header>'s className unconditionally either way; they're valid-but-inert
+// CSS on a `display: block` box, so no separate block/flex variant of those
+// is needed.
+const HEADER_DISPLAY_BY_HEIGHT: Record<SiteHeaderHeight, string> = {
+  'h-auto': 'block',
+  'h-12': 'flex', 'h-14': 'flex', 'h-16': 'flex', 'h-20': 'flex', 'h-24': 'flex',
+  'h-28': 'flex', 'h-32': 'flex', 'h-36': 'flex', 'h-40': 'flex',
+};
+const HEADER_DISPLAY_BY_DESKTOP_HEIGHT: Record<SiteHeaderDesktopHeight, string> = {
+  'md:h-auto': 'md:block',
+  'md:h-12': 'md:flex', 'md:h-14': 'md:flex', 'md:h-16': 'md:flex', 'md:h-20': 'md:flex',
+  'md:h-24': 'md:flex', 'md:h-28': 'md:flex', 'md:h-32': 'md:flex', 'md:h-36': 'md:flex', 'md:h-40': 'md:flex',
+};
+const OVERLAY_POSITION_BY_HEIGHT: Record<SiteHeaderHeight, string> = {
+  'h-auto': 'relative',
+  'h-12': 'absolute', 'h-14': 'absolute', 'h-16': 'absolute', 'h-20': 'absolute', 'h-24': 'absolute',
+  'h-28': 'absolute', 'h-32': 'absolute', 'h-36': 'absolute', 'h-40': 'absolute',
+};
+const OVERLAY_POSITION_BY_DESKTOP_HEIGHT: Record<SiteHeaderDesktopHeight, string> = {
+  'md:h-auto': 'md:relative',
+  'md:h-12': 'md:absolute', 'md:h-14': 'md:absolute', 'md:h-16': 'md:absolute', 'md:h-20': 'md:absolute',
+  'md:h-24': 'md:absolute', 'md:h-28': 'md:absolute', 'md:h-32': 'md:absolute', 'md:h-36': 'md:absolute', 'md:h-40': 'md:absolute',
 };
 // Literal per direction — never interpolated — so Tailwind's JIT scanner
 // still sees both complete class strings regardless of which one is active.
@@ -195,6 +289,17 @@ export type SiteHeaderProps = {
    * the caller will render it at that same reduced opacity. Omit for every
    * page not opting in — logo renders at its own full, unchanged opacity. */
   titleOpacityOverride?: number;
+  /** Only meaningful while config.navTextUsesWordmarkGradient is true — the
+   * exact same PolymorphicLayout.tsx-computed usePolymorphicLayoutColors()
+   * output (colors.wordmarkGradientStops) AbstractEditorialHero's own
+   * wordmarkGradientStops prop already receives, passed straight through so
+   * the nav labels (About/Journal/Contact) render through that same
+   * gradient — not a re-derived approximation — rather than colorMode's
+   * flat --hero-header-nav-text resolution. undefined for every caller not
+   * opting in, byte-identical to before this prop existed. See
+   * SiteHeaderConfig.navTextUsesWordmarkGradient's own doc comment
+   * (SiteHeader/config/registered.ts). */
+  wordmarkGradientStops?: ReadonlyArray<SvgStop>;
   /** Only meaningful in 'adaptive' colorMode — the adaptive-ink feature
    * abstract.tsx's own live-gradient hero drives. Omit for any page (like
    * contact.tsx) with no such background to sample from; 'custom' colorMode
@@ -366,6 +471,7 @@ export function SiteHeader({
   physicalLeftColumnColor,
   titleColorOverride,
   titleOpacityOverride,
+  wordmarkGradientStops,
   dataInkTone,
   navBandActive = false,
   navBandCanvasRef,
@@ -399,7 +505,8 @@ export function SiteHeader({
     surfaceOffset: normalized.logoSurfaceOffset,
     columnTextMinContrast: normalized.columnTextMinContrast,
   };
-  const { globalTypographyConfig } = useSharedDesignConfig();
+  const { globalTypographyConfig, mobileNavCubeConfig } = useSharedDesignConfig();
+  const cuboidNavigationEnabled = mobileNavCubeConfig.enabled;
   const resolvedFontFamily = normalized.fontFamily === 'inherit'
     ? globalTypographyConfig.headingFontFamily
     : normalized.fontFamily;
@@ -622,6 +729,7 @@ export function SiteHeader({
   const renderLogo = (ref: Ref<HTMLAnchorElement> | undefined, extraClassName: string) => (
     <Link
       aria-label="Abstract Voyage home"
+      data-site-wordmark-anchor="true"
       className={`${styles.synthAffordance} ${normalized.logoWidth} ${normalized.desktopLogoWidth} pointer-events-auto relative flex min-h-[2.75rem] max-w-full shrink-0 items-center justify-center md:justify-start ${extraClassName}`}
       // '/' (Next.js's own index route), not '/abstract' — pages/index.tsx
       // re-exports this exact page as the site's real homepage, so
@@ -634,7 +742,7 @@ export function SiteHeader({
       style={{
         maxWidth: `${effectiveWordmarkConfig.maxWidthPx}px`,
         opacity: titleOpacityOverride,
-      }}
+      } as CSSProperties}
     >
       <Logo
         // Remounts (replaying the intro stagger from scratch) only when an
@@ -663,6 +771,34 @@ export function SiteHeader({
     </Link>
   );
 
+  // CSS background value built from the exact same stops the wordmark/
+  // paragraph's own gradient uses (not a re-generation) — see
+  // SiteHeaderConfig.navTextUsesWordmarkGradient's own doc comment
+  // (SiteHeader/config/registered.ts) and AbstractEditorialHero.tsx's own
+  // wordmarkGradientCss (the identical technique, applied to a different
+  // element). undefined whenever the opt-in is off or the page hasn't
+  // supplied stops, so every existing caller/state renders exactly as
+  // before.
+  const navGradientCss = useMemo(() => {
+    if (!normalized.navTextUsesWordmarkGradient || !wordmarkGradientStops?.length) return undefined;
+    return `linear-gradient(90deg, ${wordmarkGradientStops.map(stop => `${stop.color} ${stop.at}%`).join(', ')})`;
+  }, [normalized.navTextUsesWordmarkGradient, wordmarkGradientStops]);
+  // Applied per-label (not on the <Link>/<li>) so only the glyphs clip the
+  // gradient — the Contact pill's own border/background (contactItemClassName
+  // below) stays whatever colorMode already resolved, matching
+  // paragraphUsesWordmarkGradient's own "never touches non-text chrome"
+  // contract on AbstractEditorialHero.
+  const navLabelGradientStyle: CSSProperties | undefined = navGradientCss ? {
+    background: navGradientCss,
+    backgroundClip: 'text',
+    WebkitBackgroundClip: 'text',
+    color: 'transparent',
+    WebkitTextFillColor: 'transparent',
+  } : undefined;
+  const navDividerRuleGradientStyle: CSSProperties | undefined = navGradientCss ? {
+    background: navGradientCss,
+  } : undefined;
+
   const navItemClassName = `${styles.navLink} relative inline-flex min-h-[2.75rem] w-full items-center justify-center p-0 md:w-auto ${normalized.navFontSizeNarrow} ${normalized.navFontSizeDesktop} ${normalized.navUppercase ? 'uppercase' : 'normal-case'} ${normalized.navFontWeight}`;
   // md:px-0 md:py-0 md:border-0 md:rounded-none: literal reset fragments
   // (never interpolated) that zero contactPaddingX/contactPaddingY/
@@ -685,21 +821,54 @@ export function SiteHeader({
   // (previously: default block passed mobileContactPlain, the overlay
   // hardcoded true). Kept as one function instead of duplicated JSX so the
   // two callers can never silently drift on label/href.
+  const mobileNavFlexActive = normalized.mobileNavFlexEnabled;
+  const navListClassName = [
+    'm-0 w-full list-none items-center p-0 md:flex md:w-auto',
+    mobileNavFlexActive
+      ? ['flex', normalized.mobileNavDistribution].join(' ')
+      : 'grid grid-cols-3',
+    mobileNavFlexActive ? normalized.mobileNavItemGap : normalized.mobileNavGap,
+    normalized.navGap,
+  ].join(' ');
+  const navItemWrapperClassName = [
+    'min-w-0',
+    mobileNavFlexActive && normalized.mobileNavEqualItemWidth ? 'flex-1' : '',
+  ].filter(Boolean).join(' ');
+  const renderMobileNavDivider = (key: string) => (
+    mobileNavFlexActive && normalized.mobileNavDivider !== 'hidden' ? (
+      <li
+        key={key}
+        aria-hidden="true"
+        className={`${styles.navDivider} pointer-events-none flex flex-none select-none items-center opacity-50 md:hidden`}
+      >
+        {normalized.mobileNavDivider === 'border-l' ? (
+          <span
+            className={`${normalized.mobileNavDividerHeight} ${normalized.mobileNavDividerWidth} bg-current`}
+            style={navDividerRuleGradientStyle}
+          />
+        ) : (
+          <span className={normalized.mobileNavDivider} style={navLabelGradientStyle} />
+        )}
+      </li>
+    ) : null
+  );
   const renderNavItems = (contactPlain: boolean) => (
     <>
-      <li className="min-w-0">
+      <li className={navItemWrapperClassName}>
         <Link className={navItemClassName} href="/about">
-          <span className={styles.navLabel}>About</span>
+          <span className={styles.navLabel} style={navLabelGradientStyle}>About</span>
         </Link>
       </li>
-      <li className="min-w-0">
+      {renderMobileNavDivider('about-journal-divider')}
+      <li className={navItemWrapperClassName}>
         <Link className={navItemClassName} href="/journal">
-          <span className={styles.navLabel}>Journal</span>
+          <span className={styles.navLabel} style={navLabelGradientStyle}>Journal</span>
         </Link>
       </li>
-      <li className="min-w-0">
+      {renderMobileNavDivider('journal-contact-divider')}
+      <li className={navItemWrapperClassName}>
         <Link className={contactPlain ? navItemClassName : contactItemClassName} href="/contact">
-          <span className={styles.navLabel}>Contact</span>
+          <span className={styles.navLabel} style={navLabelGradientStyle}>Contact</span>
         </Link>
       </li>
     </>
@@ -834,7 +1003,19 @@ export function SiteHeader({
     // SplitColumnLayout).
     <div
       aria-hidden="false"
-      className="pointer-events-none absolute inset-0 z-[2] box-border"
+      // absolute/md:absolute (today's behavior, unchanged for every existing
+      // h-12..h-40 config) vs. relative/md:relative (the 'h-auto' opt-in,
+      // per breakpoint — see HEADER_DISPLAY_BY_HEIGHT/OVERLAY_POSITION_BY_*
+      // above for the full reasoning). inset-0 stays unconditional: on a
+      // relatively positioned box with both top+bottom (and left+right) set
+      // to 0, the spec resolves the used offset to 0 either way (top/left
+      // win when both are non-auto and height/width is auto), so it's a
+      // harmless no-op there and still exactly right for the absolute case.
+      className={[
+        'pointer-events-none inset-0 z-[2] box-border',
+        OVERLAY_POSITION_BY_HEIGHT[normalized.height],
+        OVERLAY_POSITION_BY_DESKTOP_HEIGHT[normalized.desktopHeight],
+      ].join(' ')}
     >
       {/* paddingX/desktopPaddingX here (not further down on the grid —
           see that div's own doc comment on why its own conditional
@@ -1005,7 +1186,9 @@ export function SiteHeader({
         aria-label="Primary navigation"
         className={[
           styles.primaryNav,
-          'pointer-events-auto relative flex',
+          cuboidNavigationEnabled
+            ? 'pointer-events-auto relative hidden md:flex'
+            : 'pointer-events-auto relative flex',
           // headerContentLayoutOwnedByPage: same skip as the left segment
           // above — headerRightSegmentClassName becomes the sole source.
           normalized.headerContentLayoutOwnedByPage ? '' : [
@@ -1076,7 +1259,7 @@ export function SiteHeader({
         >
           {navSeparator}
           <ul
-            className={`m-0 grid w-full list-none grid-cols-3 items-center p-0 md:flex md:w-auto ${normalized.mobileNavGap} ${normalized.navGap}`}
+            className={navListClassName}
             // headerContentLayoutOwnedByPage: true (posts-lab) suppresses
             // this inline gap-from-separator style entirely — that page's
             // own headerRightContentPaddingLeft/-Wide/-Lg (already real,
@@ -1117,9 +1300,11 @@ export function SiteHeader({
         // overlay used for exactly this reason (see its own doc comment
         // just above); the header's own box was the one piece still
         // claiming pointer-events-auto wholesale at desktop.
-        'relative z-[1000] flex w-full shrink-0 items-center justify-center pointer-events-none',
-        normalized.height,
-        normalized.desktopHeight,
+        'relative z-[1000] w-full shrink-0 items-center justify-center pointer-events-none',
+        HEADER_DISPLAY_BY_HEIGHT[normalized.height],
+        HEADER_DISPLAY_BY_DESKTOP_HEIGHT[normalized.desktopHeight],
+        MIN_HEIGHT_BY_HEIGHT[normalized.height],
+        MIN_HEIGHT_BY_DESKTOP_HEIGHT[normalized.desktopHeight],
         normalized.paddingY,
         normalized.desktopPaddingY,
         normalized.marginTop,
@@ -1255,7 +1440,7 @@ export function SiteHeader({
               aria-label="Primary navigation"
               className={`${styles.primaryNav} pointer-events-auto relative w-[min(100%,360px)] shrink-0 md:w-auto`}
             >
-              <ul className={`m-0 grid w-full list-none grid-cols-3 items-center p-0 md:flex md:w-auto ${normalized.mobileNavGap} ${normalized.navGap}`}>
+              <ul className={navListClassName}>
                 {renderNavItems(normalized.mobileContactPlain)}
               </ul>
             </nav>
