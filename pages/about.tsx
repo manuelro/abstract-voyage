@@ -1012,8 +1012,22 @@ function AboutPageContent() {
   // spacefield-related replaces the WIDE column's own body background the
   // way it replaces the narrow column's, so there's no established
   // "transparent while starfield" behavior to mirror here.
+  //
+  // colors.wideColumnPaintColor, not colors.wideColumnColor — the latter is
+  // scrollGradientInkColor while the mobile scroll-gradient background is
+  // active (a contrast-basis ink color, never meant to be PAINTED as a flat
+  // fill), and this page was reading it as a real background-color
+  // regardless, an opaque solid box that silently sat in front of the fixed
+  // <PolymorphicScrollGradientBackground> and blocked it completely
+  // (operator-reported, live screenshot: the accordion column read as one
+  // uniform flat wash, not the intended full-viewport gradient). paintColor
+  // already resolves to 'transparent' at exactly the tiers where the scroll
+  // gradient is active (PolymorphicLayout.tsx's own wideColumnPaintColor —
+  // identical to wideColumnColor everywhere else), so this is a drop-in
+  // swap: unchanged on desktop (scrollGradientEnabled off there), fixed on
+  // mobile.
   const displayedWideColumnColor = colorsRevealed
-    ? colors.wideColumnColor
+    ? colors.wideColumnPaintColor
     : normalizedPageSurfaceConfig.color;
   // Matches SpacefieldBackground's own flat backgroundColor exactly while
   // the field is visible, rather than the config-resolved split-band color
@@ -1433,7 +1447,18 @@ function AboutPageContent() {
             // previously silently diverged from /abstract's whenever this
             // page's own now-nav-only SiteHeaderColorOverride was off,
             // which it is by default).
-            wordmarkConfig={wordmarkConfig}
+            // colors.wordmarkGradientStops (PolymorphicLayout.tsx's own
+            // usePolymorphicLayoutColors) takes priority when present — the
+            // operator opted into PolymorphicLayoutConfig's own
+            // wordmarkUsesScrollGradient, and the active tier's own
+            // scrollGradientEnabled is on. colorMode is forced to 'adaptive'
+            // only in that case — SiteHeader only reads logoStops in that
+            // mode (see resolveSiteHeaderLogoStops). See
+            // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+            wordmarkConfig={colors.wordmarkGradientStops
+              ? { ...wordmarkConfig, colorMode: 'adaptive' }
+              : wordmarkConfig}
+            logoStops={colors.wordmarkGradientStops}
             // physicalLeftColumnColor: SiteHeader itself resolves the
             // logo's own colorMode-driven stops internally from this value
             // now (see SiteHeaderProps.logoStops's own doc comment for
@@ -1645,6 +1670,7 @@ function AboutPageContent() {
             emphasisOpacity={dockLayoutConfig.minimalModeTextEmphasisOpacity}
             prefersReducedMotion={prefersReducedMotion}
             onActiveIndexChange={setActiveSlideIndex}
+            columnBackgroundColor={colors.wideColumnColor}
           />
         ) : (
           // A11Y-01/A11Y-10 (about-IA-timeline-copy-rework) — `display:

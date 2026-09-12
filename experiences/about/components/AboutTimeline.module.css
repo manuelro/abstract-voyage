@@ -79,6 +79,66 @@
   right: calc(var(--about-timeline-marker-size, 9px) / 2 - var(--about-timeline-rule-weight, 1px) / 2);
 }
 
+@media (min-width: 768px) {
+  .row[data-alignment-wide='left'] {
+    flex-direction: row;
+    padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.9rem);
+    padding-right: 0;
+    text-align: left;
+  }
+
+  .row[data-alignment-wide='right'] {
+    flex-direction: row-reverse;
+    padding-left: 0;
+    padding-right: 0;
+    text-align: right;
+  }
+
+  .row[data-alignment-wide='left'] .rule {
+    left: calc(var(--about-timeline-marker-size, 9px) / 2 - var(--about-timeline-rule-weight, 1px) / 2);
+    right: auto;
+  }
+
+  .row[data-alignment-wide='right'] .rule {
+    left: auto;
+    right: calc(var(--about-timeline-marker-size, 9px) / 2 - var(--about-timeline-rule-weight, 1px) / 2);
+  }
+
+  .row[data-marker-visible='false'][data-rule-visible='false'] {
+    padding-left: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .row[data-alignment-lg='left'] {
+    flex-direction: row;
+    padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.9rem);
+    padding-right: 0;
+    text-align: left;
+  }
+
+  .row[data-alignment-lg='right'] {
+    flex-direction: row-reverse;
+    padding-left: 0;
+    padding-right: 0;
+    text-align: right;
+  }
+
+  .row[data-alignment-lg='left'] .rule {
+    left: calc(var(--about-timeline-marker-size, 9px) / 2 - var(--about-timeline-rule-weight, 1px) / 2);
+    right: auto;
+  }
+
+  .row[data-alignment-lg='right'] .rule {
+    left: auto;
+    right: calc(var(--about-timeline-marker-size, 9px) / 2 - var(--about-timeline-rule-weight, 1px) / 2);
+  }
+
+  .row[data-marker-visible='false'][data-rule-visible='false'] {
+    padding-left: 0;
+  }
+}
+
 .item:last-child .rule {
   bottom: 0;
 }
@@ -250,18 +310,30 @@
 }
 
 @media (min-width: 768px) {
-  .description[data-alignment='left'] {
+  .description[data-alignment-wide='right'] {
+    padding-left: 0;
+    text-align: right;
+  }
+
+  .description[data-alignment-wide='left'] {
     padding-left: calc(
       var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-wide, 0px)
     );
+    text-align: left;
   }
 }
 
 @media (min-width: 1024px) {
-  .description[data-alignment='left'] {
+  .description[data-alignment-lg='right'] {
+    padding-left: 0;
+    text-align: right;
+  }
+
+  .description[data-alignment-lg='left'] {
     padding-left: calc(
       var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-lg, 0px)
     );
+    text-align: left;
   }
 }
 

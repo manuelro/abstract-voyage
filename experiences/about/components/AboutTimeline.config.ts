@@ -75,10 +75,7 @@ import {
 export type AboutTimelineMarkerColorMode = 'accent' | 'custom' | 'text';
 
 /** Which side the marker/rule column sits on, and which way row text (and
- * the description above it) aligns — a single, component-owned toggle, not
- * a per-breakpoint one: this timeline is desktop-only to begin with (see
- * AboutTimeline.tsx's own doc comment), so there is no narrower tier for a
- * second value to ever apply to. */
+ * the description above it) aligns. */
 export type AboutTimelineAlignment = 'left' | 'right';
 export type AboutTimelineAppendixSeparator = '·' | '⋅';
 /** @deprecated Use `AboutTimelineAppendixSeparator`. */
@@ -265,6 +262,10 @@ export type AboutTimelineConfig = {
   markerGradientScale: number;
   /** See `AboutTimelineAlignment`'s own doc comment. */
   alignment: AboutTimelineAlignment;
+  /** Overrides `alignment` starting at md/tablet width. */
+  alignmentWide: AboutTimelineAlignment;
+  /** Overrides `alignmentWide` starting at lg/desktop width. */
+  alignmentLg: AboutTimelineAlignment;
   /** WCAG contrast ratio the row's own title (caption) text must clear
    * against the column's own resolved background color while its row is
    * active. Independently configurable from the inactive target below —
@@ -580,6 +581,8 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   // shader math alone would suggest).
   markerGradientScale: 4,
   alignment: 'left',
+  alignmentWide: 'left',
+  alignmentLg: 'left',
   rowTitleMinContrastActive: 5.1,
   rowTitleMinContrastInactive: 4,
   rowDescriptionMinContrastActive: 5,
@@ -803,6 +806,8 @@ export function normalizeAboutTimelineConfig(
     markerGradientEnabled: base.markerGradientEnabled === true,
     markerGradientScale: clampRange(base.markerGradientScale, 0.5, 4, D.markerGradientScale),
     alignment: token(base.alignment, ALIGNMENTS, D.alignment),
+    alignmentWide: token(base.alignmentWide, ALIGNMENTS, D.alignmentWide),
+    alignmentLg: token(base.alignmentLg, ALIGNMENTS, D.alignmentLg),
     rowTitleMinContrastActive: clampRange(
       base.rowTitleMinContrastActive, 1, 21, D.rowTitleMinContrastActive,
     ),

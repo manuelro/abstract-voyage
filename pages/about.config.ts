@@ -162,6 +162,8 @@ export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
   descriptionFontSizeClassName: 'text-sm',
   rowDescriptionFontSizeClassName: 'text-xs',
   alignment: 'right',
+  alignmentWide: 'right',
+  alignmentLg: 'right',
   descriptionOpacity: 0.61,
   descriptionPaddingBottomLgClassName: 'lg:pb-7',
   rowAppendixEnabled: false,
@@ -186,7 +188,9 @@ export const DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG = {
   navControlMouseOutEasing: 'gentle',
   pageEntranceTransitionMs: 900,
   pageEntranceEasing: 'viscous',
-  topSegmentDynamicBackgroundEnabled: true,
+  // false (operator ask) — was true, which meant this opt-in mesh rendered
+  // unconditionally by default instead of requiring an explicit opt-in.
+  topSegmentDynamicBackgroundEnabled: false,
   mobileUnifiedNarrowColumnGradientEnabled: true,
   narrowColumnContentWidthDecoupledEnabled: true,
 } satisfies AboutPageLayoutConfig;

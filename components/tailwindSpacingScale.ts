@@ -978,6 +978,36 @@ export const AFFORDANCE_DIMENSION_OPTIONS = [
 
 export type AffordanceDimensionClass = typeof AFFORDANCE_DIMENSION_OPTIONS[number]['value'];
 
+/** A complete outer box border (all four sides), Tailwind's own default
+ * `border-*` width scale — `border-0` is a real, supported "no border at
+ * all" option, not a separate boolean layered on top (see
+ * AboutMobileAccordion's own outer border, which needs exactly this
+ * "zero is a valid choice on the same scale" shape). */
+export const OUTER_BORDER_WIDTH_OPTIONS = [
+  { label: '0px (none)', value: 'border-0' },
+  { label: '1px', value: 'border' },
+  { label: '2px', value: 'border-2' },
+  { label: '4px', value: 'border-4' },
+  { label: '8px', value: 'border-8' },
+] as const;
+
+export type OuterBorderWidthClass = typeof OUTER_BORDER_WIDTH_OPTIONS[number]['value'];
+
+/** A divider line between stacked siblings, Tailwind's own `divide-y-*`
+ * scale (border-top on every child but the first) — the same "0 is a real
+ * option on the scale" shape as OUTER_BORDER_WIDTH_OPTIONS above, for a
+ * caller (AboutMobileAccordion's own row dividers) that needs the two
+ * borders independently configurable, including independently OFF. */
+export const INNER_BORDER_WIDTH_OPTIONS = [
+  { label: '0px (none)', value: 'divide-y-0' },
+  { label: '1px', value: 'divide-y' },
+  { label: '2px', value: 'divide-y-2' },
+  { label: '4px', value: 'divide-y-4' },
+  { label: '8px', value: 'divide-y-8' },
+] as const;
+
+export type InnerBorderWidthClass = typeof INNER_BORDER_WIDTH_OPTIONS[number]['value'];
+
 /** Radius of the corner where the affordance's two visible borders meet
  * (top-right) — Tailwind's own per-corner radius vocabulary, not the
  * full-shape `rounded-*` scale `CARD_RADIUS_VALUES` (about.config.ts) uses

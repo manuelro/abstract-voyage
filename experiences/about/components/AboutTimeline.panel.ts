@@ -193,7 +193,27 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     kind: 'enum',
     key: 'alignment',
     label: 'Alignment',
-    description: 'Right moves the marker/rule column to the right edge and right-aligns every row\'s own text — including the description above the rows.',
+    description: 'Base/mobile timeline alignment. Right moves the marker/rule column to the right edge and right-aligns every row\'s own text — including the description above the rows.',
+    options: [
+      { label: 'LEFT', value: 'left' },
+      { label: 'RIGHT', value: 'right' },
+    ],
+  },
+  {
+    kind: 'enum',
+    key: 'alignmentWide',
+    label: 'Alignment (≥ tablet)',
+    description: 'Overrides Alignment starting at md/tablet width.',
+    options: [
+      { label: 'LEFT', value: 'left' },
+      { label: 'RIGHT', value: 'right' },
+    ],
+  },
+  {
+    kind: 'enum',
+    key: 'alignmentLg',
+    label: 'Alignment (≥ desktop)',
+    description: 'Overrides Alignment (≥ tablet) starting at lg/desktop width.',
     options: [
       { label: 'LEFT', value: 'left' },
       { label: 'RIGHT', value: 'right' },

@@ -48,8 +48,9 @@ export interface AboutTimelineRowProps {
    * reachable and no row is exposed as selected. */
   selectionEnabled: boolean;
   tabIndex: number;
-  /** Only meaningful while `selectionEnabled` is false (`config.maxActiveRows
-   * === 0`) — when present, this row renders as a real link (`next/link`) to
+  /** Only meaningful while `selectionEnabled` is false (either
+   * `config.maxActiveRows === 0` or the timeline's navigation mode) — when
+   * present, this row renders as a real link (`next/link`) to
    * this URL instead of a selection button, so a zero-active-rows timeline
    * can act as a plain list of navigable links rather than a dead list.
    * Ignored while `selectionEnabled` is true: an active timeline's rows stay
@@ -95,6 +96,8 @@ export interface AboutTimelineRowProps {
   descriptionVisible: boolean;
   ruleVisible: boolean;
   alignment: AboutTimelineAlignment;
+  alignmentWide: AboutTimelineAlignment;
+  alignmentLg: AboutTimelineAlignment;
   transitionDurationMs: number;
   transitionEasingCss: string;
   appendixRevealDelayMs: number;
@@ -168,6 +171,8 @@ export function AboutTimelineRow({
   descriptionVisible,
   ruleVisible,
   alignment,
+  alignmentWide,
+  alignmentLg,
   transitionDurationMs,
   transitionEasingCss,
   appendixRevealDelayMs,
@@ -275,6 +280,8 @@ export function AboutTimelineRow({
     onPointerEnter,
     onPointerLeave,
     'data-alignment': alignment,
+    'data-alignment-wide': alignmentWide,
+    'data-alignment-lg': alignmentLg,
     'data-marker-visible': markerVisible,
     'data-rule-visible': ruleVisible,
     'data-appendix-visible': appendixVisible,
@@ -293,6 +300,7 @@ export function AboutTimelineRow({
           ref={rowRef}
           href={href}
           onClick={onSelect}
+          aria-current={active ? 'page' : undefined}
           {...sharedProps}
         >
           {rowContent}

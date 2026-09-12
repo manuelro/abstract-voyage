@@ -6,6 +6,8 @@ import {
   AFFORDANCE_BORDER_THICKNESS_OPTIONS,
   AFFORDANCE_CORNER_RADIUS_OPTIONS,
   AFFORDANCE_DIMENSION_OPTIONS,
+  OUTER_BORDER_WIDTH_OPTIONS,
+  INNER_BORDER_WIDTH_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
 import {
   DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
@@ -252,16 +254,125 @@ const MOBILE_ONLY_FIELDS = [
     options: MOTION_EASING_OPTIONS,
     visibleWhen: config => config.enabled,
   },
+  {
+    kind: 'enum',
+    key: 'outerBorderWidthClassName',
+    label: 'Outer border width',
+    description: 'The accordion\'s own outer box edge (all four sides). "0px (none)" removes it entirely — a real, supported choice on this same scale, not a separate on/off switch.',
+    options: OUTER_BORDER_WIDTH_OPTIONS,
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'enum',
+    key: 'outerBorderColorMode',
+    label: 'Outer border color source',
+    description: '"Derived" computes the outer border color from the column\'s own resolved background color, darkened by the offset below. "Custom" uses an independent flat color instead — the derived tone can read too light/washed-out against an already-light background at any offset the derivation allows.',
+    options: [
+      { label: 'DERIVED', value: 'derived' },
+      { label: 'CUSTOM', value: 'custom' },
+    ],
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'number',
+    key: 'outerBorderSurfaceOffset',
+    label: 'Outer border darkness (from background)',
+    description: 'Only while Outer border color source is Derived. How much darker than the column\'s own resolved background color the accordion\'s outer border renders. 0 = same tone as the background (invisible); more negative = darker.',
+    min: -1,
+    max: 0,
+    step: 0.01,
+    visibleWhen: config => config.enabled && config.outerBorderColorMode === 'derived',
+  },
+  {
+    kind: 'color',
+    key: 'outerBorderCustomColor',
+    label: 'Outer border custom color',
+    visibleWhen: config => config.enabled && config.outerBorderColorMode === 'custom',
+  },
+  {
+    kind: 'enum',
+    key: 'innerBorderWidthClassName',
+    label: 'Inner (divider) border width',
+    description: 'The divider line between stacked rows. "0px (none)" removes it entirely — a real, supported choice on this same scale, independent of Outer border width.',
+    options: INNER_BORDER_WIDTH_OPTIONS,
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'enum',
+    key: 'innerBorderColorMode',
+    label: 'Inner (divider) border color source',
+    description: 'Same as Outer border color source above, applied to the row-divider lines instead — fully independent color from the outer border.',
+    options: [
+      { label: 'DERIVED', value: 'derived' },
+      { label: 'CUSTOM', value: 'custom' },
+    ],
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'number',
+    key: 'innerBorderSurfaceOffset',
+    label: 'Inner (divider) border darkness (from background)',
+    description: 'Only while Inner (divider) border color source is Derived.',
+    min: -1,
+    max: 0,
+    step: 0.01,
+    visibleWhen: config => config.enabled && config.innerBorderColorMode === 'derived',
+  },
+  {
+    kind: 'color',
+    key: 'innerBorderCustomColor',
+    label: 'Inner (divider) border custom color',
+    visibleWhen: config => config.enabled && config.innerBorderColorMode === 'custom',
+  },
+  {
+    kind: 'number',
+    key: 'innerBorderOpacity',
+    label: 'Inner (divider) border opacity',
+    description: 'Alpha applied to the divider line\'s own resolved color (derived or custom, whichever Inner (divider) border color source above produced). 1 = fully opaque; 0 = fully transparent (no visible line), independent of Inner (divider) border width — a nonzero width can stay reserved for layout while the line itself fades out.',
+    min: 0,
+    max: 1,
+    step: 0.01,
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'enum',
+    key: 'textColorMode',
+    label: 'Text color source',
+    description: '"Derived" computes this accordion\'s row text (collapsed header preview and expanded paragraph alike) from the column\'s own resolved background color, darkened by the offset below. "Custom" uses an independent flat color instead.',
+    options: [
+      { label: 'DERIVED', value: 'derived' },
+      { label: 'CUSTOM', value: 'custom' },
+    ],
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'number',
+    key: 'textSurfaceOffset',
+    label: 'Text darkness (from background)',
+    description: 'Only while Text color source is Derived. How much darker than the column\'s own resolved background color this accordion\'s row text renders. 0 = same tone as the background (invisible); more negative = darker.',
+    min: -1,
+    max: 0,
+    step: 0.01,
+    visibleWhen: config => config.enabled && config.textColorMode === 'derived',
+  },
+  {
+    kind: 'color',
+    key: 'textCustomColor',
+    label: 'Text custom color',
+    visibleWhen: config => config.enabled && config.textColorMode === 'custom',
+  },
 ] as const satisfies ReadonlyArray<ConfigScopeEntry<AboutMobileAccordionConfig>>;
 
 /**
  * The unified accordion scope — shared resize/reveal timing (ALL SIZES,
  * also consumed by the desktop `MagnificationDock` engine via
  * `pages/about.tsx`'s own `dockSliderConfig` memo) plus the mobile (below-md)
- * accordion's own interaction/geometry knobs (MOBILE). See
- * `AboutMobileAccordion.config.ts`'s own doc comment for why colors are
- * deliberately absent here (the component reuses the page's existing
- * `dockPaletteConfig`/`dockSliderConfig` verbatim). Registered in
+ * accordion's own interaction/geometry knobs (MOBILE), including
+ * borderSurfaceOffset/textSurfaceOffset — see `AboutMobileAccordion.config
+ * .ts`'s own doc comment for why those two are the one deliberate exception
+ * to "no color field lives here" (the per-item background/gradient mesh
+ * itself still reuses the page's existing `dockPaletteConfig`/
+ * `dockSliderConfig` verbatim, unchanged). Registered in
  * `pages/aboutConfigPanels.ts`'s `aboutConfigPanelRegistry` — single page
  * consumer, same registration shape the outgoing `AboutMobileCardStack`
  * scope used, not the per-page-ownership pattern (which is for one shared

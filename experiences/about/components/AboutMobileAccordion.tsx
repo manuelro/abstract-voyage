@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { SliderContentSlide } from '../../../helpers/postContent';
 import type { LiquidSliderConfig } from '../../abstract/components/AbstractPostDock/config/legacy';
 import type { AbstractPostDockPaletteConfig } from '../../abstract/components/AbstractPostDock/config/registered';
 import { useLiquidSliderMotion } from '../../abstract/components/AbstractPostDock/hooks/motion';
+import { deriveSurfaceColor, deriveTransparentTint } from '../../../helpers/surfaceColorDerivation';
 import { buildDeckPaletteStates } from '../../abstract/helpers/deckPalette';
 import { AboutMobileAccordionItem } from './AboutMobileAccordionItem';
 import type { AboutMobileAccordionConfig } from './AboutMobileAccordion.config';
@@ -27,6 +29,7 @@ export function AboutMobileAccordion({
   emphasisOpacity,
   prefersReducedMotion,
   onActiveIndexChange,
+  columnBackgroundColor,
 }: {
   slides: ReadonlyArray<SliderContentSlide>;
   gradientConfig: LiquidSliderConfig;
@@ -35,6 +38,14 @@ export function AboutMobileAccordion({
   dimOpacity: number;
   emphasisOpacity: number;
   prefersReducedMotion: boolean;
+  /** The page's own resolved column-color reference (pages/about.tsx's own
+   * `colors.wideColumnColor`) — config.borderSurfaceOffset/textSurfaceOffset
+   * derive this component's own border/text colors from it. Not the same
+   * value as the column's actual PAINTED background (which is transparent
+   * on this page, letting the scroll-gradient show through) — this is the
+   * ink/contrast-basis reference PolymorphicLayout already resolves for
+   * exactly this "what should text/borders read against" purpose. */
+  columnBackgroundColor: string;
   /** Kept loosely in sync (most-recently-toggled-open index) so
    * `AboutSlidesContext.activeIndex` stays sane if the viewport crosses
    * back over the mobile breakpoint mid-session — nothing on mobile itself
@@ -244,6 +255,27 @@ export function AboutMobileAccordion({
     onActiveIndexChange(index);
   }, [config.maxExpandedItems, config.collapseLeadFraction, config.transitionMs, prefersReducedMotion, applyExpandCap, onActiveIndexChange]);
 
+  // See AboutMobileAccordionConfig's own outerBorder/innerBorder/textColorMode
+  // doc comment — 'custom' bypasses the columnBackgroundColor derivation
+  // entirely for an operator who finds the derived tone reads too light/
+  // washed-out against an already-light background. Outer and inner
+  // (divider) each resolve independently — same shape, no shared state.
+  const derivedOuterBorderColor = config.outerBorderColorMode === 'custom'
+    ? config.outerBorderCustomColor
+    : deriveSurfaceColor(columnBackgroundColor, config.outerBorderSurfaceOffset);
+  // deriveTransparentTint (not a second color derivation) — fades the
+  // resolved color's own alpha without touching its hue/lightness, same
+  // primitive CardStack's own scrimOpacity fields already use.
+  const derivedInnerBorderColor = deriveTransparentTint(
+    config.innerBorderColorMode === 'custom'
+      ? config.innerBorderCustomColor
+      : deriveSurfaceColor(columnBackgroundColor, config.innerBorderSurfaceOffset),
+    config.innerBorderOpacity,
+  );
+  const derivedTextColor = config.textColorMode === 'custom'
+    ? config.textCustomColor
+    : deriveSurfaceColor(columnBackgroundColor, config.textSurfaceOffset);
+
   return (
     // h-full + overflow-hidden: fills pages/about.module.css's own
     // .splitRight (now real, fixed height on mobile — see that file's own
@@ -251,7 +283,18 @@ export function AboutMobileAccordion({
     // perExpandedItemCap cap above is what keeps content within that fixed
     // box, so this container itself never needs to grow past it or scroll
     // to reveal overflow.
-    <div ref={containerRef} className="flex h-full w-full flex-col overflow-hidden">
+    <div
+      ref={containerRef}
+      className={
+        `flex h-full w-full flex-col overflow-hidden rounded-md `
+        + `${config.outerBorderWidthClassName} ${config.innerBorderWidthClassName} `
+        + `divide-[color:var(--about-accordion-divider-color)]`
+      }
+      style={{
+        borderColor: derivedOuterBorderColor,
+        '--about-accordion-divider-color': derivedInnerBorderColor,
+      } as CSSProperties}
+    >
       {slides.map((slide, index) => (
         <AboutMobileAccordionItem
           key={slide.id}
@@ -260,6 +303,7 @@ export function AboutMobileAccordion({
           motion={motion}
           gradientConfig={gradientConfig}
           config={config}
+          textColor={derivedTextColor}
           expanded={expandedIndices.includes(index)}
           onToggle={() => toggle(index)}
           dimOpacity={dimOpacity}

@@ -6,14 +6,9 @@ import { resolveAbstractPostDockEasing } from '../../abstract/components/Abstrac
 import { abstractPostDockActiveOpacityStyle } from '../../abstract/components/AbstractPostDock/helpers/activeOpacityReveal';
 import { renderEmphasisText } from '../../../helpers/textEmphasis';
 import type { SliderContentSlide } from '../../../helpers/postContent';
-import {
-  LiquidGradientAdapter,
-  type DeckPaletteState,
-} from '../../abstract/components/AbstractPostDock/components/GradientRenderer';
+import type { DeckPaletteState } from '../../abstract/components/AbstractPostDock/components/GradientRenderer';
 import type { LiquidSliderConfig } from '../../abstract/components/AbstractPostDock/config/legacy';
 import type { useLiquidSliderMotion } from '../../abstract/components/AbstractPostDock/hooks/motion';
-import { useDockGradientAvailability } from '../../abstract/components/AbstractPostDock/hooks/browserState';
-import { resolveAbstractPostDockGradientActivity } from '../../abstract/components/AbstractPostDock/helpers/gradientActivity';
 import type { AboutMobileAccordionConfig } from './AboutMobileAccordion.config';
 // Shared with AboutSlideNavControl — the same page-owned CSS module every
 // other about-experience component's own hover/idle CSS-custom-property
@@ -22,22 +17,13 @@ import type { AboutMobileAccordionConfig } from './AboutMobileAccordion.config';
 // .accordionAffordance rules reuse verbatim).
 import styles from '../../../pages/about.module.css';
 
-// PLAN-ABOUT-MOBILE-ACCORDION.md §9 — forced, not exposed as a config field:
-// the gradient must never run a continuous idle-drift/noise loop on this
-// page, mobile or desktop. 'static' resolves to 'frozen' in
-// resolveAbstractPostDockGradientActivity BEFORE that helper even looks at
-// which slide is "active" — a single render per relevant prop change
-// (open/close, palette edit), never a per-frame recalculation.
-const STATIC_GRADIENT_PERFORMANCE_CONFIG = {
-  activityPolicy: 'static' as const,
-  pauseWhenOffscreen: true,
-  activityPolicyNarrow: 'static' as const,
-};
-
 // Content text classes — the collapsed preview must render at the exact
 // same font size/config as the expanded paragraph, not a smaller "label"
-// treatment, so the two read as the same voice at a different length.
-const CONTENT_TEXT_CLASSNAME = 'text-lg leading-relaxed text-white [text-wrap:balance]';
+// treatment, so the two read as the same voice at a different length. Color
+// is deliberately absent here now (was a hardcoded text-white) — applied via
+// the textColor prop's own inline style instead (AboutMobileAccordionConfig
+// .textSurfaceOffset, derived from the page's own column background).
+const CONTENT_TEXT_CLASSNAME = 'text-lg leading-relaxed [text-wrap:balance]';
 
 export function AboutMobileAccordionItem({
   slide,
@@ -45,6 +31,7 @@ export function AboutMobileAccordionItem({
   motion,
   gradientConfig,
   config,
+  textColor,
   expanded,
   onToggle,
   dimOpacity,
@@ -58,6 +45,10 @@ export function AboutMobileAccordionItem({
   motion: ReturnType<typeof useLiquidSliderMotion>;
   gradientConfig: LiquidSliderConfig;
   config: AboutMobileAccordionConfig;
+  /** AboutMobileAccordion's own derived color (config.textSurfaceOffset
+   * applied to the page's columnBackgroundColor) — applied to both the
+   * collapsed header preview and the expanded paragraph below. */
+  textColor: string;
   expanded: boolean;
   onToggle: () => void;
   dimOpacity: number;
@@ -81,13 +72,6 @@ export function AboutMobileAccordionItem({
   headerRef?: (element: HTMLButtonElement | null) => void;
 }) {
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const { isDockVisible, isDocumentVisible } = useDockGradientAvailability(sectionRef, true);
-  const activity = resolveAbstractPostDockGradientActivity({
-    config: STATIC_GRADIENT_PERFORMANCE_CONFIG,
-    isActive: false,
-    isDockVisible,
-    isDocumentVisible,
-  });
 
   const heightEasing = resolveAbstractPostDockEasing(config.transitionEasing);
   const contentEasing = resolveAbstractPostDockEasing(config.transitionEasing);
@@ -104,14 +88,14 @@ export function AboutMobileAccordionItem({
     : config.contentSettleMs > 0 ? config.contentSettleMs : config.transitionMs;
   const affordanceRotationDurationMs = prefersReducedMotion ? 0 : config.affordanceRotationDurationMs;
 
-  // 'accent' mode matches the narrative rows' own always-white text
-  // (View.tsx's minimal-mode branch's hardcoded `text-white`) rather than
-  // slide.accent itself — the accent color is this row's own background, so
-  // outlining the affordance in it would make it disappear against its own
-  // row.
+  // 'accent' mode now matches this row's own resolved text color (textColor
+  // — was a hardcoded '#ffffff' matching the narrative rows' own former
+  // always-white text) rather than slide.accent itself — the accent color
+  // is this row's own background, so outlining the affordance in it would
+  // make it disappear against its own row.
   const resolvedAffordanceColor = config.affordanceColorMode === 'custom'
     ? config.affordanceCustomColor
-    : '#ffffff';
+    : textColor;
 
   // Cognitive-load pass (operator ask, 2026-08-25): the collapsed preview
   // reads as this row's own non-highlighted content text (dimOpacity) —
@@ -152,24 +136,7 @@ export function AboutMobileAccordionItem({
     // overflow simply clips at the container's own overflow-hidden edge
     // (at most the last item's tail becomes invisible), never a squished,
     // illegible header.
-    <div ref={sectionRef} className="relative w-full shrink-0 overflow-hidden" style={{ backgroundColor: slide.accent }}>
-      {/* inset-0, not a fixed reference-height box — the gradient must
-          cover the item's own real, current height at every moment
-          (collapsed AND however tall a given expanded paragraph grows),
-          not just a fixed band anchored to the top. Absolutely positioned
-          against this outer `relative` box, so it tracks the box's real
-          size on every frame of the height transition below, the same way
-          any full-bleed background layer would. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
-        <LiquidGradientAdapter
-          slide={slide}
-          motion={motion}
-          config={gradientConfig}
-          palette={palette}
-          activity={activity}
-        />
-      </div>
-
+    <div ref={sectionRef} className="relative w-full shrink-0 overflow-hidden">
       {/* Normal block flow, NOT a row inside the animated grid below — its
           own height is fixed by previewMinHeight/affordancePadding alone
           and never depends on the expanded content's own size, so it
@@ -197,11 +164,17 @@ export function AboutMobileAccordionItem({
         <span
           className={`m-0 line-clamp-1 ${CONTENT_TEXT_CLASSNAME}`}
           style={{
+            color: textColor,
             opacity: previewTextOpacity,
             transition: `opacity ${contentSettleWaitMs}ms ${contentEasing}`,
-            // A11Y-05 (about-IA-timeline-copy-rework) — see View.tsx's own
-            // identical addition for the full doc comment.
-            textShadow: 'var(--about-dock-text-shadow, none)',
+            // Header/preview text shadow removed (operator ask) — was the
+            // same A11Y-05 drop shadow View.tsx's own narrative text uses,
+            // tuned for that component's own busy animated mesh backdrop;
+            // this row no longer paints one of its own (transparent,
+            // AboutMobileAccordionItem.tsx's own background removal), so
+            // there's nothing here for the shadow to help legibility
+            // against. The expanded paragraph below keeps its own shadow —
+            // only this collapsed header label's shadow was reported.
           }}
         >
           {slide.excerpt}
@@ -277,7 +250,7 @@ export function AboutMobileAccordionItem({
           >
             <p
               className={`relative ${CONTENT_TEXT_CLASSNAME}`}
-              style={{ textShadow: 'var(--about-dock-text-shadow, none)' }}
+              style={{ color: textColor }}
             >
               {renderEmphasisText(slide.title, dimOpacity, emphasisOpacity)}
             </p>

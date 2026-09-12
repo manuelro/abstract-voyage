@@ -20,9 +20,8 @@ export type AboutTimelineRowData = {
   /** @deprecated Use `appendix`; retained for existing timeline data. */
   category?: string;
   slideIndex: number;
-  /** Only read while `config.maxActiveRows === 0` — see `AboutTimelineRow`'s
-   * own `href` doc comment. Absent (every existing caller) keeps a
-   * zero-selection row a non-navigating list item, unchanged. */
+  /** Used by zero-selection timelines and explicit `navigationMode`
+   * instances. Absent keeps the row a non-navigating control. */
   href?: string;
 };
 
@@ -132,6 +131,11 @@ export interface AboutTimelineProps {
    * `AboutTimelineRow.tsx`'s own `showMarkerGradient`). */
   gradientMotion?: ReturnType<typeof useLiquidSliderMotion>;
   gradientConfig?: LiquidSliderConfig;
+  /** Renders href-backed rows as ordinary navigation links while retaining
+   * the timeline's visual active state. Every link remains a tab stop and
+   * arrow keys move focus without activating a destination. */
+  navigationMode?: boolean;
+  ariaLabel?: string;
 }
 
 const TAB_ID_PREFIX = 'about-timeline-tab';
@@ -164,6 +168,8 @@ export function AboutTimeline({
   gradientPaletteStates,
   gradientMotion,
   gradientConfig,
+  navigationMode = false,
+  ariaLabel = 'Career timeline',
 }: AboutTimelineProps) {
   const rowRefs = useRef<Array<HTMLButtonElement | HTMLAnchorElement | null>>([]);
   const transitionEasingCss = CTA_BUTTON_MOTION_EASINGS[config.transitionEasing];
@@ -265,9 +271,9 @@ export function AboutTimeline({
     }
     if (nextIndex === null || nextIndex === index) return;
     event.preventDefault();
-    onSelect(rows[nextIndex].slideIndex);
+    if (!navigationMode) onSelect(rows[nextIndex].slideIndex);
     focusRow(nextIndex);
-  }, [rows, onSelect, focusRow]);
+  }, [rows, onSelect, focusRow, navigationMode]);
 
   // Split out of the shared box below so each row can swap in its own
   // active/idle weight (rowTitleFontWeightClassName/-Active) — the same
@@ -309,8 +315,8 @@ export function AboutTimeline({
   ].join(' ');
 
   const rowElements = useMemo(() => rows.map((row, index) => {
-    const selectionEnabled = config.maxActiveRows > 0;
-    const selected = selectionEnabled && row.slideIndex === activeIndex;
+    const selectionEnabled = !navigationMode && config.maxActiveRows > 0;
+    const selected = (navigationMode || selectionEnabled) && row.slideIndex === activeIndex;
     const isHoveredRow = row.slideIndex === hoveredIndex;
     return (
       <AboutTimelineRow
@@ -340,6 +346,8 @@ export function AboutTimeline({
         descriptionVisible={config.rowDescriptionVisible}
         ruleVisible={config.ruleVisible}
         alignment={config.alignment}
+        alignmentWide={config.alignmentWide}
+        alignmentLg={config.alignmentLg}
         titleOpacity={isHoveredRow
           ? (highlightOpacityOverride ?? config.hoverTitleOpacity)
           : (selected
@@ -371,7 +379,7 @@ export function AboutTimeline({
     resolvedRowDescriptionColorActive, resolvedRowDescriptionColorInactive,
     config.rowDescriptionOpacityActive, config.rowDescriptionOpacityInactive,
     config.markerVisible, config.rowDescriptionVisible,
-    config.ruleVisible, config.alignment,
+    config.ruleVisible, config.alignment, config.alignmentWide, config.alignmentLg,
     config.rowTitleOpacityActive, config.rowTitleOpacityInactive,
     config.hoverTitleOpacity, config.hoverMarkerOpacity, config.hoverDescriptionOpacity,
     bodyOpacityOverride, highlightOpacityOverride,
@@ -383,16 +391,16 @@ export function AboutTimeline({
     config.markerGradientEnabled, gradientSlides, gradientPaletteStates,
     gradientMotion, gradientConfig,
     transitionDurationMs, transitionEasingCss, onSelect, handleKeyDown,
-    handleRowPointerEnter, handleRowPointerLeave, panelId,
+    handleRowPointerEnter, handleRowPointerLeave, panelId, navigationMode,
   ]);
 
   const markerSizePx = tailwindSpacingTokenToPx(config.markerSizeClassName.split(' ')[0], 24);
   const ruleWeightPx = RULE_WEIGHT_PX[config.ruleWeightClassName] ?? 1;
   const titleFontSizeRem = TITLE_FONT_SIZE_REM[config.rowTitleFontSizeClassName] ?? 0.875;
 
-  // The indent side (left while alignment is 'left', right while 'right')
-  // combines the structural marker-offset with the operator's own
-  // configured padding on that same side, at every breakpoint tier — a
+  // The indent side (left while each tier's alignment is 'left', right
+  // while it is 'right') combines the structural marker-offset with the
+  // operator's own configured padding on that same side per tier — a
   // plain Tailwind class on that side would silently collide with
   // AboutTimeline.module.css's own structural padding rule on the same
   // property, so only the "extra" operator-configured amount is computed
@@ -407,11 +415,11 @@ export function AboutTimeline({
     0,
   );
   const descriptionIndentExtraWidePx = tailwindSpacingTokenToPx(
-    config.alignment === 'right' ? config.descriptionPaddingRightWideClassName : config.descriptionPaddingLeftWideClassName,
+    config.alignmentWide === 'right' ? config.descriptionPaddingRightWideClassName : config.descriptionPaddingLeftWideClassName,
     0,
   );
   const descriptionIndentExtraLgPx = tailwindSpacingTokenToPx(
-    config.alignment === 'right' ? config.descriptionPaddingRightLgClassName : config.descriptionPaddingLeftLgClassName,
+    config.alignmentLg === 'right' ? config.descriptionPaddingRightLgClassName : config.descriptionPaddingLeftLgClassName,
     0,
   );
 
@@ -457,14 +465,14 @@ export function AboutTimeline({
             config.descriptionPaddingTopWideClassName, config.descriptionPaddingBottomWideClassName,
             config.descriptionPaddingTopLgClassName, config.descriptionPaddingBottomLgClassName,
             // The indent side (left or right, whichever matches
-            // config.alignment) is applied via CSS custom properties +
+            // that tier's alignment) is applied via CSS custom properties +
             // AboutTimeline.module.css's own media-query rules instead, at
             // every tier — see the style prop below.
             config.alignment === 'right' ? config.descriptionPaddingLeftClassName : config.descriptionPaddingRightClassName,
-            config.alignment === 'right'
+            config.alignmentWide === 'right'
               ? config.descriptionPaddingLeftWideClassName
               : config.descriptionPaddingRightWideClassName,
-            config.alignment === 'right'
+            config.alignmentLg === 'right'
               ? config.descriptionPaddingLeftLgClassName
               : config.descriptionPaddingRightLgClassName,
             config.descriptionMarginTopClassName, config.descriptionMarginRightClassName,
@@ -478,6 +486,8 @@ export function AboutTimeline({
             config.descriptionFontSizeLgClassName,
           ].join(' ')}
           data-alignment={config.alignment}
+          data-alignment-wide={config.alignmentWide}
+          data-alignment-lg={config.alignmentLg}
           style={{
             color: resolvedDescriptionColor,
             opacity: config.descriptionOpacity,
@@ -498,9 +508,9 @@ export function AboutTimeline({
         </p>
       ) : null}
       <ol
-        role={config.maxActiveRows > 0 ? 'tablist' : 'list'}
-        aria-orientation={config.maxActiveRows > 0 ? 'vertical' : undefined}
-        aria-label="Career timeline"
+        role={!navigationMode && config.maxActiveRows > 0 ? 'tablist' : 'list'}
+        aria-orientation={!navigationMode && config.maxActiveRows > 0 ? 'vertical' : undefined}
+        aria-label={ariaLabel}
         className={`${styles.list} ${config.rowGap}`}
         style={{
           '--about-timeline-row-gap-px': `${tailwindSpacingTokenToPx(config.rowGap, 40)}px`,
