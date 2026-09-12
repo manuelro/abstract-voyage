@@ -752,7 +752,7 @@ export const DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG = {
   inactiveChromaDuck: 0.2,
   valueRigAmount: 0.1,
   masterSaturation: 0.82,
-  masterBrightness: 1.05,
+  masterBrightness: 1.4,
   masterContrast: 1.43,
   masterSoftness: 1,
   gradientScale: 0.5,

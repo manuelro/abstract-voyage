@@ -1,4 +1,8 @@
 import { clamp } from '../../../../helpers/clamp';
+import {
+  PADDING_X_OPTIONS,
+  type PaddingXClass,
+} from '../../../../components/tailwindSpacingScale';
 
 /**
  * CoverFlow's own geometry config — promoted from pages/carousel-lab.config.ts's
@@ -27,6 +31,10 @@ export type CoverFlowConfig = {
    * occupy — Mobile (< 768px). No fixed pixel ceiling; only minCardWidthPx
    * bounds it from below. */
   cardWidthRatio: number;
+  /** Mobile-only horizontal space around the CoverFlow layout plane. A
+   * literal Tailwind `px-*` token keeps its value on the shared grid scale
+   * and lets the enclosing page own the narrow viewport gutter. */
+  mobileCardGutterX: PaddingXClass;
   /** Card size — Tablet (>= 768px). */
   cardWidthRatioMd: number;
   /** Card size — Desktop (>= 1024px). */
@@ -220,7 +228,18 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   cardDistanceRatio: 1.5,
   cardDistanceRatioMd: 1.1,
   cardDistanceRatioLg: 1.5,
+  // Mobile card framing is configured separately with mobileCardGutterX,
+  // so card size and outer grid rhythm remain independently adjustable.
+  // 'px-0' — was 'px-6': the mobile CoverFlow's own wrapper (pages/
+  // abstract.tsx) is already full-bleed (width: 100vw; marginLeft:
+  // calc(50% - 50vw)), but this gutter was applied *inside* that wrapper,
+  // clipping CoverFlow's measured container 24px in from each true viewport
+  // edge instead of letting it reach edge-to-edge. cardWidthRatio above
+  // still independently caps how much of that now-full width the active
+  // card itself occupies — this field only ever controlled the outer
+  // frame's own inset, not the card's size.
   cardWidthRatio: 0.83,
+  mobileCardGutterX: 'px-0',
   cardWidthRatioMd: DEFAULT_CARD_WIDTH_RATIO,
   cardWidthRatioLg: 0.1,
   cardAspectRatio: 4 / 3,
@@ -259,6 +278,7 @@ const CARD_DISTANCE_RATIO_MIN = 0.2;
 const CARD_DISTANCE_RATIO_MAX = 1.5;
 const CARD_WIDTH_RATIO_MIN = 0.1;
 const CARD_WIDTH_RATIO_MAX = 1;
+const MOBILE_CARD_GUTTER_X_VALUES = PADDING_X_OPTIONS.map(option => option.value);
 const PERSPECTIVE_PX_MIN = 200;
 const PERSPECTIVE_PX_MAX = 4000;
 const PERSPECTIVE_ORIGIN_PERCENT_MIN = -50;
@@ -305,6 +325,9 @@ export function normalizeCoverFlowConfig(
     cardDistanceRatioMd: clamp(base.cardDistanceRatioMd, CARD_DISTANCE_RATIO_MIN, CARD_DISTANCE_RATIO_MAX),
     cardDistanceRatioLg: clamp(base.cardDistanceRatioLg, CARD_DISTANCE_RATIO_MIN, CARD_DISTANCE_RATIO_MAX),
     cardWidthRatio: clamp(base.cardWidthRatio, CARD_WIDTH_RATIO_MIN, CARD_WIDTH_RATIO_MAX),
+    mobileCardGutterX: MOBILE_CARD_GUTTER_X_VALUES.includes(base.mobileCardGutterX)
+      ? base.mobileCardGutterX
+      : DEFAULT_COVER_FLOW_CONFIG.mobileCardGutterX,
     cardWidthRatioMd: clamp(base.cardWidthRatioMd, CARD_WIDTH_RATIO_MIN, CARD_WIDTH_RATIO_MAX),
     cardWidthRatioLg: clamp(base.cardWidthRatioLg, CARD_WIDTH_RATIO_MIN, CARD_WIDTH_RATIO_MAX),
     cardAspectRatio: clamp(base.cardAspectRatio, CARD_ASPECT_RATIO_MIN, CARD_ASPECT_RATIO_MAX),

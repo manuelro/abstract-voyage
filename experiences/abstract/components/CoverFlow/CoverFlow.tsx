@@ -1,4 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode,
+} from 'react';
 import {
   motion,
   useMotionValue,
@@ -170,6 +172,22 @@ export interface CoverFlowProps<T> {
    * from the accessibility tree and any links inside its unchanged card
    * renderer are removed from sequential focus. */
   accessibilityHidden?: boolean;
+  /** True while the caller's own `activeIndex` hasn't finished being
+   * established yet — e.g. useArticleHashSync's own `restored` value
+   * (ArticleListCoverFlowSync/useArticleListCoverFlowSync.ts), false until
+   * that hook's mount-time URL-hash check has actually run once. While
+   * true, every `activeIndex` change is applied instantly (no unsettle,
+   * no settle-delay timer, no staggered entrance) — a caller passing this
+   * is saying "this isn't a real transition yet, it's still finding out
+   * what the resting state is." Defaults to false so every existing
+   * caller not opting in stays byte-identical (every activeIndex change
+   * treated as a real transition, today's behavior). See the settledIndex
+   * effect's own doc comment below for the bug this closes (screenshot-
+   * reported, both via a restored URL hash and, separately, on a real
+   * device where hydration alone was slow enough to reproduce it) and why
+   * a fixed-time heuristic tried first wasn't reliable across real device
+   * speeds. */
+  suppressEntranceAnimation?: boolean;
 }
 
 function clampIndex(index: number, length: number) {
@@ -301,6 +319,7 @@ export function CoverFlow<T>({
   onItemClick,
   externalDriver,
   accessibilityHidden = false,
+  suppressEntranceAnimation = false,
 }: CoverFlowProps<T>) {
   const safeInitial = clampIndex(activeIndex, items.length);
   const [isDragging, setIsDragging] = useState(false);
@@ -377,18 +396,37 @@ export function CoverFlow<T>({
   // (framer-motion only exposes the spring's continuously-updating value),
   // so this approximates it with config.activeSettleDelayMs, a plain timer
   // reset on every activeIndex change.
-  const [settledIndex, setSettledIndex] = useState<number | null>(
-    prefersReducedMotion ? safeInitial : null,
-  );
+  //
+  // `suppressEntranceAnimation` (see this component's own prop doc comment)
+  // distinguishes a genuine post-mount transition (needs the full unsettle
+  // + timer + staggered entrance) from an `activeIndex` CORRECTION still
+  // arriving while the resting state is being established — e.g. a caller
+  // restoring the real initial index from a URL hash (see useArticleHashSync
+  // , ArticleListCoverFlowSync/useArticleListCoverFlowSync.ts). Two earlier
+  // attempts at this fix guessed from timing alone instead of taking an
+  // explicit signal from the caller — a fixed post-mount grace window, then
+  // a "quiet period since the last change" heuristic — and both failed on
+  // a real device (screenshot-reported both times): hydration/data-fetch
+  // alone was sometimes slow enough that the real correction arrived after
+  // either heuristic had already decided "establishing is done," so it got
+  // animated as a real transition anyway. There is no calendar-time bound a
+  // component can assume here; only the caller that owns the async
+  // correction knows when it's actually finished. Before this fix: the
+  // initial active card rendered fully blank (title/excerpt/CTA opacity 0,
+  // ArticleCard.module.css's own `.detailFade`) for activeSettleDelayMs +
+  // the full staggeredCardReveal cascade (~1.3-2s+, confirmed live) before
+  // its own already-current content faded in, as if it were still arriving
+  // from some other card.
+  const [settledIndex, setSettledIndex] = useState<number | null>(safeInitial);
   useEffect(() => {
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion || suppressEntranceAnimation) {
       setSettledIndex(activeIndex);
       return undefined;
     }
     setSettledIndex((current) => (current === activeIndex ? current : null));
     const timer = setTimeout(() => setSettledIndex(activeIndex), config.activeSettleDelayMs);
     return () => clearTimeout(timer);
-  }, [activeIndex, prefersReducedMotion, config.activeSettleDelayMs]);
+  }, [activeIndex, prefersReducedMotion, suppressEntranceAnimation, config.activeSettleDelayMs]);
   const hasSettled = settledIndex === activeIndex;
 
   // See CoverFlowConfig's own staggeredCardRevealEnabled doc comment for

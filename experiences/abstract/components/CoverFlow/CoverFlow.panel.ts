@@ -1,4 +1,5 @@
 import { defineConfigScope } from '../../../../components/Panel/config';
+import { PADDING_X_OPTIONS } from '../../../../components/tailwindSpacingScale';
 import { DEFAULT_COVER_FLOW_CONFIG, type CoverFlowConfig } from './CoverFlow.config';
 
 export const COVER_FLOW_SCOPE_ID = 'abstract/coverFlow' as const;
@@ -52,6 +53,13 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
               key: 'cardWidthRatio',
               label: 'Card size',
               description: 'Fraction of the available container width the active card fills at this tier.',
+            },
+            {
+              kind: 'select',
+              key: 'mobileCardGutterX',
+              label: 'Card gutter',
+              description: 'Horizontal space around the mobile CoverFlow plane. Uses Tailwind\'s spacing scale; combine with Card size to set the final card-to-viewport relationship.',
+              options: PADDING_X_OPTIONS,
             },
           ],
         },
