@@ -1,6 +1,7 @@
 import '../styles/globals.css'
 import 'swiper/css'
 import type { AppProps } from 'next/app'
+import { useRouter } from 'next/router'
 import dynamic from 'next/dynamic'
 import Script from 'next/script'
 import { Instrument_Sans, Instrument_Serif } from 'next/font/google'
@@ -45,6 +46,7 @@ function CuboidNavigationRoot({ children }: { children: ReactNode }) {
 }
 
 export default function App({ Component, pageProps }: AppProps) {
+  const immersive = useRouter().pathname === '/black-hole'
   return (
     <SharedDesignConfigProvider>
       <AbstractDesignConfigProvider>
@@ -80,11 +82,13 @@ export default function App({ Component, pageProps }: AppProps) {
             covers every page uniformly; LayoutDebugHighlightProvider
             itself takes no props, so this is a pure relocation. */}
         <LayoutDebugHighlightProvider>
-          <CuboidNavigationRoot>
-            <Component {...pageProps} />
-          </CuboidNavigationRoot>
+          {immersive ? <Component {...pageProps} /> : (
+            <CuboidNavigationRoot>
+              <Component {...pageProps} />
+            </CuboidNavigationRoot>
+          )}
         </LayoutDebugHighlightProvider>
-        {process.env.NODE_ENV === 'development' && <CopyTool />}
+        {process.env.NODE_ENV === 'development' && !immersive && <CopyTool />}
       </div>
       </AbstractDesignConfigProvider>
     </SharedDesignConfigProvider>
