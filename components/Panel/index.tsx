@@ -23,6 +23,7 @@ import { clamp, getStepPrecision, formatKnobValue } from '../mathUtils';
 import { CTA_BUTTON_MOTION_EASINGS } from '../CtaButton/config/registered';
 import { usePanelDrag } from './usePanelDrag';
 import { usePanelVerticalAnchor } from './usePanelVerticalAnchor';
+import { BELOW_MD_MEDIA_QUERY } from '../breakpoints';
 
 export {
   DEFAULT_PANEL_SHELL_CONFIG,
@@ -35,6 +36,49 @@ export type { PanelShellConfig } from './config/shell';
 // here so nothing that already imports these from this module needs to
 // change. See ../mathUtils.ts's own doc comment for why they moved.
 export { clamp, getStepPrecision, formatKnobValue } from '../mathUtils';
+
+const COARSE_POINTER_MEDIA_QUERY = '(pointer: coarse)';
+
+/** Live, SSR-safe capability gate for the optional narrow-touch shell hide.
+ * Width and pointer capability are tracked independently so a hybrid device
+ * can update correctly when it crosses the narrow breakpoint or changes its
+ * active pointer. */
+function useIsNarrowTouchDevice(): boolean {
+  const [isNarrowTouchDevice, setIsNarrowTouchDevice] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const narrowQuery = window.matchMedia(BELOW_MD_MEDIA_QUERY);
+    const coarsePointerQuery = window.matchMedia(COARSE_POINTER_MEDIA_QUERY);
+    const update = () => {
+      const hasTouchPoints = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+      setIsNarrowTouchDevice(
+        narrowQuery.matches && (hasTouchPoints || coarsePointerQuery.matches),
+      );
+    };
+    update();
+
+    const subscribe = (query: MediaQueryList) => {
+      if (typeof query.addEventListener === 'function') {
+        query.addEventListener('change', update);
+        return () => query.removeEventListener('change', update);
+      }
+      query.addListener(update);
+      return () => query.removeListener(update);
+    };
+    const unsubscribeNarrow = subscribe(narrowQuery);
+    const unsubscribeCoarse = subscribe(coarsePointerQuery);
+    return () => {
+      unsubscribeNarrow();
+      unsubscribeCoarse();
+    };
+  }, []);
+
+  return isNarrowTouchDevice;
+}
 
 // ── Component ownership + config copy ────────────────────────────────────────
 
@@ -567,6 +611,18 @@ function SettingsTuneIcon() {
   );
 }
 
+function LauncherCloseIcon() {
+  return (
+    <svg
+      className={styles.launcherCloseIcon}
+      viewBox="0 0 18 18"
+      aria-hidden="true"
+    >
+      <path d="M4.75 4.75l8.5 8.5M13.25 4.75l-8.5 8.5" />
+    </svg>
+  );
+}
+
 export function PanelShell({
   title,
   isOpen,
@@ -595,6 +651,7 @@ export function PanelShell({
   children?: ReactNode;
 }) {
   const contentId = useId();
+  const [isDismissed, setIsDismissed] = useState(false);
   const sharedDesignConfig = useOptionalSharedDesignConfig();
   const panelConfig = useMemo(
     () => normalizePanelShellConfig(
@@ -602,6 +659,7 @@ export function PanelShell({
     ),
     [configOverride, sharedDesignConfig?.panelShellConfig],
   );
+  const isNarrowTouchDevice = useIsNarrowTouchDevice();
   const environmentalBackground = backgroundColor ?? panelConfig.backgroundColor;
   const backgroundSource = panelConfig.backgroundColorMode === 'custom'
     ? panelConfig.backgroundColor
@@ -862,6 +920,10 @@ export function PanelShell({
       : {}),
   } as CSSProperties;
 
+  if (isDismissed || (panelConfig.hideOnNarrowTouchDevices && isNarrowTouchDevice)) {
+    return null;
+  }
+
   if (!isOpen) {
     return (
       <div
@@ -893,6 +955,17 @@ export function PanelShell({
         >
           <span className={styles.launcherLabel}>SETTINGS</span>
           {panelConfig.launcherIconVisible ? <SettingsTuneIcon /> : null}
+        </button>
+        <button
+          type="button"
+          className={styles.panelLauncherClose}
+          data-appearance={resolvedAppearance}
+          data-drag-frost={dragFrostActive ? 'true' : undefined}
+          style={dragHandleCursor ? { ...shellStyle, cursor: 'pointer' } : shellStyle}
+          onClick={() => setIsDismissed(true)}
+          aria-label={`Hide ${title} settings panel`}
+        >
+          <LauncherCloseIcon />
         </button>
       </div>
     );

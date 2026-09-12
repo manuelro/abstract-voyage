@@ -41,6 +41,11 @@ const DRAG_START_THRESHOLD_PX = 4;
 // to the exact same "stay reachable" margin, rather than a second,
 // independently-tunable copy of the same constant.
 export const VISIBLE_MARGIN_PX = 24;
+// Open panels may be parked partly below the viewport, but never so far
+// that more than half of the rendered config shell is hidden past the
+// bottom edge. This keeps the gesture useful for clearing the canvas while
+// preserving enough panel surface to recover it without hunting.
+const OPEN_PANEL_MAX_BOTTOM_HIDDEN_RATIO = 0.5;
 // Settle thresholds below which the spring is considered "arrived" — same
 // values useStackGestureNavigation.ts's own startEdgeSpringForAxis uses for
 // its identical unit-mass damped-spring integration.
@@ -54,20 +59,16 @@ const SPRING_MAX_STEP_SECONDS = 0.032;
  * — most of it can sit off-screen above/below/beside an edge, matching a
  * common "off-screen floating action button" affordance.
  *
- * `strict: true` (the open panel) guarantees the box's *entire* top and
- * bottom edge stay within the viewport, not just a sliver — the open panel
- * has real content near both edges (header/search/tabs at the top, the
- * last row at the bottom) that must stay reachable. This is the fix for a
- * reported bug: dragging the *already-open* panel up near the viewport's
- * top edge kept its existing bottom-anchored height (computed for its
- * default, undragged position) and simply translated the whole box
- * upward, pushing its own header/search/tabs above y=0 with no way to
- * reach them — a pure positional clamp, unlike usePanelVerticalAnchor.ts's
- * top-pin-and-grow-downward fix for the *collapsed-launcher-opens-near-
- * top* case, since here the box's real height is already fully known
- * (rendered), nothing needs to grow. Horizontal bounds are unaffected by
- * `strict` — this fixes the reported vertical/top-edge case specifically,
- * not a general 4-directional off-screen guarantee for every state.
+ * `strict: true` (the open panel) keeps the header/top edge reachable,
+ * while allowing the operator to push the bottom half of the rendered shell
+ * past the viewport bottom. Releasing beyond that half-hidden threshold
+ * springs the panel back to exactly that boundary. This keeps the previous
+ * top-edge safety fix for an already-open panel dragged upward (header/
+ * search/tabs must never disappear above y=0), but stops over-protecting
+ * the bottom edge, where temporarily clearing up to half the config surface
+ * is useful while tuning the page underneath. Horizontal bounds are
+ * unaffected by `strict` — this is a vertical open-panel affordance, not a
+ * general 4-directional off-screen rule.
  */
 function clampOffset(
   offset: PanelPosition,
@@ -87,7 +88,7 @@ function clampOffset(
     ? VISIBLE_MARGIN_PX - baseTop
     : VISIBLE_MARGIN_PX - (baseTop + rect.height);
   const maxY = strict
-    ? window.innerHeight - VISIBLE_MARGIN_PX - baseTop - rect.height
+    ? window.innerHeight - baseTop - (rect.height * OPEN_PANEL_MAX_BOTTOM_HIDDEN_RATIO)
     : window.innerHeight - VISIBLE_MARGIN_PX - baseTop;
   return {
     x: Math.min(Math.max(minX, maxX), Math.max(Math.min(minX, maxX), offset.x)),

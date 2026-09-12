@@ -1,5 +1,6 @@
 .panel,
-.panelLauncher {
+.panelLauncher,
+.panelLauncherClose {
   --panel-bg: rgba(7, 8, 10, 0.93);
   --panel-bg-effective: #08090b;
   --panel-backdrop-blur-px: 22px;
@@ -81,15 +82,16 @@
 }
 
 .panelFrame[data-open='false'] {
-  width: 112px;
+  width: 156px;
 }
 
 .panelFrame[data-open='false'][data-icon='visible'] {
-  width: 168px;
+  width: 212px;
 }
 
 .panelFrame > .panel,
-.panelFrame > .panelLauncher {
+.panelFrame > .panelLauncher,
+.panelFrame > .panelLauncherClose {
   pointer-events: auto;
 }
 
@@ -176,7 +178,7 @@
 
 .panelLauncher {
   box-sizing: border-box;
-  width: 100%;
+  width: calc(100% - 44px);
   min-height: 40px;
   display: inline-flex;
   align-items: center;
@@ -197,8 +199,40 @@
     transform var(--panel-motion-fast) var(--panel-easing);
 }
 
+.panelLauncherClose {
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 36px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: var(--panel-shell-border-width, 0px) solid
+    var(--panel-shell-border-color, transparent);
+  border-radius: var(--panel-radius);
+  background: var(--panel-bg);
+  color: var(--panel-text-muted);
+  font-family: var(--panel-font);
+  cursor: pointer;
+  animation: launcherEnter var(--panel-shell-close-duration, 220ms) var(--panel-shell-motion-easing) both;
+  transform-origin: right bottom;
+  transition:
+    background-color var(--panel-motion-fast) ease,
+    color var(--panel-motion-fast) ease,
+    box-shadow var(--panel-motion-fast) ease,
+    transform var(--panel-motion-fast) var(--panel-easing);
+}
+
 .panelLauncher:hover {
   background: var(--panel-bg);
+}
+
+.panelLauncherClose:hover {
+  background: var(--panel-bg);
+  color: var(--panel-text-secondary);
 }
 
 .panelLauncher[data-icon='visible'] {
@@ -206,11 +240,13 @@
   gap: 14px;
 }
 
-.panelLauncher:active {
+.panelLauncher:active,
+.panelLauncherClose:active {
   transform: translateY(0) scale(0.985);
 }
 
-.panelLauncher:focus-visible {
+.panelLauncher:focus-visible,
+.panelLauncherClose:focus-visible {
   outline: 2px solid var(--panel-focus);
   outline-offset: 3px;
 }
@@ -240,17 +276,33 @@
   fill: currentColor;
 }
 
+.launcherCloseIcon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  overflow: visible;
+}
+
+.launcherCloseIcon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.35;
+}
+
 .panelLauncher:hover .launcherIcon,
 .panelLauncher:focus-visible .launcherIcon {
   color: var(--panel-text-secondary);
 }
 
-.panelLauncher[data-appearance='light']:hover {
+.panelLauncher[data-appearance='light']:hover,
+.panelLauncherClose[data-appearance='light']:hover {
   background: var(--panel-bg);
 }
 
 .panel[data-appearance='light'],
-.panelLauncher[data-appearance='light'] {
+.panelLauncher[data-appearance='light'],
+.panelLauncherClose[data-appearance='light'] {
   --panel-bg: rgba(238, 239, 235, 0.96);
   --panel-surface: rgba(255, 255, 255, 0.44);
   --panel-surface-hover: rgba(255, 255, 255, 0.72);
@@ -318,7 +370,8 @@
    lets the blurred backdrop sample dominate the local composite. */
 .backdrop[data-drag-frost='true'],
 .scopeListToolbar[data-drag-frost='true'],
-.panelLauncher[data-drag-frost='true'] {
+.panelLauncher[data-drag-frost='true'],
+.panelLauncherClose[data-drag-frost='true'] {
   background: var(--panel-drag-frost-bg, var(--panel-bg));
   backdrop-filter: blur(var(--panel-drag-blur-px, 0px));
   -webkit-backdrop-filter: blur(var(--panel-drag-blur-px, 0px));
@@ -1576,6 +1629,10 @@
     min-height: 48px;
   }
 
+  .panelLauncherClose {
+    min-height: 48px;
+  }
+
   .panelTitle,
   .panelButton,
   .segmentButton,
@@ -1607,7 +1664,9 @@
 @media (prefers-reduced-motion: reduce) {
   .panel,
   .panelLauncher,
+  .panelLauncherClose,
   .launcherIcon,
+  .launcherCloseIcon,
   .section,
   .sectionChevron,
   .sectionDisclosure,

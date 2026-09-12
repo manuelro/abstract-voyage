@@ -201,4 +201,36 @@ describe('PanelShell surface and elevation', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('hides the complete shell from the collapsed close control', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onToggle = vi.fn();
+
+    act(() => root.render(
+      <PanelShell
+        title="Abstract"
+        isOpen={false}
+        onToggle={onToggle}
+        config={DEFAULT_PANEL_SHELL_CONFIG}
+      />,
+    ));
+
+    const launcher = container.querySelector<HTMLButtonElement>('[data-panel-launcher="true"]');
+    const close = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Hide Abstract settings panel"]',
+    );
+    expect(launcher).not.toBeNull();
+    expect(close).not.toBeNull();
+
+    act(() => close?.click());
+
+    expect(container.querySelector('[data-panel-launcher="true"]')).toBeNull();
+    expect(container.querySelector('section')).toBeNull();
+    expect(onToggle).not.toHaveBeenCalled();
+
+    act(() => root.unmount());
+    container.remove();
+  });
 });

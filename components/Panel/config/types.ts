@@ -44,6 +44,16 @@ export type NumberConfigField<
   steps?: ReadonlyArray<number>;
 };
 
+/**
+ * Rendered as SegmentedControl's button row (components/Panel/index.tsx) —
+ * every option's own label visible at once, side by side. HARD CEILING:
+ * once `options` exceeds ~6-8 entries, this becomes an unreadable row of
+ * overlapping/truncated labels (confirmed live — a 15-option enum field
+ * rendered as illegible overlapping text). Use `SelectConfigField` below
+ * instead past that count — this is enforced project convention, not a
+ * per-case judgment call. See AGENTS.md's own "Config panel: enum vs.
+ * select" section (repo root) before adding a new field of either kind.
+ */
 export type EnumConfigField<
   TConfig extends object,
   TKey extends StringKeyOf<TConfig>,
@@ -56,9 +66,10 @@ export type EnumConfigField<
 /**
  * Same shape as `EnumConfigField` (a fixed list of {label, value} options),
  * rendered as a native `<select>` (see `Select` in components/Panel/index.tsx)
- * instead of SegmentedControl's button row. Use this over `enum` once the
+ * instead of SegmentedControl's button row. REQUIRED (not optional) once the
  * option count runs past SegmentedControl's practical ceiling (~6-8) — e.g.
- * Tailwind's own spacing scale, which has ~34 steps.
+ * Tailwind's own spacing scale, which has ~34 steps. See AGENTS.md's own
+ * "Config panel: enum vs. select" section (repo root).
  */
 export type SelectConfigField<
   TConfig extends object,

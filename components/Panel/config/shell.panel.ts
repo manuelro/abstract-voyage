@@ -577,6 +577,12 @@ export const PANEL_SHELL_APPEARANCE_PANEL = defineConfigScope<PanelShellConfig>(
           description: 'Auto-expands a collapsed row after the pointer rests on it for the configured delay, instead of requiring a click.',
         },
         {
+          kind: 'boolean',
+          key: 'hideOnNarrowTouchDevices',
+          label: 'Hide on narrow touch devices',
+          description: 'Hides the entire config panel, including its launcher, on narrow coarse-pointer devices. Off by default.',
+        },
+        {
           kind: 'number',
           key: 'hoverIntentDelayMs',
           label: 'Hover intent delay',

@@ -170,6 +170,10 @@ export type PanelShellConfig = {
   /** Dwell time, in ms, before an unexpanded row under the pointer
    * auto-expands. Only consulted when hoverIntentExpandEnabled is true. */
   hoverIntentDelayMs: number;
+  /** Hides the complete config shell, including its launcher, on narrow
+   * touch-capable devices. Off by default so existing authoring surfaces keep
+   * their current mobile behavior unless an operator opts in. */
+  hideOnNarrowTouchDevices: boolean;
 };
 
 export const DEFAULT_PANEL_SHELL_CONFIG = {
@@ -246,6 +250,7 @@ export const DEFAULT_PANEL_SHELL_CONFIG = {
   inactiveSectionDimEasing: 'standard',
   hoverIntentExpandEnabled: false,
   hoverIntentDelayMs: 500,
+  hideOnNarrowTouchDevices: false,
 } satisfies PanelShellConfig;
 
 const MOTION_EASING_VALUES: readonly CtaButtonMotionEasing[] = [
@@ -514,5 +519,6 @@ export function normalizePanelShellConfig(
     hoverIntentDelayMs: clamp(
       base.hoverIntentDelayMs, 0, 5000, DEFAULT_PANEL_SHELL_CONFIG.hoverIntentDelayMs,
     ),
+    hideOnNarrowTouchDevices: base.hideOnNarrowTouchDevices === true,
   };
 }
