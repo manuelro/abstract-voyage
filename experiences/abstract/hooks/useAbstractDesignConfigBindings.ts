@@ -12,6 +12,8 @@ import { useSharedDesignConfig } from '../../../components/SharedDesignConfigPro
 import { useAbstractDesignConfig } from '../components/AbstractDesignConfigProvider';
 import { SITE_HEADER_COLORS_PANEL } from '../components/SiteHeader/config/panel';
 import { WORDMARK_PANEL } from '../components/SiteHeader/config/wordmark.panel';
+import { MOBILE_NAV_CUBE_PANEL } from '../components/MobileNavCube.panel';
+import { FACE_E_TIMELINE_PANEL } from '../components/FaceETimeline.panel';
 
 export type AbstractDesignConfigBindingKey =
   | 'pageSurface'
@@ -19,14 +21,25 @@ export type AbstractDesignConfigBindingKey =
   | 'siteHeader'
   | 'globalTypography'
   | 'layoutDebug'
-  | 'wordmark';
+  | 'wordmark'
+  | 'mobileNavCube'
+  | 'faceETimeline';
 
 /** The shared scopes each Abstract page actually renders and may edit.
  * 'wordmark' is now bound on every page that renders SiteHeader
  * ('abstract'/'about'/'contact'/'postsLab') — see WordmarkConfig's own doc
  * comment for the parity bug this scope's consolidation fixes. */
 export const ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE = {
-  abstract: ['pageSurface', 'ctaButton', 'siteHeader', 'globalTypography', 'layoutDebug', 'wordmark'],
+  abstract: [
+    'pageSurface',
+    'ctaButton',
+    'siteHeader',
+    'globalTypography',
+    'layoutDebug',
+    'wordmark',
+    'mobileNavCube',
+    'faceETimeline',
+  ],
   about: ['pageSurface', 'siteHeader', 'layoutDebug', 'wordmark'],
   contact: ['pageSurface', 'ctaButton', 'siteHeader', 'layoutDebug', 'wordmark'],
   postsLab: ['siteHeader', 'layoutDebug', 'wordmark'],
@@ -49,6 +62,10 @@ export function useAbstractDesignConfigBindings(
     setGlobalTypographyConfig,
     layoutDebugConfig,
     setLayoutDebugConfig,
+    mobileNavCubeConfig,
+    setMobileNavCubeConfig,
+    faceETimelineConfig,
+    setFaceETimelineConfig,
   } = useSharedDesignConfig();
   const {
     siteHeaderConfig, setSiteHeaderConfig, wordmarkConfig, setWordmarkConfig,
@@ -103,6 +120,20 @@ export function useAbstractDesignConfigBindings(
             onChange: setWordmarkConfig,
             global: true,
           });
+        case 'mobileNavCube':
+          return createConfigScopeBinding({
+            definition: MOBILE_NAV_CUBE_PANEL,
+            value: mobileNavCubeConfig,
+            onChange: setMobileNavCubeConfig,
+            global: true,
+          });
+        case 'faceETimeline':
+          return createConfigScopeBinding({
+            definition: FACE_E_TIMELINE_PANEL,
+            value: faceETimelineConfig,
+            onChange: setFaceETimelineConfig,
+            global: true,
+          });
       }
     });
   }, [
@@ -119,5 +150,9 @@ export function useAbstractDesignConfigBindings(
     setLayoutDebugConfig,
     wordmarkConfig,
     setWordmarkConfig,
+    mobileNavCubeConfig,
+    setMobileNavCubeConfig,
+    faceETimelineConfig,
+    setFaceETimelineConfig,
   ]);
 }

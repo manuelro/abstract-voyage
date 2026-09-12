@@ -1730,6 +1730,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     globalTypographyConfig, setGlobalTypographyConfig,
     panelShellConfig, setPanelShellConfig,
     setLayoutDebugConfig,
+    mobileNavCubeConfig,
   } = useSharedDesignConfig();
   const {
     siteHeaderConfig, setSiteHeaderConfig, wordmarkConfig, setWordmarkConfig,
@@ -2094,22 +2095,44 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // paragraph's paragraphTextColorMode: 'column') already derives its own
   // color from, so the logo should match it instead of a generic brand
   // gradient unrelated to the page's actual colors.
+  // colors.wordmarkGradientStops (PolymorphicLayout.tsx's own
+  // usePolymorphicLayoutColors) takes priority when present — the operator
+  // opted into PolymorphicLayoutConfig's own wordmarkUsesScrollGradient, and
+  // the active tier's own scrollGradientEnabled is on. colorMode is forced
+  // to 'adaptive' only in that case — resolveSiteHeaderLogoStops only reads
+  // the 4th arg (fallbackStops) in that mode, and this page's own
+  // wordmarkConfig.colorMode isn't 'adaptive' by default. See
+  // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+  const effectiveWordmarkConfig = colors.wordmarkGradientStops
+    ? { ...wordmarkConfig, colorMode: 'adaptive' as const }
+    : wordmarkConfig;
   const heroHeaderLogoStops = resolveSiteHeaderLogoStops(
-    wordmarkConfig,
+    effectiveWordmarkConfig,
     normalizedPageSurfaceConfig.color,
     colors.actualLeftSegmentColor,
-    backgroundAwarenessActive
-      ? (headerTone === 'light' ? ABSTRACT_SYNTH_LOGO_STOPS : ABSTRACT_SYNTH_LOGO_DARK_STOPS)
-      : (() => {
-        const derivedLogoColor = resolveContrastAwareTextColor(
-          colors.actualLeftSegmentColor,
-          wordmarkConfig.columnTextMinContrast,
-          wordmarkConfig.surfaceOffset,
-        );
-        return [{ color: derivedLogoColor, at: 0 }, { color: derivedLogoColor, at: 100 }];
-      })(),
+    colors.wordmarkGradientStops ?? (
+      backgroundAwarenessActive
+        ? (headerTone === 'light' ? ABSTRACT_SYNTH_LOGO_STOPS : ABSTRACT_SYNTH_LOGO_DARK_STOPS)
+        : (() => {
+          const derivedLogoColor = resolveContrastAwareTextColor(
+            colors.actualLeftSegmentColor,
+            wordmarkConfig.columnTextMinContrast,
+            wordmarkConfig.surfaceOffset,
+          );
+          return [{ color: derivedLogoColor, at: 0 }, { color: derivedLogoColor, at: 100 }];
+        })()
+    ),
   );
   const heroHeaderHeight = {
+    // The gradient-sampling canvas below (.gradientSourceViewport/
+    // .gradientOutputViewport, 'editorial' layout mode only) needs a
+    // concrete px value the way <header> itself no longer does — 'auto' has
+    // no natural rem equivalent, so it falls back to the same 7rem as the
+    // config's own 'h-28' default rather than producing an invalid CSS var.
+    // Purely cosmetic if ever hit: the header's own real height still comes
+    // from flow correctly (SiteHeader.tsx), only this decorative canvas's
+    // sampling window would stay fixed at 7rem instead of tracking it.
+    'h-auto': '7rem',
     'h-12': '3rem',
     'h-14': '3.5rem',
     'h-16': '4rem',
@@ -2121,6 +2144,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     'h-40': '10rem',
   }[normalizedSiteHeaderConfig.height];
   const heroHeaderDesktopHeight = {
+    'md:h-auto': '7rem',
     'md:h-12': '3rem',
     'md:h-14': '3.5rem',
     'md:h-16': '4rem',
@@ -3596,6 +3620,17 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     isCoverFlowDesktopTier,
     splitColumnLayoutConfig.wideColumnSide,
   ]);
+  // Moved ahead of useArticleListCoverFlowSync below only because
+  // useArticleHashSync (further down) needs it too — activeIndex itself
+  // still always starts at 0 here (SSR-safe: window.location.hash doesn't
+  // exist on the server, so seeding this from it directly would hydration-
+  // mismatch). See useArticleHashSync's own doc comment for how the actual
+  // hash-restored index reaches CoverFlow without replaying its entrance
+  // animation.
+  const articleSlugs = useMemo(
+    () => carouselAndListItems.map(item => item.slug),
+    [carouselAndListItems],
+  );
   const {
     activeIndex: articleActiveIndex,
     setActiveIndex: setArticleActiveIndex,
@@ -3637,11 +3672,13 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const handleMobileArticleIndexCommit = useCallback((index: number) => {
     setArticleActiveIndex(index, 'external');
   }, [setArticleActiveIndex]);
-  const articleSlugs = useMemo(
-    () => carouselAndListItems.map(item => item.slug),
-    [carouselAndListItems],
+  // `restored` (false until this hook's own mount-time URL-hash check has
+  // run once) drives both <CoverFlow> instances' own suppressEntranceAnimation
+  // prop below — see that prop's own doc comment (CoverFlow.tsx) for the
+  // bug this closes.
+  const { restored: articleHashRestored } = useArticleHashSync(
+    articleSlugs, articleActiveIndex, setArticleActiveIndex,
   );
-  useArticleHashSync(articleSlugs, articleActiveIndex, setArticleActiveIndex);
 
   const coverFlowLiquidSliderMotion = useLiquidSliderMotion(journalDockSliderConfig);
   const coverFlowContentInsetCqw = (
@@ -4112,6 +4149,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             navBorderColor={normalizedSiteHeaderConfig.navBorderColor}
             navTextColor={normalizedSiteHeaderConfig.navTextColor}
             totalCellCount={overlayFaceCount}
+            hideNavigationOnMobile={mobileNavCubeConfig.enabled}
           />
         ) : (
           <>
@@ -4151,7 +4189,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             config={normalizedSiteHeaderConfig}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
             logoStops={heroHeaderLogoStops}
-            wordmarkConfig={wordmarkConfig}
+            wordmarkConfig={effectiveWordmarkConfig}
+            wordmarkGradientStops={colors.wordmarkGradientStops}
             navBandActive={heroNavBandActive}
             navBandCanvasRef={heroNavBandCanvasRef}
             navBandColorFilter={heroNavBandColorFilter}
@@ -4191,6 +4230,9 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           headlineRef={heroHeadlineRef}
           layoutMode={heroLayoutMode}
           surfaceColor={normalizedPageSurfaceConfig.color}
+          wordmarkGradientStops={colors.wordmarkGradientStops}
+          scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
+          scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
         />
       ) : null}
       </section>
@@ -4446,9 +4488,16 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             )}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
             logoStops={heroHeaderLogoStops}
-            wordmarkConfig={wordmarkConfig}
+            wordmarkConfig={effectiveWordmarkConfig}
+            wordmarkGradientStops={colors.wordmarkGradientStops}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
-            titleColorOverride={headerTypography.titleColor}
+            // titleColorOverride bypasses resolveSiteHeaderLogoStops
+            // entirely (every colorMode, PLAN-ABSTRACT-TYPOGRAPHY-COLOR-
+            // UNIFICATION.md Part C) — suppressed when
+            // colors.wordmarkGradientStops is active, or the override would
+            // silently mask the gradient with a flat color. See
+            // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+            titleColorOverride={colors.wordmarkGradientStops ? undefined : headerTypography.titleColor}
             titleOpacityOverride={headerTypography.titleOpacity}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
             // Unlike /about's own conditional Spacefield-visible override,
@@ -4558,6 +4607,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   config={coverFlowConfig}
                   cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
                   prefersReducedMotion={coverFlowPrefersReducedMotion}
+                  suppressEntranceAnimation={!articleHashRestored}
                   hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
                   hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
                   hoverMaxTiltDeg={
@@ -4578,33 +4628,40 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   panelColor={colors.wideColumnPaintColor}
                   config={mobilePinnedArticleSectionConfig}
                   renderCarousel={(controls: MobilePinnedCarouselControls) => (
-                    <CoverFlow
-                      items={carouselAndListItems}
-                      activeIndex={controls.activeIndex}
-                      onActiveIndexChange={controls.onIndexRequest}
-                      renderItem={renderCoverFlowItem}
-                      config={mobileCoverFlowConfig}
-                      cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
-                      prefersReducedMotion={coverFlowPrefersReducedMotion}
-                      hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
-                      hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
-                      hoverMaxTiltDeg={
-                        normalizedCtaButtonConfig.tiltEnabled
-                          ? normalizedCtaButtonConfig.tiltMaxDegrees
-                          : 0
-                      }
-                      hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
-                      externalDriver={{
-                        position: controls.position,
-                        animatePosition: controls.animatePosition,
-                        onPositionRequest: controls.onIndexRequest,
-                        onGeometryChange: controls.onGeometryChange,
-                        onDragStart: controls.onDragScrollStart,
-                        onDrag: controls.onDragScroll,
-                        onDragEnd: controls.onDragScrollEnd,
-                      }}
-                      accessibilityHidden
-                    />
+                    // Keep the carousel's visual/gesture plane full-bleed,
+                    // while the card itself follows the mobile Tailwind grid.
+                    // CoverFlow measures this padded parent directly: the
+                    // desktop anchor-width basis would reintroduce a second,
+                    // invisible source of horizontal spacing here.
+                    <div className={`h-full ${coverFlowConfig.mobileCardGutterX}`}>
+                      <CoverFlow
+                        items={carouselAndListItems}
+                        activeIndex={controls.activeIndex}
+                        onActiveIndexChange={controls.onIndexRequest}
+                        renderItem={renderCoverFlowItem}
+                        config={mobileCoverFlowConfig}
+                        prefersReducedMotion={coverFlowPrefersReducedMotion}
+                        suppressEntranceAnimation={!articleHashRestored}
+                        hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
+                        hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
+                        hoverMaxTiltDeg={
+                          normalizedCtaButtonConfig.tiltEnabled
+                            ? normalizedCtaButtonConfig.tiltMaxDegrees
+                            : 0
+                        }
+                        hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
+                        externalDriver={{
+                          position: controls.position,
+                          animatePosition: controls.animatePosition,
+                          onPositionRequest: controls.onIndexRequest,
+                          onGeometryChange: controls.onGeometryChange,
+                          onDragStart: controls.onDragScrollStart,
+                          onDrag: controls.onDragScroll,
+                          onDragEnd: controls.onDragScrollEnd,
+                        }}
+                        accessibilityHidden
+                      />
+                    </div>
                   )}
                   renderList={({ activeIndex, rows: listRows, onSelect }) => (
                     <AboutTimeline
@@ -4671,6 +4728,9 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                 layoutMode={gridLayoutActive ? 'editorial' : heroLayoutMode}
                 surfaceColor={normalizedPageSurfaceConfig.color}
                 columnBackgroundColor={colors.narrowColumnColor}
+                wordmarkGradientStops={colors.wordmarkGradientStops}
+                scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
+                scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
                 titleColorOverride={narrowColumnTypography.titleColor}
                 bodyColorOverride={narrowColumnTypography.bodyColor}
                 highlightColorOverride={narrowColumnTypography.highlightColor}
@@ -4742,22 +4802,25 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             opacity: 0 !important;
           }
         `}</style>
-        {showAuthoringTools ? (
-          <PanelShell
-            title="ABSTRACT SETTINGS"
-            isOpen={isPanelOpen}
-            onToggle={togglePanel}
-            backgroundColor={configPanelBackgroundColor}
-            config={panelShellConfig}
-            headerActions={(
-              <PanelStandardHeaderActions bindings={componentConfigBindings} onReset={resetConfig} />
-            )}
-          >
-            <ConfigScopeList bindings={componentConfigBindings} />
-          </PanelShell>
-        ) : null}
       </PolymorphicLayout>
     )}
+      {/* The app-level CuboidNavigationRoot deliberately leaves authoring
+          tools inside Face A with their page. Condition unchanged —
+          split-column only, matching this panel's existing behavior. */}
+      {showAuthoringTools && abstractPageLayoutConfig.presentationMode !== 'classic' ? (
+        <PanelShell
+          title="ABSTRACT SETTINGS"
+          isOpen={isPanelOpen}
+          onToggle={togglePanel}
+          backgroundColor={configPanelBackgroundColor}
+          config={panelShellConfig}
+          headerActions={(
+            <PanelStandardHeaderActions bindings={componentConfigBindings} onReset={resetConfig} />
+          )}
+        >
+          <ConfigScopeList bindings={componentConfigBindings} />
+        </PanelShell>
+      ) : null}
     </>
   );
 }

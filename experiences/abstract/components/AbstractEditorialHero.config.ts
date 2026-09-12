@@ -125,6 +125,140 @@ export type AbstractEditorialHeroConfig = {
   paragraphTextColorMode: AbstractEditorialHeroTextColorMode;
   paragraphSurfaceOffset: number;
   paragraphMinContrast: number;
+  /** Opt-in (default off): when true — and the page supplies
+   * wordmarkGradientStops (only present while PolymorphicLayoutConfig's own
+   * wordmarkUsesScrollGradient and the active tier's scrollGradientEnabled
+   * are both on) — the ENTIRE paragraph (base copy, every emphasis-marked or
+   * linked run via renderEmphasisText, helpers/textEmphasis.tsx, and the
+   * inline headline span when headlineInlineWithParagraph is also on)
+   * renders through that one gradient as a single continuous CSS
+   * background-clip:text fill, applied at the paragraph's own <p> root —
+   * not per-run. Overrides paragraphTextColorMode/paragraphTextColor and
+   * emphasisFontWeight's own color entirely while active. emphasisFontWeight
+   * (bold pivot words) still applies on top of the shared gradient, but
+   * emphasisDimOpacity/emphasisWordOpacity/titleOpacityOverride become
+   * INERT (every run forced to opacity: 1) while this is on: any CSS
+   * opacity below 1 establishes a new stacking context, which real iOS
+   * hardware (confirmed live — NOT the Simulator, which renders correctly
+   * either way) promotes into its own GPU compositing layer that paints
+   * only its own (unset) background, losing the ancestor <p>'s clipped
+   * gradient fill entirely rather than merely dimming it — this blanked out
+   * the ENTIRE paragraph, not just the dim portions, on a real iPhone in
+   * both Safari and Chrome (both WebKit there). Independent of
+   * headlineGradientRelationship above, which drives only the standalone
+   * (non-inline) <h1>'s own separate canvas-based gradient. See
+   * PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md. */
+  paragraphUsesWordmarkGradient: boolean;
+  /** Opt-in (default off), independent sibling of paragraphUsesWordmarkGradient
+   * above — mutually exclusive by convention (turning one on doesn't
+   * automatically turn the other off; whichever the operator edits last is
+   * the one that visually applies, since 'clip' wins in the component when
+   * both happen to be true — see AbstractEditorialHero.tsx's own resolution
+   * order). Unlike the 'clip' mode above (CSS background-clip:text +
+   * color:transparent, which needed real-device-only WebKit workarounds:
+   * forcing every descendant's opacity to 1, and dropping position:relative
+   * from the merged headline — see paragraphUsesWordmarkGradient's own doc
+   * comment), this mode uses CSS mix-blend-mode instead: the paragraph's
+   * text stays completely normal — real color, real opacity, real
+   * font-weight for emphasis, the merged headline unchanged — and simply
+   * visually blends against whatever is already rendered behind the hero on
+   * the page (this component's own ancestor chain carries no opaque
+   * background-color of its own, so that's the real scroll-gradient
+   * background when active). Deliberately NOT a same-sized local gradient
+   * layer painted behind the paragraph — that was tried and reverted: a
+   * dedicated backdrop always paints as a visible rectangle in the gaps
+   * around/between glyphs regardless of blend mode (mix-blend-mode changes
+   * how an element's content composites, it does not clip a sibling's
+   * background to this element's own text shape), confirmed live via
+   * screenshot. Nothing about renderEmphasisText's dim/emphasis opacity
+   * split, emphasisFontWeight, or headlineInlineWithParagraph needs to
+   * change for this mode — it layers on top of whatever those already
+   * produce. See PLAN-PARAGRAPH-BLEND-MODE-COLOR.md. */
+  paragraphUsesWordmarkGradientBlend: boolean;
+  /** Only meaningful while paragraphUsesWordmarkGradientBlend above is true.
+   * The CSS mix-blend-mode keyword applied to the paragraph text against
+   * whatever is already rendered behind the hero on the page. A curated
+   * subset of the full mix-blend-mode value set (MDN).
+   *
+   * IMPORTANT — the four non-separable HSL modes ('hue'/'saturation'/
+   * 'color'/'luminosity') each combine one property from the TEXT (the
+   * "source") with the other two from the BACKDROP — which one comes from
+   * which layer is not symmetric, and gets the visible-tint question
+   * backwards if picked naively. 'color' takes its hue+saturation FROM THE
+   * TEXT and only luminosity from the backdrop — confirmed live: with this
+   * hero's typically near-white/gray text (near-zero saturation), 'color'
+   * mode is mathematically guaranteed to render NO visible tint at all,
+   * regardless of how colorful the backdrop is (a colorless source has no
+   * hue/saturation for the backdrop's own color to combine with). Every
+   * other mode in this set has at least one all-white or all-black
+   * degenerate case too ('screen'/'lighten'/'hard-light' clamp solid white
+   * text to plain white regardless of backdrop; 'multiply'/'darken' make
+   * solid white text show the backdrop's own color completely unmodified,
+   * collapsing "tinted text" into "a see-through window"). 'luminosity' is
+   * the one mode that reliably shows a visible tint for white/gray text
+   * specifically: it takes the text's OWN luminosity (preserving legibility
+   * — dim vs. bold vs. headline still read as different brightness levels)
+   * while pulling hue+saturation FROM THE BACKDROP, so the backdrop's own
+   * color always shows through regardless of how colorless the text
+   * started. Default — see paragraphGradientBlendColor below for a second,
+   * independent way to make the effect more pronounced (a text base color
+   * with real chroma of its own, rather than only the mode choice, gives
+   * every mode in this list — not just 'luminosity' — something to
+   * visibly blend). */
+  paragraphGradientBlendMode:
+    | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'color-dodge'
+    | 'color-burn' | 'hard-light' | 'soft-light' | 'difference' | 'exclusion'
+    | 'hue' | 'saturation' | 'color' | 'luminosity';
+  /** Only meaningful while paragraphUsesWordmarkGradientBlend above is true.
+   * A flat hex color used as the paragraph's ENTIRE base text color while
+   * blend mode is active — overriding paragraphTextColorMode/
+   * paragraphTextColor, resolvedCopyColor (the headline's own color), and
+   * any bodyColorOverride/highlightColorOverride/titleColorOverride prop a
+   * page supplies, exactly the same way paragraphUsesWordmarkGradient
+   * ('clip' mode) already overrides those entirely. Existing opacity/weight
+   * distinctions between base and emphasis text still apply on top of this
+   * one shared color, same as 'clip' mode. Exposed as an operator-editable
+   * knob (not hardcoded) specifically because a colorless (white/gray)
+   * starting color makes several blend modes above render with no visible
+   * effect at all — see paragraphGradientBlendMode's own doc comment. */
+  paragraphGradientBlendColor: string;
+  /** Opt-in (default off), only meaningful while paragraphUsesWordmarkGradient
+   * ('clip' mode) above is also true — addresses a legibility problem that
+   * mode alone can't: PolymorphicLayoutConfig's own scroll-gradient
+   * background progressively darkens toward the bottom of its scroll range
+   * (scrollGradientMaxDarken, via a fixed black overlay), but this gradient's
+   * OWN stops are static — chosen once from the page's resting-scroll
+   * palette — so as the real backdrop darkens underneath, the paragraph's
+   * fixed-tone clip-text fill increasingly reads as a muddy, low-contrast
+   * smear against the now much darker surface behind it (screenshot-
+   * reported, live). Rather than darkening the text to chase the
+   * background (the opposite of legible), this progressively blends each
+   * of the SAME wordmark gradient stops toward white as scroll progresses —
+   * "clearing" the text, not tinting it a different color — using the
+   * identical progress curve (scrollGradientViewportRangeVh's own timing,
+   * scrollGradientTauMs's own easing) the background darken overlay already
+   * computes, so the two visually track together rather than drifting out
+   * of sync on independent timers. See paragraphGradientScrollLightenMaxAmount
+   * below for how far toward white it's allowed to go, and
+   * AbstractEditorialHero.tsx's own scrollGradientDarkenViewportRangeVh/
+   * scrollGradientDarkenTauMs props for the values a page must supply
+   * (PolymorphicLayoutResolvedColors.scrollGradientResolved — the exact
+   * same object <PolymorphicScrollGradientBackground> itself consumes, not
+   * a re-derived approximation). Inert whenever off, or wordmarkGradientStops
+   * absent, or a page hasn't supplied the two curve props — byte-identical
+   * to today for every caller not opting in. */
+  paragraphGradientScrollLightenEnabled: boolean;
+  /** Only meaningful while paragraphGradientScrollLightenEnabled above is
+   * true. How far each gradient stop is allowed to blend toward white at
+   * the scroll curve's own full progress (1 — the same point the
+   * background darken overlay itself reaches scrollGradientMaxDarken) —
+   * 0 keeps stops fully unblended (the field above becomes a no-op), 1
+   * reaches pure white. Applied via CSS color-mix() at paint time against a
+   * single live CSS custom property this component updates on scroll (same
+   * rAF+ref technique PolymorphicScrollGradientBackground's own darken
+   * overlay uses, deliberately not React state, so scrolling never
+   * re-renders this component) — not recomputed in JS per frame. */
+  paragraphGradientScrollLightenMaxAmount: number;
   eyebrowColor: string;
   eyebrowColorMode: AbstractEditorialHeroTextColorMode;
   eyebrowSurfaceOffset: number;
@@ -312,7 +446,7 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   headlineInlineWithParagraph: true,
   headlineMaxWidth: 'max-w-prose',
   contentMaxWidth: 'max-w-md',
-  bodyFontSizeNarrow: 'text-sm',
+  bodyFontSizeNarrow: 'text-base',
   bodyFontSizeMid: 'md:text-base',
   bodyFontSizeWide: 'lg:text-lg',
   paragraphMaxWidth: 'max-w-xl',
@@ -325,6 +459,15 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   emphasisDimOpacity: 0.5,
   emphasisWordOpacity: 0.88,
   emphasisFontWeight: 'font-medium',
+  paragraphUsesWordmarkGradient: true,
+  paragraphUsesWordmarkGradientBlend: false,
+  // 'luminosity', not 'color' — see paragraphGradientBlendMode's own doc
+  // comment for why 'color' is mathematically guaranteed invisible against
+  // this hero's typically near-white/gray text.
+  paragraphGradientBlendMode: 'luminosity',
+  paragraphGradientBlendColor: '#ffffff',
+  paragraphGradientScrollLightenEnabled: true,
+  paragraphGradientScrollLightenMaxAmount: 0.75,
   composerVisible: false,
 } satisfies AbstractEditorialHeroConfig;
 
@@ -345,6 +488,11 @@ const TEXT_COLOR_MODES: ReadonlyArray<AbstractEditorialHeroTextColorMode> = [
 ];
 const EMPHASIS_FONT_WEIGHTS: ReadonlyArray<AbstractEditorialHeroEmphasisFontWeight> = [
   'font-normal', 'font-medium', 'font-semibold', 'font-bold',
+];
+const PARAGRAPH_GRADIENT_BLEND_MODES: ReadonlyArray<AbstractEditorialHeroConfig['paragraphGradientBlendMode']> = [
+  'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge',
+  'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion',
+  'hue', 'saturation', 'color', 'luminosity',
 ];
 const FONT_FAMILIES: ReadonlyArray<AbstractEditorialHeroFontFamily> = ['inherit', 'sans', 'serif'];
 const HEADLINE_FONT_SIZE_NARROW: ReadonlyArray<AbstractEditorialHeroHeadlineFontSizeNarrow> =
@@ -574,6 +722,22 @@ export function normalizeAbstractEditorialHeroConfig(
       base.emphasisFontWeight,
       EMPHASIS_FONT_WEIGHTS,
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.emphasisFontWeight,
+    ),
+    paragraphUsesWordmarkGradient: base.paragraphUsesWordmarkGradient === true,
+    paragraphUsesWordmarkGradientBlend: base.paragraphUsesWordmarkGradientBlend === true,
+    paragraphGradientBlendMode: token(
+      base.paragraphGradientBlendMode,
+      PARAGRAPH_GRADIENT_BLEND_MODES,
+      DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphGradientBlendMode,
+    ),
+    paragraphGradientBlendColor: normalizeColor(
+      base.paragraphGradientBlendColor,
+      DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphGradientBlendColor,
+    ),
+    paragraphGradientScrollLightenEnabled: base.paragraphGradientScrollLightenEnabled === true,
+    paragraphGradientScrollLightenMaxAmount: clampRange(
+      base.paragraphGradientScrollLightenMaxAmount, 0, 1,
+      DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphGradientScrollLightenMaxAmount,
     ),
     composerVisible: base.composerVisible !== false,
   };

@@ -22,6 +22,16 @@ import {
   type PanelShellConfig,
 } from './Panel/config/shell';
 import { DEFAULT_LAYOUT_DEBUG_CONFIG, type LayoutDebugConfig } from './LayoutDebug.config';
+import {
+  DEFAULT_MOBILE_NAV_CUBE_CONFIG,
+  normalizeMobileNavCubeConfig,
+  type MobileNavCubeConfig,
+} from '../experiences/abstract/components/MobileNavCube.config';
+import {
+  DEFAULT_FACE_E_TIMELINE_CONFIG,
+  normalizeFaceETimelineConfig,
+  type FaceETimelineConfig,
+} from '../experiences/abstract/components/FaceETimeline.config';
 
 /**
  * Every page/experience that renders one of these shared components used to
@@ -67,6 +77,10 @@ type SharedDesignConfigState = {
   setPanelShellConfig: Dispatch<SetStateAction<PanelShellConfig>>;
   layoutDebugConfig: LayoutDebugConfig;
   setLayoutDebugConfig: Dispatch<SetStateAction<LayoutDebugConfig>>;
+  mobileNavCubeConfig: MobileNavCubeConfig;
+  setMobileNavCubeConfig: Dispatch<SetStateAction<MobileNavCubeConfig>>;
+  faceETimelineConfig: FaceETimelineConfig;
+  setFaceETimelineConfig: Dispatch<SetStateAction<FaceETimelineConfig>>;
 };
 
 const SharedDesignConfigContext = createContext<SharedDesignConfigState | null>(null);
@@ -98,6 +112,12 @@ export function SharedDesignConfigProvider({ children }: { children: ReactNode }
   const [layoutDebugConfig, setLayoutDebugConfig] = useState<LayoutDebugConfig>(() => ({
     ...DEFAULT_LAYOUT_DEBUG_CONFIG,
   }));
+  const [mobileNavCubeConfig, setMobileNavCubeConfig] = useState<MobileNavCubeConfig>(() => (
+    normalizeMobileNavCubeConfig(DEFAULT_MOBILE_NAV_CUBE_CONFIG)
+  ));
+  const [faceETimelineConfig, setFaceETimelineConfig] = useState<FaceETimelineConfig>(() => (
+    normalizeFaceETimelineConfig(DEFAULT_FACE_E_TIMELINE_CONFIG)
+  ));
 
   const value = useMemo(() => ({
     pageSurfaceConfig,
@@ -121,6 +141,10 @@ export function SharedDesignConfigProvider({ children }: { children: ReactNode }
     ...(process.env.NODE_ENV !== 'production' ? { panelShellConfig, setPanelShellConfig } : {}),
     layoutDebugConfig,
     setLayoutDebugConfig,
+    mobileNavCubeConfig,
+    setMobileNavCubeConfig,
+    faceETimelineConfig,
+    setFaceETimelineConfig,
   } as SharedDesignConfigState), [
     pageSurfaceConfig,
     ctaButtonConfig,
@@ -130,6 +154,8 @@ export function SharedDesignConfigProvider({ children }: { children: ReactNode }
     globalTypographyConfig,
     panelShellConfig,
     layoutDebugConfig,
+    mobileNavCubeConfig,
+    faceETimelineConfig,
   ]);
 
   return (

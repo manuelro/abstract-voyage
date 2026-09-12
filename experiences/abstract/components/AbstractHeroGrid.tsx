@@ -24,6 +24,7 @@ type AbstractHeroGridProps = {
   navTextColor: string;
   cellCanvasRefs: MutableRefObject<Array<HTMLCanvasElement | null>>;
   totalCellCount: number;
+  hideNavigationOnMobile?: boolean;
 };
 
 /**
@@ -40,6 +41,7 @@ export function AbstractHeroGrid({
   navTextColor,
   cellCanvasRefs,
   totalCellCount,
+  hideNavigationOnMobile = false,
 }: AbstractHeroGridProps) {
   const cellCount = Math.max(4, totalCellCount);
   const columns = Math.ceil(Math.sqrt(cellCount));
@@ -55,6 +57,7 @@ export function AbstractHeroGrid({
       className={styles.grid}
       data-color-mode={colorMode}
       data-ink-tone={headerTone}
+      data-hide-mobile-navigation={hideNavigationOnMobile ? 'true' : undefined}
       style={{
         '--grid-cols': columns,
         '--grid-rows': rows,
@@ -64,7 +67,12 @@ export function AbstractHeroGrid({
     >
       <div className={`${styles.cell} ${styles.logoCell}`}>
         <canvas aria-hidden="true" className={styles.cellBackground} ref={registerCell(0)} />
-        <Link aria-label="Abstract Voyage home" className={styles.logoLink} href="/abstract">
+        <Link
+          aria-label="Abstract Voyage home"
+          className={styles.logoLink}
+          data-site-wordmark-anchor="true"
+          href="/"
+        >
           <Logo ariaLabel="Abstract Voyage" stops={logoStops} stopTransitionMs={280} width="100%" />
         </Link>
       </div>

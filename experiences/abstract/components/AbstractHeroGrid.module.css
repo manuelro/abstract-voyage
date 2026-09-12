@@ -58,6 +58,15 @@
   grid-row: 2;
 }
 
+@media (max-width: 767px) {
+  .grid[data-hide-mobile-navigation='true'] .aboutCell,
+  .grid[data-hide-mobile-navigation='true'] .journalCell,
+  .grid[data-hide-mobile-navigation='true'] .contactCell {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
 .logoLink {
   position: relative;
   z-index: 1;

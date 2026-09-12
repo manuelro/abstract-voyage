@@ -68,10 +68,12 @@ export interface GradientConfig {
    */
   baseHue: number;
   /**
-   * Allowed total spread around the base hue in degrees.
+   * Allowed total spread around the base hue in degrees (0-90).
    * In the "mono" hue scheme, this controls the hue band around baseHue.
-   * In "dual-complementary", it primarily scales micro hue jitter; use
-   * `zoom` and `centerStretch` to control the perceived palette.
+   * In "dual-complementary" (when `secondaryHue` isn't explicitly set), it
+   * scales how far the secondary anchor sits from baseHue: 0 collapses both
+   * anchors onto baseHue (flat hue), 90 reaches the full 180deg complement.
+   * It also scales the micro hue jitter applied per stop in both schemes.
    */
   hueSpread?: number;
   /**
@@ -531,10 +533,13 @@ export function generateHarmonicGradient(
   const coolHue = distMinToWarm < distMaxToWarm ? rawMaxHue : rawMinHue;
 
   // For dual-complementary: define a secondary hue and a bridge hue between base and secondary.
+  // Without an explicit secondaryHue override, hueSpread (0-90) now scales how far the
+  // secondary anchor sits from baseHue (0deg at hueSpread=0 -> full 180deg complement at
+  // hueSpread=90), instead of being pinned to a fixed +180 regardless of hueSpread.
   const secondaryHue = normalizeHue(
     typeof rawSecondaryHue === "number" && Number.isFinite(rawSecondaryHue)
       ? rawSecondaryHue
-      : baseHue + 180
+      : baseHue + (hueSpread / 90) * 180
   );
   const hueDiff = ((secondaryHue - baseHue + 540) % 360) - 180; // shortest path [-180, 180]
   const bridgeHue = normalizeHue(baseHue + hueDiff * 0.5);

@@ -166,7 +166,8 @@
   transition:
     color 280ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    filter 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .primaryNav {
@@ -205,6 +206,11 @@
 .navLabel {
   position: relative;
   display: inline-block;
+}
+
+.navDivider {
+  color: rgba(20, 35, 41, 0.78);
+  line-height: 1;
 }
 
 .navLabel::after {
@@ -254,7 +260,15 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+.siteHeader[data-ink-tone="light"] .navDivider {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .siteHeader[data-ink-tone="dark"] .navLink {
+  color: rgba(20, 35, 41, 0.82);
+}
+
+.siteHeader[data-ink-tone="dark"] .navDivider {
   color: rgba(20, 35, 41, 0.82);
 }
 
@@ -271,6 +285,12 @@
 .siteHeader[data-color-mode="custom"] .navLink,
 .siteHeader[data-color-mode="surface"] .navLink,
 .siteHeader[data-color-mode="column"] .navLink {
+  color: var(--hero-header-nav-text);
+}
+
+.siteHeader[data-color-mode="custom"] .navDivider,
+.siteHeader[data-color-mode="surface"] .navDivider,
+.siteHeader[data-color-mode="column"] .navDivider {
   color: var(--hero-header-nav-text);
 }
 
@@ -299,6 +319,19 @@
   .heroZone .navLink {
     min-width: 44px;
   }
+}
+
+/* Unconditional, every breakpoint — the classic presentation branch's own
+   <main> already carries the same overflow-x-clip Tailwind utility (see
+   pages/abstract.tsx); this split-column/editorial branch's root had no
+   horizontal-overflow containment of its own below the 768px rule further
+   down (that rule only ever set overflow-y), so any child rendering past
+   100vw on a narrow viewport (confirmed: header content padding pushing a
+   stacked cell wider than its own column) became a real page-level
+   horizontal scrollbar instead of being clipped like the classic branch
+   already is. */
+.splitColumnViewport {
+  overflow-x: clip;
 }
 
 @media (min-width: 768px) {

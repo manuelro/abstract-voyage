@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, MutableRefObject, Ref, RefObject } from 'react';
 import { normalizeCtaButtonConfig, type CtaButtonConfig } from '../../../components/CtaButton/config/registered';
 import { DEFAULT_PAGE_SURFACE_CONFIG } from '../../../components/PageSurface.config';
@@ -8,6 +8,7 @@ import { useElevationShadow } from '../../../components/proximity/useElevationSh
 import { useSharedDesignConfig } from '../../../components/SharedDesignConfigProvider';
 import { renderEmphasisText } from '../../../helpers/textEmphasis';
 import { deriveSurfaceColor, resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDerivation';
+import type { SvgStop } from '../../../helpers/gradientMath';
 import {
   normalizeAbstractEditorialHeroConfig,
   type AbstractEditorialHeroConfig,
@@ -21,6 +22,11 @@ import {
   type AbstractHeroCtaComposerConfig,
 } from './AbstractHeroCtaComposer/config/registered';
 import styles from './AbstractEditorialHero.module.css';
+
+// See paragraphGradientScrollLightenEnabled's own doc comment
+// (AbstractEditorialHero.config.ts) for the full mechanism this CSS custom
+// property drives.
+const PARAGRAPH_GRADIENT_LIGHTEN_PROGRESS_VAR = '--paragraph-gradient-lighten-progress';
 
 function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
   if (typeof ref === 'function') ref(value);
@@ -107,6 +113,27 @@ type AbstractEditorialHeroProps = {
    * as its target opacity falls, on the assumption the caller will render it
    * at that same reduced opacity, same as body/highlight already do. */
   titleOpacityOverride?: number;
+  /** Only meaningful while config.paragraphUsesWordmarkGradient is true —
+   * PolymorphicLayout.tsx's own usePolymorphicLayoutColors() output
+   * (colors.wordmarkGradientStops), passed straight through so this
+   * component can render the exact same gradient (not a re-derived
+   * approximation) across the ENTIRE paragraph — base copy, emphasis/link
+   * runs, and the inline headline span alike, as one continuous fill.
+   * undefined for every caller not opting in (about.tsx, contact.tsx,
+   * posts/[slug].tsx) — byte-identical to before this prop existed. See
+   * PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md. */
+  wordmarkGradientStops?: ReadonlyArray<SvgStop>;
+  /** Only meaningful while config.paragraphGradientScrollLightenEnabled is
+   * true — PolymorphicLayoutResolvedColors.scrollGradientResolved's own
+   * viewportRangeVh/tauMs (the exact same values
+   * <PolymorphicScrollGradientBackground> itself uses to time/ease its
+   * darken overlay), passed straight through so this component's own
+   * scroll-driven gradient-lighten effect tracks that curve exactly instead
+   * of animating on an independent timer. undefined for every caller not
+   * opting in. See paragraphGradientScrollLightenEnabled's own doc comment
+   * (AbstractEditorialHero.config.ts). */
+  scrollGradientDarkenViewportRangeVh?: number;
+  scrollGradientDarkenTauMs?: number;
   layoutMode: 'full' | 'editorial';
   copyInkTone: AbstractEditorialHeroInkTone;
   actionInkTone: AbstractEditorialHeroInkTone;
@@ -142,8 +169,168 @@ export function AbstractEditorialHero({
   gradientDebugPanelOpen = false,
   headlineCanvasRef,
   headlineRef,
+  wordmarkGradientStops,
+  scrollGradientDarkenViewportRangeVh,
+  scrollGradientDarkenTauMs,
 }: AbstractEditorialHeroProps) {
   const normalized = normalizeAbstractEditorialHeroConfig(config);
+  // CSS background value built from the exact same stops the wordmark's own
+  // SVG gradient uses (not a re-generation) — see
+  // paragraphUsesWordmarkGradient's own doc comment
+  // (AbstractEditorialHero.config.ts). undefined whenever the opt-in is off
+  // or the page hasn't supplied stops (scroll-gradient background inactive
+  // at the current tier), so every existing caller/state renders exactly as
+  // before. Applied once, at each paragraph's own <p> root — never per-run
+  // — so it reads as one continuous fill across the whole paragraph
+  // (base copy, emphasis/link runs, and the inline headline span alike),
+  // not a separate, independently-remapped 0-100% gradient inside each
+  // individual run's own narrow bounding box.
+  // paragraphGradientScrollLightenEnabled: whether to build each stop as a
+  // CSS color-mix() toward white, driven by --paragraph-gradient-lighten-
+  // progress (a single live custom property this component updates via rAF
+  // below, mirroring PolymorphicScrollGradientBackground's own darken-
+  // overlay technique — never React state, so scrolling never re-renders
+  // this component). The mix amount at any instant is entirely the
+  // browser's job at paint time; this memo only needs to rebuild when the
+  // STOPS or the config's own max-amount ceiling change, not on every
+  // scroll frame. See paragraphGradientScrollLightenEnabled's own doc
+  // comment (AbstractEditorialHero.config.ts).
+  const scrollLightenActive = normalized.paragraphUsesWordmarkGradient
+    && normalized.paragraphGradientScrollLightenEnabled
+    && scrollGradientDarkenViewportRangeVh !== undefined
+    && scrollGradientDarkenTauMs !== undefined;
+  const wordmarkGradientCss = useMemo(() => {
+    if (!wordmarkGradientStops?.length) return undefined;
+    if (!scrollLightenActive) {
+      return `linear-gradient(90deg, ${wordmarkGradientStops.map(stop => `${stop.color} ${stop.at}%`).join(', ')})`;
+    }
+    const maxAmountPercent = normalized.paragraphGradientScrollLightenMaxAmount * 100;
+    return `linear-gradient(90deg, ${wordmarkGradientStops.map(stop => {
+      const whiteMix = `calc(var(${PARAGRAPH_GRADIENT_LIGHTEN_PROGRESS_VAR}, 0) * ${maxAmountPercent}%)`;
+      return `color-mix(in srgb, ${stop.color} calc(100% - ${whiteMix}), white ${whiteMix}) ${stop.at}%`;
+    }).join(', ')})`;
+  }, [wordmarkGradientStops, scrollLightenActive, normalized.paragraphGradientScrollLightenMaxAmount]);
+  const supportingCopyRef = useRef<HTMLDivElement | null>(null);
+  // Ported from PolymorphicScrollGradientBackground.tsx's own rAF-smoothed
+  // scroll effect (same tau-based easing, same viewport-range math) — kept
+  // as an independent computation here rather than plumbed shared mutable
+  // state across that unrelated fixed-position component, same architecture
+  // precedent as this file's own wordmarkGradientStops recipe (fully
+  // independent from the background's own resolved values at runtime).
+  // Progress (0-1, NOT pre-multiplied by any darken ceiling) is written to
+  // supportingCopyRef's own CSS custom property, which every descendant
+  // <p>'s color-mix() background above reads live at paint time — no React
+  // re-render, no per-frame JS color math.
+  useEffect(() => {
+    if (!scrollLightenActive) return undefined;
+    const el = supportingCopyRef.current;
+    if (!el || scrollGradientDarkenViewportRangeVh === undefined || scrollGradientDarkenTauMs === undefined) {
+      return undefined;
+    }
+
+    const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+    const alphaFromTau = (dtMs: number, tau: number) => 1 - Math.exp(-dtMs / Math.max(1, tau));
+
+    const targetRef = { current: 0 };
+    const smoothRef = { current: 0 };
+    const rafRef = { current: null as number | null };
+    const lastTsRef = { current: 0 };
+
+    const writeProgress = (value: number) => {
+      el.style.setProperty(PARAGRAPH_GRADIENT_LIGHTEN_PROGRESS_VAR, clamp01(value).toFixed(3));
+    };
+
+    const computeTarget = () => {
+      const viewport = window.innerHeight || 1;
+      const rawProgress = window.scrollY / (viewport * scrollGradientDarkenViewportRangeVh);
+      targetRef.current = clamp01(rawProgress);
+    };
+
+    const tick = (ts: number) => {
+      const lastTs = lastTsRef.current || ts;
+      lastTsRef.current = ts;
+      rafRef.current = null;
+
+      const dt = Math.max(0, ts - lastTs);
+      const alpha = alphaFromTau(dt, scrollGradientDarkenTauMs);
+      const target = targetRef.current;
+      const current = smoothRef.current + (target - smoothRef.current) * alpha;
+      smoothRef.current = current;
+
+      writeProgress(current);
+
+      if (Math.abs(target - current) >= 0.001) {
+        rafRef.current = window.requestAnimationFrame(tick);
+      }
+    };
+
+    const schedule = () => {
+      if (rafRef.current !== null) return;
+      rafRef.current = window.requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => {
+      computeTarget();
+      schedule();
+    };
+    const onResize = () => {
+      computeTarget();
+      schedule();
+    };
+
+    writeProgress(0);
+    computeTarget();
+    schedule();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [scrollLightenActive, scrollGradientDarkenViewportRangeVh, scrollGradientDarkenTauMs]);
+  // 'clip' (background-clip:text) wins if both happen to be true — see
+  // paragraphUsesWordmarkGradientBlend's own doc comment
+  // (AbstractEditorialHero.config.ts).
+  const paragraphGradientClipActive = normalized.paragraphUsesWordmarkGradient && !!wordmarkGradientCss;
+  const paragraphGradientBlendActive = !paragraphGradientClipActive
+    && normalized.paragraphUsesWordmarkGradientBlend
+    && !!wordmarkGradientCss;
+  const wordmarkGradientTextStyle: CSSProperties | undefined = paragraphGradientClipActive ? {
+    background: wordmarkGradientCss,
+    backgroundClip: 'text',
+    WebkitBackgroundClip: 'text',
+    color: 'transparent',
+    WebkitTextFillColor: 'transparent',
+  } : undefined;
+  // Blend mode (PLAN-PARAGRAPH-BLEND-MODE-COLOR.md, Option A — "ambient
+  // blend"): the paragraph's own opacity/font-weight distinctions (dim vs.
+  // emphasis vs. headline) are left COMPLETELY normal — only the base COLOR
+  // is overridden (paragraphGradientBlendColor, applied here so every
+  // descendant inherits it via ordinary CSS color inheritance, same
+  // mechanism 'clip' mode already relies on for its own transparent color).
+  // `mix-blend-mode` is added alongside it, deliberately WITHOUT any local
+  // backdrop layer or `isolation: isolate` — this hero's own ancestor chain
+  // (.root/.copyColumn/.supportingCopy, AbstractEditorialHero.module.css)
+  // carries no opaque background-color of its own, so the real page
+  // background already visible behind the hero (the scroll-gradient, when
+  // active) is what the text blends against. Option B ("local gradient
+  // blend": a same-sized backdrop div painted behind the paragraph,
+  // isolated to its own stacking context) was tried and reverted — that
+  // backdrop div painted as a visible, opaque-looking rectangle wherever
+  // the paragraph sat, not just under the glyphs (confirmed live via
+  // screenshot) — `mix-blend-mode` only changes how an element's own
+  // content composites, it does not clip/mask a sibling's background to
+  // the text's own shape, so a same-sized backdrop is always visible in
+  // the gaps between/around glyphs regardless of blend mode. Ambient mode
+  // has no such layer to leak through: the "backdrop" is simply whatever
+  // was already rendering on the page, so there is nothing new to see
+  // outside the text itself.
+  const paragraphBlendStyle: CSSProperties | undefined = paragraphGradientBlendActive ? {
+    mixBlendMode: normalized.paragraphGradientBlendMode,
+    color: normalized.paragraphGradientBlendColor,
+  } : undefined;
   const { globalTypographyConfig } = useSharedDesignConfig();
   const resolvedHeadlineFontFamily = normalized.headlineFontFamily === 'inherit'
     ? globalTypographyConfig.headingFontFamily
@@ -420,11 +607,32 @@ export function AbstractEditorialHero({
           )}
           {paragraphs.length > 0 ? (
             <div
+              ref={supportingCopyRef}
               className={`${styles.supportingCopy} ${normalized.bodyFontSizeNarrow} ${normalized.bodyFontSizeMid} ${normalized.bodyFontSizeWide} ${normalized.leadGap} ${normalized.leadGapWide} ${normalized.leadGapLg} grid gap-[28px] w-full ${normalized.paragraphMaxWidth}`}
               data-editorial-supporting-copy="true"
             >
               {paragraphs.map((paragraph, index) => (
-                <p key={index} className={`${styles.copyBlock} m-0 p-0`}>
+                <p
+                  key={index}
+                  className={`${styles.copyBlock} m-0 p-0`}
+                  // wordmarkGradientTextStyle applied once here, at the whole
+                  // paragraph's own root — not per-run — so the gradient
+                  // renders as one continuous fill across every run inside
+                  // (base copy, emphasis/link runs, and the inline headline
+                  // span below all inherit color/-webkit-text-fill-color
+                  // from this element rather than each independently
+                  // re-mapping the gradient's own 0-100% stops onto its own
+                  // narrow bounding box). undefined (this component's normal
+                  // behavior) whenever the opt-in is off. paragraphBlendStyle
+                  // (mutually exclusive with wordmarkGradientTextStyle — see
+                  // paragraphGradientBlendActive's own computation) instead
+                  // only adds mix-blend-mode, blending this element's own
+                  // (still fully normal) rendered content against whatever
+                  // is already visually behind it on the page — leaving
+                  // every other style/branch below at its ordinary,
+                  // non-gradient behavior.
+                  style={wordmarkGradientTextStyle ?? paragraphBlendStyle}
+                >
                   {inlineHeadlineActive && index === 0 ? (
                     <>
                       {/* role="heading"/aria-level, not a nested <h1> — a
@@ -439,8 +647,48 @@ export function AbstractEditorialHero({
                         aria-level={1}
                         aria-label={headline}
                         id="abstract-hero-title"
-                        className={`${styles.leadBlock} ${headlineSizeClassName} relative`}
-                        data-headline-fill={normalized.headlineFillMode}
+                        // 'relative' only exists to give .headlineCanvas
+                        // (the OTHER, canvas-based gradient system) a
+                        // positioned ancestor for its own absolute
+                        // positioning — irrelevant while
+                        // wordmarkGradientTextStyle is active, since that
+                        // path renders plain `headline` text instead of
+                        // headlineContent's canvas markup (see the doc
+                        // comment further down). Omitted specifically in
+                        // that case because it's also the confirmed root
+                        // cause of a real WebKit rendering bug: `position:
+                        // relative` on this exact element made its
+                        // (correctly computed, per getComputedStyle)
+                        // gradient-clipped text paint fully blank on real
+                        // iOS hardware — bisected live via Playwright's
+                        // WebKit engine (which reproduces the same bug the
+                        // Simulator does not) by removing one class at a
+                        // time; removing only `relative` fixed the paint,
+                        // confirmed by re-adding every other class. Every
+                        // other usage of `relative` in this component
+                        // (the standalone <h1> path, canvas positioning
+                        // elsewhere) is untouched — this is scoped to only
+                        // this one element, only in this one mode.
+                        className={wordmarkGradientTextStyle
+                          ? `${styles.leadBlock} ${headlineSizeClassName}`
+                          : `${styles.leadBlock} ${headlineSizeClassName} relative`}
+                        // AbstractEditorialHero.module.css's own
+                        // [data-headline-fill="solid"/"surface"] rules set a
+                        // flat `color` directly on this element (not merely a
+                        // fallback for inherited color) — by design, for the
+                        // OTHER (twilight-sky canvas) gradient system, whose
+                        // own doc comment says solid/surface must "reliably
+                        // show a flat color regardless of whatever gradient
+                        // mode is active." That would silently override our
+                        // wordmarkGradientTextStyle inheritance from the
+                        // ancestor <p> the moment this attribute is present —
+                        // omitted (not merely a different value) whenever our
+                        // gradient is active, so neither stylesheet rule
+                        // matches and this span's `color`/`-webkit-text-fill-
+                        // color` stay genuinely inherited from the <p> above.
+                        data-headline-fill={(wordmarkGradientTextStyle || paragraphBlendStyle)
+                          ? undefined
+                          : normalized.headlineFillMode}
                         data-headline-match-body-size={normalized.headlineMatchesBodySize ? 'true' : 'false'}
                         data-headline-inline="true"
                         // .supportingCopy (this span's own ancestor once
@@ -451,36 +699,110 @@ export function AbstractEditorialHero({
                         // headline stops living outside .supportingCopy (the
                         // standalone <h1> path above never hits this, so it
                         // only ever surfaced here). An explicit color here
-                        // wins regardless of DOM position. Same reasoning for
-                        // opacity: the ancestor <p> has none of its own, but
-                        // titleOpacityOverride still needs applying at this
-                        // exact element, matching the standalone <h1> path.
-                        style={{
+                        // wins regardless of DOM position — EXCEPT while
+                        // wordmarkGradientTextStyle is active on the <p>
+                        // above, where omitting color/fill entirely here (as
+                        // below) lets this span inherit the ancestor's own
+                        // transparent+gradient-clip fill instead, keeping the
+                        // whole paragraph (headline included) one continuous
+                        // gradient rather than a second, separately-mapped
+                        // one. Opacity is handled differently here: any CSS
+                        // opacity below 1 establishes a new stacking context,
+                        // which real iOS hardware (unlike the Simulator's
+                        // software rendering path — confirmed live: renders
+                        // correctly in Simulator/desktop, fully invisible on
+                        // a real iPhone in both Safari and Chrome, which is
+                        // WebKit there too) promotes into its own GPU
+                        // compositing layer. That layer paints only its OWN
+                        // box's background (none), not the ancestor <p>'s
+                        // clipped gradient bleeding through — so applying
+                        // titleOpacityOverride here (if it happens to be
+                        // below 1) would blank this element out on real
+                        // devices while looking correct everywhere else.
+                        // Omitted entirely (not merely set to 1 — omitting
+                        // avoids the property existing at all) whenever the
+                        // gradient is active.
+                        style={wordmarkGradientTextStyle ? undefined : paragraphBlendStyle ? {
+                          // color omitted — inherits paragraphGradientBlendColor
+                          // from the ancestor <p>'s own paragraphBlendStyle,
+                          // same reasoning as the clip-mode branch above (this
+                          // element must not set its own color, or the
+                          // deliberate ancestor override never reaches it).
+                          opacity: titleOpacityOverride,
+                        } : {
                           color: resolvedCopyColor,
                           opacity: titleOpacityOverride,
                         }}
                       >
-                        {headlineContent}
+                        {/* headlineContent (gradientHeadlineActive branch) is
+                            the OTHER, older gradient system — a <canvas> the
+                            legacy compositor (helpers/abstractLegacyHeadline-
+                            Compositor.ts) paints a separate twilight-sky
+                            gradient onto, imperatively marking this element
+                            data-gradient-ready="true" once drawn, which also
+                            unconditionally forces color:transparent on the
+                            nested .headlineText span
+                            (AbstractEditorialHero.module.css) so the canvas
+                            shows through instead. That's a second,
+                            independent transparent-text layer stacked on top
+                            of our own wordmarkGradientTextStyle inheritance —
+                            confirmed live: if the canvas's own draw ever
+                            lags/fails to produce visible pixels before paint
+                            (a real risk on slower real hardware, unlike the
+                            Simulator), the result is two competing
+                            transparent-text mechanisms and fully blank text,
+                            not a graceful fallback to either gradient alone.
+                            Plain `headline` text bypasses that system
+                            entirely, applying our own gradient exactly the
+                            same, uncontested way the rest of this paragraph
+                            already renders. */}
+                        {wordmarkGradientTextStyle ? headline : headlineContent}
                       </span>
                       {' '}
                     </>
                   ) : null}
                   {(() => {
                     const resolvedDimOpacity = bodyOpacityOverride ?? normalized.emphasisDimOpacity;
+                    const resolvedHighlightOpacity = normalized.emphasisHighlightEnabled
+                      ? (highlightOpacityOverride ?? normalized.emphasisWordOpacity)
+                      : resolvedDimOpacity;
                     // Opt-out path (AbstractEditorialHeroConfig.emphasisHighlightEnabled's
                     // own doc comment): pass the same opacity for both roles and
                     // omit className/color override, so **word**/[text](href)
                     // runs render identically to plain body text — never
                     // touches the headline, which doesn't route through
-                    // renderEmphasisText at all.
+                    // renderEmphasisText at all. highlightColorOverride is
+                    // also suppressed whenever wordmarkGradientTextStyle is
+                    // active, for the same reason as the headline span above
+                    // — an explicit per-run color would defeat the ancestor
+                    // <p>'s own inherited gradient fill. Both opacities are
+                    // forced to 1 while the gradient is active — see the
+                    // headline span's own doc comment above (same paragraph
+                    // root) for why: emphasisDimOpacity/emphasisWordOpacity
+                    // default to 0.5/0.88, both below 1, so every run this
+                    // produces would otherwise get its own real CSS stacking
+                    // context and be promoted to a separate GPU compositing
+                    // layer on real iOS hardware, losing the ancestor <p>'s
+                    // clipped gradient paint entirely (confirmed live: this
+                    // is what made the ENTIRE paragraph — not just the dim
+                    // text — render fully invisible on a real iPhone while
+                    // working correctly in Simulator/desktop).
                     return renderEmphasisText(
                       paragraph,
-                      resolvedDimOpacity,
-                      normalized.emphasisHighlightEnabled
-                        ? (highlightOpacityOverride ?? normalized.emphasisWordOpacity)
-                        : resolvedDimOpacity,
+                      wordmarkGradientTextStyle ? 1 : resolvedDimOpacity,
+                      wordmarkGradientTextStyle ? 1 : resolvedHighlightOpacity,
                       normalized.emphasisHighlightEnabled ? normalized.emphasisFontWeight : undefined,
-                      normalized.emphasisHighlightEnabled ? highlightColorOverride : undefined,
+                      // Suppressed in both 'clip' AND blend mode — a
+                      // page-supplied highlightColorOverride (e.g.
+                      // pages/abstract.tsx's own wideColumnTypography/
+                      // narrowColumnTypography-derived value) would
+                      // otherwise win over paragraphGradientBlendColor for
+                      // just the emphasis runs, splitting the paragraph
+                      // into two different colors instead of the one
+                      // shared override both modes intend.
+                      normalized.emphasisHighlightEnabled && !wordmarkGradientTextStyle && !paragraphBlendStyle
+                        ? highlightColorOverride
+                        : undefined,
                     );
                   })()}
                 </p>

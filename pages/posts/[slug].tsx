@@ -435,7 +435,12 @@ export default function PostLab({
             // this prop switches the logo to the single centralized
             // instance instead, for genuine parity — not just similar
             // resting values.
-            wordmarkConfig={wordmarkConfig}
+            // colors.wordmarkGradientStops takes priority when present —
+            // see PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+            wordmarkConfig={colors.wordmarkGradientStops
+              ? { ...wordmarkConfig, colorMode: 'adaptive' }
+              : wordmarkConfig}
+            logoStops={colors.wordmarkGradientStops}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
             pageSurfaceConfig={pageSurfaceConfig}
             splitBandActive={postLabLayoutConfig.headerSplitBandEnabled}

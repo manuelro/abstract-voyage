@@ -57,6 +57,17 @@ export function renderEmphasisText(
   // independent of whether a color override is supplied). Undefined for
   // every existing caller (About's narrative slides, AbstractPostDock,
   // contact.tsx) is byte-identical to before this param existed.
+  // AbstractEditorialHero.config.ts's own paragraphUsesWordmarkGradient
+  // renders the gradient once, at the paragraph's own <p> root — not
+  // per-run here — so every run (dim base text, emphasis, links) inherits
+  // the same continuous fill via CSS color/-webkit-text-fill-color
+  // inheritance rather than each independently re-mapping the gradient's
+  // 0-100% stops onto its own narrow bounding box (which produced a
+  // fractured, per-word "rainbow squeezed into each word" look instead of
+  // one smooth gradient flowing across the whole paragraph). The caller
+  // only needs to omit emphasisColorOverride while that mode is active, not
+  // a second override channel here. See
+  // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
   emphasisColorOverride?: string,
 ): ReactNode[] {
   return text

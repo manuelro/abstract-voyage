@@ -151,6 +151,14 @@ export type PolymorphicLayoutScrollGradientHueScheme = 'mono' | 'dual-complement
  * bright center, darker edges. 'side-bright': dark center, bright edges —
  * the legacy scroll-gradient's own default. */
 export type PolymorphicLayoutScrollGradientMode = 'center-bright' | 'side-bright';
+/** 'auto' (default): the wordmark gradient's own lightness direction is
+ * read from the active tier's own scrollGradientInkColor(-Wide/-Lg) — the
+ * same color the scroll-gradient feature already uses to decide whether a
+ * light or dark ink reads against that tier's background. 'light'/'dark'
+ * force a direction regardless of the ink color, for a page whose
+ * background doesn't cleanly resolve to one or the other. See
+ * PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md. */
+export type PolymorphicLayoutWordmarkGradientClarity = 'auto' | 'light' | 'dark';
 /** 'transparent': this header segment gets no background of its own.
  * 'custom': the fixed color below, used verbatim. 'syncWithColumnBelow':
  * mirrors whichever color the column below it actually resolved to. */
@@ -965,6 +973,85 @@ export type PolymorphicLayoutConfig = {
    * — legacy SCROLL_BG_CONFIG.tauMs. NOT tiered: a "feel" constant, not a
    * per-viewport concern, unlike every other scrollGradient* field above. */
   scrollGradientTauMs: number;
+  /** Opt-in (default off): when true AND the currently-active tier's own
+   * scrollGradientEnabled(-Wide/-Lg) is also true, the wordmark's own
+   * gradient (SiteHeader/config/wordmark.ts's WordmarkConfig, rendered by
+   * Logo.tsx) is derived from the wordmarkGradient* palette below (its own
+   * independent recipe, not the background's), retargeted in lightness for
+   * legibility (wordmarkGradientClarity below) — instead of WordmarkConfig's
+   * own colorMode. NOT tiered itself: one global operator decision,
+   * independent of which breakpoint tier's palette is currently active
+   * (see PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md). */
+  wordmarkUsesScrollGradient: boolean;
+  /** Only meaningful while wordmarkUsesScrollGradient above is true. Decides
+   * which direction wordmarkGradientLightnessMin/-Max below are applied in:
+   * 'light' uses them as authored; 'dark' mirrors them around 50
+   * (100-max/100-min), turning a light-leaning authored range into an
+   * equally-legible dark-leaning one without a second set of fields;
+   * 'auto' picks between the two by reading the active tier's own
+   * scrollGradientInkColor(-Wide/-Lg) lightness — the same color the
+   * scroll-gradient feature already uses to decide whether a light or dark
+   * ink reads against that tier's background. See
+   * PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md. */
+  wordmarkGradientClarity: PolymorphicLayoutWordmarkGradientClarity;
+  /** Only meaningful while wordmarkUsesScrollGradient above is true. Full
+   * parity with the scroll-gradient background's own 9 exposed knobs
+   * (scrollGradientBaseHue/-HueScheme/-LightnessMin/-ChromaMin/-Mode/
+   * -Stops/-Variance/-CenterStretch/-Seed) — same names, same tiering
+   * (base/-Wide/-Lg), same generateHarmonicGradient fields
+   * (helpers/harmonicGradient.ts) — but a fully independent recipe: editing
+   * these never touches the background's own values and vice versa. Each
+   * page's own default here starts as a literal copy of that same page's
+   * own scrollGradient* default (so turning wordmarkUsesScrollGradient on
+   * with nothing else touched renders identically to today's
+   * inherit-from-background behavior), not tied to it at runtime after
+   * that. hueSpread/lightnessMax/zoom below have no scrollGradient*
+   * equivalent at all (the background feature never exposed them) — kept
+   * as single, non-tiered wordmark-only extras layered on top of this
+   * parity set. See PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md. */
+  wordmarkGradientBaseHue: number;
+  wordmarkGradientBaseHueWide: number;
+  wordmarkGradientBaseHueLg: number;
+  wordmarkGradientHueScheme: PolymorphicLayoutScrollGradientHueScheme;
+  wordmarkGradientHueSchemeWide: PolymorphicLayoutScrollGradientHueScheme;
+  wordmarkGradientHueSchemeLg: PolymorphicLayoutScrollGradientHueScheme;
+  wordmarkGradientLightnessMin: number;
+  wordmarkGradientLightnessMinWide: number;
+  wordmarkGradientLightnessMinLg: number;
+  wordmarkGradientChromaMin: number;
+  wordmarkGradientChromaMinWide: number;
+  wordmarkGradientChromaMinLg: number;
+  wordmarkGradientMode: PolymorphicLayoutScrollGradientMode;
+  wordmarkGradientModeWide: PolymorphicLayoutScrollGradientMode;
+  wordmarkGradientModeLg: PolymorphicLayoutScrollGradientMode;
+  wordmarkGradientStops: number;
+  wordmarkGradientStopsWide: number;
+  wordmarkGradientStopsLg: number;
+  wordmarkGradientVariance: number;
+  wordmarkGradientVarianceWide: number;
+  wordmarkGradientVarianceLg: number;
+  wordmarkGradientCenterStretch: number;
+  wordmarkGradientCenterStretchWide: number;
+  wordmarkGradientCenterStretchLg: number;
+  wordmarkGradientSeed: number;
+  wordmarkGradientSeedWide: number;
+  wordmarkGradientSeedLg: number;
+  /** No scrollGradient* equivalent — see the doc comment above. NOT tiered:
+   * single wordmark-only extras. */
+  wordmarkGradientHueSpread: number;
+  wordmarkGradientLightnessMax: number;
+  wordmarkGradientZoom: number;
+  /** 0-1 post-hoc lightness multiplier applied to every generated stop
+   * (`l * (1 - darken)`) — the wordmark's own analog to
+   * `scrollGradientMaxDarken`, which can't be reused as-is: that field
+   * drives a black overlay `<div>` compositing trick for the CSS background
+   * layer, and the wordmark has no equivalent stacked layer to overlay
+   * (its colors feed an SVG `<linearGradient>`'s stop-colors directly, via
+   * PolymorphicScrollGradientWordmarkStops.ts's own
+   * `deriveWordmarkScrollGradientStops`). 0 preserves today's output
+   * byte-identical (opt-in). NOT tiered — same "wordmark-only extra" shape
+   * as hueSpread/lightnessMax/zoom above. */
+  wordmarkGradientDarken: number;
   /** Overrides splitBandLeftMode above starting at md (≥ tablet) — same
    * "one segment, one independent picker per breakpoint" shape every other
    * tiered field in this type already has. Shared default mirrors the base
@@ -1168,6 +1255,49 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientMaxDarkenWide: 0.65,
   scrollGradientMaxDarkenLg: 0.65,
   scrollGradientTauMs: 550,
+  wordmarkUsesScrollGradient: false,
+  wordmarkGradientClarity: 'auto',
+  // baseHue/hueScheme/chromaMin/mode/stops/variance/centerStretch/seed below
+  // literally copy this same object's own scrollGradient* defaults above
+  // (base/Wide/Lg identical, same convention) — so turning
+  // wordmarkUsesScrollGradient on with nothing else touched renders in the
+  // same palette family as today's inherit-from-background behavior, while
+  // remaining a fully independent recipe from that point on. lightnessMin/
+  // -Max intentionally do NOT copy scrollGradientLightnessMin (10 — tuned
+  // for a moody full-viewport backdrop, illegible for a wordmark) — 18/58
+  // is generateHarmonicGradient's own default range instead, the same
+  // legibility-appropriate starting point this feature always had.
+  wordmarkGradientBaseHue: 215,
+  wordmarkGradientBaseHueWide: 215,
+  wordmarkGradientBaseHueLg: 215,
+  wordmarkGradientHueScheme: 'dual-complementary',
+  wordmarkGradientHueSchemeWide: 'dual-complementary',
+  wordmarkGradientHueSchemeLg: 'dual-complementary',
+  wordmarkGradientLightnessMin: 18,
+  wordmarkGradientLightnessMinWide: 18,
+  wordmarkGradientLightnessMinLg: 18,
+  wordmarkGradientChromaMin: 45,
+  wordmarkGradientChromaMinWide: 45,
+  wordmarkGradientChromaMinLg: 45,
+  wordmarkGradientMode: 'side-bright',
+  wordmarkGradientModeWide: 'side-bright',
+  wordmarkGradientModeLg: 'side-bright',
+  wordmarkGradientStops: 22,
+  wordmarkGradientStopsWide: 22,
+  wordmarkGradientStopsLg: 22,
+  wordmarkGradientVariance: 1,
+  wordmarkGradientVarianceWide: 1,
+  wordmarkGradientVarianceLg: 1,
+  wordmarkGradientCenterStretch: 0.3,
+  wordmarkGradientCenterStretchWide: 0.3,
+  wordmarkGradientCenterStretchLg: 0.3,
+  wordmarkGradientSeed: 50,
+  wordmarkGradientSeedWide: 50,
+  wordmarkGradientSeedLg: 50,
+  wordmarkGradientHueSpread: 30,
+  wordmarkGradientLightnessMax: 58,
+  wordmarkGradientZoom: 1,
+  wordmarkGradientDarken: 0,
   headerSplitBandEnabled: true,
   splitBandLeftMode: 'syncWithColumnBelow',
   splitBandLeftCustomColor: '#d1d1d1',
@@ -1522,6 +1652,9 @@ const SCROLL_GRADIENT_HUE_SCHEMES: ReadonlyArray<PolymorphicLayoutScrollGradient
 const SCROLL_GRADIENT_MODES: ReadonlyArray<PolymorphicLayoutScrollGradientMode> = [
   'center-bright', 'side-bright',
 ];
+const WORDMARK_GRADIENT_CLARITY_VALUES: ReadonlyArray<PolymorphicLayoutWordmarkGradientClarity> = [
+  'auto', 'light', 'dark',
+];
 const BAND_MODES: ReadonlyArray<PolymorphicLayoutBandMode> = [
   'transparent', 'custom', 'syncWithColumnBelow',
 ];
@@ -1735,6 +1868,112 @@ export function normalizePolymorphicLayoutConfig(
     ),
     scrollGradientTauMs: clampRange(
       base.scrollGradientTauMs, 0, 5000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientTauMs,
+    ),
+    wordmarkUsesScrollGradient: base.wordmarkUsesScrollGradient === true,
+    wordmarkGradientClarity: token(
+      base.wordmarkGradientClarity, WORDMARK_GRADIENT_CLARITY_VALUES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientClarity,
+    ),
+    wordmarkGradientBaseHue: clampRange(
+      base.wordmarkGradientBaseHue, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientBaseHue,
+    ),
+    wordmarkGradientBaseHueWide: clampRange(
+      base.wordmarkGradientBaseHueWide, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientBaseHueWide,
+    ),
+    wordmarkGradientBaseHueLg: clampRange(
+      base.wordmarkGradientBaseHueLg, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientBaseHueLg,
+    ),
+    wordmarkGradientHueScheme: token(
+      base.wordmarkGradientHueScheme, SCROLL_GRADIENT_HUE_SCHEMES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientHueScheme,
+    ),
+    wordmarkGradientHueSchemeWide: token(
+      base.wordmarkGradientHueSchemeWide, SCROLL_GRADIENT_HUE_SCHEMES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientHueSchemeWide,
+    ),
+    wordmarkGradientHueSchemeLg: token(
+      base.wordmarkGradientHueSchemeLg, SCROLL_GRADIENT_HUE_SCHEMES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientHueSchemeLg,
+    ),
+    wordmarkGradientLightnessMin: clampRange(
+      base.wordmarkGradientLightnessMin, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientLightnessMin,
+    ),
+    wordmarkGradientLightnessMinWide: clampRange(
+      base.wordmarkGradientLightnessMinWide, 0, 100,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientLightnessMinWide,
+    ),
+    wordmarkGradientLightnessMinLg: clampRange(
+      base.wordmarkGradientLightnessMinLg, 0, 100,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientLightnessMinLg,
+    ),
+    wordmarkGradientLightnessMax: clampRange(
+      base.wordmarkGradientLightnessMax, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientLightnessMax,
+    ),
+    wordmarkGradientChromaMin: clampRange(
+      base.wordmarkGradientChromaMin, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientChromaMin,
+    ),
+    wordmarkGradientChromaMinWide: clampRange(
+      base.wordmarkGradientChromaMinWide, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientChromaMinWide,
+    ),
+    wordmarkGradientChromaMinLg: clampRange(
+      base.wordmarkGradientChromaMinLg, 0, 100, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientChromaMinLg,
+    ),
+    wordmarkGradientMode: token(
+      base.wordmarkGradientMode, SCROLL_GRADIENT_MODES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientMode,
+    ),
+    wordmarkGradientModeWide: token(
+      base.wordmarkGradientModeWide, SCROLL_GRADIENT_MODES,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientModeWide,
+    ),
+    wordmarkGradientModeLg: token(
+      base.wordmarkGradientModeLg, SCROLL_GRADIENT_MODES, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientModeLg,
+    ),
+    wordmarkGradientStops: Math.round(clampRange(
+      base.wordmarkGradientStops, 2, 64, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientStops,
+    )),
+    wordmarkGradientStopsWide: Math.round(clampRange(
+      base.wordmarkGradientStopsWide, 2, 64, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientStopsWide,
+    )),
+    wordmarkGradientStopsLg: Math.round(clampRange(
+      base.wordmarkGradientStopsLg, 2, 64, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientStopsLg,
+    )),
+    wordmarkGradientVariance: clampRange(
+      base.wordmarkGradientVariance, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientVariance,
+    ),
+    wordmarkGradientVarianceWide: clampRange(
+      base.wordmarkGradientVarianceWide, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientVarianceWide,
+    ),
+    wordmarkGradientVarianceLg: clampRange(
+      base.wordmarkGradientVarianceLg, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientVarianceLg,
+    ),
+    wordmarkGradientCenterStretch: clampRange(
+      base.wordmarkGradientCenterStretch, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientCenterStretch,
+    ),
+    wordmarkGradientCenterStretchWide: clampRange(
+      base.wordmarkGradientCenterStretchWide, 0, 1,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientCenterStretchWide,
+    ),
+    wordmarkGradientCenterStretchLg: clampRange(
+      base.wordmarkGradientCenterStretchLg, 0, 1,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientCenterStretchLg,
+    ),
+    wordmarkGradientSeed: clampRange(
+      base.wordmarkGradientSeed, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientSeed,
+    ),
+    wordmarkGradientSeedWide: clampRange(
+      base.wordmarkGradientSeedWide, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientSeedWide,
+    ),
+    wordmarkGradientSeedLg: clampRange(
+      base.wordmarkGradientSeedLg, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientSeedLg,
+    ),
+    wordmarkGradientHueSpread: clampRange(
+      base.wordmarkGradientHueSpread, 0, 90, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientHueSpread,
+    ),
+    wordmarkGradientZoom: clampRange(
+      base.wordmarkGradientZoom, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientZoom,
+    ),
+    wordmarkGradientDarken: clampRange(
+      base.wordmarkGradientDarken, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wordmarkGradientDarken,
     ),
     headerSplitBandEnabled: base.headerSplitBandEnabled !== false,
     splitBandLeftMode: token(

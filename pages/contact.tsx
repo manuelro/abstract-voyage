@@ -28,7 +28,7 @@ import {
   ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE,
   useAbstractDesignConfigBindings,
 } from '../experiences/abstract/hooks/useAbstractDesignConfigBindings'
-import { PolymorphicLayout } from '../experiences/abstract/components/PolymorphicLayout'
+import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout'
 import { FixedViewportColumnContent } from '../experiences/abstract/components/FixedViewportColumnContent'
 import {
   normalizePolymorphicLayoutConfig,
@@ -1258,6 +1258,15 @@ export default function ContactPage() {
     () => normalizePageSurfaceConfig(pageSurfaceConfig),
     [pageSurfaceConfig],
   )
+  // Standalone call (usePolymorphicLayoutColors's own doc comment blesses
+  // this — the exact same values <PolymorphicLayout> below computes
+  // internally, not a second independently-computed copy) purely to reach
+  // colors.wordmarkGradientStops for the header render-prop below;
+  // HeaderSlotProps doesn't carry it. See
+  // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+  const colors = usePolymorphicLayoutColors(
+    contactPolymorphicLayoutConfig, normalizedPageSurfaceConfig.color,
+  )
   const normalizedCtaButtonConfig = useMemo(
     () => applyCtaButtonColorOverride(
       normalizeCtaButtonConfig(ctaButtonConfig),
@@ -1459,7 +1468,12 @@ export default function ContactPage() {
             // actually sits behind it (dark or light) instead of one fixed
             // gray. Nav text/border are unaffected — `config` above still
             // drives those independently via CONTACT_SITE_HEADER_COLOR_OVERRIDE_CONFIG.
-            wordmarkConfig={wordmarkConfig}
+            // colors.wordmarkGradientStops takes priority when present —
+            // see PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+            wordmarkConfig={colors.wordmarkGradientStops
+              ? { ...wordmarkConfig, colorMode: 'adaptive' }
+              : wordmarkConfig}
+            logoStops={colors.wordmarkGradientStops}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
             {...slotProps}
           />

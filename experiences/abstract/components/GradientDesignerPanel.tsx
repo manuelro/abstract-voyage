@@ -973,6 +973,7 @@ export function GradientDesignerPanel({
               <SegmentedControl
                 value={headerHeight}
                 options={[
+                  { label: 'AUTO', value: 'h-auto' },
                   { label: 'H-12', value: 'h-12' },
                   { label: 'H-14', value: 'h-14' },
                   { label: 'H-16', value: 'h-16' },
@@ -990,6 +991,7 @@ export function GradientDesignerPanel({
               <SegmentedControl
                 value={headerDesktopHeight}
                 options={[
+                  { label: 'AUTO', value: 'md:h-auto' },
                   { label: 'H-12', value: 'md:h-12' },
                   { label: 'H-14', value: 'md:h-14' },
                   { label: 'H-16', value: 'md:h-16' },

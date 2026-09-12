@@ -27,6 +27,8 @@ import {
   PolymorphicScrollGradientBackground,
   type PolymorphicScrollGradientBackgroundProps,
 } from './PolymorphicScrollGradientBackground';
+import { deriveWordmarkScrollGradientStops } from './PolymorphicScrollGradientWordmarkStops';
+import type { SvgStop } from '../../../helpers/gradientMath';
 
 /**
  * The real, shared `PolymorphicLayoutConfig` rendering component — every
@@ -171,6 +173,14 @@ export type PolymorphicLayoutResolvedColors = {
    * SiteHeader's own splitBandStacked prop doc comment. */
   splitBandStacked: boolean;
   splitBandBoundaryPx: number | undefined;
+  /** Wordmark gradient stops derived from the active tier's own
+   * scroll-gradient recipe — present only when
+   * config.wordmarkUsesScrollGradient is on AND scrollGradientActive is
+   * true at the current tier; undefined otherwise (nothing to derive from,
+   * or the page hasn't opted in). A page renders these via SiteHeader's
+   * `logoStops` prop with `wordmarkConfig.colorMode` forced to 'adaptive'
+   * — see PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md. */
+  wordmarkGradientStops: SvgStop[] | undefined;
 };
 
 /** Standalone, exported so a page needing to layer its own logic on top
@@ -266,6 +276,56 @@ export function usePolymorphicLayoutColors(
     ),
     tauMs: config.scrollGradientTauMs,
   };
+  // Full parity with scrollGradientResolved above — same 9 knobs, same
+  // tiering — but a fully independent recipe (its own tier() resolution,
+  // no reference to scrollGradientResolved's own values), plus the 4
+  // wordmark-only extras with no scrollGradient* equivalent. Only
+  // scrollGradientInkColor below (for clarity's own light/dark direction
+  // detection) is still shared with the background. See
+  // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+  const wordmarkGradientStops = config.wordmarkUsesScrollGradient && scrollGradientActive
+    ? deriveWordmarkScrollGradientStops(
+      {
+        baseHue: tier(
+          config.wordmarkGradientBaseHue, config.wordmarkGradientBaseHueWide, config.wordmarkGradientBaseHueLg,
+        ),
+        hueScheme: tier(
+          config.wordmarkGradientHueScheme, config.wordmarkGradientHueSchemeWide,
+          config.wordmarkGradientHueSchemeLg,
+        ),
+        hueSpread: config.wordmarkGradientHueSpread,
+        lightnessMin: tier(
+          config.wordmarkGradientLightnessMin, config.wordmarkGradientLightnessMinWide,
+          config.wordmarkGradientLightnessMinLg,
+        ),
+        lightnessMax: config.wordmarkGradientLightnessMax,
+        chromaMin: tier(
+          config.wordmarkGradientChromaMin, config.wordmarkGradientChromaMinWide,
+          config.wordmarkGradientChromaMinLg,
+        ),
+        mode: tier(
+          config.wordmarkGradientMode, config.wordmarkGradientModeWide, config.wordmarkGradientModeLg,
+        ),
+        stops: tier(
+          config.wordmarkGradientStops, config.wordmarkGradientStopsWide, config.wordmarkGradientStopsLg,
+        ),
+        variance: tier(
+          config.wordmarkGradientVariance, config.wordmarkGradientVarianceWide, config.wordmarkGradientVarianceLg,
+        ),
+        centerStretch: tier(
+          config.wordmarkGradientCenterStretch, config.wordmarkGradientCenterStretchWide,
+          config.wordmarkGradientCenterStretchLg,
+        ),
+        zoom: config.wordmarkGradientZoom,
+        seed: tier(
+          config.wordmarkGradientSeed, config.wordmarkGradientSeedWide, config.wordmarkGradientSeedLg,
+        ),
+        darken: config.wordmarkGradientDarken,
+      },
+      scrollGradientInkColor,
+      config.wordmarkGradientClarity,
+    )
+    : undefined;
 
   const physicalLeftColumnColor = config.wideColumnSide === 'left' ? wideColumnColor : narrowColumnColor;
   const physicalRightColumnColor = config.wideColumnSide === 'left' ? narrowColumnColor : wideColumnColor;
@@ -360,6 +420,7 @@ export function usePolymorphicLayoutColors(
     actualRightSegmentColor,
     splitBandStacked,
     splitBandBoundaryPx,
+    wordmarkGradientStops,
   };
 }
 
