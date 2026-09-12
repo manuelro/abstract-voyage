@@ -4,9 +4,11 @@ import type { AppProps } from 'next/app'
 import dynamic from 'next/dynamic'
 import Script from 'next/script'
 import { Instrument_Sans, Instrument_Serif } from 'next/font/google'
-import { SharedDesignConfigProvider } from '../components/SharedDesignConfigProvider'
+import type { ReactNode } from 'react'
+import { SharedDesignConfigProvider, useSharedDesignConfig } from '../components/SharedDesignConfigProvider'
 import { LayoutDebugHighlightProvider } from '../components/LayoutDebugHighlight'
 import { AbstractDesignConfigProvider } from '../experiences/abstract/components/AbstractDesignConfigProvider'
+import { MobileNavCube } from '../experiences/abstract/components/MobileNavCube'
 // import 'tools/light/styles.css';
 
 const CopyTool = dynamic(() => import('../components/CopyTool'), { ssr: false })
@@ -28,6 +30,19 @@ const siteSerif = Instrument_Serif({
   adjustFontFallback: false,
   variable: '--site-font-serif',
 })
+
+function CuboidNavigationRoot({ children }: { children: ReactNode }) {
+  const { mobileNavCubeConfig, faceETimelineConfig } = useSharedDesignConfig()
+
+  return (
+    <MobileNavCube
+      config={mobileNavCubeConfig}
+      faceETimelineConfig={faceETimelineConfig}
+    >
+      {children}
+    </MobileNavCube>
+  )
+}
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
@@ -65,7 +80,9 @@ export default function App({ Component, pageProps }: AppProps) {
             covers every page uniformly; LayoutDebugHighlightProvider
             itself takes no props, so this is a pure relocation. */}
         <LayoutDebugHighlightProvider>
-          <Component {...pageProps} />
+          <CuboidNavigationRoot>
+            <Component {...pageProps} />
+          </CuboidNavigationRoot>
         </LayoutDebugHighlightProvider>
         {process.env.NODE_ENV === 'development' && <CopyTool />}
       </div>

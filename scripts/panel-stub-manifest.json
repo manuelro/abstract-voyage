@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T23:22:46.039Z",
+  "generatedAt": "2026-09-12T06:55:00.287Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -169,6 +169,14 @@
       ]
     },
     {
+      "real": "experiences/abstract/components/FaceETimeline.panel.ts",
+      "stub": "experiences/abstract/components/FaceETimeline.panel.stub.ts",
+      "exports": [
+        "FACE_E_TIMELINE_SCOPE_ID",
+        "FACE_E_TIMELINE_PANEL"
+      ]
+    },
+    {
       "real": "experiences/abstract/components/GradientDesignerPanel.tsx",
       "stub": "experiences/abstract/components/GradientDesignerPanel.stub.ts",
       "exports": [
@@ -184,6 +192,14 @@
       "exports": [
         "POST_LAB_ARTICLE_READING_SCOPE_ID",
         "POST_LAB_ARTICLE_READING_PANEL"
+      ]
+    },
+    {
+      "real": "experiences/abstract/components/MobileNavCube.panel.ts",
+      "stub": "experiences/abstract/components/MobileNavCube.panel.stub.ts",
+      "exports": [
+        "MOBILE_NAV_CUBE_SCOPE_ID",
+        "MOBILE_NAV_CUBE_PANEL"
       ]
     },
     {
@@ -370,6 +386,14 @@
       "stub": "pages/contact.panel.stub.ts",
       "exports": [
         "CONTACT_POLYMORPHIC_LAYOUT_PANEL"
+      ]
+    },
+    {
+      "real": "pages/cube-lab.panel.ts",
+      "stub": "pages/cube-lab.panel.stub.ts",
+      "exports": [
+        "CUBE_LAB_SCOPE_ID",
+        "CUBE_LAB_PANEL"
       ]
     },
     {

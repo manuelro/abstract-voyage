@@ -1,0 +1,63 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0d;
+}
+
+.labFace {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  font-weight: 700;
+  color: #f7f9ff;
+}
+
+.faceAVisual {
+  display: block;
+  background: #e63946;
+}
+
+.faceBVisual {
+  background: #2a9d8f;
+}
+
+.faceCVisual {
+  background: #457b9d;
+}
+
+.faceDVisual {
+  background: #f4a261;
+}
+
+.faceEVisual {
+  background: #9b5de5;
+}
+
+.faceFVisual {
+  background: #ffd166;
+  color: #1a1a1a;
+}
+
+.faceALabel {
+  padding: 1rem 1.25rem 0.5rem;
+  font-size: clamp(1.5rem, 4vw, 3rem);
+}
+
+.faceAContent {
+  padding: 0 1.25rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.faceAMetricRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(247, 249, 255, 0.18);
+}

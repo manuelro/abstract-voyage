@@ -1,0 +1,145 @@
+.host {
+  position: relative;
+}
+
+.stage {
+  perspective: var(--cube-perspective);
+  transition: perspective var(--cube-push-duration) var(--cube-push-easing);
+}
+
+.cuboidPush {
+  position: relative;
+  width: var(--cube-width);
+  height: var(--cube-height);
+  transform: translateZ(var(--cube-pushback));
+  transform-style: preserve-3d;
+  transition: transform var(--cube-push-duration) var(--cube-push-easing);
+}
+
+.cuboid {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform: translateY(var(--cube-recenter-y)) rotateX(var(--cube-rotate-x)) rotateY(var(--cube-rotate-y));
+  transform-style: preserve-3d;
+  transition: transform var(--cube-turn-duration) var(--cube-turn-easing);
+  pointer-events: none;
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: auto;
+}
+
+.face[data-pointer-disabled='true'] {
+  pointer-events: none;
+}
+
+.faceA {
+  top: 0;
+  right: 0;
+  bottom: auto;
+  left: 0;
+  height: auto;
+  overflow: visible;
+  transform: translateZ(calc(var(--cube-width) / 2));
+}
+
+.faceA[data-capped='true'] {
+  height: var(--cube-height);
+  overflow: hidden;
+}
+
+.faceB {
+  transform: rotateY(90deg) translateZ(calc(var(--cube-width) / 2));
+}
+
+.faceC {
+  transform: rotateY(180deg) translateZ(calc(var(--cube-width) / 2));
+}
+
+.faceD {
+  transform: rotateY(-90deg) translateZ(calc(var(--cube-width) / 2));
+}
+
+.faceEDepth,
+.faceFDepth {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(calc(var(--cube-width) / 2));
+  transform-style: preserve-3d;
+}
+
+.faceEHinge,
+.faceFHinge {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.faceEHinge {
+  transform: rotateX(-90deg);
+  transform-origin: 50% 0%;
+}
+
+.faceFHinge {
+  transform: rotateX(90deg);
+  transform-origin: 50% 100%;
+}
+
+/* The hinge transforms place E/F on the correct physical top/bottom planes,
+   but their unflipped content sides point into the cuboid. Turn only the
+   content planes over, preserving the hinged geometry while making their
+   normal front sides face outward. Backface culling can then remain enabled. */
+.faceE,
+.faceF {
+  transform: rotateX(180deg);
+}
+
+.host[data-viewport-mode='true'][data-frozen='false'],
+.host[data-viewport-mode='true'][data-frozen='false'] .stage,
+.host[data-viewport-mode='true'][data-frozen='false'] .cuboidPush,
+.host[data-viewport-mode='true'][data-frozen='false'] .cuboid,
+.host[data-viewport-mode='true'][data-frozen='false'] .faceA,
+.host[data-viewport-mode='true'][data-frozen='false'] .faceAContent {
+  display: contents;
+}
+
+.host[data-viewport-mode='true'][data-frozen='false'] .faceB,
+.host[data-viewport-mode='true'][data-frozen='false'] .faceC,
+.host[data-viewport-mode='true'][data-frozen='false'] .faceD,
+.host[data-viewport-mode='true'][data-frozen='false'] .faceEDepth,
+.host[data-viewport-mode='true'][data-frozen='false'] .faceFDepth {
+  display: none;
+}
+
+.host[data-viewport-mode='true'][data-frozen='true'] {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.host[data-viewport-mode='true'][data-frozen='true'] .stage {
+  width: 100%;
+  height: 100%;
+}
+
+.host[data-viewport-mode='true'][data-frozen='true'] .faceAContent {
+  position: absolute;
+  top: calc(var(--cube-scroll-offset) * -1);
+  right: 0;
+  left: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage,
+  .cuboidPush,
+  .cuboid {
+    transition-duration: 1ms;
+  }
+}

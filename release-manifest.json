@@ -1,12 +1,13 @@
 {
   "description": "Approved production route inventory for this release branch. verify-release.js diffs the actual next export output against this list — any route that appears in one but not the other fails the gate. Update this file deliberately, in the same change that adds/removes a route, per P1-404-INCIDENT-RCA-AND-RELEASE-PROTOCOL.md §H item 1-2.",
-  "updated": "2026-09-02",
+  "updated": "2026-09-12",
   "routes": [
     "/",
     "/about",
     "/abstract",
     "/carousel-lab",
     "/contact",
+    "/cube-lab",
     "/journal",
     "/thoughts",
     "/thoughts/nobody-made-this-alone",
