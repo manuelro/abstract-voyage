@@ -2,7 +2,7 @@ import SeoHead from '../components/SeoHead'
 import { buildSiteTitle } from '../helpers/siteMetadata'
 import {
   useCallback, useEffect, useMemo, useRef, useState,
-  type CSSProperties, type MutableRefObject,
+  type CSSProperties,
 } from 'react'
 import { createConfigScopeBinding } from '../components/Panel/config'
 import { useAuthoringToolsVisibility } from '../components/Panel/useAuthoringToolsVisibility'
@@ -92,20 +92,14 @@ const CONTACT_INTRO_PARAGRAPH =
   'unnamed **risks** are. Once the picture is accurate I plan against **outcomes**, and ' +
   'we test the plan.'
 
-// Shown once (after gap-check/recap has failed multiple times in a row —
-// see autoRetryMaxCount) and merged with the identity ask in the same turn,
+// Shown once after gap-check/recap fails and merged with the identity ask in
+// the same turn,
 // on purpose: a separate confident-toned "Here's what I'll pass on" turn
 // right after this hedge used to read as contradictory. In degraded mode
 // there's no AI-organized recap to show — the visitor's own messages are
 // already visible above as their own bubbles, so nothing gets re-echoed
 // here at all.
 const DEGRADED_ENTRY_MESSAGE = 'Something on my side isn’t evaluating messages properly right now — but everything you write above still reaches Manuel exactly as you wrote it. Where should he reply, and what’s your name?'
-
-// Shown while a gap-check/recap auto-retry is in flight (first retry only —
-// see scheduleRetryOrDegrade) so a longer-than-usual wait doesn't read as a
-// hang. Styled muted (see ChatTurn's variant: 'status'), not as agent
-// dialogue or an error.
-const STILL_TRYING_MESSAGE = 'That’s taking longer than expected. Still trying.'
 
 const RECAP_INTRO = 'Here’s what I’ll pass on.'
 const RECAP_UPDATE_INTRO = 'Here’s the update.'
@@ -273,13 +267,10 @@ function GuidedIntake({
   const degradedRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Retry bookkeeping — one shared timeout ref since only one retry
-  // sequence (gap-check, recap, or delivery) is ever in flight at a time in
-  // this linear flow. Each stage gets its own attempt counter so a retry of
-  // one doesn't consume another's ceiling.
+  // Delivery is the only browser-controlled retry sequence. AI inference is
+  // retried inside the function so one interaction cannot multiply calls
+  // across the browser and server.
   const pendingRetryTimeoutRef = useRef<number | null>(null)
-  const gapCheckRetryCountRef = useRef(0)
-  const recapRetryCountRef = useRef(0)
   const deliveryRetryCountRef = useRef(0)
   // Identifies one logical delivery attempt so a retry (automatic or
   // manual) of the same submission can never double-send — see
@@ -580,46 +571,24 @@ function GuidedIntake({
     setPhase('writing')
   }
 
-  // Shared by runGapCheck/runRecap's own failure branches: up to
-  // autoRetryMaxCount automatic retries, 30s apart, before falling through to
-  // enterDegraded (whose own copy only speaks once we've actually seen
-  // repeated evidence something's wrong — not on a first blip). The first
-  // retry (and only the first) also surfaces a quiet, muted status turn so a
-  // longer-than-usual wait doesn't read as a hang — see STILL_TRYING_MESSAGE.
-  const scheduleRetryOrDegrade = (retryCountRef: MutableRefObject<number>, retry: () => void) => {
-    if (retryCountRef.current < config.autoRetryMaxCount) {
-      if (retryCountRef.current === 0) {
-        setTurns(prev => [...prev, { role: 'agent', variant: 'status', text: STILL_TRYING_MESSAGE }])
-      }
-      retryCountRef.current += 1
-      scheduleAutoRetry(retry)
-      return
-    }
-    enterDegraded()
-  }
-
-  const runRecap = async (isCorrection: boolean, isRetry = false) => {
-    if (!isRetry) recapRetryCountRef.current = 0
+  const runRecap = async (isCorrection: boolean) => {
     setPhase('pending')
     const startedAt = Date.now()
     const controller = new AbortController()
     abortRef.current = controller
-    const handleFailure = (): void => {
-      scheduleRetryOrDegrade(recapRetryCountRef, () => void runRecap(isCorrection, true))
-    }
     try {
       const result = await postIntake(
         { stage: 'recap', transcript: modelTranscriptRef.current.join('\n') },
         controller.signal,
       )
       await waitForFloor(startedAt)
-      if (!result.ok || typeof result.recap !== 'string') return handleFailure()
+      if (!result.ok || typeof result.recap !== 'string') return enterDegraded()
       recapIsRawRef.current = false
       showRecapReady(result.recap, isCorrection)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       await waitForFloor(startedAt)
-      handleFailure()
+      enterDegraded()
     }
   }
 
@@ -629,15 +598,11 @@ function GuidedIntake({
   // far, not just the latest turn. The hard ceiling of 3 is enforced here,
   // client-side: if the model still wants more once we're already at the
   // ceiling, that becomes an insufficiency stop instead of a 4th question.
-  const runGapCheck = async (isRetry = false) => {
-    if (!isRetry) gapCheckRetryCountRef.current = 0
+  const runGapCheck = async () => {
     setPhase('pending')
     const startedAt = Date.now()
     const controller = new AbortController()
     abortRef.current = controller
-    const handleFailure = (): void => {
-      scheduleRetryOrDegrade(gapCheckRetryCountRef, () => void runGapCheck(true))
-    }
     try {
       const result = await postIntake({
         stage: 'gap-check',
@@ -645,7 +610,7 @@ function GuidedIntake({
         followUpToken: followUpTokenRef.current,
       }, controller.signal)
       await waitForFloor(startedAt)
-      if (!result.ok) return handleFailure()
+      if (!result.ok) return enterDegraded()
       followUpTokenRef.current = result.followUpToken
       if (!result.needsFollowUp) {
         await runRecap(false)
@@ -665,7 +630,7 @@ function GuidedIntake({
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       await waitForFloor(startedAt)
-      handleFailure()
+      enterDegraded()
     }
   }
 
@@ -777,8 +742,8 @@ function GuidedIntake({
     setPhase('writing')
   }
 
-  // Delivery failures get up to autoRetryMaxCount automatic retries — unlike
-  // the silent gap-check/recap retries above, this one is always visible
+  // Delivery failures get up to autoRetryMaxCount automatic retries. This is
+  // always visible
   // (deliveryError + "Try sending again" stay on screen the whole time)
   // since the visitor already committed to sending and deserves to see what
   // "still working on it" looks like, not just a spinner. "Try sending

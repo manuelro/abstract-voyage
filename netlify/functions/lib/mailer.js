@@ -14,11 +14,14 @@ const parseBoolean = (value, defaultValue = false) => {
 const getDeliveryMode = () => {
   const configuredMode = normalize(process.env.CONTACT_DELIVERY_MODE).toLowerCase()
 
+  // Never permit production contact data to fall through to function logs.
+  if (isProduction()) return 'smtp'
+
   if (configuredMode === 'console' || configuredMode === 'smtp') {
     return configuredMode
   }
 
-  return isProduction() ? 'smtp' : 'console'
+  return 'console'
 }
 
 const getSmtpConfig = () => {
@@ -62,6 +65,9 @@ const sendMail = async ({ subject, text, replyTo }) => {
     port: config.port,
     secure: config.secure,
     auth: config.auth,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   })
 
   await transporter.sendMail({

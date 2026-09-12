@@ -15,13 +15,9 @@
     "verify:release": "node scripts/verify-release.js"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.103",
-    "@ai-sdk/openai": "^3.0.88",
-    "@anthropic-ai/sdk": "^0.111.0",
     "@types/node": "18.15.11",
     "@types/react": "18.0.35",
     "@types/react-dom": "18.0.11",
-    "ai": "^6.0.235",
     "autoprefixer": "10.4.14",
     "colord": "^2.9.3",
     "embla-carousel-react": "^8.6.0",
@@ -36,7 +32,6 @@
     "next": "^13.5.11",
     "nodemailer": "^9.0.3",
     "npm": "^9.6.7",
-    "openai": "^6.47.0",
     "p5": "^1.11.3",
     "postcss": "8.4.21",
     "postprocessing": "6.35.5",

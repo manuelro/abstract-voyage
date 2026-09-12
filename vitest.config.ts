@@ -23,7 +23,7 @@ export default defineConfig({
       'helpers/**/*.test.ts',
       'hooks/**/*.test.ts',
       'hooks/**/*.test.tsx',
-      'netlify/functions/**/*.test.js',
+      'netlify/**/*.test.js',
       'pages/**/*.test.ts',
       'pages/**/*.test.tsx',
     ],

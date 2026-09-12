@@ -86,7 +86,7 @@ function run() {
   // one-line option.
   const KNOWN_PRE_EXISTING_TEST_FAILURES = ['components/Panel/PanelShell.test.tsx']
   const allTestFiles = execSync(
-    'find . -not -path "./node_modules/*" -not -path "./.next*" \\( -name "*.test.ts" -o -name "*.test.tsx" \\)',
+    'find . -not -path "./node_modules/*" -not -path "./.next*" \\( -name "*.test.js" -o -name "*.test.ts" -o -name "*.test.tsx" \\)',
     { cwd: ROOT, encoding: 'utf8' },
   )
     .split('\n')
