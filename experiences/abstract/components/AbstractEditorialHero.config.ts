@@ -409,6 +409,40 @@ export type AbstractEditorialHeroConfig = {
    * content policy; the composer's position is intentionally fixed by the
    * component rather than exposed as page layout configuration. */
   composerVisible: boolean;
+  /** Off (default): the headline/paragraph presentation above, unchanged.
+   * On: `headline` and `paragraphs` instead render through
+   * `AboutMobileAccordionItem` (`experiences/about/components/
+   * AboutMobileAccordionItem.tsx`) — the exact same header-row/expandable-
+   * paragraph/open-indicator-bullet component `/about`'s own mobile
+   * accordion uses per row, reused here as a single always-`expanded`,
+   * non-interactive item (no toggle, no sibling items, so no divide-y/
+   * outer-border chrome ever renders — those live entirely on
+   * `AboutMobileAccordion`'s own wrapping element, which this presentation
+   * never mounts). `headline` becomes that item's collapsed-preview
+   * `excerpt`; `paragraphs` (joined with a space) becomes its expandable
+   * `title` body. The item's own visual tuning (chevron rotation/timing,
+   * open-indicator size/font-size/padding, transition easing) comes from
+   * whatever `accordionItemConfig` prop the caller supplies (falls back to
+   * `DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG` when omitted) — pages/abstract.tsx
+   * supplies its own page-owned instance (`ABSTRACT_HERO_ACCORDION_ITEM_CONFIG`,
+   * pages/abstract.config.ts), independently live-editable via its own panel
+   * scope rather than sharing write access to `/about`'s own default. Text
+   * color instead derives the exact same way `AboutMobileAccordion.tsx`
+   * computes its own `derivedTextColor` (`textColorMode`/`textSurfaceOffset`/
+   * `textCustomColor` against `resolvedColumnBackgroundColor`) — not this
+   * component's own independent `paragraphTextColorMode` system — so the
+   * reused item reads as genuinely the same component everywhere. */
+  accordionItemPresentationEnabled: boolean;
+  /** Only meaningful while `accordionItemPresentationEnabled` is on — narrows
+   * (never widens) the supplied `accordionItemConfig`'s own
+   * `openIndicatorEnabled`: `true` (default) leaves that config's own value
+   * as the sole authority; `false` forces the open-indicator bullet off for
+   * THIS presentation specifically, without touching the shared
+   * `accordionItemConfig` instance's own field (which may still drive a
+   * different, independent `AboutMobileAccordionItem` mount elsewhere, e.g.
+   * `/about`'s real accordion, that should keep showing it regardless of
+   * this hero's own choice). */
+  accordionItemOpenIndicatorEnabled: boolean;
 };
 
 export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
@@ -445,11 +479,11 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   headlineMatchesBodySize: true,
   headlineInlineWithParagraph: true,
   headlineMaxWidth: 'max-w-prose',
-  contentMaxWidth: 'max-w-md',
+  contentMaxWidth: 'max-w-prose',
   bodyFontSizeNarrow: 'text-base',
   bodyFontSizeMid: 'md:text-base',
   bodyFontSizeWide: 'lg:text-lg',
-  paragraphMaxWidth: 'max-w-xl',
+  paragraphMaxWidth: 'max-w-prose',
   leadGap: 'mt-7',
   leadGapWide: 'md:mt-10',
   leadGapLg: 'lg:mt-0',
@@ -469,6 +503,8 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   paragraphGradientScrollLightenEnabled: true,
   paragraphGradientScrollLightenMaxAmount: 0.75,
   composerVisible: false,
+  accordionItemPresentationEnabled: true,
+  accordionItemOpenIndicatorEnabled: false,
 } satisfies AbstractEditorialHeroConfig;
 
 const clampRange = (value: number, min: number, max: number, fallback: number) =>
@@ -740,5 +776,7 @@ export function normalizeAbstractEditorialHeroConfig(
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphGradientScrollLightenMaxAmount,
     ),
     composerVisible: base.composerVisible !== false,
+    accordionItemPresentationEnabled: base.accordionItemPresentationEnabled === true,
+    accordionItemOpenIndicatorEnabled: base.accordionItemOpenIndicatorEnabled !== false,
   };
 }

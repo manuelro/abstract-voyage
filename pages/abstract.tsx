@@ -253,6 +253,7 @@ import {
   DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
   DEFAULT_ABSTRACT_TIMELINE_CONFIG,
+  DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG,
   applyAbstractPolymorphicLayoutAllSizesUpdate,
   normalizeAbstractNarrowColumnStackConfig,
   normalizeAbstractTimelineContentConfig,
@@ -263,6 +264,10 @@ import {
   type AbstractPageLayoutConfig,
   type AbstractTimelineContentConfig,
 } from './abstract.config';
+import {
+  normalizeAboutMobileAccordionConfig,
+  type AboutMobileAccordionConfig,
+} from '../experiences/about/components/AboutMobileAccordion.config';
 import { AboutTimeline, type AboutTimelineRowData } from '../experiences/about/components/AboutTimeline';
 import { normalizeAboutTimelineConfig, type AboutTimelineConfig } from '../experiences/about/components/AboutTimeline.config';
 import { ABSTRACT_TIMELINE_SCOPE_ID } from '../experiences/abstract/components/AbstractTimeline.panel';
@@ -278,6 +283,7 @@ import {
   ABSTRACT_PAGE_LAYOUT_SCOPE_ID,
   ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
   ABSTRACT_TIMELINE_CONTENT_SCOPE_ID,
+  ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID,
 } from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
@@ -608,6 +614,8 @@ const ABSTRACT_TIMELINE_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_TIMELINE_SCOPE_ID);
 const CARD_APPEARANCE_DEFINITION =
   abstractConfigPanelRegistry.resolve(CARD_APPEARANCE_SCOPE_ID);
+const ABSTRACT_HERO_ACCORDION_ITEM_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID);
 
 // This page's own baseline for LiquidSliderConfig — not the component's
 // shared DEFAULT_LIQUID_SLIDER_CONFIG (pages/slider.tsx and pages/about.tsx
@@ -1607,6 +1615,19 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       paragraphTextColorMode: 'column',
       paragraphSurfaceOffset: 0,
     }));
+  // Backs BOTH hero branches' own accordionItemPresentationEnabled opt-in
+  // (AbstractEditorialHeroConfig) — one shared instance, not per-branch,
+  // since the reused AboutMobileAccordionItem's own font-size/spacing/
+  // open-indicator tuning is a single visual concern, independent of which
+  // hero layout is currently active. Seeded from this page's OWN
+  // page-owned default (DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG,
+  // abstract.config.ts) — never /about's own DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG
+  // directly — so a panel edit here never retunes /about's real mobile
+  // accordion, and vice versa.
+  const [heroAccordionItemConfig, setHeroAccordionItemConfig] =
+    useState<AboutMobileAccordionConfig>(() => (
+      normalizeAboutMobileAccordionConfig(DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG)
+    ));
   // PLAN-HOMEPAGE-IA-LAYOUT.md 8.8 — presentationMode picks which of the
   // two fully-maintained render branches below actually mounts. Default
   // 'splitColumn' is what a real visitor sees; 'classic' is today's
@@ -2355,6 +2376,12 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       defaultValue: normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG),
     }),
     createConfigScopeBinding({
+      definition: ABSTRACT_HERO_ACCORDION_ITEM_DEFINITION,
+      value: heroAccordionItemConfig,
+      onChange: setHeroAccordionItemConfig,
+      defaultValue: normalizeAboutMobileAccordionConfig(DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG),
+    }),
+    createConfigScopeBinding({
       definition: ABSTRACT_TIMELINE_DEFINITION,
       value: abstractTimelineConfig,
       onChange: setAbstractTimelineConfig,
@@ -2393,6 +2420,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     abstractTimelineContentConfig,
     splitColumnLayoutConfig,
     splitColumnCardStackConfig,
+    heroAccordionItemConfig,
   ]);
   const applicableConfigBindings = useMemo(
     () => [...sharedConfigBindings, ...localComponentConfigBindings],
@@ -4205,6 +4233,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
           actionInkTone={actionsTone}
           config={normalizedEditorialHeroConfig}
+          accordionItemConfig={heroAccordionItemConfig}
           horizontalPlacement={
             NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
               splitColumnLayoutConfig.narrowColumnContentAlign
@@ -4702,6 +4731,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                 paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
                 actionInkTone={actionsTone}
                 config={normalizedSplitColumnHeroConfig}
+                accordionItemConfig={heroAccordionItemConfig}
                 horizontalPlacement={
                   NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
                     splitColumnLayoutConfig.narrowColumnContentAlign

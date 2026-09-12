@@ -64,3 +64,17 @@ export const ABSTRACT_TIMELINE_CONTENT_PANEL: any = (() => {
   })
   return p
 })()
+export const ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const ABSTRACT_HERO_ACCORDION_ITEM_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()

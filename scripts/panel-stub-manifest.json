@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T19:58:20.304Z",
+  "generatedAt": "2026-09-12T20:56:28.465Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -371,7 +371,9 @@
         "ABSTRACT_PAGE_LAYOUT_PANEL",
         "ABSTRACT_NARROW_COLUMN_STACK_PANEL",
         "ABSTRACT_TIMELINE_CONTENT_SCOPE_ID",
-        "ABSTRACT_TIMELINE_CONTENT_PANEL"
+        "ABSTRACT_TIMELINE_CONTENT_PANEL",
+        "ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID",
+        "ABSTRACT_HERO_ACCORDION_ITEM_PANEL"
       ]
     },
     {

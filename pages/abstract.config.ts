@@ -3,6 +3,10 @@ import {
   DEFAULT_ABOUT_TIMELINE_CONFIG,
   type AboutTimelineConfig,
 } from '../experiences/about/components/AboutTimeline.config';
+import {
+  DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
+  type AboutMobileAccordionConfig,
+} from '../experiences/about/components/AboutMobileAccordion.config';
 
 export type AbstractPagePresentationMode = 'splitColumn' | 'classic';
 export type AbstractNarrowColumnStackHorizontalAlign = 'start' | 'center' | 'end' | 'stretch';
@@ -266,3 +270,28 @@ export function applyAbstractPolymorphicLayoutAllSizesUpdate(
 
   return resolved;
 }
+
+// Page-owned instance of AboutMobileAccordionConfig (experiences/about/
+// components/AboutMobileAccordion.config.ts) — AbstractEditorialHero's own
+// accordionItemPresentationEnabled reuses AboutMobileAccordionItem verbatim
+// (see that config field's own doc comment), and this is the config that
+// reuse is tuned from. Same "page-owned copy of a shared component default,
+// panel-writable independently" shape as DEFAULT_ABSTRACT_TIMELINE_CONFIG
+// above — /about's own real mobile accordion keeps writing to
+// DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG through its own panel untouched;
+// this page gets its own independent instance so a panel edit here (e.g.
+// hiding the open indicator, retuning font size) never retunes /about's
+// real accordion, and vice versa (the exact class of bug
+// ABOUT_DEFAULT_DOCK_PALETTE_CONFIG's own doc comment, about.config.ts,
+// already documents and fixes for a different scope).
+// headerTextWrapEnabled: true (diverges from the shared default's `false`)
+// — this presentation's "header" is a full editorial headline, not a short
+// excerpt; clipping it to one line would defeat the entire point of reusing
+// this component here.
+export const DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG: AboutMobileAccordionConfig = {
+  ...DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
+  contentFontSizeClassName: 'text-lg',
+  headerTextWrapEnabled: true,
+  affordancePaddingX: 'px-0',
+  affordancePaddingY: 'py-0',
+};

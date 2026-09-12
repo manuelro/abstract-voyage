@@ -1,11 +1,14 @@
 import { defineConfigScope, definePageConfigScope } from '../components/Panel/config';
 import { POLYMORPHIC_LAYOUT_FIELDS } from '../experiences/abstract/components/PolymorphicLayout.panel';
 import type { PolymorphicLayoutConfig } from '../experiences/abstract/components/PolymorphicLayout.config';
+import { ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS } from '../experiences/about/components/AboutMobileAccordion.panel';
+import type { AboutMobileAccordionConfig } from '../experiences/about/components/AboutMobileAccordion.config';
 import {
   ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG,
   DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG,
   DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
+  DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG,
   type AbstractNarrowColumnStackConfig,
   type AbstractTimelineContentConfig,
   type AbstractPageLayoutConfig,
@@ -214,6 +217,65 @@ export const ABSTRACT_TIMELINE_CONTENT_PANEL = defineConfigScope<AbstractTimelin
     targetFile: 'pages/abstract.config.ts',
     targetSymbol: 'DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG',
     targetType: 'AbstractTimelineContentConfig',
+    updateStrategy: 'replace_scope',
+    completeScope: true,
+  },
+});
+
+export const ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID = 'AbstractPage/heroAccordionItem' as const;
+
+/**
+ * AbstractEditorialHero's own accordionItemPresentationEnabled (AbstractEditorialHero
+ * .config.ts) reuses AboutMobileAccordionItem verbatim — this scope exposes
+ * that reused item's own font-size/spacing/open-indicator controls,
+ * extracted from AboutMobileAccordion.panel.ts's own MOBILE_ONLY_FIELDS
+ * (ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS) rather than a second,
+ * hand-retyped copy of the same five field definitions. Bound to this
+ * page's OWN instance (DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG,
+ * abstract.config.ts) — not /about's own ABOUT_MOBILE_ACCORDION_PANEL scope
+ * — so a panel edit here never retunes /about's real mobile accordion, and
+ * vice versa (same class of bug ABOUT_DEFAULT_DOCK_PALETTE_CONFIG's own doc
+ * comment, about.config.ts, already documents and fixes for a different
+ * scope).
+ */
+export const ABSTRACT_HERO_ACCORDION_ITEM_PANEL = defineConfigScope<AboutMobileAccordionConfig>({
+  id: ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID,
+  component: 'AbstractEditorialHero',
+  scope: 'appearance',
+  title: 'Hero accordion item',
+  createdAt: '2026-09-12',
+  summary: 'Font size, spacing, and header wrap for the reused accordion-item hero presentation',
+  defaultOpen: false,
+  defaultValue: DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG,
+  fields: ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS,
+  // This scope deliberately exposes only the four typography/spacing fields
+  // above — every other AboutMobileAccordionConfig key (chevron rotation/
+  // timing, borders, open-indicator size/overlap, etc.) is intentionally
+  // left at this page's own default rather than duplicated into a second
+  // full accordion panel; an operator wanting those retunes them via
+  // /about's own "Accordion" panel instead, since this presentation reuses
+  // that same component's visual language. defineConfigScope requires every
+  // defaultValue key to be explicitly accounted for (rendered OR hidden) —
+  // this is the "hidden" half of that split.
+  hiddenKeys: [
+    'enabled', 'previewMinHeight', 'maxExpandedItems', 'collapseLeadFraction',
+    'transitionMs', 'transitionEasing', 'contentSettleMs',
+    'affordanceRotationDurationMs', 'affordanceRotationEasing',
+    'affordanceBorderThicknessClassName', 'affordanceCornerRadiusClassName',
+    'affordanceDimensionClassName', 'affordanceRotateCollapsedDeg', 'affordanceRotateExpandedDeg',
+    'affordanceColorMode', 'affordanceCustomColor',
+    'affordanceHoverOpacity', 'affordanceHoverTransitionMs', 'affordanceHoverEasing',
+    'affordanceMouseOutTransitionMs', 'affordanceMouseOutEasing',
+    'outerBorderColorMode', 'outerBorderSurfaceOffset', 'outerBorderCustomColor', 'outerBorderWidthClassName',
+    'innerBorderColorMode', 'innerBorderSurfaceOffset', 'innerBorderCustomColor',
+    'innerBorderOpacity', 'innerBorderWidthClassName',
+    'textColorMode', 'textSurfaceOffset', 'textCustomColor',
+    'openIndicatorEnabled', 'openIndicatorSizeClassName', 'openIndicatorOverlapFraction',
+  ],
+  copy: {
+    targetFile: 'pages/abstract.config.ts',
+    targetSymbol: 'DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG',
+    targetType: 'AboutMobileAccordionConfig',
     updateStrategy: 'replace_scope',
     completeScope: true,
   },

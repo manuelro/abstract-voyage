@@ -8,7 +8,9 @@ import { useElevationShadow } from '../../../components/proximity/useElevationSh
 import { useSharedDesignConfig } from '../../../components/SharedDesignConfigProvider';
 import { renderEmphasisText } from '../../../helpers/textEmphasis';
 import { deriveSurfaceColor, resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDerivation';
+import { usePrefersReducedMotion } from '../../../helpers/usePrefersReducedMotion';
 import type { SvgStop } from '../../../helpers/gradientMath';
+import type { SliderContentSlide } from '../../../helpers/postContent';
 import {
   normalizeAbstractEditorialHeroConfig,
   type AbstractEditorialHeroConfig,
@@ -21,6 +23,17 @@ import {
   normalizeAbstractHeroCtaComposerConfig,
   type AbstractHeroCtaComposerConfig,
 } from './AbstractHeroCtaComposer/config/registered';
+import { DEFAULT_LIQUID_SLIDER_CONFIG } from './AbstractPostDock';
+import { useLiquidSliderMotion } from './AbstractPostDock/hooks/motion';
+// accordionItemPresentationEnabled's own reused component (AbstractEditorialHero
+// .config.ts's own doc comment) — the same header-row/expandable-paragraph/
+// open-indicator-bullet item /about's own mobile accordion uses per row,
+// mounted here standalone (no AboutMobileAccordion parent, no toggle state).
+import { AboutMobileAccordionItem } from '../../about/components/AboutMobileAccordionItem';
+import {
+  DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
+  type AboutMobileAccordionConfig,
+} from '../../about/components/AboutMobileAccordion.config';
 import styles from './AbstractEditorialHero.module.css';
 
 // See paragraphGradientScrollLightenEnabled's own doc comment
@@ -142,6 +155,18 @@ type AbstractEditorialHeroProps = {
   gradientDebugPanelOpen?: boolean;
   headlineCanvasRef?: RefObject<HTMLCanvasElement>;
   headlineRef?: RefObject<HTMLHeadingElement>;
+  /** Only read while `config.accordionItemPresentationEnabled` is on — the
+   * `AboutMobileAccordionConfig` instance driving the reused
+   * `AboutMobileAccordionItem`'s own visual tuning (chevron rotation/timing,
+   * open-indicator size, font size, padding). Falls back to
+   * `DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG` when omitted (every caller not
+   * opting into this presentation, and any caller opting in without
+   * supplying its own instance). A page opting in should supply its OWN
+   * page-owned instance (e.g. pages/abstract.config.ts's own
+   * `ABSTRACT_HERO_ACCORDION_ITEM_CONFIG`) rather than `/about`'s own live
+   * state, so a panel edit on one page never silently retunes the other's
+   * real mobile accordion. */
+  accordionItemConfig?: AboutMobileAccordionConfig;
 };
 
 export function AbstractEditorialHero({
@@ -172,6 +197,7 @@ export function AbstractEditorialHero({
   wordmarkGradientStops,
   scrollGradientDarkenViewportRangeVh,
   scrollGradientDarkenTauMs,
+  accordionItemConfig,
 }: AbstractEditorialHeroProps) {
   const normalized = normalizeAbstractEditorialHeroConfig(config);
   // CSS background value built from the exact same stops the wordmark's own
@@ -199,6 +225,20 @@ export function AbstractEditorialHero({
     && normalized.paragraphGradientScrollLightenEnabled
     && scrollGradientDarkenViewportRangeVh !== undefined
     && scrollGradientDarkenTauMs !== undefined;
+  // Operator fix: the accordion-item presentation (accordionItemPresentationEnabled)
+  // is a completely separate render branch from the headline/paragraph one
+  // scrollLightenActive above was built for — it never uses the wordmark
+  // gradient (paragraphUsesWordmarkGradient is irrelevant to it), so it needs
+  // its own, independent gate reusing the same paragraphGradientScrollLightenEnabled/
+  // -MaxAmount fields and the same underlying scroll-progress mechanism, not
+  // a second copy of it. Was lost when that presentation was first added —
+  // the reused AboutMobileAccordionItem's own plain textColor prop never
+  // participated in this effect at all, so its text no longer changed on
+  // scroll the way the original paragraph did.
+  const accordionItemScrollLightenActive = normalized.accordionItemPresentationEnabled
+    && normalized.paragraphGradientScrollLightenEnabled
+    && scrollGradientDarkenViewportRangeVh !== undefined
+    && scrollGradientDarkenTauMs !== undefined;
   const wordmarkGradientCss = useMemo(() => {
     if (!wordmarkGradientStops?.length) return undefined;
     if (!scrollLightenActive) {
@@ -210,7 +250,12 @@ export function AbstractEditorialHero({
       return `color-mix(in srgb, ${stop.color} calc(100% - ${whiteMix}), white ${whiteMix}) ${stop.at}%`;
     }).join(', ')})`;
   }, [wordmarkGradientStops, scrollLightenActive, normalized.paragraphGradientScrollLightenMaxAmount]);
-  const supportingCopyRef = useRef<HTMLDivElement | null>(null);
+  // Attached to the common wrapper (`<div className="min-w-0">` below) that
+  // is an ancestor of BOTH render branches — the headline/paragraph one AND
+  // the accordion-item one — rather than only the paragraphs' own div, so
+  // the CSS custom property this ref receives is inherited by whichever
+  // branch is actually mounted.
+  const heroCopyContentRef = useRef<HTMLDivElement | null>(null);
   // Ported from PolymorphicScrollGradientBackground.tsx's own rAF-smoothed
   // scroll effect (same tau-based easing, same viewport-range math) — kept
   // as an independent computation here rather than plumbed shared mutable
@@ -218,12 +263,14 @@ export function AbstractEditorialHero({
   // precedent as this file's own wordmarkGradientStops recipe (fully
   // independent from the background's own resolved values at runtime).
   // Progress (0-1, NOT pre-multiplied by any darken ceiling) is written to
-  // supportingCopyRef's own CSS custom property, which every descendant
-  // <p>'s color-mix() background above reads live at paint time — no React
-  // re-render, no per-frame JS color math.
+  // heroCopyContentRef's own CSS custom property, which every descendant
+  // reads live at paint time — no React re-render, no per-frame JS color
+  // math — the paragraph branch's own <p> color-mix() background above, AND
+  // (accordionItemScrollLightenActive) the accordion-item branch's own
+  // accordionItemTextColor color-mix() string below, alike.
   useEffect(() => {
-    if (!scrollLightenActive) return undefined;
-    const el = supportingCopyRef.current;
+    if (!scrollLightenActive && !accordionItemScrollLightenActive) return undefined;
+    const el = heroCopyContentRef.current;
     if (!el || scrollGradientDarkenViewportRangeVh === undefined || scrollGradientDarkenTauMs === undefined) {
       return undefined;
     }
@@ -289,7 +336,10 @@ export function AbstractEditorialHero({
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
     };
-  }, [scrollLightenActive, scrollGradientDarkenViewportRangeVh, scrollGradientDarkenTauMs]);
+  }, [
+    scrollLightenActive, accordionItemScrollLightenActive,
+    scrollGradientDarkenViewportRangeVh, scrollGradientDarkenTauMs,
+  ]);
   // 'clip' (background-clip:text) wins if both happen to be true — see
   // paragraphUsesWordmarkGradientBlend's own doc comment
   // (AbstractEditorialHero.config.ts).
@@ -380,6 +430,89 @@ export function AbstractEditorialHero({
         resolvedColumnBackgroundColor, normalized.eyebrowMinContrast, normalized.eyebrowSurfaceOffset,
       )
       : normalized.eyebrowColor;
+
+  // accordionItemPresentationEnabled (AbstractEditorialHero.config.ts's own
+  // doc comment) — always called (Rules of Hooks), inert whenever the
+  // opt-in is off. useLiquidSliderMotion/DEFAULT_LIQUID_SLIDER_CONFIG and
+  // `palette: null` below are only ever passed through to
+  // AboutMobileAccordionItem's own gradientConfig/motion/palette props,
+  // which that component accepts for API parity with its usual
+  // AboutMobileAccordion-orchestrated usage but never actually reads in its
+  // render (confirmed: no gradient canvas mounts inside the item itself) —
+  // real values here would be no more correct than these placeholders.
+  const accordionItemMotion = useLiquidSliderMotion(DEFAULT_LIQUID_SLIDER_CONFIG);
+  const accordionItemPrefersReducedMotion = usePrefersReducedMotion();
+  // One synthetic SliderContentSlide standing in for this hero's own
+  // headline (-> excerpt, the item's collapsed-preview text — irrelevant
+  // here since the item is always expanded, but still the field
+  // AboutMobileAccordionItem reads its header row from) and paragraphs
+  // (-> title, the expandable body `renderEmphasisText` renders — same
+  // `**word**` emphasis markup both this component's own paragraphs and
+  // that helper already share, so joining them changes no markup meaning).
+  const accordionItemSlide: SliderContentSlide = useMemo(() => ({
+    id: 0,
+    slug: 'abstract-editorial-hero',
+    label: '',
+    title: paragraphs.join(' '),
+    excerpt: headline,
+    topic: '',
+    date: '',
+    readingTime: '',
+    href: '#',
+    externalUrl: null,
+    forceExternalNavigation: false,
+    seed: 0,
+    hueOffset: 0,
+    variationBias: 0,
+    offsetX: 0,
+    offsetY: 0,
+    accent: resolvedColumnBackgroundColor,
+  }), [headline, paragraphs, resolvedColumnBackgroundColor]);
+  // Caller-supplied (pages/abstract.tsx's own page-owned instance) or this
+  // shared default — see accordionItemConfig's own doc comment above for
+  // why a page opting in should supply its own instance rather than
+  // /about's live state.
+  const resolvedAccordionItemConfig = accordionItemConfig ?? DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG;
+  // accordionItemOpenIndicatorEnabled (AbstractEditorialHero.config.ts's own
+  // doc comment) — narrows, never widens: this presentation's own bullet
+  // only ever shows if BOTH the supplied config's own openIndicatorEnabled
+  // AND this hero-local override are true.
+  const effectiveAccordionItemConfig = useMemo(() => ({
+    ...resolvedAccordionItemConfig,
+    openIndicatorEnabled: resolvedAccordionItemConfig.openIndicatorEnabled
+      && normalized.accordionItemOpenIndicatorEnabled,
+  }), [resolvedAccordionItemConfig, normalized.accordionItemOpenIndicatorEnabled]);
+  // Operator fix: this presentation reuses effectiveAccordionItemConfig for
+  // every other aspect of the item's own look (border/marker/timing) — its
+  // text color should come from that SAME config's own derivation, not this
+  // component's independent paragraphTextColorMode/-SurfaceOffset/
+  // -MinContrast system, so the reused item reads as genuinely the same
+  // component everywhere rather than one that happens to share layout but
+  // resolves color through a second, parallel mechanism. Identical formula
+  // to AboutMobileAccordion.tsx's own `derivedTextColor`: 'custom' uses
+  // textCustomColor verbatim; 'derived' (the shared default) darkens
+  // resolvedColumnBackgroundColor by textSurfaceOffset via the same
+  // deriveSurfaceColor primitive this component already imports.
+  const accordionItemBaseTextColor = resolvedAccordionItemConfig.textColorMode === 'custom'
+    ? resolvedAccordionItemConfig.textCustomColor
+    : deriveSurfaceColor(resolvedColumnBackgroundColor, resolvedAccordionItemConfig.textSurfaceOffset);
+  // accordionItemScrollLightenActive's own restored effect: same "lighten
+  // toward white as the page scrolls" the paragraph branch's own
+  // wordmarkGradientCss above expresses as a CSS color-mix() driven by
+  // heroCopyContentRef's live-updated custom property — expressed here as a
+  // plain `color-mix()` STRING (not a gradient/background-clip fill, since
+  // AboutMobileAccordionItem's own textColor is a single flat CSS color, set
+  // via a literal inline `color` value) that itself embeds a `var()` read of
+  // the exact same custom property, so the color updates live at paint time
+  // with no React re-render, identical mechanism to the paragraph branch's
+  // own.
+  const accordionItemTextColor = accordionItemScrollLightenActive
+    ? (() => {
+      const maxAmountPercent = normalized.paragraphGradientScrollLightenMaxAmount * 100;
+      const whiteMix = `calc(var(${PARAGRAPH_GRADIENT_LIGHTEN_PROGRESS_VAR}, 0) * ${maxAmountPercent}%)`;
+      return `color-mix(in srgb, ${accordionItemBaseTextColor} calc(100% - ${whiteMix}), white ${whiteMix})`;
+    })()
+    : accordionItemBaseTextColor;
 
   // Reuses the CTA button's own elevation-shadow engine and tuning verbatim
   // (see the headlineFillMode/headlineShadowEnabled/
@@ -591,7 +724,28 @@ export function AbstractEditorialHero({
           competing textAlignment field, which won every time by sitting
           closer to this text than PolymorphicLayout's own content box). */}
       <div className={`${styles.copyColumn} pointer-events-auto relative min-w-0 ${contentWidthClassName}`}>
-        <div className="min-w-0">
+        <div className="min-w-0" ref={heroCopyContentRef}>
+          {normalized.accordionItemPresentationEnabled ? (
+            <AboutMobileAccordionItem
+              slide={accordionItemSlide}
+              palette={null}
+              motion={accordionItemMotion}
+              gradientConfig={DEFAULT_LIQUID_SLIDER_CONFIG}
+              config={effectiveAccordionItemConfig}
+              textColor={accordionItemTextColor}
+              // Always the open/"active" one (operator ask) — no toggle, no
+              // sibling items, so no divide-y/outer-border chrome to worry
+              // about either (that chrome lives entirely on
+              // AboutMobileAccordion's own wrapping element, never mounted
+              // here).
+              expanded
+              onToggle={() => {}}
+              dimOpacity={normalized.emphasisDimOpacity}
+              emphasisOpacity={normalized.emphasisWordOpacity}
+              prefersReducedMotion={accordionItemPrefersReducedMotion}
+            />
+          ) : (
+            <>
           {inlineHeadlineActive ? null : (
             <h1
               ref={setHeadlineElementRef}
@@ -607,7 +761,6 @@ export function AbstractEditorialHero({
           )}
           {paragraphs.length > 0 ? (
             <div
-              ref={supportingCopyRef}
               className={`${styles.supportingCopy} ${normalized.bodyFontSizeNarrow} ${normalized.bodyFontSizeMid} ${normalized.bodyFontSizeWide} ${normalized.leadGap} ${normalized.leadGapWide} ${normalized.leadGapLg} grid gap-[28px] w-full ${normalized.paragraphMaxWidth}`}
               data-editorial-supporting-copy="true"
             >
@@ -809,6 +962,8 @@ export function AbstractEditorialHero({
               ))}
             </div>
           ) : null}
+            </>
+          )}
         </div>
         {normalized.composerVisible ? (
           <div

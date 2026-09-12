@@ -309,6 +309,19 @@ const ALL_SIZES_FIELDS = [
         label: 'Composer visible',
         description: 'Off skips the CTA composer pill entirely — its wrapping element is omitted from the tree, not merely hidden, so no gap is left behind.',
       },
+      {
+        kind: 'boolean',
+        key: 'accordionItemPresentationEnabled',
+        label: 'Accordion-item presentation',
+        description: 'Off (default): the plain headline/paragraph layout above. On: headline + paragraphs instead render through the same header-row/expandable-paragraph/open-indicator-bullet component /about\'s own mobile accordion uses per row, as a single always-open, non-interactive item (no chevron interaction, no divider/border chrome). Font size, spacing, and the open indicator itself are tuned from the "Hero accordion item" panel section, not here.',
+      },
+      {
+        kind: 'boolean',
+        key: 'accordionItemOpenIndicatorEnabled',
+        label: 'Accordion-item open indicator',
+        description: 'Only meaningful while accordion-item presentation above is on. Off hides the filled open-indicator bullet for THIS hero specifically, without touching the shared accordion config\'s own open-indicator setting (which may still be on for /about\'s real mobile accordion).',
+        visibleWhen: config => config.accordionItemPresentationEnabled,
+      },
     ],
   },
   {
