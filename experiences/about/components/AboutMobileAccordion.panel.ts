@@ -10,6 +10,7 @@ import {
   OUTER_BORDER_WIDTH_OPTIONS,
   INNER_BORDER_WIDTH_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
+import { FONT_SIZE_OPTIONS } from '../../../components/tailwindTypographyScale';
 import { MARKER_SIZE_OPTIONS } from './AboutTimeline.config';
 import {
   DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
@@ -80,6 +81,50 @@ const ALL_SIZES_FIELDS = [
   },
 ] as const satisfies ReadonlyArray<ConfigScopeEntry<AboutMobileAccordionConfig>>;
 
+/**
+ * Extracted (not duplicated) so a caller reusing `AboutMobileAccordionItem`
+ * standalone — today, `AbstractEditorialHero`'s own
+ * `accordionItemPresentationEnabled` (pages/abstract.tsx) — can expose the
+ * exact same font-size/spacing controls in its own panel, bound to its own
+ * page-owned config instance, without hand-retyping these five field
+ * definitions a second time. Each `visibleWhen` below reads `config.enabled`
+ * — every reuser of this array (this scope's own MOBILE_ONLY_FIELDS below,
+ * and pages/abstract.panel.ts's own page-owned scope) shares the same
+ * `AboutMobileAccordionConfig` type, so that field always exists. */
+export const ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS = [
+  {
+    kind: 'select',
+    key: 'contentFontSizeClassName',
+    label: 'Content font size',
+    description: 'Font size shared by both the collapsed preview text and the expanded paragraph — the two always render at the same size so they read as one continuous voice.',
+    options: FONT_SIZE_OPTIONS,
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'boolean',
+    key: 'headerTextWrapEnabled',
+    label: 'Allow header text to wrap',
+    description: 'Off (default): the collapsed preview/header text clips to a single line. On: it wraps across as many lines as its own content needs, so long text is never cut off.',
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'select',
+    key: 'affordancePaddingX',
+    label: 'Preview tab padding (horizontal)',
+    description: 'Left + right padding on the preview tab — independent of the vertical value below.',
+    options: PADDING_X_OPTIONS,
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'select',
+    key: 'affordancePaddingY',
+    label: 'Preview tab padding (vertical)',
+    description: 'Top + bottom padding on the preview tab — independent of the horizontal value above. The expanded paragraph below the header reuses this same value for its own bottom spacing.',
+    options: PADDING_Y_OPTIONS,
+    visibleWhen: config => config.enabled,
+  },
+] as const satisfies ReadonlyArray<ConfigScopeEntry<AboutMobileAccordionConfig>>;
+
 const MOBILE_ONLY_FIELDS = [
   {
     kind: 'boolean',
@@ -119,6 +164,16 @@ const MOBILE_ONLY_FIELDS = [
     label: 'Open indicator size',
     description: 'Diameter of the open-indicator bullet — the same size catalog the desktop timeline\'s own marker uses.',
     options: MARKER_SIZE_OPTIONS,
+    visibleWhen: config => config.enabled && config.openIndicatorEnabled && config.maxExpandedItems === 1,
+  },
+  {
+    kind: 'number',
+    key: 'openIndicatorOverlapFraction',
+    label: 'Open indicator / chevron overlap',
+    description: '0 = fully sequential (default): the chevron fully disappears before the bullet starts appearing, and vice versa on collapse. 1 = fully simultaneous crossfade (both start at once). Values between shorten the wait proportionally.',
+    min: 0,
+    max: 1,
+    step: 0.01,
     visibleWhen: config => config.enabled && config.openIndicatorEnabled && config.maxExpandedItems === 1,
   },
   {
@@ -174,22 +229,10 @@ const MOBILE_ONLY_FIELDS = [
       options: AFFORDANCE_DIMENSION_OPTIONS,
       visibleWhen: config => config.enabled,
     },
-    {
-      kind: 'select',
-      key: 'affordancePaddingX',
-      label: 'Preview tab padding (horizontal)',
-      description: 'Left + right padding on the preview tab — independent of the vertical value below.',
-      options: PADDING_X_OPTIONS,
-      visibleWhen: config => config.enabled,
-    },
-    {
-      kind: 'select',
-      key: 'affordancePaddingY',
-      label: 'Preview tab padding (vertical)',
-      description: 'Top + bottom padding on the preview tab — independent of the horizontal value above. The expanded paragraph below the header reuses this same value for its own bottom spacing.',
-      options: PADDING_Y_OPTIONS,
-      visibleWhen: config => config.enabled,
-    },
+    // Content font size / header wrap / preview tab padding — extracted to
+    // ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS above so pages/abstract.panel.ts
+    // can expose the identical controls without retyping them.
+    ...ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS,
     {
       kind: 'number',
       key: 'affordanceRotateCollapsedDeg',

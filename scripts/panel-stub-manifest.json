@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T06:58:24.509Z",
+  "generatedAt": "2026-09-12T19:58:20.304Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -64,6 +64,7 @@
       "stub": "experiences/about/components/AboutMobileAccordion.panel.stub.ts",
       "exports": [
         "ABOUT_MOBILE_ACCORDION_SCOPE_ID",
+        "ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS",
         "ABOUT_MOBILE_ACCORDION_PANEL"
       ]
     },

@@ -21,6 +21,17 @@ export interface AboutBulletMarkerProps {
    * aware upstream), not a hardcoded default. */
   transitionMs: number;
   transitionEasingCss: string;
+  /** Delay before the fill/opacity/scale transition starts, in ms — lets a
+   * caller stagger this marker's own reveal behind a sibling's disappearance
+   * (e.g. AboutMobileAccordionItem.tsx's own chevron) instead of both
+   * crossfading at once. Defaults to 0 (today's exact behavior — no
+   * stagger) when omitted. */
+  transitionDelayMs?: number;
+  /** Uniform `transform: scale(...)` — e.g. a 0 -> 1 grow-in reveal
+   * (AboutMobileAccordionItem.tsx's own open indicator). Omitted (default)
+   * leaves `transform` at its own initial `none`, matching
+   * AboutTimelineRow.tsx's own marker, which never scales. */
+  scale?: number;
   /** Extra class(es) — e.g. a caller's own positioning rule (margin/
    * alignment against a sibling), never used to override the circle itself. */
   className?: string;
@@ -55,7 +66,8 @@ export interface AboutBulletMarkerProps {
  * (PLAN-ABOUT-MOBILE-ACCORDION-OPEN-INDICATOR.md).
  */
 export function AboutBulletMarker({
-  active, sizePx, color, opacity, transitionMs, transitionEasingCss, className, overlay, markerRef, children,
+  active, sizePx, color, opacity, transitionMs, transitionEasingCss, transitionDelayMs, scale,
+  className, overlay, markerRef, children,
 }: AboutBulletMarkerProps) {
   return (
     <span
@@ -71,6 +83,8 @@ export function AboutBulletMarker({
         '--about-bullet-marker-size': `${sizePx}px`,
         '--about-bullet-marker-transition-ms': `${transitionMs}ms`,
         '--about-bullet-marker-transition-easing': transitionEasingCss,
+        '--about-bullet-marker-transition-delay': `${transitionDelayMs ?? 0}ms`,
+        ...(typeof scale === 'number' ? { transform: `scale(${scale})` } : {}),
         ...(overlay ? { position: 'absolute', inset: 0, margin: 'auto' } : {}),
       } as CSSProperties}
     >

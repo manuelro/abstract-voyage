@@ -19,13 +19,16 @@ import { AboutBulletMarker } from './AboutBulletMarker';
 // .accordionAffordance rules reuse verbatim).
 import styles from '../../../pages/about.module.css';
 
-// Content text classes — the collapsed preview must render at the exact
-// same font size/config as the expanded paragraph, not a smaller "label"
-// treatment, so the two read as the same voice at a different length. Color
-// is deliberately absent here now (was a hardcoded text-white) — applied via
+// Font size (config.contentFontSizeClassName, was a hardcoded `text-lg`)
+// shared by BOTH the collapsed preview and the expanded paragraph — the
+// two must render at the exact same size/config, not a smaller "label"
+// treatment, so they read as the same voice at a different length. Color
+// is deliberately absent here (was a hardcoded text-white) — applied via
 // the textColor prop's own inline style instead (AboutMobileAccordionConfig
 // .textSurfaceOffset, derived from the page's own column background).
-const CONTENT_TEXT_CLASSNAME = 'text-lg leading-relaxed [text-wrap:balance]';
+function contentTextClassName(config: AboutMobileAccordionConfig) {
+  return `${config.contentFontSizeClassName} leading-relaxed [text-wrap:balance]`;
+}
 
 export function AboutMobileAccordionItem({
   slide,
@@ -162,6 +165,24 @@ export function AboutMobileAccordionItem({
   // and the chevron) a real, definite containing box to center against.
   const affordanceDimensionPx = tailwindSpacingTokenToPx(config.affordanceDimensionClassName.split(' ')[0], 10);
 
+  // Sequential-by-default (not simultaneous) crossfade: whichever of the two
+  // is DISAPPEARING starts immediately (0 delay); whichever is APPEARING
+  // waits before it starts. config.openIndicatorOverlapFraction (0..1,
+  // operator-configurable) is how much of that wait is skipped — `0`
+  // (default) waits the disappearing element's ENTIRE heightTransitionMs
+  // (today's original "never visibly coexist" behavior), `1` waits none of
+  // it (both start at once, a plain crossfade), and anything between
+  // linearly shortens the wait. Symmetric in both directions purely because
+  // each item computes its own delay from its own `expanded` state — the
+  // newly-opening item's chevron-out/bullet-in handover and the
+  // newly-closing item's bullet-out/chevron-in handover both read this same
+  // fraction, nothing direction-specific to keep in sync. Both elements
+  // still share the exact same heightTransitionMs/heightEasing for the
+  // transition itself (only the delay before it starts is affected here).
+  const openIndicatorHandoverDelayMs = heightTransitionMs * (1 - config.openIndicatorOverlapFraction);
+  const openIndicatorTransitionDelayMs = expanded ? openIndicatorHandoverDelayMs : 0;
+  const chevronTransitionDelayMs = expanded ? 0 : openIndicatorHandoverDelayMs;
+
   const { contentRef, wrapperStyle } = useExpandableHeight(
     expanded, heightTransitionMs, heightEasing, maxContentHeightPx,
   );
@@ -203,7 +224,7 @@ export function AboutMobileAccordionItem({
         className={`${styles.accordionHeaderButton} relative z-10 flex w-full items-center justify-between gap-3 text-left ${config.previewMinHeight} ${config.affordancePaddingX} ${config.affordancePaddingY}`}
       >
         <span
-          className={`m-0 line-clamp-1 ${CONTENT_TEXT_CLASSNAME}`}
+          className={`m-0 ${config.headerTextWrapEnabled ? '' : 'line-clamp-1'} ${contentTextClassName(config)}`}
           style={{
             color: textColor,
             opacity: previewTextOpacity,
@@ -255,8 +276,14 @@ export function AboutMobileAccordionItem({
               // above for why staying mounted (not conditionally rendered
               // per-toggle) is what makes that fade actually animate.
               opacity={expanded ? emphasisOpacity : 0}
+              // 0 -> 1 grow-in as the row expands (operator ask) — shrinks
+              // back to 0 (not just fading transparent in place) as it
+              // collapses, matching the opacity/fill transition exactly
+              // (same duration/easing/delay).
+              scale={expanded ? 1 : 0}
               transitionMs={heightTransitionMs}
               transitionEasingCss={heightEasing}
+              transitionDelayMs={openIndicatorTransitionDelayMs}
               overlay
             />
           ) : null}
@@ -291,6 +318,14 @@ export function AboutMobileAccordionItem({
                 transitionProperty: 'opacity, transform',
                 transitionDuration: `${heightTransitionMs}ms, ${affordanceRotationDurationMs}ms`,
                 transitionTimingFunction: `${heightEasing}, ${affordanceEasing}`,
+                // Delay applies to the opacity (disappear/reappear) leg
+                // only — rotation (2nd position) always starts at 0 delay,
+                // same "sequential crossfade, not simultaneous" stagger the
+                // open indicator's own transitionDelayMs uses (operator
+                // ask): the chevron fades out immediately as the row
+                // expands, but its own reappearance on collapse waits for
+                // the indicator to finish shrinking away first.
+                transitionDelay: `${chevronTransitionDelayMs}ms, 0ms`,
                 ...(expanded ? { opacity: 0 } : {}),
               } : {}),
               '--about-accordion-affordance-idle-opacity': dimOpacity,
@@ -335,7 +370,7 @@ export function AboutMobileAccordionItem({
             })}
           >
             <p
-              className={`relative ${CONTENT_TEXT_CLASSNAME}`}
+              className={`relative ${contentTextClassName(config)}`}
               style={{ color: textColor }}
             >
               {renderEmphasisText(slide.title, dimOpacity, emphasisOpacity)}

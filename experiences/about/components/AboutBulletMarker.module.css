@@ -25,9 +25,16 @@
   border-radius: 9999px;
   border: 1.5px solid currentColor;
   background-color: transparent;
+  /* `transform` (AboutMobileAccordionItem.tsx's own scale-from-0 reveal) and
+     `--about-bullet-marker-transition-delay` (that same caller's stagger —
+     wait for the chevron's own fade-out to finish first) are both no-ops for
+     AboutTimelineRow.tsx's own use of this component: it never sets `scale`
+     (transform stays its own default `none`, transitioning none->none is
+     inert) or a delay (var falls back to 0ms, i.e. today's exact behavior). */
   transition:
-    background-color var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease),
-    opacity var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease);
+    background-color var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease) var(--about-bullet-marker-transition-delay, 0ms),
+    opacity var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease) var(--about-bullet-marker-transition-delay, 0ms),
+    transform var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease) var(--about-bullet-marker-transition-delay, 0ms);
 }
 
 .markerActive {

@@ -22,6 +22,7 @@ import {
   MARKER_SIZE_OPTIONS,
   type AboutTimelineMarkerSizeClass,
 } from './AboutTimeline.config';
+import { FONT_SIZE_OPTIONS, type FontSizeClass } from '../../../components/tailwindTypographyScale';
 
 /** 'accent' derives the affordance's border color from the row's own
  * resolved accent/text color (the same "derive, don't invent a new color"
@@ -90,6 +91,25 @@ export type AboutMobileAccordionConfig = {
   /** Uniform collapsed preview-tab height, every item, regardless of its
    * own excerpt length. */
   previewMinHeight: MinHeightClass;
+  /** Font size shared by BOTH the collapsed preview text and the expanded
+   * paragraph (AboutMobileAccordionItem.tsx's own `CONTENT_TEXT_CLASSNAME`
+   * — the two always render at the same size so they read as one
+   * continuous voice, never a smaller "label" treatment for the collapsed
+   * state). Was a hardcoded `text-lg` before this field existed — default
+   * unchanged. Reuses `tailwindTypographyScale.ts`'s own `FONT_SIZE_OPTIONS`
+   * catalog, the same one `AboutTimelineConfig`'s `rowTitleFontSizeClassName`/
+   * `rowDescriptionFontSizeClassName` already draw from. */
+  contentFontSizeClassName: FontSizeClass;
+  /** Off (default): the collapsed header/preview text clips to a single
+   * line (`line-clamp-1`) — unchanged from this component's original
+   * behavior. On: that text wraps across as many lines as its own content
+   * needs, never cut off — for a caller reusing this item to display
+   * content longer than a short excerpt (e.g. AbstractEditorialHero's own
+   * `accordionItemPresentationEnabled`, where the "header" is a full
+   * headline that must never truncate). Only affects the header/preview
+   * text — the expanded paragraph body already wraps freely regardless of
+   * this field. */
+  headerTextWrapEnabled: boolean;
   /** Cap on simultaneously expanded items. `0` = unlimited (every item can
    * be open at once) — the requirement is that more than two must be
    * possible, not that a lower cap is disallowed; an operator who wants a
@@ -294,11 +314,30 @@ export type AboutMobileAccordionConfig = {
    * second, parallel size catalog, since this is the exact same visual
    * component (`AboutBulletMarker`) at a different size. */
   openIndicatorSizeClassName: AboutTimelineMarkerSizeClass;
+  /** How much the chevron's own disappear/reappear transition overlaps with
+   * the open-indicator bullet's own appear/disappear transition, instead of
+   * the two always running fully back-to-back. `0` (default) is fully
+   * sequential — the exact behavior this feature shipped with: whichever of
+   * the two is disappearing starts immediately, and whichever is appearing
+   * waits out the OTHER one's entire `transitionMs` before it starts at all,
+   * so the two never visibly coexist mid-transition. `1` is fully
+   * simultaneous — both start at once (a plain crossfade, no stagger, no
+   * gap where neither is visible). Any value between linearly shortens that
+   * wait: the appearing element's own delay is `transitionMs * (1 -
+   * openIndicatorOverlapFraction)`. Applies symmetrically in BOTH
+   * directions — the newly-opening item's chevron-out/bullet-in handover
+   * AND the newly-closing item's bullet-out/chevron-in handover both read
+   * this same fraction, since each item's own delay is computed purely from
+   * its own `expanded` state (there is no separate "closing" field to keep
+   * in sync with this one). */
+  openIndicatorOverlapFraction: number;
 };
 
 export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   enabled: true,
   previewMinHeight: 'min-h-14',
+  contentFontSizeClassName: 'text-lg',
+  headerTextWrapEnabled: false,
   maxExpandedItems: 1,
   // Simultaneous close+open — safe now that AboutMobileAccordion.tsx
   // continuously reconciles every item's live height against the shared
@@ -316,7 +355,10 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   affordancePaddingX: 'px-7',
   affordancePaddingY: 'py-5',
   affordanceRotateCollapsedDeg: 135,
-  affordanceRotateExpandedDeg: 90,
+  // 135 + 180 (operator fix — this field's own doc comment already
+  // documented "a 180° flip from the collapsed angle" as the intent; the
+  // actual default had drifted to a 45° difference instead).
+  affordanceRotateExpandedDeg: 315,
   affordanceColorMode: 'accent',
   affordanceCustomColor: '#ffffff',
   affordanceHoverOpacity: 0.9,
@@ -347,6 +389,7 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   textCustomColor: '#0f1724',
   openIndicatorEnabled: true,
   openIndicatorSizeClassName: 'w-2.5 h-2.5',
+  openIndicatorOverlapFraction: 0.72,
 } satisfies AboutMobileAccordionConfig;
 
 const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
@@ -356,6 +399,7 @@ const TRANSITION_EASINGS: ReadonlyArray<AbstractPostDockEasingPreset> = [
   'standard', 'soft-expo', 'viscous', 'settle', 'luxury',
 ];
 const MIN_HEIGHT_VALUES = MIN_HEIGHT_OPTIONS.map(option => option.value);
+const FONT_SIZE_VALUES: ReadonlyArray<FontSizeClass> = FONT_SIZE_OPTIONS.map(option => option.value);
 const PADDING_X_VALUES: ReadonlyArray<PaddingXClass> = PADDING_X_OPTIONS.map(option => option.value);
 const PADDING_Y_VALUES: ReadonlyArray<PaddingYClass> = PADDING_Y_OPTIONS.map(option => option.value);
 const AFFORDANCE_BORDER_THICKNESS_VALUES = AFFORDANCE_BORDER_THICKNESS_OPTIONS.map(option => option.value);
@@ -383,6 +427,8 @@ export function normalizeAboutMobileAccordionConfig(
   return {
     enabled: Boolean(base.enabled),
     previewMinHeight: token(base.previewMinHeight, MIN_HEIGHT_VALUES, D.previewMinHeight),
+    contentFontSizeClassName: token(base.contentFontSizeClassName, FONT_SIZE_VALUES, D.contentFontSizeClassName),
+    headerTextWrapEnabled: base.headerTextWrapEnabled === true,
     maxExpandedItems: Number.isFinite(base.maxExpandedItems)
       ? Math.max(0, Math.round(base.maxExpandedItems))
       : D.maxExpandedItems,
@@ -453,6 +499,9 @@ export function normalizeAboutMobileAccordionConfig(
     openIndicatorEnabled: base.openIndicatorEnabled !== false,
     openIndicatorSizeClassName: token(
       base.openIndicatorSizeClassName, MARKER_SIZE_VALUES, D.openIndicatorSizeClassName,
+    ),
+    openIndicatorOverlapFraction: clampRange(
+      base.openIndicatorOverlapFraction, 0, 1, D.openIndicatorOverlapFraction,
     ),
   };
 }
