@@ -397,18 +397,46 @@ function AboutPageContent() {
     navBorderColor: SPACEFIELD_HEADER_NAV_BORDER_COLOR,
   }), [normalizedSiteHeaderConfig]);
 
-  // Real nav height derived from the live header config rather than
-  // hardcoded, so a future header-height panel tweak stays correct here too.
-  // Mobile: header height alone. Desktop: header height + the margin pushed
-  // above it (SiteHeaderConfig's desktopMarginTop).
-  const navHeightMobilePx = useMemo(() => (
-    tailwindTokenToPx(normalizedSiteHeaderConfig.height)
-    + tailwindTokenToPx(normalizedSiteHeaderConfig.marginTop)
-  ), [normalizedSiteHeaderConfig.height, normalizedSiteHeaderConfig.marginTop]);
-  const navHeightDesktopPx = useMemo(() => (
+  // Real, live-measured header height — NOT derived from the header's own
+  // Tailwind height/marginTop tokens (the previous approach here). That
+  // token math silently resolved to 0 at the mobile breakpoint: SiteHeader's
+  // own `height` field defaults to `'h-auto'` below md (SiteHeaderConfig's
+  // own doc comment — the header switches to a block/stacked layout there,
+  // so its box has no fixed token to parse, by design) and `tailwindTokenToPx`
+  // has no numeric suffix to extract from `'h-auto'`, so it silently
+  // returned 0. That 0 fed straight into `--about-nav-h-mobile` below, so
+  // .splitRight's own `calc(100dvh - var(--about-nav-h))` (about.module.css)
+  // always resolved to the FULL viewport height even though the column
+  // itself already sits `marginTop: <the header's real height>` lower
+  // (SplitColumnPageShell's own pushDown mechanism, driven by a SEPARATE,
+  // already-correct internal measurement) — the header's real height was
+  // being reserved twice in effect: once correctly (marginTop) and once as
+  // an invisible 0 (the fixed-height column below it), so their sum
+  // overflowed the viewport and forced <main>/the page itself to grow and
+  // scroll instead of only the accordion's own items. Confirmed live via
+  // Playwright at a 390x844 viewport: `document.documentElement.scrollHeight`
+  // was 964px against a 844px window, a 120px overshoot exactly matching the
+  // real mobile header's own rendered height.
+  //
+  // headerWrapperRef (attached below) is SplitColumnPageShell's own
+  // documented mechanism for exactly this need — "a page can measure its
+  // real rendered height ... without re-deriving that height from the
+  // header's own many independent config knobs (height/padding/margin) by
+  // hand, which would just be another version of the 'two things that can
+  // silently drift' problem" (that prop's own doc comment) — this page's
+  // former hand-rolled token math was precisely that drift-prone
+  // reinvention, not a special case that needed one. One measured value
+  // feeds both CSS custom properties below: only one of
+  // --about-nav-h-mobile/--about-nav-h-desktop is ever actually consumed at
+  // a time (about.module.css's own media query selects between them into
+  // --about-nav-h), so there's nothing to gain from computing two
+  // independent numbers when the live DOM measurement already reflects
+  // whichever breakpoint is currently rendered.
+  const { ref: headerWrapperRef, rect: headerWrapperRect } = useMeasuredElementRect<HTMLDivElement>();
+  const navHeightPx = headerWrapperRect?.height ?? (
     tailwindTokenToPx(normalizedSiteHeaderConfig.desktopHeight)
     + tailwindTokenToPx(normalizedSiteHeaderConfig.desktopMarginTop)
-  ), [normalizedSiteHeaderConfig.desktopHeight, normalizedSiteHeaderConfig.desktopMarginTop]);
+  );
 
 
   const [dockPaletteConfig, setDockPaletteConfig] = useState<AbstractPostDockPaletteConfig>(
@@ -472,7 +500,15 @@ function AboutPageContent() {
   // see displayedSplitBandRightColor/headerOverlay below for how the
   // spacefield's own header-region rendering steps aside instead of
   // silently winning.
-  const topSegmentBackgroundEnabled = aboutPageLayoutConfig.topSegmentDynamicBackgroundEnabled;
+  //
+  // !isNarrowViewport || topSegmentDynamicBackgroundMobileEnabled (operator
+  // ask, 2026-09-12): the base flag alone used to gate every breakpoint at
+  // once — bringing it back on by default meant it also came back on
+  // mobile, which the operator wants to keep excluded. See that field's own
+  // doc comment (about.config.ts) for the per-breakpoint override this adds;
+  // every breakpoint OTHER than the mobile/stacked one is untouched by it.
+  const topSegmentBackgroundEnabled = aboutPageLayoutConfig.topSegmentDynamicBackgroundEnabled
+    && (!isNarrowViewport || aboutPageLayoutConfig.topSegmentDynamicBackgroundMobileEnabled);
 
   // PLAN-ABOUT-MOBILE-UNIFIED-HERO-GRADIENT.md — extends topSegmentBackground-
   // Enabled's gradient to the logo segment and the entire narrow column, but
@@ -1398,12 +1434,13 @@ function AboutPageContent() {
       <PolymorphicLayout
         className={`${styles.main} flex flex-col`}
         style={{
-          '--about-nav-h-mobile': `${navHeightMobilePx}px`,
-          '--about-nav-h-desktop': `${navHeightDesktopPx}px`,
+          '--about-nav-h-mobile': `${navHeightPx}px`,
+          '--about-nav-h-desktop': `${navHeightPx}px`,
         } as CSSProperties}
         config={splitColumnLayoutConfig}
         pageSurfaceConfig={normalizedPageSurfaceConfig}
         paletteColorResolver={paletteColorResolver}
+        headerWrapperRef={headerWrapperRef}
         // PLAN-POLYMORPHIC-LAYOUT-DECOUPLING.md §4 — this page constructs
         // its own <SiteHeader> instead of handing PolymorphicLayout
         // a siteHeaderConfig/logoStops/splitBand*/etc. bundle to render

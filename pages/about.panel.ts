@@ -244,10 +244,17 @@ export const ABOUT_PAGE_LAYOUT_PANEL = defineConfigScope<AboutPageLayoutConfig>(
     },
     {
       kind: 'boolean',
+      key: 'topSegmentDynamicBackgroundMobileEnabled',
+      label: 'Header top segment dynamic background (mobile)',
+      description: 'Only while the header top segment dynamic background above is also on. Off (default): the mobile/stacked breakpoint keeps its flat split-band color even though every other breakpoint shows the dynamic gradient. On: mobile shows it too, same as every other breakpoint.',
+      visibleWhen: config => config.topSegmentDynamicBackgroundEnabled,
+    },
+    {
+      kind: 'boolean',
       key: 'mobileUnifiedNarrowColumnGradientEnabled',
       label: 'Mobile unified narrow-column gradient',
-      description: 'Mobile/stacked breakpoint only, and only while the header top segment dynamic background above is also on. Extends that same gradient mesh to the logo segment and the entire narrow column, composited so all three read as one continuous field instead of three separate flat/gradient treatments stacked on top of each other. Off (default): only the nav segment gets the gradient, matching today\'s behavior.',
-      visibleWhen: config => config.topSegmentDynamicBackgroundEnabled,
+      description: 'Mobile/stacked breakpoint only, and only while the header top segment dynamic background above is also on for mobile. Extends that same gradient mesh to the logo segment and the entire narrow column, composited so all three read as one continuous field instead of three separate flat/gradient treatments stacked on top of each other. Off (default): only the nav segment gets the gradient, matching today\'s behavior.',
+      visibleWhen: config => config.topSegmentDynamicBackgroundEnabled && config.topSegmentDynamicBackgroundMobileEnabled,
     },
     {
       kind: 'boolean',

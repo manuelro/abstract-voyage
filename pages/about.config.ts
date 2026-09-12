@@ -96,6 +96,19 @@ export type AboutPageLayoutConfig = {
    * right segment; the spacefield's own header-region rendering steps
    * aside instead. */
   topSegmentDynamicBackgroundEnabled: boolean;
+  /** Per-breakpoint override of topSegmentDynamicBackgroundEnabled above —
+   * false (default, operator ask 2026-09-12): the nav segment's dynamic
+   * gradient mesh (topSegmentDynamicBackgroundEnabled) is suppressed
+   * specifically at the mobile/stacked breakpoint (pages/about.tsx's own
+   * isNarrowViewport, the same BELOW_MD_MEDIA_QUERY threshold every other
+   * mobile-vs-desktop decision on this page uses) — every OTHER breakpoint
+   * keeps showing it via topSegmentDynamicBackgroundEnabled alone,
+   * unaffected. True: the mobile breakpoint shows it too, i.e. no
+   * breakpoint-specific suppression at all. Inert whenever
+   * topSegmentDynamicBackgroundEnabled itself is off — this field can only
+   * ever narrow that flag's reach at mobile, never widen or substitute for
+   * it. */
+  topSegmentDynamicBackgroundMobileEnabled: boolean;
   /** Off (default): only the header's nav segment (topSegmentDynamicBackground-
    * Enabled above) gets the dynamic gradient mesh — the logo segment and the
    * entire narrow column keep their flat, palette-resolved colors, same as
@@ -106,9 +119,10 @@ export type AboutPageLayoutConfig = {
    * composited via a shared "virtual canvas" offset so the three
    * independently-mounted crops read as one continuous field spanning logo
    * bar -> nav bar -> narrow column (PLAN-ABOUT-MOBILE-UNIFIED-HERO-
-   * GRADIENT.md §1). Inert unless topSegmentDynamicBackgroundEnabled is also
-   * on — this field only extends that one's reach, it never substitutes for
-   * it. */
+   * GRADIENT.md §1). Inert unless topSegmentDynamicBackgroundEnabled AND
+   * topSegmentDynamicBackgroundMobileEnabled are both also on — this field
+   * only extends the mobile-visible gradient's reach once mobile is already
+   * showing one, it never substitutes for either. */
   mobileUnifiedNarrowColumnGradientEnabled: boolean;
   /** Off (default): the narrow column's own outer box (about.module.css's
    * `.splitLeft`, both the header logo strip and the headline/paragraphs
@@ -188,9 +202,16 @@ export const DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG = {
   navControlMouseOutEasing: 'gentle',
   pageEntranceTransitionMs: 900,
   pageEntranceEasing: 'viscous',
-  // false (operator ask) — was true, which meant this opt-in mesh rendered
-  // unconditionally by default instead of requiring an explicit opt-in.
-  topSegmentDynamicBackgroundEnabled: false,
+  // true (operator ask, 2026-09-12: bring the header gradient back) — every
+  // breakpoint shows it again by default; topSegmentDynamicBackgroundMobileEnabled
+  // below is the new per-breakpoint override that keeps mobile specifically
+  // excluded rather than this flag going back to gating every breakpoint at
+  // once the way it did before the earlier "false (operator ask)" default.
+  topSegmentDynamicBackgroundEnabled: true,
+  // false (operator ask, 2026-09-12): mobile stays flat/without the gradient
+  // even though every other breakpoint now shows it again via
+  // topSegmentDynamicBackgroundEnabled above.
+  topSegmentDynamicBackgroundMobileEnabled: false,
   mobileUnifiedNarrowColumnGradientEnabled: true,
   narrowColumnContentWidthDecoupledEnabled: true,
 } satisfies AboutPageLayoutConfig;
@@ -256,6 +277,7 @@ export function normalizeAboutPageLayoutConfig(
       base.pageEntranceEasing, MOTION_EASINGS, DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG.pageEntranceEasing,
     ),
     topSegmentDynamicBackgroundEnabled: Boolean(base.topSegmentDynamicBackgroundEnabled),
+    topSegmentDynamicBackgroundMobileEnabled: Boolean(base.topSegmentDynamicBackgroundMobileEnabled),
     mobileUnifiedNarrowColumnGradientEnabled: Boolean(base.mobileUnifiedNarrowColumnGradientEnabled),
     narrowColumnContentWidthDecoupledEnabled: Boolean(base.narrowColumnContentWidthDecoupledEnabled),
   };
