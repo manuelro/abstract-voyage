@@ -122,6 +122,23 @@ describe('Gemini AI Gateway adapter', () => {
     )
   })
 
+  it('falls back to the universal Netlify Gateway variables', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(gatewayResponse({ accepted: true }))
+    const universalEnv = {
+      NETLIFY_AI_GATEWAY_KEY: 'netlify-gateway-key',
+      NETLIFY_AI_GATEWAY_URL: 'https://universal-gateway.example.test',
+    }
+
+    await request({ env: universalEnv, fetchImpl })
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(
+      `https://universal-gateway.example.test/v1beta/models/${DEFAULT_MODEL}:generateContent`,
+    )
+    expect(fetchImpl.mock.calls[0][1].headers['x-goog-api-key']).toBe(
+      universalEnv.NETLIFY_AI_GATEWAY_KEY,
+    )
+  })
+
   it('uses typed adapter errors', () => {
     expect(new IntakeAiError('test')).toMatchObject({
       name: 'IntakeAiError',

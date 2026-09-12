@@ -18,8 +18,9 @@ const resolveModel = (value) => {
 }
 
 const resolveGatewayConfig = (env = process.env) => {
-  const apiKey = normalize(env.GEMINI_API_KEY)
-  const baseUrl = normalize(env.GOOGLE_GEMINI_BASE_URL).replace(/\/+$/, '')
+  const apiKey = normalize(env.GEMINI_API_KEY) || normalize(env.NETLIFY_AI_GATEWAY_KEY)
+  const baseUrl = normalize(env.GOOGLE_GEMINI_BASE_URL || env.NETLIFY_AI_GATEWAY_URL ||
+    env.NETLIFY_AI_GATEWAY_BASE_URL).replace(/\/+$/, '')
 
   if (!apiKey || !baseUrl) {
     throw new IntakeAiError('gateway_configuration_missing', { retryable: false })
