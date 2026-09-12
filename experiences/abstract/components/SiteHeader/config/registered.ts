@@ -580,7 +580,7 @@ export const DEFAULT_SITE_HEADER_CONFIG = {
   mobileNavItemGap: 'gap-x-4',
   mobileNavDistribution: 'justify-start',
   mobileNavEqualItemWidth: true,
-  mobileNavDivider: "before:content-['⋅']",
+  mobileNavDivider: "before:content-['|']",
   mobileNavDividerHeight: 'h-2',
   mobileNavDividerWidth: 'w-px',
   navGap: 'md:gap-8',
