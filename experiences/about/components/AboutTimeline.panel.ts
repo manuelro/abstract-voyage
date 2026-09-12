@@ -75,7 +75,7 @@ const ITEM_FONT_FAMILY_OPTIONS = [
  * `tailwindTypographyScale.ts`, or this component's own local
  * `MARKER_SIZE_OPTIONS`/`RULE_WEIGHT_OPTIONS`) — never `kind: 'number'` with
  * a raw px value — matching the shape `AboutMobileAccordion.panel.ts`'s own
- * `affordancePadding`/`affordanceBorderThicknessClassName`/
+ * `affordancePaddingX`/`-Y`/`affordanceBorderThicknessClassName`/
  * `affordanceDimensionClassName` fields already use one file over. Opacity,
  * duration, and contrast-ratio fields stay `kind: 'number'` — see
  * `AboutTimeline.config.ts`'s own doc comment for why those three are the

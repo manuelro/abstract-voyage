@@ -74,7 +74,7 @@ export function AboutMobileAccordion({
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Only one representative header is measured, not all of them — every
   // item shares the exact same config-driven previewMinHeight/
-  // affordancePadding, so every header already renders at the same real
+  // affordancePaddingX/-Y, so every header already renders at the same real
   // height; summing N identical measurements would be no more accurate
   // than one measurement times N.
   const firstHeaderRef = useRef<HTMLButtonElement | null>(null);

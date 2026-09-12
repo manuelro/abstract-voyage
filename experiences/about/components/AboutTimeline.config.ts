@@ -133,7 +133,7 @@ export const CATEGORY_SEPARATOR_OPTIONS = APPENDIX_SEPARATOR_OPTIONS;
  * Every discrete/spacing/sizing field below stores a literal, JIT-visible
  * Tailwind class — never a raw px number assembled into an inline style —
  * per this repo's own Tailwind-only styling convention (see e.g.
- * AboutMobileAccordion.config.ts's affordancePadding/
+ * AboutMobileAccordion.config.ts's affordancePaddingX/-Y/
  * -BorderThicknessClassName/-DimensionClassName for the same pattern
  * already established one file over). Genuine exceptions, matching the
  * sitewide convention for these specific categories: opacity (no Tailwind

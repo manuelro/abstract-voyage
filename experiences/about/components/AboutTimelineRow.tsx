@@ -3,6 +3,7 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 import Link from 'next/link';
 import type { AboutTimelineAlignment } from './AboutTimeline.config';
 import styles from './AboutTimeline.module.css';
+import { AboutBulletMarker } from './AboutBulletMarker';
 import {
   LiquidGradientAdapter,
   type DeckPaletteState,
@@ -62,6 +63,11 @@ export interface AboutTimelineRowProps {
    * accent, a fixed custom color, or the row title's own active color, see
    * `AboutTimeline.tsx`'s own `resolvedMarkerColor`. */
   markerColor: string;
+  /** Marker diameter in px — `AboutTimeline.tsx`'s own `markerSizePx`
+   * (`config.markerSizeClassName` resolved via `tailwindSpacingTokenToPx`),
+   * threaded through as a prop now that `AboutBulletMarker` takes a resolved
+   * number rather than reading an inherited CSS custom property. */
+  markerSizePx: number;
   /** Opacity of the marker — already resolved by `AboutTimeline.tsx`:
    * `config.hoverMarkerOpacity` while this row is the hovered one, else
    * `markerActiveOpacity`/`-IdleOpacity` per `active` — hovering a row never
@@ -160,6 +166,7 @@ export function AboutTimelineRow({
   tabIndex,
   href,
   markerColor,
+  markerSizePx,
   markerOpacity,
   titleColor,
   titleOpacity,
@@ -211,14 +218,15 @@ export function AboutTimelineRow({
     <>
       {ruleVisible ? <span aria-hidden="true" className={styles.rule} /> : null}
       {markerVisible ? (
-        <span
-          ref={markerRef}
-          aria-hidden="true"
-          className={`${styles.marker} ${active ? styles.markerActive : ''} ${showMarkerGradient ? styles.markerGradientBleed : ''}`}
-          style={{
-            color: markerColor,
-            opacity: markerOpacity,
-          }}
+        <AboutBulletMarker
+          markerRef={markerRef}
+          active={active}
+          sizePx={markerSizePx}
+          color={markerColor}
+          opacity={markerOpacity}
+          transitionMs={transitionDurationMs}
+          transitionEasingCss={transitionEasingCss}
+          className={styles.markerPosition}
         >
           {showMarkerGradient && gradientSlide && gradientMotion && gradientConfig ? (
             <LiquidGradientAdapter
@@ -229,7 +237,7 @@ export function AboutTimelineRow({
               activity={markerGradientActivity}
             />
           ) : null}
-        </span>
+        </AboutBulletMarker>
       ) : null}
       <span className={styles.content}>
         <span

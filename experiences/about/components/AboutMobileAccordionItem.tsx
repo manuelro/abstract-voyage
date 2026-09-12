@@ -5,11 +5,13 @@ import { useExpandableHeight } from '../../../components/useExpandableHeight';
 import { resolveAbstractPostDockEasing } from '../../abstract/components/AbstractPostDock/config/registered';
 import { abstractPostDockActiveOpacityStyle } from '../../abstract/components/AbstractPostDock/helpers/activeOpacityReveal';
 import { renderEmphasisText } from '../../../helpers/textEmphasis';
+import { tailwindSpacingTokenToPx } from '../../../components/tailwindSpacingScale';
 import type { SliderContentSlide } from '../../../helpers/postContent';
 import type { DeckPaletteState } from '../../abstract/components/AbstractPostDock/components/GradientRenderer';
 import type { LiquidSliderConfig } from '../../abstract/components/AbstractPostDock/config/legacy';
 import type { useLiquidSliderMotion } from '../../abstract/components/AbstractPostDock/hooks/motion';
 import type { AboutMobileAccordionConfig } from './AboutMobileAccordion.config';
+import { AboutBulletMarker } from './AboutBulletMarker';
 // Shared with AboutSlideNavControl — the same page-owned CSS module every
 // other about-experience component's own hover/idle CSS-custom-property
 // mechanism already lives in (see .navControlButton's own doc comment for
@@ -67,7 +69,7 @@ export function AboutMobileAccordionItem({
   maxContentHeightPx?: number;
   /** Only ever passed for one representative item (AboutMobileAccordion
    * measures a single header's real rendered height, assuming — correctly,
-   * since every item shares the same config-driven affordancePadding/
+   * since every item shares the same config-driven affordancePaddingX/-Y/
    * previewMinHeight — that every header renders at the same height). */
   headerRef?: (element: HTMLButtonElement | null) => void;
 }) {
@@ -121,6 +123,45 @@ export function AboutMobileAccordionItem({
   // opacity entirely to about.module.css's idle/hover mechanism, unchanged.
   const hideChevronOnExpand = config.maxExpandedItems === 1;
 
+  // "Is this the open one" bullet (operator ask, PLAN-ABOUT-MOBILE-
+  // ACCORDION-OPEN-INDICATOR.md) — only meaningful for a classic
+  // single-open accordion (maxExpandedItems === 1, same gate
+  // hideChevronOnExpand above uses): with a higher/unlimited cap, more than
+  // one item can be open at once, so no single "the open one" marker
+  // language applies. AboutBulletMarker is the exact same hollow/filled
+  // circle AboutTimelineRow.tsx's desktop timeline marker uses (extracted,
+  // not reimplemented) — sized from config.openIndicatorSizeClassName (the
+  // same literal w-N/h-N catalog that component's own markerSizeClassName
+  // draws from), filled with this row's own resolved textColor (operator
+  // ask: the fill must read as this row's own ink, not a separate accent).
+  //
+  // Operator fix: a collapsed row must show ONLY the chevron, and an
+  // expanded row must show ONLY the filled circle — never both at once.
+  // The bullet therefore stays mounted at all times (same
+  // "always in the DOM, opacity-driven" shape hideChevronOnExpand already
+  // uses for the chevron below) rather than being conditionally unmounted
+  // per-toggle: `openIndicatorMountVisible` is a config-level, per-instance
+  // constant (never changes while this item is mounted), while `opacity`
+  // is the actual per-toggle 0/visible switch, animated over the exact
+  // same heightTransitionMs/heightEasing driving the row's own height
+  // transition. Since `opacity` and the fill (`background-color`, via
+  // `active`) both transition together on the identical duration/easing
+  // (AboutBulletMarker.module.css), the bullet fades in ALREADY filled and
+  // fades out already fully transparent — collapsed and expanded never
+  // visibly overlap mid-transition the way an unmount/remount swap would
+  // (which cannot animate a mount at all — the very first frame of a newly
+  // mounted element is not itself a transition start).
+  const openIndicatorMountVisible = config.openIndicatorEnabled && config.maxExpandedItems === 1;
+  const openIndicatorSizePx = tailwindSpacingTokenToPx(config.openIndicatorSizeClassName.split(' ')[0], 10);
+  // Explicit px (not a plain Tailwind `w-N h-N` class) on the trailing
+  // cluster's own wrapper below — a plain `<span>` is `display: inline` by
+  // default, which makes Tailwind width/height classes on it a no-op
+  // (confirmed live: the bullet rendered as a 2px-wide sliver instead of a
+  // circle). An explicit inline pixel size on a `position: relative` span is
+  // what actually gives the two absolutely-positioned children (the bullet
+  // and the chevron) a real, definite containing box to center against.
+  const affordanceDimensionPx = tailwindSpacingTokenToPx(config.affordanceDimensionClassName.split(' ')[0], 10);
+
   const { contentRef, wrapperStyle } = useExpandableHeight(
     expanded, heightTransitionMs, heightEasing, maxContentHeightPx,
   );
@@ -138,7 +179,7 @@ export function AboutMobileAccordionItem({
     // illegible header.
     <div ref={sectionRef} className="relative w-full shrink-0 overflow-hidden">
       {/* Normal block flow, NOT a row inside the animated grid below — its
-          own height is fixed by previewMinHeight/affordancePadding alone
+          own height is fixed by previewMinHeight/affordancePaddingX/-Y alone
           and never depends on the expanded content's own size, so it
           cannot be nudged by the height/grid-template-rows transition.
           The chevron and the header text stay pinned to this exact
@@ -159,7 +200,7 @@ export function AboutMobileAccordionItem({
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className={`${styles.accordionHeaderButton} relative z-10 flex w-full items-center justify-between gap-3 text-left ${config.previewMinHeight} ${config.affordancePadding}`}
+        className={`${styles.accordionHeaderButton} relative z-10 flex w-full items-center justify-between gap-3 text-left ${config.previewMinHeight} ${config.affordancePaddingX} ${config.affordancePaddingY}`}
       >
         <span
           className={`m-0 line-clamp-1 ${CONTENT_TEXT_CLASSNAME}`}
@@ -179,60 +220,105 @@ export function AboutMobileAccordionItem({
         >
           {slide.excerpt}
         </span>
+        {/* Wrapped with the chevron (rather than a third direct flex child
+            of the button above) so the button keeps exactly two direct flex
+            children — text on one edge, this trailing cluster on the other
+            — which is what makes `justify-between` place them correctly;
+            a third top-level child would instead get spread to the middle.
+            This wrapper is `position: relative` with an EXPLICIT pixel
+            size (affordanceDimensionPx, not a Tailwind `w-N h-N` class — a
+            plain `<span>` is `display: inline` by default, which makes
+            width/height classes on it a no-op and left the bullet with no
+            real box to center against, confirmed live) — both the bullet
+            (`overlay` prop — see AboutBulletMarker.tsx's own doc comment
+            for why that needs to be an inline style, not a className, to
+            reliably beat that component's own `position: relative` module
+            rule) and the chevron (`absolute inset-0 m-auto`, no competing
+            position rule of its own so a plain className is enough there)
+            are centered INSIDE that one box, one directly on top of the
+            other, rather than side by side. Centered vertically against the
+            header text via the button's own `items-center` (this wrapper
+            is one of exactly two flex children there, same as before). */}
         <span
-          aria-hidden="true"
-          className={`inline-block shrink-0 ${styles.accordionAffordance} ${config.affordanceDimensionClassName} ${config.affordanceBorderThicknessClassName} ${config.affordanceCornerRadiusClassName}`}
-          style={{
-            borderColor: resolvedAffordanceColor,
-            // Explicit, not left to the (already center-by-default for a
-            // plain box) browser default — the rotate must always pivot
-            // around the icon's own geometric center, never drift off it
-            // as border thickness/corner-radius/dimension are retuned.
-            transformOrigin: 'center center',
-            transform: `rotate(${expanded ? config.affordanceRotateExpandedDeg : config.affordanceRotateCollapsedDeg}deg)`,
-            // Opacity itself (idle + :hover) lives in about.module.css's
-            // .accordionAffordance rules, driven entirely by these CSS
-            // custom properties — see that rule's own doc comment for why
-            // the opacity/transform transitions can't both be expressed as
-            // one inline `transition` shorthand without the hover rule's
-            // duration override wrongly bleeding onto rotation speed too.
-            // hideChevronOnExpand overrides that same opacity transition's
-            // duration/easing inline (inline style always outranks the
-            // class's own rules, hover included) so it uses
-            // heightTransitionMs/heightEasing instead of the mouseout/hover
-            // pair — transitionProperty is restated here too since setting
-            // any one of these three longhands inline does not fall back to
-            // the class's own value for the other two. Only actually forces
-            // `opacity: 0` while `expanded`; collapsed still reads its
-            // opacity from the class's own idle/hover rule, just animated at
-            // this overridden speed.
-            ...(hideChevronOnExpand ? {
-              transitionProperty: 'opacity, transform',
-              transitionDuration: `${heightTransitionMs}ms, ${affordanceRotationDurationMs}ms`,
-              transitionTimingFunction: `${heightEasing}, ${affordanceEasing}`,
-              ...(expanded ? { opacity: 0 } : {}),
-            } : {}),
-            '--about-accordion-affordance-idle-opacity': dimOpacity,
-            '--about-accordion-affordance-hover-opacity': config.affordanceHoverOpacity,
-            '--about-accordion-affordance-rotation-ms': `${affordanceRotationDurationMs}ms`,
-            '--about-accordion-affordance-rotation-easing': affordanceEasing,
-            '--about-accordion-affordance-hover-ms': `${prefersReducedMotion ? 0 : config.affordanceHoverTransitionMs}ms`,
-            '--about-accordion-affordance-hover-easing': CTA_BUTTON_MOTION_EASINGS[config.affordanceHoverEasing],
-            '--about-accordion-affordance-mouseout-ms': `${prefersReducedMotion ? 0 : config.affordanceMouseOutTransitionMs}ms`,
-            '--about-accordion-affordance-mouseout-easing': CTA_BUTTON_MOTION_EASINGS[config.affordanceMouseOutEasing],
-          } as CSSProperties}
-        />
+          className="relative shrink-0"
+          style={{ width: `${affordanceDimensionPx}px`, height: `${affordanceDimensionPx}px` }}
+        >
+          {openIndicatorMountVisible ? (
+            <AboutBulletMarker
+              active={expanded}
+              sizePx={openIndicatorSizePx}
+              color={textColor}
+              // 0 while collapsed — a collapsed row shows ONLY the chevron,
+              // never a hollow ring alongside it (operator fix). Fades to
+              // emphasisOpacity, already filled, as the row expands — see
+              // this component's own openIndicatorMountVisible doc comment
+              // above for why staying mounted (not conditionally rendered
+              // per-toggle) is what makes that fade actually animate.
+              opacity={expanded ? emphasisOpacity : 0}
+              transitionMs={heightTransitionMs}
+              transitionEasingCss={heightEasing}
+              overlay
+            />
+          ) : null}
+          <span
+            aria-hidden="true"
+            className={`absolute inset-0 m-auto ${styles.accordionAffordance} ${config.affordanceDimensionClassName} ${config.affordanceBorderThicknessClassName} ${config.affordanceCornerRadiusClassName}`}
+            style={{
+              borderColor: resolvedAffordanceColor,
+              // Explicit, not left to the (already center-by-default for a
+              // plain box) browser default — the rotate must always pivot
+              // around the icon's own geometric center, never drift off it
+              // as border thickness/corner-radius/dimension are retuned.
+              transformOrigin: 'center center',
+              transform: `rotate(${expanded ? config.affordanceRotateExpandedDeg : config.affordanceRotateCollapsedDeg}deg)`,
+              // Opacity itself (idle + :hover) lives in about.module.css's
+              // .accordionAffordance rules, driven entirely by these CSS
+              // custom properties — see that rule's own doc comment for why
+              // the opacity/transform transitions can't both be expressed as
+              // one inline `transition` shorthand without the hover rule's
+              // duration override wrongly bleeding onto rotation speed too.
+              // hideChevronOnExpand overrides that same opacity transition's
+              // duration/easing inline (inline style always outranks the
+              // class's own rules, hover included) so it uses
+              // heightTransitionMs/heightEasing instead of the mouseout/hover
+              // pair — transitionProperty is restated here too since setting
+              // any one of these three longhands inline does not fall back to
+              // the class's own value for the other two. Only actually forces
+              // `opacity: 0` while `expanded`; collapsed still reads its
+              // opacity from the class's own idle/hover rule, just animated at
+              // this overridden speed.
+              ...(hideChevronOnExpand ? {
+                transitionProperty: 'opacity, transform',
+                transitionDuration: `${heightTransitionMs}ms, ${affordanceRotationDurationMs}ms`,
+                transitionTimingFunction: `${heightEasing}, ${affordanceEasing}`,
+                ...(expanded ? { opacity: 0 } : {}),
+              } : {}),
+              '--about-accordion-affordance-idle-opacity': dimOpacity,
+              '--about-accordion-affordance-hover-opacity': config.affordanceHoverOpacity,
+              '--about-accordion-affordance-rotation-ms': `${affordanceRotationDurationMs}ms`,
+              '--about-accordion-affordance-rotation-easing': affordanceEasing,
+              '--about-accordion-affordance-hover-ms': `${prefersReducedMotion ? 0 : config.affordanceHoverTransitionMs}ms`,
+              '--about-accordion-affordance-hover-easing': CTA_BUTTON_MOTION_EASINGS[config.affordanceHoverEasing],
+              '--about-accordion-affordance-mouseout-ms': `${prefersReducedMotion ? 0 : config.affordanceMouseOutTransitionMs}ms`,
+              '--about-accordion-affordance-mouseout-easing': CTA_BUTTON_MOTION_EASINGS[config.affordanceMouseOutEasing],
+            } as CSSProperties}
+          />
+        </span>
       </button>
 
       <div className="relative z-10" style={wrapperStyle}>
         <div ref={contentRef}>
           <div
             // Same horizontal padding as the header button
-            // (config.affordancePadding) — pt-0 only, so the expanded
+            // (config.affordancePaddingX) — pt-0 only, so the expanded
             // paragraph's own left edge lines up with the preview text's
             // left edge above it (they were previously two independently
-            // hand-picked padding values that didn't agree).
-            className={`${config.affordancePadding} pt-0`}
+            // hand-picked padding values that didn't agree). affordancePaddingY
+            // still contributes its own bottom half (pt-0 only cancels the
+            // TOP half of that same vertical value, same "one axis field,
+            // one side zeroed" shape this had before affordancePadding was
+            // split into X/Y).
+            className={`${config.affordancePaddingX} ${config.affordancePaddingY} pt-0`}
             // PLAN-ABOUT-MOBILE-ACCORDION-COLLAPSE-REVEAL-FIX.md — matches
             // the desktop accordion's own audited mechanism exactly
             // (View.tsx's minimal-mode branch): opacity is a direct,

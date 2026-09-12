@@ -2,20 +2,26 @@ import type { CtaButtonMotionEasing } from '../../../components/CtaButton/config
 import type { AbstractPostDockEasingPreset } from '../../abstract/components/AbstractPostDock/config/registered';
 import {
   MIN_HEIGHT_OPTIONS,
-  PADDING_OPTIONS,
+  PADDING_X_OPTIONS,
+  PADDING_Y_OPTIONS,
   AFFORDANCE_BORDER_THICKNESS_OPTIONS,
   AFFORDANCE_CORNER_RADIUS_OPTIONS,
   AFFORDANCE_DIMENSION_OPTIONS,
   OUTER_BORDER_WIDTH_OPTIONS,
   INNER_BORDER_WIDTH_OPTIONS,
   type MinHeightClass,
-  type PaddingClass,
+  type PaddingXClass,
+  type PaddingYClass,
   type AffordanceBorderThicknessClass,
   type AffordanceCornerRadiusClass,
   type AffordanceDimensionClass,
   type OuterBorderWidthClass,
   type InnerBorderWidthClass,
 } from '../../../components/tailwindSpacingScale';
+import {
+  MARKER_SIZE_OPTIONS,
+  type AboutTimelineMarkerSizeClass,
+} from './AboutTimeline.config';
 
 /** 'accent' derives the affordance's border color from the row's own
  * resolved accent/text color (the same "derive, don't invent a new color"
@@ -173,14 +179,19 @@ export type AboutMobileAccordionConfig = {
   /** Width + height of the affordance's icon box, before rotation — its
    * own explicit "dimension" knob, independent of border thickness. */
   affordanceDimensionClassName: AffordanceDimensionClass;
-  /** Uniform padding on the preview tab itself (all four sides, one literal
-   * Tailwind class — this repo's hard styling rule for discrete/spacing
-   * config values). The tab lays the affordance out as the last child of a
-   * `flex items-center` row, so vertical centering is automatic; because
-   * the same padding value applies to every side, the affordance ends up
-   * equidistant from the row's top edge and its right edge by construction,
-   * not by coincidence. */
-  affordancePadding: PaddingClass;
+  /** Horizontal padding (left + right) on the preview tab — independent of
+   * `affordancePaddingY` below (operator ask: segregate by axis rather than
+   * one uniform value on all four sides). The tab lays the affordance out
+   * as the last child of a `flex items-center` row, so vertical centering
+   * is automatic regardless of either axis's own value. */
+  affordancePaddingX: PaddingXClass;
+  /** Vertical padding (top + bottom) on the preview tab — independent of
+   * `affordancePaddingX` above. The expanded paragraph below reuses this
+   * same value for its own bottom spacing (its own top is always `pt-0`,
+   * see `AboutMobileAccordionItem.tsx`), so this remains the one place that
+   * controls a row's vertical breathing room whether collapsed or
+   * expanded. */
+  affordancePaddingY: PaddingYClass;
   /** Rotation while collapsed — points down (invites opening). */
   affordanceRotateCollapsedDeg: number;
   /** Rotation while expanded — points up (invites closing), a 180° flip
@@ -265,6 +276,24 @@ export type AboutMobileAccordionConfig = {
   textSurfaceOffset: number;
   /** Only read while `textColorMode === 'custom'`. */
   textCustomColor: string;
+  /** On (default): while `maxExpandedItems === 1` (a classic single-open
+   * accordion), each header row shows a small hollow/filled circular bullet
+   * — `AboutBulletMarker`, the exact same component
+   * `AboutTimelineRow.tsx`'s desktop timeline marker uses (extracted so both
+   * experiences share one "hollow while idle, filled while active" bullet
+   * rather than two independently hand-rolled circles) — next to the
+   * disclosure chevron, filled while that row is the currently-open one.
+   * Only meaningful at `maxExpandedItems === 1`: with a higher/unlimited
+   * cap more than one item can be open at once, so no single "the open one"
+   * marker language applies, and this indicator is never rendered
+   * regardless of this field's own value there. */
+  openIndicatorEnabled: boolean;
+  /** Diameter of the open-indicator bullet — reuses AboutTimeline's own
+   * literal `w-N h-N` catalog (`AboutTimeline.config.ts`'s
+   * `AboutTimelineMarkerSizeClass`/`MARKER_SIZE_OPTIONS`) rather than a
+   * second, parallel size catalog, since this is the exact same visual
+   * component (`AboutBulletMarker`) at a different size. */
+  openIndicatorSizeClassName: AboutTimelineMarkerSizeClass;
 };
 
 export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
@@ -284,7 +313,8 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   affordanceBorderThicknessClassName: 'border-t border-r',
   affordanceCornerRadiusClassName: 'rounded-tr-sm',
   affordanceDimensionClassName: 'w-2.5 h-2.5',
-  affordancePadding: 'p-4',
+  affordancePaddingX: 'px-7',
+  affordancePaddingY: 'py-5',
   affordanceRotateCollapsedDeg: 135,
   affordanceRotateExpandedDeg: 90,
   affordanceColorMode: 'accent',
@@ -315,6 +345,8 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   textColorMode: 'custom',
   textSurfaceOffset: -0.55,
   textCustomColor: '#0f1724',
+  openIndicatorEnabled: true,
+  openIndicatorSizeClassName: 'w-2.5 h-2.5',
 } satisfies AboutMobileAccordionConfig;
 
 const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
@@ -324,7 +356,8 @@ const TRANSITION_EASINGS: ReadonlyArray<AbstractPostDockEasingPreset> = [
   'standard', 'soft-expo', 'viscous', 'settle', 'luxury',
 ];
 const MIN_HEIGHT_VALUES = MIN_HEIGHT_OPTIONS.map(option => option.value);
-const PADDING_VALUES = PADDING_OPTIONS.map(option => option.value);
+const PADDING_X_VALUES: ReadonlyArray<PaddingXClass> = PADDING_X_OPTIONS.map(option => option.value);
+const PADDING_Y_VALUES: ReadonlyArray<PaddingYClass> = PADDING_Y_OPTIONS.map(option => option.value);
 const AFFORDANCE_BORDER_THICKNESS_VALUES = AFFORDANCE_BORDER_THICKNESS_OPTIONS.map(option => option.value);
 const AFFORDANCE_CORNER_RADIUS_VALUES = AFFORDANCE_CORNER_RADIUS_OPTIONS.map(option => option.value);
 const AFFORDANCE_DIMENSION_VALUES = AFFORDANCE_DIMENSION_OPTIONS.map(option => option.value);
@@ -332,6 +365,8 @@ const AFFORDANCE_COLOR_MODES: ReadonlyArray<AboutMobileAccordionAffordanceColorM
 const COLOR_MODES: ReadonlyArray<AboutMobileAccordionColorMode> = ['derived', 'custom'];
 const OUTER_BORDER_WIDTH_VALUES = OUTER_BORDER_WIDTH_OPTIONS.map(option => option.value);
 const INNER_BORDER_WIDTH_VALUES = INNER_BORDER_WIDTH_OPTIONS.map(option => option.value);
+const MARKER_SIZE_VALUES: ReadonlyArray<AboutTimelineMarkerSizeClass> =
+  MARKER_SIZE_OPTIONS.map(option => option.value);
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
@@ -370,7 +405,8 @@ export function normalizeAboutMobileAccordionConfig(
     affordanceDimensionClassName: token(
       base.affordanceDimensionClassName, AFFORDANCE_DIMENSION_VALUES, D.affordanceDimensionClassName,
     ),
-    affordancePadding: token(base.affordancePadding, PADDING_VALUES, D.affordancePadding),
+    affordancePaddingX: token(base.affordancePaddingX, PADDING_X_VALUES, D.affordancePaddingX),
+    affordancePaddingY: token(base.affordancePaddingY, PADDING_Y_VALUES, D.affordancePaddingY),
     affordanceRotateCollapsedDeg: Number.isFinite(base.affordanceRotateCollapsedDeg)
       ? base.affordanceRotateCollapsedDeg
       : D.affordanceRotateCollapsedDeg,
@@ -414,5 +450,9 @@ export function normalizeAboutMobileAccordionConfig(
     textCustomColor: typeof base.textCustomColor === 'string' && base.textCustomColor.length > 0
       ? base.textCustomColor
       : D.textCustomColor,
+    openIndicatorEnabled: base.openIndicatorEnabled !== false,
+    openIndicatorSizeClassName: token(
+      base.openIndicatorSizeClassName, MARKER_SIZE_VALUES, D.openIndicatorSizeClassName,
+    ),
   };
 }

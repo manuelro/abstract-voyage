@@ -2,13 +2,15 @@ import { defineConfigScope } from '../../../components/Panel/config';
 import type { ConfigScopeEntry } from '../../../components/Panel/config';
 import {
   MIN_HEIGHT_OPTIONS,
-  PADDING_OPTIONS,
+  PADDING_X_OPTIONS,
+  PADDING_Y_OPTIONS,
   AFFORDANCE_BORDER_THICKNESS_OPTIONS,
   AFFORDANCE_CORNER_RADIUS_OPTIONS,
   AFFORDANCE_DIMENSION_OPTIONS,
   OUTER_BORDER_WIDTH_OPTIONS,
   INNER_BORDER_WIDTH_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
+import { MARKER_SIZE_OPTIONS } from './AboutTimeline.config';
 import {
   DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
   type AboutMobileAccordionConfig,
@@ -105,6 +107,21 @@ const MOBILE_ONLY_FIELDS = [
     visibleWhen: config => config.enabled,
   },
   {
+    kind: 'boolean',
+    key: 'openIndicatorEnabled',
+    label: 'Open indicator (single-open mode)',
+    description: 'Only rendered while Max expanded items above is 1. Shows the same hollow/filled circular bullet the desktop timeline uses, next to the disclosure chevron — hollow while collapsed, filled (using this row\'s own text color) while it\'s the currently-open item.',
+    visibleWhen: config => config.enabled,
+  },
+  {
+    kind: 'select',
+    key: 'openIndicatorSizeClassName',
+    label: 'Open indicator size',
+    description: 'Diameter of the open-indicator bullet — the same size catalog the desktop timeline\'s own marker uses.',
+    options: MARKER_SIZE_OPTIONS,
+    visibleWhen: config => config.enabled && config.openIndicatorEnabled && config.maxExpandedItems === 1,
+  },
+  {
     kind: 'number',
     key: 'collapseLeadFraction',
     label: 'Collapse lead',
@@ -159,10 +176,18 @@ const MOBILE_ONLY_FIELDS = [
     },
     {
       kind: 'select',
-      key: 'affordancePadding',
-      label: 'Preview tab padding',
-      description: 'Uniform padding on the preview tab — the same value on every side is what keeps the affordance equidistant from the row\'s top and right edges.',
-      options: PADDING_OPTIONS,
+      key: 'affordancePaddingX',
+      label: 'Preview tab padding (horizontal)',
+      description: 'Left + right padding on the preview tab — independent of the vertical value below.',
+      options: PADDING_X_OPTIONS,
+      visibleWhen: config => config.enabled,
+    },
+    {
+      kind: 'select',
+      key: 'affordancePaddingY',
+      label: 'Preview tab padding (vertical)',
+      description: 'Top + bottom padding on the preview tab — independent of the horizontal value above. The expanded paragraph below the header reuses this same value for its own bottom spacing.',
+      options: PADDING_Y_OPTIONS,
       visibleWhen: config => config.enabled,
     },
     {

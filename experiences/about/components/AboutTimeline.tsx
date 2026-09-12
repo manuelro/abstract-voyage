@@ -275,6 +275,14 @@ export function AboutTimeline({
     focusRow(nextIndex);
   }, [rows, onSelect, focusRow, navigationMode]);
 
+  // Computed here (rather than alongside ruleWeightPx/titleFontSizeRem
+  // further down) so it's available as an AboutTimelineRow prop inside the
+  // rowElements useMemo below — AboutBulletMarker (AboutTimelineRow.tsx's
+  // own marker, since PLAN-ABOUT-MOBILE-ACCORDION-OPEN-INDICATOR.md's
+  // extraction) takes a resolved px number rather than reading an inherited
+  // CSS custom property.
+  const markerSizePx = tailwindSpacingTokenToPx(config.markerSizeClassName.split(' ')[0], 24);
+
   // Split out of the shared box below so each row can swap in its own
   // active/idle weight (rowTitleFontWeightClassName/-Active) — the same
   // per-row branch resolvedRowTitleColorActive/-Inactive already uses,
@@ -335,6 +343,7 @@ export function AboutTimeline({
         tabIndex={selectionEnabled ? (selected ? 0 : -1) : 0}
         href={row.href}
         markerColor={resolvedMarkerColor}
+        markerSizePx={markerSizePx}
         titleColor={isHoveredRow || selected ? resolvedRowTitleColorActive : resolvedRowTitleColorInactive}
         descriptionColor={isHoveredRow || selected ? resolvedRowDescriptionColorActive : resolvedRowDescriptionColorInactive}
         descriptionOpacity={isHoveredRow
@@ -374,7 +383,7 @@ export function AboutTimeline({
       />
     );
   }), [
-    rows, activeIndex, resolvedMarkerColor, hoveredIndex, config.maxActiveRows,
+    rows, activeIndex, resolvedMarkerColor, markerSizePx, hoveredIndex, config.maxActiveRows,
     resolvedRowTitleColorActive, resolvedRowTitleColorInactive,
     resolvedRowDescriptionColorActive, resolvedRowDescriptionColorInactive,
     config.rowDescriptionOpacityActive, config.rowDescriptionOpacityInactive,
@@ -394,7 +403,6 @@ export function AboutTimeline({
     handleRowPointerEnter, handleRowPointerLeave, panelId, navigationMode,
   ]);
 
-  const markerSizePx = tailwindSpacingTokenToPx(config.markerSizeClassName.split(' ')[0], 24);
   const ruleWeightPx = RULE_WEIGHT_PX[config.ruleWeightClassName] ?? 1;
   const titleFontSizeRem = TITLE_FONT_SIZE_REM[config.rowTitleFontSizeClassName] ?? 0.875;
 

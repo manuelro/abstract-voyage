@@ -1,0 +1,50 @@
+/* Extracted from AboutTimeline.module.css's own former .marker/.markerActive/
+   .markerGradientBleed rules (PLAN-ABOUT-MOBILE-ACCORDION-OPEN-INDICATOR.md)
+   — AboutMobileAccordionItem.tsx's own "this item is the open one" bullet
+   now shares the exact same hollow/filled circle AboutTimelineRow.tsx's
+   desktop marker always has, rather than a second hand-rolled circle.
+   Positioning (the timeline's own margin-top centering against its title's
+   line box) stays page/caller-owned — see AboutTimeline.module.css's own
+   .markerPosition — this file owns only the circle itself. */
+.marker {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  /* Only meaningful once a gradient-fill child (a LiquidGradientAdapter
+     canvas) is passed in as `children` — clips its own self-centering
+     `position: absolute; left/top: 50%` layout down to this element's own
+     circle. No effect on the flat-fill path (no children).
+     `clip`, not `hidden` — `overflow-clip-margin` below (`.markerGradientBleed`)
+     only has any effect on `overflow: clip`; otherwise behaves identically
+     to `hidden` (no scrolling either way), so this is a no-op change on its
+     own. */
+  overflow: clip;
+  overflow-clip-margin: 0px;
+  width: var(--about-bullet-marker-size, 9px);
+  height: var(--about-bullet-marker-size, 9px);
+  border-radius: 9999px;
+  border: 1.5px solid currentColor;
+  background-color: transparent;
+  transition:
+    background-color var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease),
+    opacity var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease);
+}
+
+.markerActive {
+  background-color: currentColor;
+}
+
+/* Only applied while a gradient-fill child is passed in — lets that canvas
+   paint over the border's own 1.5px ring too, instead of stopping at the
+   padding edge the way the flat-fill path still does. See
+   AboutTimeline.module.css's own former doc comment on this exact rule for
+   the full reasoning (unchanged by this extraction). */
+.marker.markerGradientBleed {
+  overflow-clip-margin: 1.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker {
+    transition-duration: 0ms !important;
+  }
+}
