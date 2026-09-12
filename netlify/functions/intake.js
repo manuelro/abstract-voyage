@@ -153,7 +153,7 @@ const RECAP_RESPONSE_SCHEMA = {
 }
 
 const requestJson = async (params) => {
-  if (getProvider() !== DEFAULT_PROVIDER) {
+  if (params.provider !== DEFAULT_PROVIDER) {
     throw new IntakeAiError('provider_unsupported', { retryable: false })
   }
   return requestGeminiJson(params)
@@ -168,16 +168,17 @@ const requestJson = async (params) => {
 const FORBIDDEN_QUESTION_PATTERN = /\bbudget\b|\btimeline\b|\bdeadline\b|\bwhen do you need\b|\btried\b/i
 
 const runWithRetry = async (params, schema, attempts = 2) => {
+  const provider = getProvider()
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const startedAt = Date.now()
     try {
-      const result = await requestJson(params)
+      const result = await requestJson({ ...params, provider })
       const validated = schema.safeParse(result.data)
       if (!validated.success) {
         throw new IntakeAiError('model_schema_invalid')
       }
       console.info(
-        `[intake:ai] stage=${params.stage} provider=gemini model=${result.model}` +
+        `[intake:ai] stage=${params.stage} provider=${provider} model=${result.model}` +
         ` attempt=${attempt + 1} status=ok durationMs=${Date.now() - startedAt}` +
         ` inputTokens=${result.usage.inputTokens} outputTokens=${result.usage.outputTokens}`,
       )
@@ -185,7 +186,7 @@ const runWithRetry = async (params, schema, attempts = 2) => {
     } catch (error) {
       const code = error instanceof IntakeAiError ? error.code : 'unknown_error'
       console.warn(
-        `[intake:ai] stage=${params.stage} provider=gemini model=${params.model}` +
+        `[intake:ai] stage=${params.stage} provider=${provider} model=${params.model}` +
         ` attempt=${attempt + 1} status=failed durationMs=${Date.now() - startedAt} code=${code}`,
       )
       if (error instanceof IntakeAiError && !error.retryable) break

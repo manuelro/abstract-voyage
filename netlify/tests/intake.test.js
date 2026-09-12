@@ -78,6 +78,23 @@ describe('contact intake function', () => {
 
       expect(response).toEqual({ statusCode: 200, body: { ok: true, needsFollowUp: false } })
       expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+      expect(globalThis.fetch.mock.calls[0][0]).toContain(
+        '/v1beta/models/gemini-2.5-flash-lite:generateContent',
+      )
+    })
+
+    it.each(['openai', 'anthropic'])('rejects unsupported configured provider %s before fetch', async (provider) => {
+      process.env.INTAKE_PROVIDER = provider
+      globalThis.fetch.mockResolvedValue(geminiResponse({ needsFollowUp: false }))
+
+      const response = await invoke({ stage: 'gap-check', transcript: 'Visitor: I need help.' })
+
+      expect(response.body).toEqual({ ok: false, degraded: true })
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(
+        `stage=gap-check provider=${provider} model=gemini-2.5-flash-lite`,
+      ))
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('code=provider_unsupported'))
     })
 
     it('returns one validated follow-up question and a signed token', async () => {
