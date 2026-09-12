@@ -683,7 +683,7 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   wideColumnContentPaddingTop: 'pt-7',
   wideColumnContentPaddingTopWide: 'md:pt-0',
   wideColumnContentPaddingTopLg: 'lg:pt-0',
-  wideColumnContentPaddingBottom: 'pb-5',
+  wideColumnContentPaddingBottom: 'pb-0',
   wideColumnContentPaddingBottomWide: 'md:pb-0',
   wideColumnContentPaddingBottomLg: 'lg:pb-0',
   wideColumnContentMarginTop: 'mt-0',
