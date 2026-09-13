@@ -113,11 +113,47 @@ export function PolymorphicScrollGradientBackground({
   const originColorRef = useRef(gradientStops[0]?.color ?? '#000000');
   originColorRef.current = gradientStops[0]?.color ?? '#000000';
 
+  // Live-value refs, same pattern as originColorRef above — updated
+  // directly in the render body (not inside an effect, no side effect of
+  // its own) so the PERSISTENT rAF loop below always reads today's latest
+  // value without ever needing to tear itself down and rebuild. Regression
+  // fix (operator-reported: expanding/collapsing the mobile article list —
+  // which flips forceMaxDarken — visibly flashed the background from dark
+  // to light and back on EVERY expand and EVERY collapse). Root cause: this
+  // effect used to list these five values in its own dependency array,
+  // so toggling any one of them (forceMaxDarken, in particular) tore down
+  // and recreated the whole effect closure — including targetRef/smoothRef
+  // below, freshly initialized back to 0 each time, plus an explicit
+  // writeDarken(0) at setup — a hard reset to "fully light" every single
+  // toggle, immediately before the new target-seeking began. The loop
+  // itself was always correctly eased; the bug was resetting its own
+  // persistent state on every input change instead of smoothly continuing
+  // from wherever it already was. See PLAN-DARKEN-FLASH-FIX.md.
+  const viewportRangeVhRef = useRef(viewportRangeVh);
+  viewportRangeVhRef.current = viewportRangeVh;
+  const maxDarkenRef = useRef(maxDarken);
+  maxDarkenRef.current = maxDarken;
+  const tauMsRef = useRef(tauMs);
+  tauMsRef.current = tauMs;
+  const legibilityTargetRatioRef = useRef(legibilityTargetRatio);
+  legibilityTargetRatioRef.current = legibilityTargetRatio;
+  const forceMaxDarkenRef = useRef(forceMaxDarken);
+  forceMaxDarkenRef.current = forceMaxDarken;
+  // Set once, inside the persistent effect below, to that effect's own
+  // computeTarget+schedule pair — lets the second, small effect further
+  // down trigger an immediate recompute when an input changes WITHOUT
+  // tearing down or recreating any of this effect's own persistent state
+  // (targetRef/smoothRef/rafRef/lastTsRef all live inside the one
+  // mount-once closure below now, never reconstructed after that).
+  const recomputeNowRef = useRef<(() => void) | null>(null);
+
   // Ported verbatim from SynthLayout.tsx's own SCROLL_BG_CONFIG-driven
   // effect: rAF-smoothed scroll darken, written to a CSS var (renamed from
-  // --synth-bg-darken) rather than React state, so the panel-driven
-  // viewportRangeVh/maxDarken/tauMs above can change live without this loop
-  // needing to be React-state-aware on every frame.
+  // --synth-bg-darken). Mount-once (empty dependency array) — every input
+  // is read live via the refs above instead of closed over, specifically
+  // so this smoothing state persists for the component's full lifetime
+  // and is never reset by an input change (see the regression this fixes,
+  // documented on the refs above).
   useEffect(() => {
     const overlay = overlayRef.current;
     if (!overlay) return undefined;
@@ -161,15 +197,16 @@ export function PolymorphicScrollGradientBackground({
     };
 
     const computeTarget = () => {
-      if (forceMaxDarken) {
-        targetRef.current = maxDarken;
+      const maxDarkenNow = maxDarkenRef.current;
+      if (forceMaxDarkenRef.current) {
+        targetRef.current = maxDarkenNow;
         return;
       }
       const viewport = window.innerHeight || 1;
-      const rawProgress = window.scrollY / (viewport * viewportRangeVh);
+      const rawProgress = window.scrollY / (viewport * viewportRangeVhRef.current);
       const progress = clamp(rawProgress, 0, 1);
-      const scrollDarken = progress * maxDarken;
-      const legibilityDarken = Math.min(maxDarken, requiredDarkenForLegibility(legibilityTargetRatio));
+      const scrollDarken = progress * maxDarkenNow;
+      const legibilityDarken = Math.min(maxDarkenNow, requiredDarkenForLegibility(legibilityTargetRatioRef.current));
       targetRef.current = Math.max(scrollDarken, legibilityDarken);
     };
 
@@ -179,7 +216,7 @@ export function PolymorphicScrollGradientBackground({
       rafRef.current = null;
 
       const dt = Math.max(0, ts - lastTs);
-      const alpha = alphaFromTau(dt, tauMs);
+      const alpha = alphaFromTau(dt, tauMsRef.current);
       const target = targetRef.current;
       const current = smoothRef.current + (target - smoothRef.current) * alpha;
       smoothRef.current = current;
@@ -212,9 +249,16 @@ export function PolymorphicScrollGradientBackground({
       schedule();
     };
 
+    // writeDarken(0) here only ever runs ONCE now, on true component mount
+    // — never again on a later input change (that's exactly the reset this
+    // refactor eliminates; see the regression documented on the refs above).
     writeDarken(0);
     computeTarget();
     schedule();
+    recomputeNowRef.current = () => {
+      computeTarget();
+      schedule();
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
 
@@ -222,7 +266,18 @@ export function PolymorphicScrollGradientBackground({
       if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
+      recomputeNowRef.current = null;
     };
+  }, []);
+
+  // Triggers an immediate recompute (never a teardown/reset — see the
+  // persistent effect above) whenever an input that should take effect
+  // right away changes, most importantly forceMaxDarken: expanding/
+  // collapsing the mobile article list needs to retarget the SAME
+  // continuously-eased darken value immediately, not wait for the next
+  // real scroll/resize event to happen to fire.
+  useEffect(() => {
+    recomputeNowRef.current?.();
   }, [viewportRangeVh, maxDarken, tauMs, legibilityTargetRatio, forceMaxDarken]);
 
   return (

@@ -2206,12 +2206,30 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // first-stage smoothing; a second stage would add lag with nothing to
   // correct for.
   const mobileArticleListScrollRef = useRef<HTMLDivElement | null>(null);
+  // Live-value refs, same pattern PolymorphicScrollGradientBackground.tsx
+  // now uses (PLAN-DARKEN-FLASH-FIX.md) — updated directly in the render
+  // body so the PERSISTENT rAF loop below always reads today's latest
+  // value without ever tearing itself down. Regression fix (operator-
+  // reported: expanding/collapsing the article list flashed light→dark→
+  // light on the LIST'S OWN text tint too, same root cause as the shared
+  // background's own identical bug — this effect used to list
+  // isMobileArticleListExpanded/expandedForcesMaxBackgroundDarken/
+  // scrollGradientResolved in its own dependency array, so toggling expand
+  // state tore the whole effect down and reset its smoothing state to 0
+  // every time, immediately before re-seeking the new target).
+  const viewportRangeVhRef = useRef(colors.scrollGradientResolved.viewportRangeVh);
+  viewportRangeVhRef.current = colors.scrollGradientResolved.viewportRangeVh;
+  const tauMsRef = useRef(colors.scrollGradientResolved.tauMs);
+  tauMsRef.current = colors.scrollGradientResolved.tauMs;
+  const forceMaxRef = useRef(false);
+  forceMaxRef.current = isMobileArticleListExpanded
+    && mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken;
+  const recomputeListDarkenNowRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
-    if (!colors.scrollGradientActive) return undefined;
     const el = mobileArticleListScrollRef.current;
     if (!el) return undefined;
 
-    const { viewportRangeVh, tauMs } = colors.scrollGradientResolved;
     const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
     const alphaFromTau = (dtMs: number, tau: number) => 1 - Math.exp(-dtMs / Math.max(1, tau));
 
@@ -2224,34 +2242,24 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       el.style.setProperty('--mobile-article-list-darken', clamp01(value).toFixed(3));
     };
 
-    // Regression fix, superseded design (operator-reported: selecting a
-    // different article visibly, subtly re-tints/dims the WHOLE list —
-    // confirmed live: an inactive row's own resolved color measurably
-    // shifted purely from a DIFFERENT row becoming active). Root cause:
-    // selecting an article while the list is expanded actually CLOSES the
-    // panel as part of committing the selection (MobilePinnedArticleSection
-    // .tsx's own closePanel — by design, not a bug) — which unlocks body
-    // scroll and restores window.scrollY to wherever the page should land
-    // for that article, a real, legitimate scroll-position change. This
-    // effect was correctly, gradually re-tinting toward that new real
-    // position — "working as designed" for a scroll-driven list, but
-    // visually jarring given the read happens inside what feels like a
-    // static, modal-like view. Operator's own fix (PLAN-MOBILE-ARTICLE-
-    // LIST-EXPAND-DARKEN.md): rather than freezing at an arbitrary
-    // mid-scroll value, force this list's own tint fully toward its
-    // darkened anchor while expanded — same forceMaxDarken semantics, same
-    // config toggle (expandedForcesMaxBackgroundDarken), as the shared
-    // scroll-gradient background now uses (PolymorphicScrollGradientBackground.tsx)
-    // — so the two track together, both settled, for the exact same
-    // reason. Falls back to the plain scroll-driven value whenever not
-    // expanded, or the operator has disabled the toggle.
+    // Forces this list's own tint fully toward its darkened anchor while
+    // expanded (same forceMaxDarken semantics, same config toggle,
+    // expandedForcesMaxBackgroundDarken, as the shared scroll-gradient
+    // background — PolymorphicScrollGradientBackground.tsx — so the two
+    // track together). Falls back to the plain scroll-driven value
+    // whenever not expanded, or the operator has disabled the toggle. The
+    // CSS var this writes is only ever consumed while
+    // colors.scrollGradientActive is true (mobileArticleListColor's own
+    // ternary further down) — harmless to keep computing/writing it
+    // unconditionally otherwise, so this effect no longer needs its own
+    // early-return gate on that value either.
     const computeTarget = () => {
-      if (isMobileArticleListExpanded && mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken) {
+      if (forceMaxRef.current) {
         targetRef.current = 1;
         return;
       }
       const viewport = window.innerHeight || 1;
-      const rawProgress = window.scrollY / (viewport * viewportRangeVh);
+      const rawProgress = window.scrollY / (viewport * viewportRangeVhRef.current);
       targetRef.current = clamp01(rawProgress);
     };
 
@@ -2261,7 +2269,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       rafRef.current = null;
 
       const dt = Math.max(0, ts - lastTs);
-      const alpha = alphaFromTau(dt, tauMs);
+      const alpha = alphaFromTau(dt, tauMsRef.current);
       const target = targetRef.current;
       const current = smoothRef.current + (target - smoothRef.current) * alpha;
       smoothRef.current = current;
@@ -2298,9 +2306,16 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       schedule();
     };
 
+    // writeProgress(0) here only ever runs ONCE, on true component mount —
+    // never again on a later expand/collapse toggle (that repeated reset
+    // is exactly the flash this refactor eliminates).
     writeProgress(0);
     computeTarget();
     schedule();
+    recomputeListDarkenNowRef.current = () => {
+      computeTarget();
+      schedule();
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
 
@@ -2308,10 +2323,18 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
+      recomputeListDarkenNowRef.current = null;
     };
+  }, []);
+
+  // Triggers an immediate recompute (never a teardown/reset) whenever
+  // expand state or the shared timing config changes — see the persistent
+  // effect above for why a dependency-array-driven teardown was the bug.
+  useEffect(() => {
+    recomputeListDarkenNowRef.current?.();
   }, [
-    colors.scrollGradientActive, colors.scrollGradientResolved,
-    isMobileArticleListExpanded, mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken,
+    colors.scrollGradientResolved, isMobileArticleListExpanded,
+    mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken,
   ]);
   // Live-mixed CSS string for the mobile article list's own text —
   // color-mix() between the two precomputed single-ink anchors above,
