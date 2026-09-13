@@ -110,7 +110,7 @@ import {
 } from '../experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection.config';
 import {
   useArticleListCoverFlowSync,
-  useArticleHashSync,
+  useCoverFlowEntranceGate,
 } from '../experiences/abstract/components/ArticleListCoverFlowSync/useArticleListCoverFlowSync';
 import {
   ABSTRACT_LEGACY_PALETTE_GUARD_FRAGMENT_SOURCE,
@@ -3920,17 +3920,6 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     isCoverFlowDesktopTier,
     splitColumnLayoutConfig.wideColumnSide,
   ]);
-  // Moved ahead of useArticleListCoverFlowSync below only because
-  // useArticleHashSync (further down) needs it too — activeIndex itself
-  // still always starts at 0 here (SSR-safe: window.location.hash doesn't
-  // exist on the server, so seeding this from it directly would hydration-
-  // mismatch). See useArticleHashSync's own doc comment for how the actual
-  // hash-restored index reaches CoverFlow without replaying its entrance
-  // animation.
-  const articleSlugs = useMemo(
-    () => carouselAndListItems.map(item => item.slug),
-    [carouselAndListItems],
-  );
   const {
     activeIndex: articleActiveIndex,
     setActiveIndex: setArticleActiveIndex,
@@ -3972,13 +3961,12 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const handleMobileArticleIndexCommit = useCallback((index: number) => {
     setArticleActiveIndex(index, 'external');
   }, [setArticleActiveIndex]);
-  // `restored` (false until this hook's own mount-time URL-hash check has
-  // run once) drives both <CoverFlow> instances' own suppressEntranceAnimation
-  // prop below — see that prop's own doc comment (CoverFlow.tsx) for the
-  // bug this closes.
-  const { restored: articleHashRestored } = useArticleHashSync(
-    articleSlugs, articleActiveIndex, setArticleActiveIndex,
-  );
+  // `restored` (false until one full passive-effect cycle after mount)
+  // drives both <CoverFlow> instances' own suppressEntranceAnimation prop
+  // below — see that prop's own doc comment (CoverFlow.tsx) for the bug
+  // this closes. No longer hash-related — see useCoverFlowEntranceGate's
+  // own doc comment.
+  const { restored: coverFlowEntranceRestored } = useCoverFlowEntranceGate();
 
   const coverFlowLiquidSliderMotion = useLiquidSliderMotion(journalDockSliderConfig);
   const coverFlowContentInsetCqw = (
@@ -4919,7 +4907,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   config={coverFlowConfig}
                   cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
                   prefersReducedMotion={coverFlowPrefersReducedMotion}
-                  suppressEntranceAnimation={!articleHashRestored}
+                  suppressEntranceAnimation={!coverFlowEntranceRestored}
                   hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
                   hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
                   hoverMaxTiltDeg={
@@ -4957,7 +4945,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                         renderItem={renderCoverFlowItem}
                         config={mobileCoverFlowConfig}
                         prefersReducedMotion={coverFlowPrefersReducedMotion}
-                        suppressEntranceAnimation={!articleHashRestored}
+                        suppressEntranceAnimation={!coverFlowEntranceRestored}
                         hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
                         hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
                         hoverMaxTiltDeg={

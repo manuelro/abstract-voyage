@@ -4,18 +4,28 @@ export type ComponentConfigPayload = {
   targetFile: string;
   targetSymbol: string;
   targetType: string;
-  config: Record<string, string | number | boolean>;
+  // Config values are typed ConfigScalar (string | number | boolean) at the
+  // panel-binding boundary, but a scope's own TConfig can legitimately hold
+  // a plain number-tuple field (e.g. a cubic-bezier easing array) that slips
+  // through that scalar type uncaught at runtime — accepted here too so
+  // formatScalar below has something correct to do with it instead of
+  // crashing (regression: `value.replace is not a function`, an array
+  // reaching the string branch).
+  config: Record<string, string | number | boolean | readonly number[]>;
   updateStrategy?: 'replace_scope' | 'merge';
   completeScope?: boolean;
 };
 
-function formatScalar(value: string | number | boolean): string {
+function formatScalar(value: string | number | boolean | readonly number[]): string {
   if (typeof value === 'boolean') return String(value);
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return '0';
     return Number(value.toFixed(4)).toString();
   }
-  return `'${value.replace(/'/g, "''")}'`;
+  if (Array.isArray(value)) {
+    return `[${value.map(entry => formatScalar(entry)).join(', ')}]`;
+  }
+  return `'${(value as string).replace(/'/g, "''")}'`;
 }
 
 export function formatComponentConfigPayload({

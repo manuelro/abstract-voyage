@@ -242,6 +242,7 @@ export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   maxWidthClassName: 'max-w-prose',
   maxWidthWideClassName: 'md:max-w-lg',
   maxWidthLgClassName: 'lg:max-w-lg',
+  paddingTopClassName: 'pt-10',
   paddingRightClassName: 'pr-8',
   paddingLeftClassName: 'pl-8',
   rowGap: 'gap-4',

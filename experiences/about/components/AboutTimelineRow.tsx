@@ -115,6 +115,10 @@ export interface AboutTimelineRowProps {
   /** Pointer-hover end — always immediate, no delay on the way out. */
   onPointerLeave: () => void;
   rowRef: (element: HTMLButtonElement | HTMLAnchorElement | null) => void;
+  /** Optional inline style forwarded onto this row's own `<li>` wrapper —
+   * see `AboutTimelineRowData.itemStyle`'s own doc comment. Undefined
+   * (every existing caller) renders exactly as before. */
+  itemStyle?: CSSProperties;
   /** `config.markerGradientEnabled` — see that field's own doc comment
    * (`AboutTimeline.config.ts`). Only ever actually mounts the WebGL
    * gradient while this AND `active` are both true — the marker's flat
@@ -188,6 +192,7 @@ export function AboutTimelineRow({
   onPointerEnter,
   onPointerLeave,
   rowRef,
+  itemStyle,
   gradientEnabled,
   gradientSlide,
   gradientPalette,
@@ -302,7 +307,7 @@ export function AboutTimelineRow({
   };
 
   return (
-    <li className={styles.item}>
+    <li className={styles.item} style={itemStyle}>
       {!selectionEnabled && href ? (
         <Link
           ref={rowRef}

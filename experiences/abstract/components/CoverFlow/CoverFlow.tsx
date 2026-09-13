@@ -173,9 +173,9 @@ export interface CoverFlowProps<T> {
    * renderer are removed from sequential focus. */
   accessibilityHidden?: boolean;
   /** True while the caller's own `activeIndex` hasn't finished being
-   * established yet — e.g. useArticleHashSync's own `restored` value
+   * established yet — e.g. useCoverFlowEntranceGate's own `restored` value
    * (ArticleListCoverFlowSync/useArticleListCoverFlowSync.ts), false until
-   * that hook's mount-time URL-hash check has actually run once. While
+   * one full passive-effect cycle after mount has actually run once. While
    * true, every `activeIndex` change is applied instantly (no unsettle,
    * no settle-delay timer, no staggered entrance) — a caller passing this
    * is saying "this isn't a real transition yet, it's still finding out
@@ -400,9 +400,9 @@ export function CoverFlow<T>({
   // `suppressEntranceAnimation` (see this component's own prop doc comment)
   // distinguishes a genuine post-mount transition (needs the full unsettle
   // + timer + staggered entrance) from an `activeIndex` CORRECTION still
-  // arriving while the resting state is being established — e.g. a caller
-  // restoring the real initial index from a URL hash (see useArticleHashSync
-  // , ArticleListCoverFlowSync/useArticleListCoverFlowSync.ts). Two earlier
+  // arriving while the resting state is being established — e.g. slow
+  // hydration/data-fetch on a real device (see useCoverFlowEntranceGate,
+  // ArticleListCoverFlowSync/useArticleListCoverFlowSync.ts). Two earlier
   // attempts at this fix guessed from timing alone instead of taking an
   // explicit signal from the caller — a fixed post-mount grace window, then
   // a "quiet period since the last change" heuristic — and both failed on

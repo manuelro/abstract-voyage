@@ -25,10 +25,20 @@ export function serializeConfigScopeBindings(bindings: ReadonlyArray<ConfigScope
 // value that round-trips through a slider (e.g. 0.30000000000000004) as
 // "changed" from a literal 0.3 in source, when the two would serialize
 // identically anyway.
+//
+// `a`/`b` are typed ConfigScalar (scalar-only) but a scope's own TConfig can
+// legitimately hold a plain number-tuple field (e.g. a cubic-bezier easing
+// array) that reaches here as `unknown` at runtime despite the narrower
+// static type — handled explicitly so two structurally-identical arrays
+// (different references) compare equal instead of every such field always
+// showing up as "changed."
 function scalarsEqual(a: ConfigScalar, b: ConfigScalar): boolean {
   if (typeof a === 'number' && typeof b === 'number') {
     if (!Number.isFinite(a) || !Number.isFinite(b)) return a === b;
     return Number(a.toFixed(4)) === Number(b.toFixed(4));
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((entry, index) => scalarsEqual(entry, b[index]));
   }
   return a === b;
 }

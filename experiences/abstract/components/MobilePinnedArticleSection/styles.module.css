@@ -60,7 +60,14 @@
   );
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: height 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* config.panelCollapseDurationMs (MobilePinnedArticleSection.tsx) — was a
+   * bare hardcoded 320ms with the config field only ever reading its OWN
+   * assumed-to-match value back for an unrelated JS-side timer, so changing
+   * this config knob never actually touched the real collapse speed at all
+   * (operator-reported audit finding). --mobile-pinned-panel-collapse-ms is
+   * only ever supplied by that component; the 320ms fallback here preserves
+   * the original hardcoded value for any other consumer of this module. */
+  transition: height var(--mobile-pinned-panel-collapse-ms, 320ms) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .panel[data-expanded='true'] {
@@ -110,19 +117,33 @@
  * (MobilePinnedArticleSection.tsx, applied only while expanded) were being
  * silently overridden every time, on every page, with no visual feedback
  * that anything was wrong (operator-reported: "not affecting the UI in any
- * form"). Scoping the fixed value to the collapsed state only — via
- * :not([data-expanded='true']) rather than leaving it commented out on
- * .rowsViewport unconditionally — means the expanded state now has NO
- * competing unlayered padding declaration at all, so the Tailwind classes
- * finally win as originally intended. Same class of bug already found and
- * fixed once this session in AboutTimeline.module.css's own line-height
- * rules — see that file's own .caption doc comment for the general
- * pattern. */
-.panel:not([data-expanded='true']) .rowsViewport {
+ * form"). Scoping the fixed value to the collapsed state only means the
+ * expanded state now has NO competing unlayered padding declaration at
+ * all, so the Tailwind classes finally win as originally intended. Same
+ * class of bug already found and fixed once this session in
+ * AboutTimeline.module.css's own line-height rules — see that file's own
+ * .caption doc comment for the general pattern.
+ *
+ * Keyed on `[data-expanded-content]` set DIRECTLY on .rowsViewport itself
+ * (MobilePinnedArticleSection.tsx), not on the ancestor .panel's own
+ * `[data-expanded]` — those two go out of sync mid select-sequence: the
+ * panel's own attribute (and its physical height) already flips back to
+ * "collapsed" the instant its collapse animation STARTS, while the row
+ * content styled for the expanded container (padding included) needs to
+ * keep reading as "still expanded-style" through that entire collapse and
+ * the reveal that follows it, only reverting once the flat short-list
+ * render actually takes back over. Using the panel's own attribute here
+ * (the original, pre-fix version of this rule) silently snapped this
+ * padding back to the smaller collapsed value the instant the collapse
+ * began — a second, independent contributor to the same "disconnect
+ * during the collapse motion" the operator screenshotted, on top of the
+ * list content being revealed too early (see handleListSelect's own
+ * comments). */
+.rowsViewport:not([data-expanded-content='true']) {
   padding: 0 1.5rem;
 }
 
-.panel[data-expanded='true'] .rowsViewport {
+.rowsViewport[data-expanded-content='true'] {
   /* Expanded is the full list, potentially taller than the panel — scrolls
    * instead of clipping. Already top-anchored via the base rule above.
    * Padding is now genuinely, exclusively owned by the px-* / py-* Tailwind

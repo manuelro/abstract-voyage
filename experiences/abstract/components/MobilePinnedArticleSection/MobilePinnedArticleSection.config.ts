@@ -83,6 +83,52 @@ export type MobilePinnedArticleSectionConfig = {
    * entirely, rather than papering over). Off falls back to the background's
    * own plain scroll-driven schedule, unaffected by this component. */
   expandedForcesMaxBackgroundDarken: boolean;
+  /** Cubic-bezier easing shared by the phases NOT covered by
+   * expandedEnterEasing/expandedSelectEasing below (sentinel mount-in, panel
+   * collapse, post-collapse list settle). Defaults to the curve
+   * styles.module.css's own `.panel` transition already uses. */
+  selectMotionEasing: [number, number, number, number];
+  /** STAGE-04/05 — ms for each expanded-list row's own opacity fade-in when
+   * the panel opens. Opacity only, no scale/transform. */
+  expandedEnterDurationMs: number;
+  /** STAGE-04/05 — ms of stagger delay between each row's entrance fade-in,
+   * item 1 first through item N (index-based: row N starts N *
+   * expandedEnterStaggerMs after row 0). 0 = no stagger, every row fades in
+   * at once. */
+  expandedEnterStaggerMs: number;
+  /** STAGE-04/05 — cubic-bezier easing for the entrance fade-in, independent
+   * of the leaving easing (expandedSelectEasing) — entrance and leaving are
+   * two distinct motions and may want different curves. */
+  expandedEnterEasing: [number, number, number, number];
+  /** STAGE-06 (condensed) — ms for each expanded-list row's own opacity
+   * fade-out once a row is tapped to select a different article. Opacity
+   * only, no scale/transform. Applies to every row currently on screen —
+   * all of them stay in the expanded list at their own original position
+   * while fading, not just the ones that won't survive into the final short
+   * list. The underlying row order is swapped to the final selection only
+   * once every row is fully invisible, then the panel collapses (STAGE-08)
+   * around already-correct, already-visible content. */
+  expandedSelectFadeOutDurationMs: number;
+  /** STAGE-06 — ms of stagger delay between each row's exit fade-out, in the
+   * SAME direction as the entrance: item 1 fades first, the LAST row fades
+   * last (index-based from the start of the list). The panel does not start
+   * collapsing until the last row's fade-out has finished. 0 = no stagger,
+   * every row fades out at once. */
+  expandedSelectStaggerMs: number;
+  /** STAGE-06 — cubic-bezier easing for the leaving fade-out, independent of
+   * the entrance easing (expandedEnterEasing). */
+  expandedSelectEasing: [number, number, number, number];
+  /** STAGE-07/08 — ms held once every row has finished fading out (and the
+   * list has already been swapped to its final order) before the panel
+   * starts collapsing. 0 = no pause. */
+  expandedSelectHoldMs: number;
+  /** Phase 4 — ms for the panel-height collapse. Must match
+   * styles.module.css's `.panel` transition duration (CSS-driven, not
+   * controlled by this value) — kept here only so the JS-side settle timer
+   * that watches for the collapse to finish stays in sync with it. */
+  panelCollapseDurationMs: number;
+  /** Phase 5 — ms for the collapsed short list's post-settle fade/slide-in. */
+  listSettleDurationMs: number;
 };
 
 export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
@@ -106,7 +152,31 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   expandedListBackdropBlurPx: 40,
   expandedCarouselBehindOpacity: 0.5,
   expandedForcesMaxBackgroundDarken: true,
+  selectMotionEasing: [0.22, 1, 0.36, 1],
+  expandedEnterDurationMs: 850,
+  expandedEnterStaggerMs: 130,
+  expandedEnterEasing: [0.22, 1, 0.36, 1],
+  expandedSelectFadeOutDurationMs: 870,
+  expandedSelectStaggerMs: 275,
+  expandedSelectEasing: [0.22, 1, 0.36, 1],
+  expandedSelectHoldMs: 480,
+  panelCollapseDurationMs: 1000,
+  listSettleDurationMs: 1000,
 } satisfies MobilePinnedArticleSectionConfig;
+
+const isFiniteNumber = (value: unknown): value is number => (
+  typeof value === 'number' && Number.isFinite(value)
+);
+
+function normalizeEasing(
+  value: [number, number, number, number],
+  fallback: [number, number, number, number],
+): [number, number, number, number] {
+  if (Array.isArray(value) && value.length === 4 && value.every(isFiniteNumber)) {
+    return [value[0], value[1], value[2], value[3]];
+  }
+  return fallback;
+}
 
 export function normalizeMobilePinnedArticleSectionConfig(
   value: Partial<MobilePinnedArticleSectionConfig> | undefined,
@@ -137,5 +207,21 @@ export function normalizeMobilePinnedArticleSectionConfig(
     expandedListBackdropBlurPx: Math.round(clamp(base.expandedListBackdropBlurPx, 0, 40)),
     expandedCarouselBehindOpacity: clamp(base.expandedCarouselBehindOpacity, 0, 1),
     expandedForcesMaxBackgroundDarken: base.expandedForcesMaxBackgroundDarken !== false,
+    selectMotionEasing: normalizeEasing(
+      base.selectMotionEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.selectMotionEasing,
+    ),
+    expandedEnterDurationMs: Math.round(clamp(base.expandedEnterDurationMs, 0, 1000)),
+    expandedEnterStaggerMs: Math.round(clamp(base.expandedEnterStaggerMs, 0, 300)),
+    expandedEnterEasing: normalizeEasing(
+      base.expandedEnterEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedEnterEasing,
+    ),
+    expandedSelectFadeOutDurationMs: Math.round(clamp(base.expandedSelectFadeOutDurationMs, 0, 1000)),
+    expandedSelectStaggerMs: Math.round(clamp(base.expandedSelectStaggerMs, 0, 300)),
+    expandedSelectEasing: normalizeEasing(
+      base.expandedSelectEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedSelectEasing,
+    ),
+    expandedSelectHoldMs: Math.round(clamp(base.expandedSelectHoldMs, 0, 1000)),
+    panelCollapseDurationMs: Math.round(clamp(base.panelCollapseDurationMs, 0, 1000)),
+    listSettleDurationMs: Math.round(clamp(base.listSettleDurationMs, 0, 1000)),
   };
 }

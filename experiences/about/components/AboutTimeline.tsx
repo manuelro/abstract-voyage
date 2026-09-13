@@ -23,6 +23,12 @@ export type AboutTimelineRowData = {
   /** Used by zero-selection timelines and explicit `navigationMode`
    * instances. Absent keeps the row a non-navigating control. */
   href?: string;
+  /** Optional inline style forwarded verbatim onto this row's own `<li>`
+   * wrapper (AboutTimelineRow) — e.g. a caller-driven enter/leave transform
+   * transition. Absent (every existing caller) renders exactly as before;
+   * this exists so a caller can animate an individual row's presence
+   * without needing its own separate copy of this component's markup. */
+  itemStyle?: CSSProperties;
 };
 
 // Rule weight's own catalog (AboutTimeline.config.ts's RULE_WEIGHT_OPTIONS)
@@ -398,6 +404,7 @@ export function AboutTimeline({
         onPointerEnter={() => handleRowPointerEnter(row.slideIndex)}
         onPointerLeave={() => handleRowPointerLeave(row.slideIndex)}
         rowRef={element => { rowRefs.current[index] = element; }}
+        itemStyle={row.itemStyle}
         gradientEnabled={config.markerGradientEnabled}
         gradientSlide={gradientSlides?.[row.slideIndex]}
         gradientPalette={gradientPaletteStates?.[row.slideIndex]}
