@@ -431,6 +431,16 @@ const ALL_SIZES_FIELDS = [
         visibleWhen: config => config.paragraphUsesWordmarkGradient && config.paragraphGradientScrollLightenEnabled,
       },
       {
+        kind: 'number',
+        key: 'paragraphGradientScrollLightenTargetContrastRatio',
+        label: 'Guaranteed contrast ratio',
+        description: 'Opt-in, off (0) by default. Above 0, the max clear amount above stops being a hard ceiling: each frame, the least-legible gradient stop\'s live contrast against the scroll-gradient background\'s own current darken state is measured, and the clear amount is pushed past the ceiling above — up to pure white — whenever needed to keep this ratio. 3 is WCAG\'s "large text" floor (a reasonable default for a headline); 4.5 for body-text-grade strength. 0 disables the check entirely (byte-identical to the max clear amount alone).',
+        min: 0,
+        max: 21,
+        step: 0.5,
+        visibleWhen: config => config.paragraphUsesWordmarkGradient && config.paragraphGradientScrollLightenEnabled,
+      },
+      {
         kind: 'enum',
         key: 'eyebrowColorMode',
         label: 'Eyebrow source',

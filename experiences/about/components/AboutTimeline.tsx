@@ -4,7 +4,7 @@ import { CTA_BUTTON_MOTION_EASINGS } from '../../../components/CtaButton/config/
 import { tailwindSpacingTokenToPx } from '../../../components/tailwindSpacingScale';
 import { resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDerivation';
 import { AboutTimelineRow } from './AboutTimelineRow';
-import type { AboutTimelineConfig } from './AboutTimeline.config';
+import { LINE_HEIGHT_OPTIONS, type AboutTimelineConfig } from './AboutTimeline.config';
 import styles from './AboutTimeline.module.css';
 import type { DeckPaletteState } from '../../abstract/components/AbstractPostDock/components/GradientRenderer';
 import type { SliderContentSlide } from '../../../helpers/postContent';
@@ -49,6 +49,15 @@ const TITLE_FONT_SIZE_REM: Record<string, number> = {
   'text-5xl': 3,
   'text-6xl': 3.75,
 };
+
+// LINE_HEIGHT_OPTIONS's own `label` is literally the numeric multiplier as a
+// string (AboutTimeline.config.ts) — reused here rather than a second,
+// independently-maintained copy, so the marker's own vertical-centering math
+// below always tracks whatever line-height an operator actually configures,
+// not a value that was only ever correct while line-height was hardcoded.
+const LINE_HEIGHT_MULTIPLIER: Record<string, number> = Object.fromEntries(
+  LINE_HEIGHT_OPTIONS.map(option => [option.value, Number.parseFloat(option.label)]),
+);
 
 export interface AboutTimelineProps {
   rows: ReadonlyArray<AboutTimelineRowData>;
@@ -288,8 +297,9 @@ export function AboutTimeline({
   // per-row branch resolvedRowTitleColorActive/-Inactive already uses,
   // rather than the box's own once-computed, identical-for-every-row string.
   const titleBoxClassName = [
-    config.rowTitleFontFamily,
-    config.rowTitleFontSizeClassName,
+    config.rowTitleFontFamily, config.rowTitleFontFamilyWide, config.rowTitleFontFamilyLg,
+    config.rowTitleFontSizeClassName, config.rowTitleFontSizeWideClassName, config.rowTitleFontSizeLgClassName,
+    config.rowTitleLineHeightClassName, config.rowTitleLineHeightWideClassName, config.rowTitleLineHeightLgClassName,
     config.rowTitlePaddingTopClassName, config.rowTitlePaddingRightClassName,
     config.rowTitlePaddingBottomClassName, config.rowTitlePaddingLeftClassName,
     config.rowTitlePaddingTopWideClassName, config.rowTitlePaddingRightWideClassName,
@@ -303,11 +313,20 @@ export function AboutTimeline({
     config.rowTitleMarginTopLgClassName, config.rowTitleMarginRightLgClassName,
     config.rowTitleMarginBottomLgClassName, config.rowTitleMarginLeftLgClassName,
   ].join(' ');
-  const titleClassNameInactive = `${config.rowTitleFontWeightClassName} ${titleBoxClassName}`;
-  const titleClassNameActive = `${config.rowTitleFontWeightClassNameActive} ${titleBoxClassName}`;
+  const titleClassNameInactive = [
+    config.rowTitleFontWeightClassName, config.rowTitleFontWeightWideClassName, config.rowTitleFontWeightLgClassName,
+    titleBoxClassName,
+  ].join(' ');
+  const titleClassNameActive = [
+    config.rowTitleFontWeightClassNameActive, config.rowTitleFontWeightActiveWideClassName,
+    config.rowTitleFontWeightActiveLgClassName, titleBoxClassName,
+  ].join(' ');
   const rowDescriptionClassName = [
-    config.rowDescriptionFontFamily,
-    config.rowDescriptionFontSizeClassName,
+    config.rowDescriptionFontFamily, config.rowDescriptionFontFamilyWide, config.rowDescriptionFontFamilyLg,
+    config.rowDescriptionFontSizeClassName, config.rowDescriptionFontSizeWideClassName,
+    config.rowDescriptionFontSizeLgClassName,
+    config.rowDescriptionLineHeightClassName, config.rowDescriptionLineHeightWideClassName,
+    config.rowDescriptionLineHeightLgClassName,
     config.rowDescriptionPaddingTopClassName, config.rowDescriptionPaddingRightClassName,
     config.rowDescriptionPaddingBottomClassName, config.rowDescriptionPaddingLeftClassName,
     config.rowDescriptionPaddingTopWideClassName, config.rowDescriptionPaddingRightWideClassName,
@@ -335,7 +354,11 @@ export function AboutTimeline({
         line={row.line}
         appendix={config.rowAppendixEnabled ? (row.appendix ?? row.category) : undefined}
         appendixSeparator={config.rowAppendixSeparator}
-        appendixClassName={`${config.rowAppendixFontFamily} ${config.rowAppendixFontSizeClassName}`}
+        appendixClassName={[
+          config.rowAppendixFontFamily, config.rowAppendixFontFamilyWide, config.rowAppendixFontFamilyLg,
+          config.rowAppendixFontSizeClassName, config.rowAppendixFontSizeWideClassName,
+          config.rowAppendixFontSizeLgClassName,
+        ].join(' ')}
         appendixVisible={isHoveredRow}
         appendixOpacity={config.rowAppendixOpacity}
         active={selected}
@@ -393,7 +416,9 @@ export function AboutTimeline({
     config.hoverTitleOpacity, config.hoverMarkerOpacity, config.hoverDescriptionOpacity,
     bodyOpacityOverride, highlightOpacityOverride,
     config.rowAppendixEnabled, config.rowAppendixSeparator,
-    config.rowAppendixFontFamily, config.rowAppendixFontSizeClassName,
+    config.rowAppendixFontFamily, config.rowAppendixFontFamilyWide, config.rowAppendixFontFamilyLg,
+    config.rowAppendixFontSizeClassName, config.rowAppendixFontSizeWideClassName,
+    config.rowAppendixFontSizeLgClassName,
     config.rowAppendixRevealDelayMs, config.rowAppendixOpacity,
     titleClassNameActive, titleClassNameInactive, rowDescriptionClassName,
     config.markerIdleOpacity, config.markerActiveOpacity,
@@ -405,6 +430,7 @@ export function AboutTimeline({
 
   const ruleWeightPx = RULE_WEIGHT_PX[config.ruleWeightClassName] ?? 1;
   const titleFontSizeRem = TITLE_FONT_SIZE_REM[config.rowTitleFontSizeClassName] ?? 0.875;
+  const titleLineHeightMultiplier = LINE_HEIGHT_MULTIPLIER[config.rowTitleLineHeightClassName] ?? 1.3;
 
   // The indent side (left while each tier's alignment is 'left', right
   // while it is 'right') combines the structural marker-offset with the
@@ -444,7 +470,7 @@ export function AboutTimeline({
   return (
     <div
       className={[
-        config.maxWidthClassName,
+        config.maxWidthClassName, config.maxWidthWideClassName, config.maxWidthLgClassName,
         config.paddingTopClassName, config.paddingRightClassName,
         config.paddingBottomClassName, config.paddingLeftClassName,
         config.paddingTopWideClassName, config.paddingRightWideClassName,
@@ -461,7 +487,7 @@ export function AboutTimeline({
       style={{
         '--about-timeline-marker-size': `${markerSizePx}px`,
         '--about-timeline-rule-weight': `${ruleWeightPx}px`,
-        '--about-timeline-title-line-height': `${titleFontSizeRem * 1.3}rem`,
+        '--about-timeline-title-line-height': `${titleFontSizeRem * titleLineHeightMultiplier}rem`,
       } as CSSProperties}
     >
       {config.descriptionVisible

@@ -61,8 +61,12 @@ export const DEFAULT_JOURNAL_TIMELINE_CONFIG: AboutTimelineConfig = normalizeAbo
   marginTopLgClassName: 'lg:mt-0',
   description: '',
   maxWidthClassName: 'max-w-2xl',
+  maxWidthWideClassName: 'md:max-w-2xl',
+  maxWidthLgClassName: 'lg:max-w-2xl',
   maxActiveRows: 0,
   rowAppendixFontSizeClassName: 'text-xs',
+  rowAppendixFontSizeWideClassName: 'md:text-xs',
+  rowAppendixFontSizeLgClassName: 'lg:text-xs',
 })
 
 export const DEFAULT_JOURNAL_CARD_APPEARANCE_CONFIG: CardAppearanceConfig = normalizeCardAppearanceConfig({

@@ -1,6 +1,8 @@
 import { defineConfigScope } from '../../../../components/Panel/config';
 import {
   DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
+  EXPANDED_LIST_PADDING_X_TOKENS,
+  EXPANDED_LIST_PADDING_Y_TOKENS,
   MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID,
   type MobilePinnedArticleSectionConfig,
 } from './MobilePinnedArticleSection.config';
@@ -33,6 +35,29 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
         label: 'Scroll-driven carousel nav',
         description: 'Off (default): only the list and carousel swipe change the active article. On: page scroll also drives it (legacy behavior).',
       },
+      {
+        // 'select', not 'enum' — AGENTS.md's own hard ceiling: past ~6-8
+        // options, a SegmentedControl row (kind: 'enum') renders as an
+        // unreadable wall of overlapping/truncated labels. Both token
+        // catalogs below have 9 entries.
+        kind: 'select',
+        key: 'expandedListPaddingX',
+        label: 'Expanded list horizontal padding',
+        options: EXPANDED_LIST_PADDING_X_TOKENS.map(value => ({ label: value.toUpperCase(), value })),
+      },
+      {
+        kind: 'select',
+        key: 'expandedListPaddingY',
+        label: 'Expanded list vertical padding',
+        options: EXPANDED_LIST_PADDING_Y_TOKENS.map(value => ({ label: value.toUpperCase(), value })),
+      },
+      {
+        kind: 'color',
+        key: 'expandedListBackgroundColor',
+        label: 'Expanded list background',
+        description: 'Leave empty to inherit the panel’s own background color.',
+      },
+      { kind: 'number', key: 'expandedListBackgroundOpacity', label: 'Expanded list background opacity', min: 0, max: 1, step: 0.01 },
     ],
     copy: {
       targetFile: 'experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection.config.ts',

@@ -33,12 +33,19 @@ import {
   LG_FONT_SIZE_OPTIONS,
   FONT_WEIGHT_OPTIONS,
   MAX_WIDTH_OPTIONS,
+  MAX_WIDTH_WIDE_OPTIONS,
+  MAX_WIDTH_LG_OPTIONS,
 } from '../../../components/tailwindTypographyScale';
 import {
   DEFAULT_ABOUT_TIMELINE_CONFIG,
   APPENDIX_SEPARATOR_OPTIONS,
   MARKER_SIZE_OPTIONS,
   RULE_WEIGHT_OPTIONS,
+  LINE_HEIGHT_OPTIONS,
+  LINE_HEIGHT_WIDE_OPTIONS,
+  LINE_HEIGHT_LG_OPTIONS,
+  FONT_WEIGHT_WIDE_OPTIONS,
+  FONT_WEIGHT_LG_OPTIONS,
   type AboutTimelineConfig,
 } from './AboutTimeline.config';
 
@@ -63,6 +70,14 @@ const whenRowAppendixEnabled = (config: Readonly<AboutTimelineConfig>) => config
 const ITEM_FONT_FAMILY_OPTIONS = [
   { label: 'SANS', value: 'font-sans' },
   { label: 'SERIF', value: 'font-serif' },
+] as const;
+const ITEM_FONT_FAMILY_WIDE_OPTIONS = [
+  { label: 'SANS', value: 'md:font-sans' },
+  { label: 'SERIF', value: 'md:font-serif' },
+] as const;
+const ITEM_FONT_FAMILY_LG_OPTIONS = [
+  { label: 'SANS', value: 'lg:font-sans' },
+  { label: 'SERIF', value: 'lg:font-serif' },
 ] as const;
 
 /**
@@ -294,9 +309,22 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
   },
   {
     kind: 'select',
+    key: 'rowTitleLineHeightClassName',
+    label: 'Row title line height',
+    description: 'Literal Tailwind leading-* class (arbitrary-value steps included). Also drives the marker\'s own vertical centering against the title\'s first line.',
+    options: LINE_HEIGHT_OPTIONS,
+  },
+  {
+    kind: 'select',
     key: 'rowDescriptionFontSizeClassName',
     label: 'Row description font size',
     options: FONT_SIZE_OPTIONS,
+  },
+  {
+    kind: 'select',
+    key: 'rowDescriptionLineHeightClassName',
+    label: 'Row description line height',
+    options: LINE_HEIGHT_OPTIONS,
   },
   {
     kind: 'number',
@@ -522,6 +550,11 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Row title',
             fields: [
+              { kind: 'enum', key: 'rowTitleFontFamilyWide', label: 'Font', options: ITEM_FONT_FAMILY_WIDE_OPTIONS },
+              { kind: 'select', key: 'rowTitleFontWeightWideClassName', label: 'Font weight (idle)', options: FONT_WEIGHT_WIDE_OPTIONS },
+              { kind: 'select', key: 'rowTitleFontWeightActiveWideClassName', label: 'Font weight (active)', options: FONT_WEIGHT_WIDE_OPTIONS },
+              { kind: 'select', key: 'rowTitleFontSizeWideClassName', label: 'Font size', options: MD_FONT_SIZE_OPTIONS },
+              { kind: 'select', key: 'rowTitleLineHeightWideClassName', label: 'Line height', options: LINE_HEIGHT_WIDE_OPTIONS },
               { kind: 'select', key: 'rowTitlePaddingTopWideClassName', label: 'Padding top', options: PADDING_TOP_WIDE_OPTIONS },
               { kind: 'select', key: 'rowTitlePaddingRightWideClassName', label: 'Padding right', options: PADDING_RIGHT_WIDE_OPTIONS },
               { kind: 'select', key: 'rowTitlePaddingBottomWideClassName', label: 'Padding bottom', options: PADDING_BOTTOM_WIDE_OPTIONS },
@@ -536,6 +569,9 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Row description',
             fields: [
+              { kind: 'enum', key: 'rowDescriptionFontFamilyWide', label: 'Font', options: ITEM_FONT_FAMILY_WIDE_OPTIONS },
+              { kind: 'select', key: 'rowDescriptionFontSizeWideClassName', label: 'Font size', options: MD_FONT_SIZE_OPTIONS },
+              { kind: 'select', key: 'rowDescriptionLineHeightWideClassName', label: 'Line height', options: LINE_HEIGHT_WIDE_OPTIONS },
               { kind: 'select', key: 'rowDescriptionPaddingTopWideClassName', label: 'Padding top', options: PADDING_TOP_WIDE_OPTIONS },
               { kind: 'select', key: 'rowDescriptionPaddingRightWideClassName', label: 'Padding right', options: PADDING_RIGHT_WIDE_OPTIONS },
               { kind: 'select', key: 'rowDescriptionPaddingBottomWideClassName', label: 'Padding bottom', options: PADDING_BOTTOM_WIDE_OPTIONS },
@@ -548,8 +584,17 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
           },
           {
             kind: 'group',
+            label: 'Appendix (≥ tablet)',
+            fields: [
+              { kind: 'enum', key: 'rowAppendixFontFamilyWide', label: 'Font', options: ITEM_FONT_FAMILY_WIDE_OPTIONS },
+              { kind: 'select', key: 'rowAppendixFontSizeWideClassName', label: 'Font size', options: MD_FONT_SIZE_OPTIONS },
+            ],
+          },
+          {
+            kind: 'group',
             label: 'Component',
             fields: [
+              { kind: 'select', key: 'maxWidthWideClassName', label: 'Max width', options: MAX_WIDTH_WIDE_OPTIONS },
               { kind: 'select', key: 'paddingTopWideClassName', label: 'Padding top', options: PADDING_TOP_WIDE_OPTIONS },
               { kind: 'select', key: 'paddingRightWideClassName', label: 'Padding right', options: PADDING_RIGHT_WIDE_OPTIONS },
               { kind: 'select', key: 'paddingBottomWideClassName', label: 'Padding bottom', options: PADDING_BOTTOM_WIDE_OPTIONS },
@@ -586,6 +631,11 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Row title',
             fields: [
+              { kind: 'enum', key: 'rowTitleFontFamilyLg', label: 'Font', options: ITEM_FONT_FAMILY_LG_OPTIONS },
+              { kind: 'select', key: 'rowTitleFontWeightLgClassName', label: 'Font weight (idle)', options: FONT_WEIGHT_LG_OPTIONS },
+              { kind: 'select', key: 'rowTitleFontWeightActiveLgClassName', label: 'Font weight (active)', options: FONT_WEIGHT_LG_OPTIONS },
+              { kind: 'select', key: 'rowTitleFontSizeLgClassName', label: 'Font size', options: LG_FONT_SIZE_OPTIONS },
+              { kind: 'select', key: 'rowTitleLineHeightLgClassName', label: 'Line height', options: LINE_HEIGHT_LG_OPTIONS },
               { kind: 'select', key: 'rowTitlePaddingTopLgClassName', label: 'Padding top', options: PADDING_TOP_LG_OPTIONS },
               { kind: 'select', key: 'rowTitlePaddingRightLgClassName', label: 'Padding right', options: PADDING_RIGHT_LG_OPTIONS },
               { kind: 'select', key: 'rowTitlePaddingBottomLgClassName', label: 'Padding bottom', options: PADDING_BOTTOM_LG_OPTIONS },
@@ -600,6 +650,9 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Row description',
             fields: [
+              { kind: 'enum', key: 'rowDescriptionFontFamilyLg', label: 'Font', options: ITEM_FONT_FAMILY_LG_OPTIONS },
+              { kind: 'select', key: 'rowDescriptionFontSizeLgClassName', label: 'Font size', options: LG_FONT_SIZE_OPTIONS },
+              { kind: 'select', key: 'rowDescriptionLineHeightLgClassName', label: 'Line height', options: LINE_HEIGHT_LG_OPTIONS },
               { kind: 'select', key: 'rowDescriptionPaddingTopLgClassName', label: 'Padding top', options: PADDING_TOP_LG_OPTIONS },
               { kind: 'select', key: 'rowDescriptionPaddingRightLgClassName', label: 'Padding right', options: PADDING_RIGHT_LG_OPTIONS },
               { kind: 'select', key: 'rowDescriptionPaddingBottomLgClassName', label: 'Padding bottom', options: PADDING_BOTTOM_LG_OPTIONS },
@@ -612,8 +665,17 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
           },
           {
             kind: 'group',
+            label: 'Appendix (≥ desktop)',
+            fields: [
+              { kind: 'enum', key: 'rowAppendixFontFamilyLg', label: 'Font', options: ITEM_FONT_FAMILY_LG_OPTIONS },
+              { kind: 'select', key: 'rowAppendixFontSizeLgClassName', label: 'Font size', options: LG_FONT_SIZE_OPTIONS },
+            ],
+          },
+          {
+            kind: 'group',
             label: 'Component',
             fields: [
+              { kind: 'select', key: 'maxWidthLgClassName', label: 'Max width', options: MAX_WIDTH_LG_OPTIONS },
               { kind: 'select', key: 'paddingTopLgClassName', label: 'Padding top', options: PADDING_TOP_LG_OPTIONS },
               { kind: 'select', key: 'paddingRightLgClassName', label: 'Padding right', options: PADDING_RIGHT_LG_OPTIONS },
               { kind: 'select', key: 'paddingBottomLgClassName', label: 'Padding bottom', options: PADDING_BOTTOM_LG_OPTIONS },

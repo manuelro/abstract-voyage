@@ -57,11 +57,15 @@ import {
   LG_FONT_SIZE_OPTIONS,
   FONT_WEIGHT_OPTIONS,
   MAX_WIDTH_OPTIONS,
+  MAX_WIDTH_WIDE_OPTIONS,
+  MAX_WIDTH_LG_OPTIONS,
   type FontSizeClass,
   type MdFontSizeClass,
   type LgFontSizeClass,
   type FontWeightClass,
   type MaxWidthClass,
+  type MaxWidthWideClass,
+  type MaxWidthLgClass,
 } from '../../../components/tailwindTypographyScale';
 
 /** 'accent' (default): the marker's fill/outline color tracks the active
@@ -84,6 +88,11 @@ export type AboutTimelineCategorySeparator = AboutTimelineAppendixSeparator;
  * title and supporting line. Kept separate so a page can establish
  * hierarchy without creating a second row component. */
 export type AboutTimelineItemFontFamily = 'font-sans' | 'font-serif';
+/** Same two families as `AboutTimelineItemFontFamily` above, `md:`-prefixed
+ * — applied ≥ 768px. */
+export type AboutTimelineItemFontFamilyWide = 'md:font-sans' | 'md:font-serif';
+/** Same two families above, `lg:`-prefixed — applied ≥ 1024px. */
+export type AboutTimelineItemFontFamilyLg = 'lg:font-sans' | 'lg:font-serif';
 
 /** Square icon-style dimension catalog for the marker dot — same literal
  * "complete w-N h-N combo per option" shape
@@ -115,6 +124,87 @@ export const RULE_WEIGHT_OPTIONS = [
   { label: '4px', value: 'w-1' },
 ] as const;
 export type AboutTimelineRuleWeightClass = typeof RULE_WEIGHT_OPTIONS[number]['value'];
+
+/** Row title/description line-height — literal Tailwind `leading-*` class,
+ * per this file's own stated convention (never a raw number for anything
+ * outside opacity/duration/contrast). The named scale (`leading-tight`
+ * 1.25, `leading-snug` 1.375, ...) doesn't hit this component's own
+ * pre-existing hardcoded values (1.3 for the title, 1.4 for the
+ * description, `AboutTimeline.module.css`'s own `.caption`/`.line` rules
+ * before this field existed) — local catalog with Tailwind arbitrary-value
+ * classes (`leading-[1.3]`) instead of widening the shared `LeadingClass`
+ * catalog (`tailwindTypographyScale.ts`) with values no other consumer
+ * needs, same reasoning as `MARKER_SIZE_OPTIONS`/`RULE_WEIGHT_OPTIONS`
+ * above. `leading-[1.3]`/`leading-[1.4]` are this field's own defaults —
+ * introducing it is zero visual change until an operator picks a
+ * different step. */
+export const LINE_HEIGHT_OPTIONS = [
+  { label: '1', value: 'leading-none' },
+  { label: '1.1', value: 'leading-[1.1]' },
+  { label: '1.2', value: 'leading-[1.2]' },
+  { label: '1.25', value: 'leading-tight' },
+  { label: '1.3', value: 'leading-[1.3]' },
+  { label: '1.375', value: 'leading-snug' },
+  { label: '1.4', value: 'leading-[1.4]' },
+  { label: '1.5', value: 'leading-normal' },
+  { label: '1.6', value: 'leading-[1.6]' },
+  { label: '1.625', value: 'leading-relaxed' },
+  { label: '1.75', value: 'leading-[1.75]' },
+  { label: '2', value: 'leading-loose' },
+] as const;
+export type AboutTimelineLineHeightClass = typeof LINE_HEIGHT_OPTIONS[number]['value'];
+/** Same steps as `LINE_HEIGHT_OPTIONS` above, `md:`-prefixed — applied ≥ 768px. */
+export const LINE_HEIGHT_WIDE_OPTIONS = [
+  { label: 'md:1', value: 'md:leading-none' },
+  { label: 'md:1.1', value: 'md:leading-[1.1]' },
+  { label: 'md:1.2', value: 'md:leading-[1.2]' },
+  { label: 'md:1.25', value: 'md:leading-tight' },
+  { label: 'md:1.3', value: 'md:leading-[1.3]' },
+  { label: 'md:1.375', value: 'md:leading-snug' },
+  { label: 'md:1.4', value: 'md:leading-[1.4]' },
+  { label: 'md:1.5', value: 'md:leading-normal' },
+  { label: 'md:1.6', value: 'md:leading-[1.6]' },
+  { label: 'md:1.625', value: 'md:leading-relaxed' },
+  { label: 'md:1.75', value: 'md:leading-[1.75]' },
+  { label: 'md:2', value: 'md:leading-loose' },
+] as const;
+export type AboutTimelineLineHeightWideClass = typeof LINE_HEIGHT_WIDE_OPTIONS[number]['value'];
+/** Same steps as `LINE_HEIGHT_OPTIONS` above, `lg:`-prefixed — applied ≥ 1024px. */
+export const LINE_HEIGHT_LG_OPTIONS = [
+  { label: 'lg:1', value: 'lg:leading-none' },
+  { label: 'lg:1.1', value: 'lg:leading-[1.1]' },
+  { label: 'lg:1.2', value: 'lg:leading-[1.2]' },
+  { label: 'lg:1.25', value: 'lg:leading-tight' },
+  { label: 'lg:1.3', value: 'lg:leading-[1.3]' },
+  { label: 'lg:1.375', value: 'lg:leading-snug' },
+  { label: 'lg:1.4', value: 'lg:leading-[1.4]' },
+  { label: 'lg:1.5', value: 'lg:leading-normal' },
+  { label: 'lg:1.6', value: 'lg:leading-[1.6]' },
+  { label: 'lg:1.625', value: 'lg:leading-relaxed' },
+  { label: 'lg:1.75', value: 'lg:leading-[1.75]' },
+  { label: 'lg:2', value: 'lg:leading-loose' },
+] as const;
+export type AboutTimelineLineHeightLgClass = typeof LINE_HEIGHT_LG_OPTIONS[number]['value'];
+
+/** Row title font-weight, `md:`-prefixed — applied ≥ 768px. Local catalog
+ * (no shared `FontWeightWideClass`/`-LgClass` exists yet in
+ * `tailwindTypographyScale.ts`), same values as `FONT_WEIGHT_OPTIONS`
+ * there, each `md:`-prefixed. */
+export const FONT_WEIGHT_WIDE_OPTIONS = [
+  { label: 'md:font-normal', value: 'md:font-normal' },
+  { label: 'md:font-medium', value: 'md:font-medium' },
+  { label: 'md:font-semibold', value: 'md:font-semibold' },
+  { label: 'md:font-bold', value: 'md:font-bold' },
+] as const;
+export type FontWeightWideClass = typeof FONT_WEIGHT_WIDE_OPTIONS[number]['value'];
+/** Same as `FONT_WEIGHT_WIDE_OPTIONS` above, `lg:`-prefixed — applied ≥ 1024px. */
+export const FONT_WEIGHT_LG_OPTIONS = [
+  { label: 'lg:font-normal', value: 'lg:font-normal' },
+  { label: 'lg:font-medium', value: 'lg:font-medium' },
+  { label: 'lg:font-semibold', value: 'lg:font-semibold' },
+  { label: 'lg:font-bold', value: 'lg:font-bold' },
+] as const;
+export type FontWeightLgClass = typeof FONT_WEIGHT_LG_OPTIONS[number]['value'];
 
 export const APPENDIX_SEPARATOR_OPTIONS = [
   { label: 'MIDDLE DOT', value: '·' },
@@ -193,6 +283,10 @@ export type AboutTimelineConfig = {
    * percentage-of-parent (`tailwindWidthScale.ts`'s own catalog, sized for
    * column-relative siblings, not an absolute reading-width cap). */
   maxWidthClassName: MaxWidthClass;
+  /** Overrides `maxWidthClassName` starting at md/tablet width. */
+  maxWidthWideClassName: MaxWidthWideClass;
+  /** Overrides `maxWidthWideClassName` starting at lg/desktop width. */
+  maxWidthLgClassName: MaxWidthLgClass;
   /** Vertical gap between rows — literal Tailwind class, this repo's shared
    * spacing scale. */
   rowGap: GapClass;
@@ -287,8 +381,16 @@ export type AboutTimelineConfig = {
   rowDescriptionVisible: boolean;
   /** Font family for a row's title. */
   rowTitleFontFamily: AboutTimelineItemFontFamily;
+  /** Overrides `rowTitleFontFamily` starting at md/tablet width. */
+  rowTitleFontFamilyWide: AboutTimelineItemFontFamilyWide;
+  /** Overrides `rowTitleFontFamilyWide` starting at lg/desktop width. */
+  rowTitleFontFamilyLg: AboutTimelineItemFontFamilyLg;
   /** Font family for a row's supporting line. */
   rowDescriptionFontFamily: AboutTimelineItemFontFamily;
+  /** Overrides `rowDescriptionFontFamily` starting at md/tablet width. */
+  rowDescriptionFontFamilyWide: AboutTimelineItemFontFamilyWide;
+  /** Overrides `rowDescriptionFontFamilyWide` starting at lg/desktop width. */
+  rowDescriptionFontFamilyLg: AboutTimelineItemFontFamilyLg;
   /** Font weight of an inactive/idle row's own title (caption) — literal
    * Tailwind `font-*` class. Opt-in: defaults to `font-normal`, the same
    * weight this component always rendered at before this field existed.
@@ -298,19 +400,48 @@ export type AboutTimelineConfig = {
    * operator can now diverge them the same way `rowTitleMinContrastActive`/
    * `-Inactive` already diverge color. */
   rowTitleFontWeightClassName: FontWeightClass;
+  /** Overrides `rowTitleFontWeightClassName` starting at md/tablet width. */
+  rowTitleFontWeightWideClassName: FontWeightWideClass;
+  /** Overrides `rowTitleFontWeightWideClassName` starting at lg/desktop width. */
+  rowTitleFontWeightLgClassName: FontWeightLgClass;
   /** Font weight of the hovered/selected row's own title — see
    * `rowTitleFontWeightClassName` above. Defaults to that same field's own
    * default (`font-medium`, DEFAULT_ABOUT_TIMELINE_CONFIG), so adding this
    * field alone changes nothing until an operator diverges it. */
   rowTitleFontWeightClassNameActive: FontWeightClass;
+  /** Overrides `rowTitleFontWeightClassNameActive` starting at md/tablet width. */
+  rowTitleFontWeightActiveWideClassName: FontWeightWideClass;
+  /** Overrides `rowTitleFontWeightActiveWideClassName` starting at lg/desktop width. */
+  rowTitleFontWeightActiveLgClassName: FontWeightLgClass;
   /** Font size of a row's own title (caption) — literal Tailwind `text-*`
    * class, independent of the supporting line's own size below and of the
    * lead-in `descriptionFontSizeClassName` further down (a different kind of
    * object, see that field's own doc comment). */
   rowTitleFontSizeClassName: FontSizeClass;
+  /** Overrides `rowTitleFontSizeClassName` starting at md/tablet width. */
+  rowTitleFontSizeWideClassName: MdFontSizeClass;
+  /** Overrides `rowTitleFontSizeWideClassName` starting at lg/desktop width. */
+  rowTitleFontSizeLgClassName: LgFontSizeClass;
+  /** Row title line-height — see `LINE_HEIGHT_OPTIONS`'s own doc comment. */
+  rowTitleLineHeightClassName: AboutTimelineLineHeightClass;
+  /** Overrides `rowTitleLineHeightClassName` starting at md/tablet width. */
+  rowTitleLineHeightWideClassName: AboutTimelineLineHeightWideClass;
+  /** Overrides `rowTitleLineHeightWideClassName` starting at lg/desktop width. */
+  rowTitleLineHeightLgClassName: AboutTimelineLineHeightLgClass;
   /** Font size of a row's own supporting line — independent of the title's
    * own size above. */
   rowDescriptionFontSizeClassName: FontSizeClass;
+  /** Overrides `rowDescriptionFontSizeClassName` starting at md/tablet width. */
+  rowDescriptionFontSizeWideClassName: MdFontSizeClass;
+  /** Overrides `rowDescriptionFontSizeWideClassName` starting at lg/desktop width. */
+  rowDescriptionFontSizeLgClassName: LgFontSizeClass;
+  /** Row supporting-line line-height — see `LINE_HEIGHT_OPTIONS`'s own doc
+   * comment. */
+  rowDescriptionLineHeightClassName: AboutTimelineLineHeightClass;
+  /** Overrides `rowDescriptionLineHeightClassName` starting at md/tablet width. */
+  rowDescriptionLineHeightWideClassName: AboutTimelineLineHeightWideClass;
+  /** Overrides `rowDescriptionLineHeightWideClassName` starting at lg/desktop width. */
+  rowDescriptionLineHeightLgClassName: AboutTimelineLineHeightLgClass;
   /** Opacity of a row's own title (caption) while its row is active —
    * independent of the supporting line's own opacity below. */
   rowTitleOpacityActive: number;
@@ -349,9 +480,17 @@ export type AboutTimelineConfig = {
   rowAppendixSeparator: AboutTimelineAppendixSeparator;
   /** Font family used by the appendix independently of the title. */
   rowAppendixFontFamily: AboutTimelineItemFontFamily;
+  /** Overrides `rowAppendixFontFamily` starting at md/tablet width. */
+  rowAppendixFontFamilyWide: AboutTimelineItemFontFamilyWide;
+  /** Overrides `rowAppendixFontFamilyWide` starting at lg/desktop width. */
+  rowAppendixFontFamilyLg: AboutTimelineItemFontFamilyLg;
   /** Font size used by the appendix independently of the title and row
    * description. */
   rowAppendixFontSizeClassName: FontSizeClass;
+  /** Overrides `rowAppendixFontSizeClassName` starting at md/tablet width. */
+  rowAppendixFontSizeWideClassName: MdFontSizeClass;
+  /** Overrides `rowAppendixFontSizeWideClassName` starting at lg/desktop width. */
+  rowAppendixFontSizeLgClassName: LgFontSizeClass;
   /** Additional delay after hover activation before the appendix appears. */
   rowAppendixRevealDelayMs: number;
   /** Opacity the appendix renders at once revealed (hover or keyboard
@@ -560,6 +699,8 @@ export type AboutTimelineConfig = {
 
 export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   maxWidthClassName: 'max-w-sm',
+  maxWidthWideClassName: 'md:max-w-sm',
+  maxWidthLgClassName: 'lg:max-w-sm',
   rowGap: 'gap-8',
   markerSizeClassName: 'w-6 h-6',
   markerVisible: true,
@@ -589,11 +730,35 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowDescriptionMinContrastInactive: 4,
   rowDescriptionVisible: true,
   rowTitleFontFamily: 'font-sans',
+  rowTitleFontFamilyWide: 'md:font-sans',
+  rowTitleFontFamilyLg: 'lg:font-sans',
   rowDescriptionFontFamily: 'font-sans',
+  rowDescriptionFontFamilyWide: 'md:font-sans',
+  rowDescriptionFontFamilyLg: 'lg:font-sans',
   rowTitleFontWeightClassName: 'font-medium',
+  rowTitleFontWeightWideClassName: 'md:font-medium',
+  rowTitleFontWeightLgClassName: 'lg:font-medium',
   rowTitleFontWeightClassNameActive: 'font-medium',
+  rowTitleFontWeightActiveWideClassName: 'md:font-medium',
+  rowTitleFontWeightActiveLgClassName: 'lg:font-medium',
   rowTitleFontSizeClassName: 'text-sm',
+  rowTitleFontSizeWideClassName: 'md:text-sm',
+  rowTitleFontSizeLgClassName: 'lg:text-sm',
+  // 'leading-[1.3]'/'md:leading-[1.3]'/'lg:leading-[1.3]' reproduce this
+  // component's own pre-existing hardcoded .caption line-height exactly
+  // (AboutTimeline.module.css) — introducing this field is zero visual
+  // change until an operator picks a different step.
+  rowTitleLineHeightClassName: 'leading-[1.3]',
+  rowTitleLineHeightWideClassName: 'md:leading-[1.3]',
+  rowTitleLineHeightLgClassName: 'lg:leading-[1.3]',
   rowDescriptionFontSizeClassName: 'text-sm',
+  rowDescriptionFontSizeWideClassName: 'md:text-sm',
+  rowDescriptionFontSizeLgClassName: 'lg:text-sm',
+  // Reproduces the pre-existing hardcoded .line line-height exactly — see
+  // rowTitleLineHeightClassName's own comment above.
+  rowDescriptionLineHeightClassName: 'leading-[1.4]',
+  rowDescriptionLineHeightWideClassName: 'md:leading-[1.4]',
+  rowDescriptionLineHeightLgClassName: 'lg:leading-[1.4]',
   rowTitleOpacityActive: 1,
   rowTitleOpacityInactive: 0.7,
   rowDescriptionOpacityActive: 0.8,
@@ -605,7 +770,11 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowAppendixEnabled: false,
   rowAppendixSeparator: '·',
   rowAppendixFontFamily: 'font-sans',
+  rowAppendixFontFamilyWide: 'md:font-sans',
+  rowAppendixFontFamilyLg: 'lg:font-sans',
   rowAppendixFontSizeClassName: 'text-sm',
+  rowAppendixFontSizeWideClassName: 'md:text-sm',
+  rowAppendixFontSizeLgClassName: 'lg:text-sm',
   rowAppendixRevealDelayMs: 180,
   // 1 — matches AboutTimeline.module.css's own pre-existing
   // `var(--about-timeline-appendix-opacity, 1)` fallback, so introducing
@@ -761,11 +930,23 @@ const MARGIN_LEFT_WIDE_VALUES: ReadonlyArray<MarginLeftWideClass> =
   MARGIN_LEFT_WIDE_OPTIONS.map(option => option.value);
 const MARGIN_LEFT_LG_VALUES: ReadonlyArray<MarginLeftLgClass> = MARGIN_LEFT_LG_OPTIONS.map(option => option.value);
 const MAX_WIDTH_VALUES: ReadonlyArray<MaxWidthClass> = MAX_WIDTH_OPTIONS.map(option => option.value);
+const MAX_WIDTH_WIDE_VALUES: ReadonlyArray<MaxWidthWideClass> = MAX_WIDTH_WIDE_OPTIONS.map(option => option.value);
+const MAX_WIDTH_LG_VALUES: ReadonlyArray<MaxWidthLgClass> = MAX_WIDTH_LG_OPTIONS.map(option => option.value);
 const FONT_SIZE_VALUES: ReadonlyArray<FontSizeClass> = FONT_SIZE_OPTIONS.map(option => option.value);
 const MD_FONT_SIZE_VALUES: ReadonlyArray<MdFontSizeClass> = MD_FONT_SIZE_OPTIONS.map(option => option.value);
 const LG_FONT_SIZE_VALUES: ReadonlyArray<LgFontSizeClass> = LG_FONT_SIZE_OPTIONS.map(option => option.value);
 const FONT_WEIGHT_VALUES: ReadonlyArray<FontWeightClass> = FONT_WEIGHT_OPTIONS.map(option => option.value);
+const FONT_WEIGHT_WIDE_VALUES: ReadonlyArray<FontWeightWideClass> = FONT_WEIGHT_WIDE_OPTIONS.map(option => option.value);
+const FONT_WEIGHT_LG_VALUES: ReadonlyArray<FontWeightLgClass> = FONT_WEIGHT_LG_OPTIONS.map(option => option.value);
+const LINE_HEIGHT_VALUES: ReadonlyArray<AboutTimelineLineHeightClass> =
+  LINE_HEIGHT_OPTIONS.map(option => option.value);
+const LINE_HEIGHT_WIDE_VALUES: ReadonlyArray<AboutTimelineLineHeightWideClass> =
+  LINE_HEIGHT_WIDE_OPTIONS.map(option => option.value);
+const LINE_HEIGHT_LG_VALUES: ReadonlyArray<AboutTimelineLineHeightLgClass> =
+  LINE_HEIGHT_LG_OPTIONS.map(option => option.value);
 const ITEM_FONT_FAMILIES: ReadonlyArray<AboutTimelineItemFontFamily> = ['font-sans', 'font-serif'];
+const ITEM_FONT_FAMILIES_WIDE: ReadonlyArray<AboutTimelineItemFontFamilyWide> = ['md:font-sans', 'md:font-serif'];
+const ITEM_FONT_FAMILIES_LG: ReadonlyArray<AboutTimelineItemFontFamilyLg> = ['lg:font-sans', 'lg:font-serif'];
 const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
   'linear', 'standard', 'expressive', 'viscous', 'gentle',
 ];
@@ -789,6 +970,8 @@ export function normalizeAboutTimelineConfig(
   const D = DEFAULT_ABOUT_TIMELINE_CONFIG;
   return {
     maxWidthClassName: token(base.maxWidthClassName, MAX_WIDTH_VALUES, D.maxWidthClassName),
+    maxWidthWideClassName: token(base.maxWidthWideClassName, MAX_WIDTH_WIDE_VALUES, D.maxWidthWideClassName),
+    maxWidthLgClassName: token(base.maxWidthLgClassName, MAX_WIDTH_LG_VALUES, D.maxWidthLgClassName),
     rowGap: token(base.rowGap, GAP_VALUES, D.rowGap),
     markerSizeClassName: token(base.markerSizeClassName, MARKER_SIZE_VALUES, D.markerSizeClassName),
     markerVisible: base.markerVisible !== false,
@@ -822,20 +1005,70 @@ export function normalizeAboutTimelineConfig(
     ),
     rowDescriptionVisible: base.rowDescriptionVisible !== false,
     rowTitleFontFamily: token(base.rowTitleFontFamily, ITEM_FONT_FAMILIES, D.rowTitleFontFamily),
+    rowTitleFontFamilyWide: token(base.rowTitleFontFamilyWide, ITEM_FONT_FAMILIES_WIDE, D.rowTitleFontFamilyWide),
+    rowTitleFontFamilyLg: token(base.rowTitleFontFamilyLg, ITEM_FONT_FAMILIES_LG, D.rowTitleFontFamilyLg),
     rowDescriptionFontFamily: token(
       base.rowDescriptionFontFamily, ITEM_FONT_FAMILIES, D.rowDescriptionFontFamily,
+    ),
+    rowDescriptionFontFamilyWide: token(
+      base.rowDescriptionFontFamilyWide, ITEM_FONT_FAMILIES_WIDE, D.rowDescriptionFontFamilyWide,
+    ),
+    rowDescriptionFontFamilyLg: token(
+      base.rowDescriptionFontFamilyLg, ITEM_FONT_FAMILIES_LG, D.rowDescriptionFontFamilyLg,
     ),
     rowTitleFontWeightClassName: token(
       base.rowTitleFontWeightClassName, FONT_WEIGHT_VALUES, D.rowTitleFontWeightClassName,
     ),
+    rowTitleFontWeightWideClassName: token(
+      base.rowTitleFontWeightWideClassName, FONT_WEIGHT_WIDE_VALUES, D.rowTitleFontWeightWideClassName,
+    ),
+    rowTitleFontWeightLgClassName: token(
+      base.rowTitleFontWeightLgClassName, FONT_WEIGHT_LG_VALUES, D.rowTitleFontWeightLgClassName,
+    ),
     rowTitleFontWeightClassNameActive: token(
       base.rowTitleFontWeightClassNameActive, FONT_WEIGHT_VALUES, D.rowTitleFontWeightClassNameActive,
+    ),
+    rowTitleFontWeightActiveWideClassName: token(
+      base.rowTitleFontWeightActiveWideClassName, FONT_WEIGHT_WIDE_VALUES, D.rowTitleFontWeightActiveWideClassName,
+    ),
+    rowTitleFontWeightActiveLgClassName: token(
+      base.rowTitleFontWeightActiveLgClassName, FONT_WEIGHT_LG_VALUES, D.rowTitleFontWeightActiveLgClassName,
     ),
     rowTitleFontSizeClassName: token(
       base.rowTitleFontSizeClassName, FONT_SIZE_VALUES, D.rowTitleFontSizeClassName,
     ),
+    rowTitleFontSizeWideClassName: token(
+      base.rowTitleFontSizeWideClassName, MD_FONT_SIZE_VALUES, D.rowTitleFontSizeWideClassName,
+    ),
+    rowTitleFontSizeLgClassName: token(
+      base.rowTitleFontSizeLgClassName, LG_FONT_SIZE_VALUES, D.rowTitleFontSizeLgClassName,
+    ),
+    rowTitleLineHeightClassName: token(
+      base.rowTitleLineHeightClassName, LINE_HEIGHT_VALUES, D.rowTitleLineHeightClassName,
+    ),
+    rowTitleLineHeightWideClassName: token(
+      base.rowTitleLineHeightWideClassName, LINE_HEIGHT_WIDE_VALUES, D.rowTitleLineHeightWideClassName,
+    ),
+    rowTitleLineHeightLgClassName: token(
+      base.rowTitleLineHeightLgClassName, LINE_HEIGHT_LG_VALUES, D.rowTitleLineHeightLgClassName,
+    ),
     rowDescriptionFontSizeClassName: token(
       base.rowDescriptionFontSizeClassName, FONT_SIZE_VALUES, D.rowDescriptionFontSizeClassName,
+    ),
+    rowDescriptionFontSizeWideClassName: token(
+      base.rowDescriptionFontSizeWideClassName, MD_FONT_SIZE_VALUES, D.rowDescriptionFontSizeWideClassName,
+    ),
+    rowDescriptionFontSizeLgClassName: token(
+      base.rowDescriptionFontSizeLgClassName, LG_FONT_SIZE_VALUES, D.rowDescriptionFontSizeLgClassName,
+    ),
+    rowDescriptionLineHeightClassName: token(
+      base.rowDescriptionLineHeightClassName, LINE_HEIGHT_VALUES, D.rowDescriptionLineHeightClassName,
+    ),
+    rowDescriptionLineHeightWideClassName: token(
+      base.rowDescriptionLineHeightWideClassName, LINE_HEIGHT_WIDE_VALUES, D.rowDescriptionLineHeightWideClassName,
+    ),
+    rowDescriptionLineHeightLgClassName: token(
+      base.rowDescriptionLineHeightLgClassName, LINE_HEIGHT_LG_VALUES, D.rowDescriptionLineHeightLgClassName,
     ),
     rowTitleOpacityActive: clampRange(base.rowTitleOpacityActive, 0, 1, D.rowTitleOpacityActive),
     rowTitleOpacityInactive: clampRange(base.rowTitleOpacityInactive, 0, 1, D.rowTitleOpacityInactive),
@@ -864,8 +1097,20 @@ export function normalizeAboutTimelineConfig(
     rowAppendixFontFamily: token(
       base.rowAppendixFontFamily, ITEM_FONT_FAMILIES, D.rowAppendixFontFamily,
     ),
+    rowAppendixFontFamilyWide: token(
+      base.rowAppendixFontFamilyWide, ITEM_FONT_FAMILIES_WIDE, D.rowAppendixFontFamilyWide,
+    ),
+    rowAppendixFontFamilyLg: token(
+      base.rowAppendixFontFamilyLg, ITEM_FONT_FAMILIES_LG, D.rowAppendixFontFamilyLg,
+    ),
     rowAppendixFontSizeClassName: token(
       base.rowAppendixFontSizeClassName, FONT_SIZE_VALUES, D.rowAppendixFontSizeClassName,
+    ),
+    rowAppendixFontSizeWideClassName: token(
+      base.rowAppendixFontSizeWideClassName, MD_FONT_SIZE_VALUES, D.rowAppendixFontSizeWideClassName,
+    ),
+    rowAppendixFontSizeLgClassName: token(
+      base.rowAppendixFontSizeLgClassName, LG_FONT_SIZE_VALUES, D.rowAppendixFontSizeLgClassName,
     ),
     rowAppendixRevealDelayMs: clampRange(
       raw.rowAppendixRevealDelayMs ?? raw.rowCategoryRevealDelayMs ?? D.rowAppendixRevealDelayMs,

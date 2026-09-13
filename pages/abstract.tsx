@@ -1614,6 +1614,12 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       // updates and reset stay in sync with the registered scope.
       paragraphTextColorMode: 'column',
       paragraphSurfaceOffset: 0,
+      // This branch is the one PolymorphicLayout actually mounts inside the
+      // scroll-gradient background (narrowColumn's own top slot below) — the
+      // screenshot-reported illegible mid-scroll band lives here, not in the
+      // classic/grid branch above. 3 is WCAG's "large text" floor. See
+      // PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md.
+      paragraphGradientScrollLightenTargetContrastRatio: 3,
     }));
   // Backs BOTH hero branches' own accordionItemPresentationEnabled opt-in
   // (AbstractEditorialHeroConfig) — one shared instance, not per-branch,
@@ -4262,6 +4268,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           wordmarkGradientStops={colors.wordmarkGradientStops}
           scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
           scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
+          scrollGradientOriginColor={colors.scrollGradientOriginColor}
+          scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
         />
       ) : null}
       </section>
@@ -4761,6 +4769,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                 wordmarkGradientStops={colors.wordmarkGradientStops}
                 scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
                 scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
+                scrollGradientOriginColor={colors.scrollGradientOriginColor}
+                scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
                 titleColorOverride={narrowColumnTypography.titleColor}
                 bodyColorOverride={narrowColumnTypography.bodyColor}
                 highlightColorOverride={narrowColumnTypography.highlightColor}

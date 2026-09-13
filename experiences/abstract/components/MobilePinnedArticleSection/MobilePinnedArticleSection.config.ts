@@ -3,6 +3,17 @@ import { clamp } from '../../../../helpers/clamp';
 export const MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID =
   'MobilePinnedArticleSection/layout' as const;
 
+// Tailwind's own spacing scale, capped at px-12/py-12 — well past anything
+// this panel needs while staying on-token rather than arbitrary px values.
+export const EXPANDED_LIST_PADDING_X_TOKENS = [
+  'px-0', 'px-1', 'px-2', 'px-3', 'px-4', 'px-6', 'px-8', 'px-10', 'px-12',
+] as const;
+export const EXPANDED_LIST_PADDING_Y_TOKENS = [
+  'py-0', 'py-1', 'py-2', 'py-3', 'py-4', 'py-6', 'py-8', 'py-10', 'py-12',
+] as const;
+export type ExpandedListPaddingX = (typeof EXPANDED_LIST_PADDING_X_TOKENS)[number];
+export type ExpandedListPaddingY = (typeof EXPANDED_LIST_PADDING_Y_TOKENS)[number];
+
 export type MobilePinnedArticleSectionConfig = {
   /** Also doubles as "N" for the short list's stop-and-expand window (see
    * MobilePinnedArticleSection.tsx's computeWindowStart): the max rows shown
@@ -29,6 +40,17 @@ export type MobilePinnedArticleSectionConfig = {
    * height moves the carousel one card per `scrollEffortMultiplier`-scaled
    * step, exactly as this component originally shipped. */
   scrollDrivenNavigationEnabled: boolean;
+  /** Horizontal inset applied to the row list while expanded, as a Tailwind
+   * spacing token (e.g. `px-6`). */
+  expandedListPaddingX: ExpandedListPaddingX;
+  /** Vertical inset applied to the row list while expanded, as a Tailwind
+   * spacing token (e.g. `py-0`). */
+  expandedListPaddingY: ExpandedListPaddingY;
+  /** Overrides the panel's background color while expanded. Empty string
+   * inherits the collapsed panel's own color (`panelColor` prop). */
+  expandedListBackgroundColor: string;
+  /** Overrides `panelOpacity` while expanded. */
+  expandedListBackgroundOpacity: number;
 };
 
 export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
@@ -45,6 +67,10 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   // Set to 1 for strict 1:1 page-to-coverflow travel.
   scrollEffortMultiplier: 0.8,
   scrollDrivenNavigationEnabled: false,
+  expandedListPaddingX: 'px-12',
+  expandedListPaddingY: 'py-4',
+  expandedListBackgroundColor: '',
+  expandedListBackgroundOpacity: 0.82,
 } satisfies MobilePinnedArticleSectionConfig;
 
 export function normalizeMobilePinnedArticleSectionConfig(
@@ -63,5 +89,15 @@ export function normalizeMobilePinnedArticleSectionConfig(
     peekHeightSvh: clamp(base.peekHeightSvh, 4, 24),
     scrollEffortMultiplier: clamp(base.scrollEffortMultiplier, 0.5, 2),
     scrollDrivenNavigationEnabled: base.scrollDrivenNavigationEnabled === true,
+    expandedListPaddingX: EXPANDED_LIST_PADDING_X_TOKENS.includes(base.expandedListPaddingX)
+      ? base.expandedListPaddingX
+      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingX,
+    expandedListPaddingY: EXPANDED_LIST_PADDING_Y_TOKENS.includes(base.expandedListPaddingY)
+      ? base.expandedListPaddingY
+      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingY,
+    expandedListBackgroundColor: typeof base.expandedListBackgroundColor === 'string'
+      ? base.expandedListBackgroundColor.trim()
+      : '',
+    expandedListBackgroundOpacity: clamp(base.expandedListBackgroundOpacity, 0, 1),
   };
 }

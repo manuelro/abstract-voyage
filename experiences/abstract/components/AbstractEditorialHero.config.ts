@@ -259,6 +259,25 @@ export type AbstractEditorialHeroConfig = {
    * overlay uses, deliberately not React state, so scrolling never
    * re-renders this component) — not recomputed in JS per frame. */
   paragraphGradientScrollLightenMaxAmount: number;
+  /** Opt-in (default 0 — inert), only meaningful while
+   * paragraphGradientScrollLightenEnabled above is also true. When above 0,
+   * the live scroll-lighten effect stops treating
+   * paragraphGradientScrollLightenMaxAmount as a hard ceiling: each frame,
+   * it measures the actual WCAG contrast ratio between the gradient's own
+   * least-legible stop and the scroll-gradient background's own live darken
+   * state (PolymorphicLayoutResolvedColors.scrollGradientOriginColor +
+   * scrollGradientResolved.maxDarken — both supplied by the page, not
+   * guessed here), and extends the white-mix percentage PAST the authored
+   * ceiling — up to pure white — whenever the linear schedule alone would
+   * leave a scroll position illegible. Addresses a recurring failure mode
+   * the fixed-ceiling mechanism above (0.75) already tried once and didn't
+   * fully close: two independently-tuned effects (this one lightening
+   * toward white, the background darkening toward black) sharing a timing
+   * curve but never cross-checked for a real contrast guarantee. 3 is
+   * WCAG's "large text" floor, an appropriate default for a headline; 4.5
+   * for body-text-grade strength. See
+   * PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md. */
+  paragraphGradientScrollLightenTargetContrastRatio: number;
   eyebrowColor: string;
   eyebrowColorMode: AbstractEditorialHeroTextColorMode;
   eyebrowSurfaceOffset: number;
@@ -502,6 +521,7 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   paragraphGradientBlendColor: '#ffffff',
   paragraphGradientScrollLightenEnabled: true,
   paragraphGradientScrollLightenMaxAmount: 0.75,
+  paragraphGradientScrollLightenTargetContrastRatio: 3,
   composerVisible: false,
   accordionItemPresentationEnabled: true,
   accordionItemOpenIndicatorEnabled: false,
@@ -774,6 +794,10 @@ export function normalizeAbstractEditorialHeroConfig(
     paragraphGradientScrollLightenMaxAmount: clampRange(
       base.paragraphGradientScrollLightenMaxAmount, 0, 1,
       DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphGradientScrollLightenMaxAmount,
+    ),
+    paragraphGradientScrollLightenTargetContrastRatio: clampRange(
+      base.paragraphGradientScrollLightenTargetContrastRatio, 0, 21,
+      DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.paragraphGradientScrollLightenTargetContrastRatio,
     ),
     composerVisible: base.composerVisible !== false,
     accordionItemPresentationEnabled: base.accordionItemPresentationEnabled === true,

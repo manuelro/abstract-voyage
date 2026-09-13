@@ -607,6 +607,8 @@ export function MobilePinnedArticleSection({
     '--mobile-pinned-list-percent': config.listHeightPercent,
     '--mobile-pinned-expanded-percent': config.expandedPanelHeightPercent,
     '--mobile-pinned-peek-height': config.peekHeightSvh,
+    '--mobile-pinned-expanded-bg-color': config.expandedListBackgroundColor || panelColor,
+    '--mobile-pinned-expanded-bg-opacity': config.expandedListBackgroundOpacity,
     // The extra travel height only exists to give page-scroll something to
     // consume in scroll-driven mode. Off by default: the section is just
     // 100svh, and there's nothing to scroll through to reach any article —
@@ -670,7 +672,15 @@ export function MobilePinnedArticleSection({
           />
         ) : null}
         <div className={styles.panel} data-expanded={expanded} onKeyDown={handlePanelKeyDown}>
-          <div ref={rowsViewportRef} className={styles.rowsViewport} tabIndex={-1}>
+          <div
+            ref={rowsViewportRef}
+            className={
+              expanded
+                ? `${styles.rowsViewport} ${config.expandedListPaddingX} ${config.expandedListPaddingY}`
+                : styles.rowsViewport
+            }
+            tabIndex={-1}
+          >
             <div className={styles.timeline}>
               {expanded ? (
                 renderList({

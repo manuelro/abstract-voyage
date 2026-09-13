@@ -7,12 +7,21 @@ export const FACE_E_TIMELINE_SCOPE_ID = 'CuboidNavigation/FaceETimeline/appearan
 
 export const FACE_E_TIMELINE_PANEL = defineConfigScope<AboutTimelineConfig>({
   id: FACE_E_TIMELINE_SCOPE_ID,
-  component: 'FaceENavigationTimeline',
+  component: 'CuboidNavigationList',
   scope: 'appearance',
-  title: 'Face E Timelline',
+  // 'Cuboid Navigation List' (operator ask) — names what this panel
+  // actually controls (the reused AboutTimeline component's own marker/
+  // rule/copy/spacing/motion knobs, applied to the Home/About/Journal/
+  // Contact link list rendered inside the mobile cuboid nav's Face E), not
+  // the internal cube-face codename ("Face E Timelline" — also a typo,
+  // "Timelline") this scope shipped under. Matches MobileNavCube.panel.ts's
+  // own "Cuboid Navigation" title — this is that same nav's link LIST,
+  // specifically, not the cuboid shell/motion itself (already that other
+  // panel's own scope).
+  title: 'Cuboid Navigation List',
   createdAt: '2026-09-11',
   defaultOpen: false,
-  summary: 'Face E navigation marker, rule, copy, spacing, and motion',
+  summary: 'Marker, rule, copy, spacing, and motion for the mobile nav menu\'s link list',
   defaultValue: DEFAULT_FACE_E_TIMELINE_CONFIG,
   fields: ABOUT_TIMELINE_PANEL_FIELDS,
   copy: {

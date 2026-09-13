@@ -168,11 +168,17 @@
    rowDescriptionFontSizeClassName) — each independently resolved for the
    caption vs. the line — the transition lives on these two leaf elements
    rather than the shared .content wrapper above so the two never compound
-   into a single multiplied fade. */
+   into a single multiplied fade. Line-height is now owned by the row's own
+   configurable rowTitleLineHeightClassName/rowDescriptionLineHeightClassName
+   (a literal Tailwind `leading-*` class in that same className string, not
+   a value set here) — deliberately NOT set on this CSS Modules selector:
+   Tailwind's generated utilities live in `@layer utilities`, and unlayered
+   CSS modules rules always win over ANY `@layer`-declared rule regardless
+   of source order, so a hardcoded line-height here would silently defeat
+   that class every time. */
 .caption {
   position: relative;
   display: inline-block;
-  line-height: 1.3;
 }
 
 .captionText {
@@ -212,8 +218,9 @@
   transition-delay: var(--about-timeline-appendix-reveal-delay-ms, 180ms);
 }
 
+/* Line-height owned by rowDescriptionLineHeightClassName's own Tailwind
+   class — see .caption's own doc comment above for why it's not set here. */
 .line {
-  line-height: 1.4;
   transition:
     color var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease),
     opacity var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease);

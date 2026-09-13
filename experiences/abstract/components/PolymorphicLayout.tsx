@@ -29,6 +29,7 @@ import {
 } from './PolymorphicScrollGradientBackground';
 import { deriveWordmarkScrollGradientStops } from './PolymorphicScrollGradientWordmarkStops';
 import type { SvgStop } from '../../../helpers/gradientMath';
+import { generateHarmonicGradient } from '../../../helpers/harmonicGradient';
 
 /**
  * The real, shared `PolymorphicLayoutConfig` rendering component — every
@@ -181,6 +182,15 @@ export type PolymorphicLayoutResolvedColors = {
    * `logoStops` prop with `wordmarkConfig.colorMode` forced to 'adaptive'
    * — see PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md. */
   wordmarkGradientStops: SvgStop[] | undefined;
+  /** The active tier's scroll-gradient recipe's own origin stop color (the
+   * stop nearest `circle at 0% 0%`, `generateHarmonicGradient`'s first
+   * result) — a cheap, no-DOM-sampling proxy for "the background color
+   * behind hero copy," which sits in that same origin corner on every
+   * PolymorphicLayout page. Present only while scrollGradientActive is
+   * true; undefined otherwise. See PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md —
+   * consumed by AbstractEditorialHero's own live contrast-guarantee effect,
+   * not rendered directly by PolymorphicLayout itself. */
+  scrollGradientOriginColor: string | undefined;
 };
 
 /** Standalone, exported so a page needing to layer its own logic on top
@@ -273,6 +283,10 @@ export function usePolymorphicLayoutColors(
     ),
     maxDarken: tier(
       config.scrollGradientMaxDarken, config.scrollGradientMaxDarkenWide, config.scrollGradientMaxDarkenLg,
+    ),
+    legibilityTargetRatio: tier(
+      config.scrollGradientLegibilityTargetRatio, config.scrollGradientLegibilityTargetRatioWide,
+      config.scrollGradientLegibilityTargetRatioLg,
     ),
     tauMs: config.scrollGradientTauMs,
   };
@@ -403,6 +417,23 @@ export function usePolymorphicLayoutColors(
       ? resolvedSplitBandRightColor
       : physicalRightColumnColor;
 
+  // Same generateHarmonicGradient call PolymorphicScrollGradientBackground
+  // itself makes from this exact recipe — only the first (origin) stop is
+  // needed here, see scrollGradientOriginColor's own doc comment above.
+  const scrollGradientOriginColor = scrollGradientActive
+    ? generateHarmonicGradient({
+      baseHue: scrollGradientResolved.baseHue,
+      hueScheme: scrollGradientResolved.hueScheme,
+      lightnessRange: { min: scrollGradientResolved.lightnessMin },
+      chromaRange: { min: scrollGradientResolved.chromaMin },
+      mode: scrollGradientResolved.mode,
+      stops: scrollGradientResolved.stops,
+      variance: scrollGradientResolved.variance,
+      centerStretch: scrollGradientResolved.centerStretch,
+      seed: scrollGradientResolved.seed,
+    })[0]?.color
+    : undefined;
+
   return {
     breakpointTier,
     viewportWidthPx,
@@ -421,6 +452,7 @@ export function usePolymorphicLayoutColors(
     splitBandStacked,
     splitBandBoundaryPx,
     wordmarkGradientStops,
+    scrollGradientOriginColor,
   };
 }
 

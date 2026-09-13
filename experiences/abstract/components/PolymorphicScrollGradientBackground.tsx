@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { colord, extend } from 'colord';
+import a11yPlugin from 'colord/plugins/a11y';
 import { generateHarmonicGradient } from '../../../helpers/harmonicGradient';
 import type {
   PolymorphicLayoutScrollGradientHueScheme,
   PolymorphicLayoutScrollGradientMode,
 } from './PolymorphicLayout.config';
+
+extend([a11yPlugin]);
 
 export type PolymorphicScrollGradientBackgroundProps = {
   baseHue: number;
@@ -18,6 +22,26 @@ export type PolymorphicScrollGradientBackgroundProps = {
   viewportRangeVh: number;
   maxDarken: number;
   tauMs: number;
+  /** Opt-in (default 0 — inert). When above 0, the darken schedule below
+   * stops being purely scroll-driven: each frame, it also computes the
+   * minimum darken needed so that even PURE WHITE text could reach this
+   * contrast ratio against the current background, and uses whichever is
+   * darker — the scroll schedule's own value or this floor. Exists because
+   * AbstractEditorialHero's own text-side contrast correction has a hard
+   * ceiling (it can only ever mix toward white, never past it) — in a
+   * background segment light enough, white text alone cannot reach a given
+   * ratio no matter how much is mixed in. This floor guarantees the
+   * background always gets dark enough FIRST that the text-side correction
+   * always has a real solution available, closing that residual gap rather
+   * than leaving it as a known limitation. Deliberately assumes "white" as
+   * the protected ink, not any specific page's actual stop color — keeps
+   * this component free of any dependency on AbstractEditorialHero's own
+   * wordmark-gradient internals; the text side's own correction only ever
+   * needs to search for a mix AT MOST 100%, so guaranteeing white's own
+   * feasibility is sufficient to guarantee the text side always finds
+   * something ≤100% that works too. See
+   * PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md. */
+  legibilityTargetRatio?: number;
 };
 
 /**
@@ -41,6 +65,7 @@ export function PolymorphicScrollGradientBackground({
   viewportRangeVh,
   maxDarken,
   tauMs,
+  legibilityTargetRatio = 0,
 }: PolymorphicScrollGradientBackgroundProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
 
@@ -49,22 +74,30 @@ export function PolymorphicScrollGradientBackground({
   // stop-position math. That factor of 1000 rather than 100 is the exact
   // legacy value, kept verbatim rather than "corrected" — changing it would
   // change the extracted visual, not just its source location.
-  const backgroundGradient = useMemo(() => {
-    const gradientStops = generateHarmonicGradient({
-      baseHue,
-      hueScheme,
-      lightnessRange: { min: lightnessMin },
-      chromaRange: { min: chromaMin },
-      mode,
-      stops,
-      variance,
-      centerStretch,
-      seed,
-    });
-    return `radial-gradient(circle at 0% 0%, ${gradientStops
-      .map(stop => `${stop.color} ${Math.round(stop.at * 1000)}%`)
-      .join(', ')})`;
-  }, [baseHue, hueScheme, lightnessMin, chromaMin, mode, stops, variance, centerStretch, seed]);
+  const gradientStops = useMemo(() => generateHarmonicGradient({
+    baseHue,
+    hueScheme,
+    lightnessRange: { min: lightnessMin },
+    chromaRange: { min: chromaMin },
+    mode,
+    stops,
+    variance,
+    centerStretch,
+    seed,
+  }), [baseHue, hueScheme, lightnessMin, chromaMin, mode, stops, variance, centerStretch, seed]);
+
+  const backgroundGradient = useMemo(() => `radial-gradient(circle at 0% 0%, ${gradientStops
+    .map(stop => `${stop.color} ${Math.round(stop.at * 1000)}%`)
+    .join(', ')})`, [gradientStops]);
+
+  // Origin (circle-center) stop's own color — the same proxy
+  // usePolymorphicLayoutColors()'s own scrollGradientOriginColor uses for
+  // "the background color behind hero copy." Read from a ref inside the
+  // rAF effect below rather than added to that effect's own dependency
+  // array, so a stops-only change doesn't tear down/rebuild the scroll
+  // listener.
+  const originColorRef = useRef(gradientStops[0]?.color ?? '#000000');
+  originColorRef.current = gradientStops[0]?.color ?? '#000000';
 
   // Ported verbatim from SynthLayout.tsx's own SCROLL_BG_CONFIG-driven
   // effect: rAF-smoothed scroll darken, written to a CSS var (renamed from
@@ -88,11 +121,38 @@ export function PolymorphicScrollGradientBackground({
       overlay.style.setProperty('--polymorphic-scroll-gradient-darken', clamped.toFixed(3));
     };
 
+    // Minimum darken (0-1, fraction of true black) needed so that PURE
+    // WHITE text would reach legibilityTargetRatio against this origin
+    // color once darkened — see legibilityTargetRatio's own doc comment
+    // above. White's own luminance is fixed at 1, so this is a plain
+    // monotonic search on darken alone (darkening a color always lowers its
+    // luminance), unlike the text side's own V-shaped mix search.
+    const requiredDarkenForLegibility = (ratio: number) => {
+      if (ratio <= 0) return 0;
+      const maxAllowedBgLuminance = Math.max(0, 1.05 / ratio - 0.05);
+      const luminanceAtDarken = (darken: number) => {
+        const { r, g, b } = colord(originColorRef.current).toRgb();
+        const scale = 1 - darken;
+        return colord({ r: r * scale, g: g * scale, b: b * scale }).luminance();
+      };
+      if (luminanceAtDarken(0) <= maxAllowedBgLuminance) return 0;
+      if (luminanceAtDarken(1) > maxAllowedBgLuminance) return 1;
+      let lo = 0;
+      let hi = 1;
+      for (let i = 0; i < 20; i += 1) {
+        const mid = (lo + hi) / 2;
+        if (luminanceAtDarken(mid) <= maxAllowedBgLuminance) hi = mid; else lo = mid;
+      }
+      return hi;
+    };
+
     const computeTarget = () => {
       const viewport = window.innerHeight || 1;
       const rawProgress = window.scrollY / (viewport * viewportRangeVh);
       const progress = clamp(rawProgress, 0, 1);
-      targetRef.current = progress * maxDarken;
+      const scrollDarken = progress * maxDarken;
+      const legibilityDarken = Math.min(maxDarken, requiredDarkenForLegibility(legibilityTargetRatio));
+      targetRef.current = Math.max(scrollDarken, legibilityDarken);
     };
 
     const tick = (ts: number) => {
@@ -115,6 +175,13 @@ export function PolymorphicScrollGradientBackground({
 
     const schedule = () => {
       if (rafRef.current !== null) return;
+      // Same fix as AbstractEditorialHero.tsx's own identical pattern
+      // (PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md): lastTsRef isn't reset
+      // when the loop converges and stops, so resuming after any pause in
+      // scrolling would otherwise compute an artificially huge dt on the
+      // next tick (stale lastTs vs the real current ts) — alpha≈1, a
+      // one-frame snap to the new target instead of an eased transition.
+      lastTsRef.current = 0;
       rafRef.current = window.requestAnimationFrame(tick);
     };
 
@@ -138,7 +205,7 @@ export function PolymorphicScrollGradientBackground({
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
     };
-  }, [viewportRangeVh, maxDarken, tauMs]);
+  }, [viewportRangeVh, maxDarken, tauMs, legibilityTargetRatio]);
 
   return (
     <>

@@ -65,6 +65,11 @@
 
 .panel[data-expanded='true'] {
   height: calc(var(--mobile-pinned-expanded-percent) * 1svh);
+  background: color-mix(
+    in srgb,
+    var(--mobile-pinned-expanded-bg-color) calc(var(--mobile-pinned-expanded-bg-opacity) * 100%),
+    transparent
+  );
 }
 
 .rowsViewport {
@@ -77,7 +82,6 @@
    * Top-anchored to match the expanded list below, rather than centered in
    * the leftover space below the collapsed (naturally shorter) row count. */
   justify-content: flex-start;
-  padding: 0 1.5rem;
   /* `clip` prevents the collapsed list from becoming a dead-end scroll
    * container. Vertical gestures therefore continue to the document while
    * the panel still clips rows to its own bounds. */
@@ -87,9 +91,36 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Collapsed-only padding, moved off the base .rowsViewport rule above.
+ * Regression fix: this component's own base rule used to declare
+ * `padding: 0 1.5rem` unconditionally — a plain CSS Modules rule, compiled
+ * WITHOUT any `@layer`, whereas Tailwind's own px-* / py-* utilities compile
+ * INTO `@layer utilities`. Per the CSS cascade-layers spec, an unlayered
+ * declaration always wins over ANY layered declaration for the same
+ * property on the same element, regardless of selector specificity or
+ * source order — so config.expandedListPaddingX/Y's own classes
+ * (MobilePinnedArticleSection.tsx, applied only while expanded) were being
+ * silently overridden every time, on every page, with no visual feedback
+ * that anything was wrong (operator-reported: "not affecting the UI in any
+ * form"). Scoping the fixed value to the collapsed state only — via
+ * :not([data-expanded='true']) rather than leaving it commented out on
+ * .rowsViewport unconditionally — means the expanded state now has NO
+ * competing unlayered padding declaration at all, so the Tailwind classes
+ * finally win as originally intended. Same class of bug already found and
+ * fixed once this session in AboutTimeline.module.css's own line-height
+ * rules — see that file's own .caption doc comment for the general
+ * pattern. */
+.panel:not([data-expanded='true']) .rowsViewport {
+  padding: 0 1.5rem;
+}
+
 .panel[data-expanded='true'] .rowsViewport {
   /* Expanded is the full list, potentially taller than the panel — scrolls
-   * instead of clipping. Already top-anchored via the base rule above. */
+   * instead of clipping. Already top-anchored via the base rule above.
+   * Padding is now genuinely, exclusively owned by the px-* / py-* Tailwind
+   * classes applied directly on this element (config.expandedListPaddingX/Y,
+   * MobilePinnedArticleSection.tsx) — no rule in this file declares padding
+   * here, so there is nothing left to fight those utility classes. */
   overflow-y: auto;
 }
 

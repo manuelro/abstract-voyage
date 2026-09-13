@@ -124,6 +124,24 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientMaxDarken: 0.82,
   scrollGradientMaxDarkenWide: 0.65,
   scrollGradientMaxDarkenLg: 0.65,
+  // Reverted to inert (2026-09-13, operator ask): this floor pushed the
+  // darken overlay dark from the very first frame at rest, visibly
+  // altering this page's own background at scroll=0 compared to /about's
+  // identical recipe (screenshot-reported: /about stayed the intended
+  // bright light-blue at rest, /abstract had darkened noticeably even
+  // before any scroll). The operator's own instruction: the corrective
+  // work is scoped to the TEXT color only — this background-side floor,
+  // however well-intentioned as a complete-guarantee mechanism (see
+  // PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md), is out of scope and reverted.
+  // The text-side correction (AbstractEditorialHero's own
+  // paragraphGradientScrollLightenTargetContrastRatio) still runs on its
+  // own and still closes the vast majority of the scroll range on its
+  // own — only a narrow band (contrast bottoming near ~2.3 against a
+  // target of 3, verified via the same sweep) remains an accepted,
+  // background-untouched residual limitation of a text-only lever.
+  scrollGradientLegibilityTargetRatio: 0,
+  scrollGradientLegibilityTargetRatioWide: 0,
+  scrollGradientLegibilityTargetRatioLg: 0,
   scrollGradientTauMs: 550,
   wordmarkUsesScrollGradient: true,
   wordmarkGradientClarity: 'dark',
@@ -163,16 +181,16 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   wordmarkGradientSeedWide: 50,
   wordmarkGradientSeedLg: 50,
   wordmarkGradientHueSpread: 0,
-  wordmarkGradientLightnessMax: 44,
-  wordmarkGradientZoom: 0.9,
+  wordmarkGradientLightnessMax: 60,
+  wordmarkGradientZoom: 1,
   // The wordmark was reading too light/washed-out against this page's own
   // light-toned scrollGradient background (evidence: live screenshot,
   // 2026-09-11) — lightnessMin/-Max/chromaMin alone couldn't push it dark
-  // enough without also making it look like a different palette. 0.65
-  // pulls every generated stop's resolved lightness down by ~65% post-hoc,
+  // enough without also making it look like a different palette. 0.75
+  // pulls every generated stop's resolved lightness down by ~75% post-hoc,
   // independent of hue/saturation. See wordmarkGradientDarken's own doc
   // comment (PolymorphicLayout.config.ts) for the full mechanism.
-  wordmarkGradientDarken: 0.65,
+  wordmarkGradientDarken: 0.75,
   headerSplitBandEnabled: true,
   splitBandLeftMode: 'transparent',
   splitBandLeftCustomColor: '#0e1230',
@@ -525,6 +543,9 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientMaxDarken: 0.82,
   scrollGradientMaxDarkenWide: 0.65,
   scrollGradientMaxDarkenLg: 0.65,
+  scrollGradientLegibilityTargetRatio: 0,
+  scrollGradientLegibilityTargetRatioWide: 0,
+  scrollGradientLegibilityTargetRatioLg: 0,
   scrollGradientTauMs: 550,
   wordmarkUsesScrollGradient: false,
   wordmarkGradientClarity: 'auto',

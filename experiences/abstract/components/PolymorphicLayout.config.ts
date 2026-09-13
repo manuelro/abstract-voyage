@@ -969,6 +969,21 @@ export type PolymorphicLayoutConfig = {
   scrollGradientMaxDarken: number;
   scrollGradientMaxDarkenWide: number;
   scrollGradientMaxDarkenLg: number;
+  /** Opt-in (default 0 — inert). Above 0, the darken schedule above stops
+   * being purely scroll-driven: whenever the scroll-driven value alone
+   * wouldn't let PURE WHITE text reach this WCAG contrast ratio against the
+   * current background, the darken overlay gets pushed darker (never past
+   * scrollGradientMaxDarken above) until it would. Exists because a
+   * scroll-lightening text effect (AbstractEditorialHero's own
+   * paragraphGradientScrollLightenTargetContrastRatio) can only ever mix
+   * toward white — it has no lever left once fully white, so if the
+   * background itself isn't dark enough yet, no amount of text-side
+   * correction can help. This floor guarantees the background side always
+   * gets there first. Base/mobile tier. See
+   * PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md. */
+  scrollGradientLegibilityTargetRatio: number;
+  scrollGradientLegibilityTargetRatioWide: number;
+  scrollGradientLegibilityTargetRatioLg: number;
   /** Exponential-smoothing time constant (ms) for the scroll-darken overlay
    * — legacy SCROLL_BG_CONFIG.tauMs. NOT tiered: a "feel" constant, not a
    * per-viewport concern, unlike every other scrollGradient* field above. */
@@ -1254,6 +1269,9 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientMaxDarken: 0.65,
   scrollGradientMaxDarkenWide: 0.65,
   scrollGradientMaxDarkenLg: 0.65,
+  scrollGradientLegibilityTargetRatio: 0,
+  scrollGradientLegibilityTargetRatioWide: 0,
+  scrollGradientLegibilityTargetRatioLg: 0,
   scrollGradientTauMs: 550,
   wordmarkUsesScrollGradient: false,
   wordmarkGradientClarity: 'auto',
@@ -1865,6 +1883,18 @@ export function normalizePolymorphicLayoutConfig(
     ),
     scrollGradientMaxDarkenLg: clampRange(
       base.scrollGradientMaxDarkenLg, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMaxDarkenLg,
+    ),
+    scrollGradientLegibilityTargetRatio: clampRange(
+      base.scrollGradientLegibilityTargetRatio, 0, 21,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLegibilityTargetRatio,
+    ),
+    scrollGradientLegibilityTargetRatioWide: clampRange(
+      base.scrollGradientLegibilityTargetRatioWide, 0, 21,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLegibilityTargetRatioWide,
+    ),
+    scrollGradientLegibilityTargetRatioLg: clampRange(
+      base.scrollGradientLegibilityTargetRatioLg, 0, 21,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLegibilityTargetRatioLg,
     ),
     scrollGradientTauMs: clampRange(
       base.scrollGradientTauMs, 0, 5000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientTauMs,

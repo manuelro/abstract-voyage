@@ -10,6 +10,8 @@ import {
 export const DEFAULT_FACE_E_TIMELINE_CONFIG: AboutTimelineConfig = normalizeAboutTimelineConfig({
   ...DEFAULT_ABOUT_TIMELINE_CONFIG,
   maxWidthClassName: 'max-w-2xl',
+  maxWidthWideClassName: 'md:max-w-2xl',
+  maxWidthLgClassName: 'lg:max-w-2xl',
   maxActiveRows: 1,
   rowGap: 'gap-8',
   markerSizeClassName: 'w-3 h-3',
@@ -19,6 +21,8 @@ export const DEFAULT_FACE_E_TIMELINE_CONFIG: AboutTimelineConfig = normalizeAbou
   markerActiveOpacity: 1,
   ruleVisible: true,
   rowTitleFontSizeClassName: 'text-xl',
+  rowTitleFontSizeWideClassName: 'md:text-xl',
+  rowTitleFontSizeLgClassName: 'lg:text-xl',
   rowDescriptionFontSizeClassName: 'text-sm',
   rowTitleOpacityInactive: 0.58,
   rowDescriptionOpacityInactive: 0.48,

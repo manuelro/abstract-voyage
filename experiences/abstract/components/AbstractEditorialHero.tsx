@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, MutableRefObject, Ref, RefObject } from 'react';
+import { colord, extend } from 'colord';
+import a11yPlugin from 'colord/plugins/a11y';
 import { normalizeCtaButtonConfig, type CtaButtonConfig } from '../../../components/CtaButton/config/registered';
 import { DEFAULT_PAGE_SURFACE_CONFIG } from '../../../components/PageSurface.config';
 import { useElevationShadow } from '../../../components/proximity/useElevationShadow';
@@ -36,10 +38,114 @@ import {
 } from '../../about/components/AboutMobileAccordion.config';
 import styles from './AbstractEditorialHero.module.css';
 
+extend([a11yPlugin]);
+
 // See paragraphGradientScrollLightenEnabled's own doc comment
 // (AbstractEditorialHero.config.ts) for the full mechanism this CSS custom
 // property drives.
 const PARAGRAPH_GRADIENT_LIGHTEN_PROGRESS_VAR = '--paragraph-gradient-lighten-progress';
+
+type Rgb = { r: number; g: number; b: number };
+
+// Linear sRGB channel-wise mix toward white — the same math CSS
+// `color-mix(in srgb, ...)` performs, so this JS-side estimate matches what
+// actually gets painted. Deliberately NOT colord's own `.mix()` (CIE LAB
+// space) — that would silently disagree with the real paint here. See
+// PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md.
+function mixTowardWhiteSrgb(hex: string, ratio: number): Rgb {
+  const { r, g, b } = colord(hex).toRgb();
+  const clamped = Math.min(1, Math.max(0, ratio));
+  return { r: r + (255 - r) * clamped, g: g + (255 - g) * clamped, b: b + (255 - b) * clamped };
+}
+
+// Black-over-color compositing (what PolymorphicScrollGradientBackground's
+// own darken overlay visually does) is just per-channel scaling — black
+// contributes nothing.
+function scaleTowardBlackSrgb(hex: string, darken: number): Rgb {
+  const { r, g, b } = colord(hex).toRgb();
+  const scale = 1 - Math.min(1, Math.max(0, darken));
+  return { r: r * scale, g: g * scale, b: b * scale };
+}
+
+function contrastRatio(a: Rgb, b: Rgb): number {
+  const la = colord(a).luminance();
+  const lb = colord(b).luminance();
+  const lighter = Math.max(la, lb);
+  const darker = Math.min(la, lb);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function luminanceAtMix(stopColor: string, mix: number): number {
+  return colord(mixTowardWhiteSrgb(stopColor, mix)).luminance();
+}
+
+/**
+ * The final white-mix ratio (0-1) to actually use for `stopColor` against
+ * `bgColor` — starting from `linearMixRatio` (what the plain, uncorrected
+ * scroll schedule would already paint at this instant) and pushing further
+ * toward white only when doing so genuinely helps reach `targetRatio`.
+ *
+ * Contrast-vs-mix is a V shape: a single minimum at whichever mix makes the
+ * text's own luminance equal the background's, monotonically INCREASING
+ * only on the far side of that crossing (text lighter than background).
+ * Below the crossing, MORE white makes things WORSE, not better — pushing a
+ * still-darker-than-background stop toward white walks it straight through
+ * the worst point before any hope of clearing it.
+ *
+ * Two regressions already came from getting this wrong:
+ * 1. (2026-09-13a) Searching the whole [0,1] range assuming pure monotonic
+ *    increase — forced extra whitening even when the raw stop started
+ *    darker than the (barely-darkened, near-scroll-top) background, walking
+ *    it through the dip and landing on washed-out, near-invisible text at
+ *    rest.
+ * 2. (2026-09-13b) Overcorrecting #1 by refusing to help at all whenever the
+ *    RAW (0%-mixed) stop was darker than the background — but the plain
+ *    schedule has usually already applied SOME whitening by the time this
+ *    runs (linearMixRatio > 0), and checking against the fully-raw color
+ *    instead of what's actually about to be painted silently gave up
+ *    exactly in the original mid-scroll collision zone this feature exists
+ *    to fix, reintroducing that original bug.
+ *
+ * The correct approach: find the crossing point starting the search AT
+ * linearMixRatio (not 0), and only bisect for the target within the
+ * genuinely-monotonic region beyond that crossing (never below
+ * linearMixRatio, which is also the floor of what's returned in every
+ * branch — this function never recommends LESS white than the plain
+ * schedule already provides). See PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md.
+ */
+function requiredWhiteMixRatio(
+  stopColor: string, bgColor: Rgb, targetRatio: number, linearMixRatio: number,
+): number {
+  const baseline = contrastRatio(mixTowardWhiteSrgb(stopColor, linearMixRatio), bgColor);
+  if (baseline >= targetRatio) return linearMixRatio;
+
+  const atFull = contrastRatio(mixTowardWhiteSrgb(stopColor, 1), bgColor);
+  if (atFull <= baseline) return linearMixRatio; // this lever cannot beat what's already scheduled
+
+  const bgLuminance = colord(bgColor).luminance();
+  let searchLo = linearMixRatio;
+  if (luminanceAtMix(stopColor, linearMixRatio) < bgLuminance) {
+    // Bisect for the crossing point itself first — the smallest mix at or
+    // above linearMixRatio where the text's own luminance reaches the
+    // background's. Below this point contrast is moving the wrong way.
+    let lo = linearMixRatio;
+    let hi = 1;
+    for (let i = 0; i < 20; i += 1) {
+      const mid = (lo + hi) / 2;
+      if (luminanceAtMix(stopColor, mid) >= bgLuminance) hi = mid; else lo = mid;
+    }
+    searchLo = hi;
+  }
+
+  let lo = searchLo;
+  let hi = 1;
+  for (let i = 0; i < 20; i += 1) {
+    const mid = (lo + hi) / 2;
+    const ratio = contrastRatio(mixTowardWhiteSrgb(stopColor, mid), bgColor);
+    if (ratio >= targetRatio) hi = mid; else lo = mid;
+  }
+  return hi;
+}
 
 function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
   if (typeof ref === 'function') ref(value);
@@ -147,6 +253,21 @@ type AbstractEditorialHeroProps = {
    * (AbstractEditorialHero.config.ts). */
   scrollGradientDarkenViewportRangeVh?: number;
   scrollGradientDarkenTauMs?: number;
+  /** Only meaningful while config.paragraphGradientScrollLightenTargetContrastRatio
+   * is above 0 — PolymorphicLayoutResolvedColors.scrollGradientOriginColor,
+   * the active tier's scroll-gradient recipe's own origin stop color, used
+   * as a proxy for "the background color behind hero copy" (the hero sits
+   * in the same `circle at 0% 0%` corner the gradient originates from). See
+   * PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md. undefined for every caller not
+   * opting in. */
+  scrollGradientOriginColor?: string;
+  /** Same gate as scrollGradientOriginColor above —
+   * PolymorphicLayoutResolvedColors.scrollGradientResolved.maxDarken, the
+   * same ceiling <PolymorphicScrollGradientBackground>'s own black overlay
+   * uses, so this component's live contrast check reflects the real darkest
+   * the background will ever get at the current scroll position, not an
+   * independently-guessed ceiling. */
+  scrollGradientMaxDarken?: number;
   layoutMode: 'full' | 'editorial';
   copyInkTone: AbstractEditorialHeroInkTone;
   actionInkTone: AbstractEditorialHeroInkTone;
@@ -197,6 +318,8 @@ export function AbstractEditorialHero({
   wordmarkGradientStops,
   scrollGradientDarkenViewportRangeVh,
   scrollGradientDarkenTauMs,
+  scrollGradientOriginColor,
+  scrollGradientMaxDarken,
   accordionItemConfig,
 }: AbstractEditorialHeroProps) {
   const normalized = normalizeAbstractEditorialHeroConfig(config);
@@ -239,6 +362,19 @@ export function AbstractEditorialHero({
     && normalized.paragraphGradientScrollLightenEnabled
     && scrollGradientDarkenViewportRangeVh !== undefined
     && scrollGradientDarkenTauMs !== undefined;
+  // The one stop a shared white-mix% is least likely to make legible first —
+  // all stops share the identical live mix% (one calc() applied uniformly
+  // across the whole gradient string below), and mixing toward white is
+  // monotonic per-channel, so the lowest-luminance stop needs the largest
+  // mix to clear any given contrast target and is the correct, cheap proxy
+  // for "the whole gradient." Only recomputed when the stops themselves
+  // change, not per scroll frame. See PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md.
+  const worstWordmarkStopColor = useMemo(() => {
+    if (!wordmarkGradientStops?.length) return undefined;
+    return wordmarkGradientStops.reduce(
+      (worst, stop) => (colord(stop.color).luminance() < colord(worst.color).luminance() ? stop : worst),
+    ).color;
+  }, [wordmarkGradientStops]);
   const wordmarkGradientCss = useMemo(() => {
     if (!wordmarkGradientStops?.length) return undefined;
     if (!scrollLightenActive) {
@@ -280,11 +416,52 @@ export function AbstractEditorialHero({
 
     const targetRef = { current: 0 };
     const smoothRef = { current: 0 };
+    // The corrected mix ratio's OWN smoothed value — a second, independent
+    // low-pass stage, same tau as the progress smoothing above. Without
+    // this, the corrected mix is written as an instantaneous function of
+    // the already-smoothed scroll progress each frame; since that mapping
+    // has its own discontinuities (the contrast requirement can become
+    // newly satisfiable, or newly demand much more white, from one frame's
+    // background to the next), the WRITTEN value could still jump in a
+    // single frame even while scroll itself glides smoothly — exactly the
+    // reported snap (screenshot: two frames apart, no visible transition).
+    // Smoothing the mix a second time, through the same tau the background
+    // darken uses, gives it the same "ease into it" character instead of a
+    // step. See PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md.
+    const mixSmoothRef = { current: 0 };
     const rafRef = { current: null as number | null };
     const lastTsRef = { current: 0 };
 
+    const maxAmountPercent = normalized.paragraphGradientScrollLightenMaxAmount * 100;
+    // Only the headline/paragraph branch's own background is the fixed,
+    // full-viewport scroll-gradient <PolymorphicScrollGradientBackground> —
+    // the accordion-item branch's text sits against resolvedColumnBackgroundColor
+    // instead (a wholly different, static reference), so the correction below
+    // is deliberately scoped to scrollLightenActive only, not
+    // accordionItemScrollLightenActive — that branch keeps writing the plain
+    // eased progress, unchanged from before this feature existed.
+    const contrastGuaranteeActive = scrollLightenActive
+      && normalized.paragraphGradientScrollLightenTargetContrastRatio > 0
+      && maxAmountPercent > 0
+      && scrollGradientOriginColor !== undefined
+      && scrollGradientMaxDarken !== undefined
+      && worstWordmarkStopColor !== undefined;
+
     const writeProgress = (value: number) => {
       el.style.setProperty(PARAGRAPH_GRADIENT_LIGHTEN_PROGRESS_VAR, clamp01(value).toFixed(3));
+    };
+
+    // The instantaneous (possibly discontinuous) desired mix ratio (0-1) for
+    // the current, already-smoothed scroll progress — mixSmoothRef above is
+    // what actually gets eased toward this and written.
+    const desiredMixRatio = (current: number) => {
+      const linearMixRatio = current * (maxAmountPercent / 100);
+      if (!contrastGuaranteeActive) return linearMixRatio;
+      const bgRgb = scaleTowardBlackSrgb(scrollGradientOriginColor as string, current * (scrollGradientMaxDarken as number));
+      return requiredWhiteMixRatio(
+        worstWordmarkStopColor as string, bgRgb, normalized.paragraphGradientScrollLightenTargetContrastRatio,
+        linearMixRatio,
+      );
     };
 
     const computeTarget = () => {
@@ -304,15 +481,38 @@ export function AbstractEditorialHero({
       const current = smoothRef.current + (target - smoothRef.current) * alpha;
       smoothRef.current = current;
 
-      writeProgress(current);
+      const mixTarget = desiredMixRatio(current);
+      const mixCurrent = mixSmoothRef.current + (mixTarget - mixSmoothRef.current) * alpha;
+      mixSmoothRef.current = mixCurrent;
+      // Writes the effective PROGRESS value that, once the existing
+      // consumer CSS calc()s multiply it by maxAmountPercent, yields the
+      // (now eased) corrected mix% — not the mix% itself. Can exceed 1
+      // (browsers clamp color-mix()'s percentage arguments to 0-100%),
+      // which is exactly how a correction reaches further toward white
+      // than the authored ceiling.
+      writeProgress(Math.min(100, mixCurrent * 100) / maxAmountPercent);
 
-      if (Math.abs(target - current) >= 0.001) {
+      if (Math.abs(target - current) >= 0.001 || Math.abs(mixTarget - mixCurrent) >= 0.001) {
         rafRef.current = window.requestAnimationFrame(tick);
       }
     };
 
     const schedule = () => {
       if (rafRef.current !== null) return;
+      // Regression fix (2026-09-13, screenshot-reported: text color snapping
+      // instead of easing): lastTsRef is NOT reset when the loop converges
+      // and stops (only rAF cancellation happens then) — it keeps whatever
+      // timestamp the final tick ran at. If scrolling resumes after any
+      // pause, the NEXT tick's `lastTs = lastTsRef.current || ts` inherits
+      // that stale, no-longer-current timestamp instead of falling back to
+      // `ts` (the `|| ts` fallback only ever fires on the very first tick
+      // ever, when lastTsRef.current is still its initial 0) — producing an
+      // artificially huge dt, and therefore alpha≈1, and therefore a
+      // one-frame snap straight to the new target instead of an eased
+      // transition. Resetting here, right before a loop restarts from
+      // idle, makes the next tick's fallback fire correctly every time,
+      // not just on mount.
+      lastTsRef.current = 0;
       rafRef.current = window.requestAnimationFrame(tick);
     };
 
@@ -339,6 +539,9 @@ export function AbstractEditorialHero({
   }, [
     scrollLightenActive, accordionItemScrollLightenActive,
     scrollGradientDarkenViewportRangeVh, scrollGradientDarkenTauMs,
+    normalized.paragraphGradientScrollLightenMaxAmount,
+    normalized.paragraphGradientScrollLightenTargetContrastRatio,
+    scrollGradientOriginColor, scrollGradientMaxDarken, worstWordmarkStopColor,
   ]);
   // 'clip' (background-clip:text) wins if both happen to be true — see
   // paragraphUsesWordmarkGradientBlend's own doc comment
