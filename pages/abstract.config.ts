@@ -61,6 +61,49 @@ export const DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG = {
   order: 'newest',
 } satisfies AbstractTimelineContentConfig;
 
+/**
+ * Single shared ink color for the mobile article list's own row text
+ * (pages/abstract.tsx's `<AboutTimeline>` instance inside
+ * MobilePinnedArticleSection's `renderList`) — operator ask: rather than
+ * two independently-resolved, independently-tinted colors for active vs.
+ * inactive rows (the previous behavior, sourced from
+ * `resolveTypographyColors`'s own separate bodyColor/highlightColor
+ * searches, each free to land on a different hue/lightness), one fixed
+ * hue+saturation ink is resolved for contrast against the real background,
+ * and active/inactive distinction is carried by OPACITY alone
+ * (AboutTimeline's own existing bodyOpacityOverride/highlightOpacityOverride
+ * — unchanged, not part of this config). `hue`/`saturation` are the ink's
+ * own fixed identity, independent of whatever the background happens to
+ * be — unlike `resolveContrastAwareTextColor`'s own hue-preserving search,
+ * which derives h/s FROM the background itself. `minLightness`/
+ * `minDarkness` bound how far the contrast search is allowed to push in
+ * either direction — `minLightness` is the floor when resolving to a
+ * light-leaning ink (never dimmer than this), `minDarkness` is the
+ * equivalent floor on the DARK side (stored as "how much darkness is
+ * guaranteed," converted to a lightness ceiling of `100 - minDarkness`
+ * internally) — both prevent the search from drifting into a washed-out
+ * middle-gray result even when the target contrast ratio could technically
+ * be met there. See PLAN-MOBILE-ARTICLE-LIST-SHARED-INK.md.
+ */
+export type AbstractMobileArticleListInkConfig = {
+  hue: number;
+  saturation: number;
+  minLightness: number;
+  minDarkness: number;
+  minContrastRatio: number;
+};
+
+export const DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG = {
+  // Matches the hue family the previous highlightColor search happened to
+  // land on (a cool blue) — introducing this config is a close visual
+  // match to today, not an arbitrary reset, until an operator retunes it.
+  hue: 215,
+  saturation: 45,
+  minLightness: 88,
+  minDarkness: 10,
+  minContrastRatio: 4.5,
+} satisfies AbstractMobileArticleListInkConfig;
+
 export const DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG = {
   topRegionPercent: 18,
   bottomRegionPercent: 62,
@@ -84,6 +127,9 @@ const TIMELINE_CONTENT_ORDERS: ReadonlyArray<AbstractTimelineContentOrder> = [
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
+);
+const clampRange = (value: number, min: number, max: number, fallback: number): number => (
+  Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback
 );
 
 export function normalizeAbstractPageLayoutConfig(
@@ -150,6 +196,26 @@ export function normalizeAbstractTimelineContentConfig(
   };
 }
 
+const clampLoop360 = (value: number, fallback: number): number => {
+  if (!Number.isFinite(value)) return fallback;
+  const wrapped = value % 360;
+  return wrapped < 0 ? wrapped + 360 : wrapped;
+};
+
+export function normalizeAbstractMobileArticleListInkConfig(
+  config: Partial<AbstractMobileArticleListInkConfig> | undefined,
+): AbstractMobileArticleListInkConfig {
+  const D = DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG;
+  const base = { ...D, ...(config ?? {}) };
+  return {
+    hue: clampLoop360(base.hue, D.hue),
+    saturation: clampRange(base.saturation, 0, 100, D.saturation),
+    minLightness: clampRange(base.minLightness, 0, 100, D.minLightness),
+    minDarkness: clampRange(base.minDarkness, 0, 100, D.minDarkness),
+    minContrastRatio: clampRange(base.minContrastRatio, 1, 21, D.minContrastRatio),
+  };
+}
+
 // PLAN-POLYMORPHIC-LAYOUT-PAGE-CONFIG-PARITY.md: relocated to
 // experiences/abstract/components/PolymorphicLayout.pageConfigs.ts, co-located
 // with /about's and /posts-lab's own instances next to the shared type they're
@@ -178,7 +244,7 @@ export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   maxWidthLgClassName: 'lg:max-w-lg',
   paddingRightClassName: 'pr-5',
   paddingLeftClassName: 'pl-5',
-  rowGap: 'gap-6',
+  rowGap: 'gap-4',
   markerSizeClassName: 'w-2.5 h-2.5',
   markerColorMode: 'text',
   markerCustomColor: '#6c6b94',

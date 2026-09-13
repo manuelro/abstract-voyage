@@ -11,6 +11,7 @@ import type {
   WheelEvent as ReactWheelEvent,
 } from 'react';
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { colord } from 'colord';
 // DEFAULT_GRADIENT_DESIGNER_CONFIG/GradientDesignerConfig/GradientDesignerTarget
 // come from AbstractGradientBackground.config.ts, not GradientDesignerPanel
 // itself, deliberately: this page reads DEFAULT_GRADIENT_DESIGNER_CONFIG
@@ -254,15 +255,18 @@ import {
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
   DEFAULT_ABSTRACT_TIMELINE_CONFIG,
   DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG,
+  DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG,
   applyAbstractPolymorphicLayoutAllSizesUpdate,
   normalizeAbstractNarrowColumnStackConfig,
   normalizeAbstractTimelineContentConfig,
   normalizeAbstractPageLayoutConfig,
+  normalizeAbstractMobileArticleListInkConfig,
   type AbstractNarrowColumnStackConfig,
   type AbstractNarrowColumnStackHorizontalAlign,
   type AbstractNarrowColumnStackVerticalAlign,
   type AbstractPageLayoutConfig,
   type AbstractTimelineContentConfig,
+  type AbstractMobileArticleListInkConfig,
 } from './abstract.config';
 import {
   normalizeAboutMobileAccordionConfig,
@@ -284,6 +288,7 @@ import {
   ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
   ABSTRACT_TIMELINE_CONTENT_SCOPE_ID,
   ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID,
+  ABSTRACT_MOBILE_ARTICLE_LIST_INK_SCOPE_ID,
 } from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
@@ -629,6 +634,57 @@ const JOURNAL_DOCK_SLIDER_CONFIG = {
 
 // CoverFlow keeps the established card-treatment baseline without mounting
 // or exposing the retired CardStack itself.
+
+/**
+ * Black-over-color compositing (what PolymorphicScrollGradientBackground's
+ * own darken overlay visually does) is just per-channel scaling — black
+ * contributes nothing. Page-local rather than importing
+ * AbstractEditorialHero.tsx's own private, unexported equivalent — same
+ * one-line math, no cross-component dependency. See
+ * PLAN-MOBILE-ARTICLE-LIST-SCROLL-CONTRAST.md.
+ */
+function scaleColorTowardBlack(hex: string, darken: number): string {
+  const { r, g, b } = colord(hex).toRgb();
+  const scale = 1 - Math.min(1, Math.max(0, darken));
+  return colord({ r: r * scale, g: g * scale, b: b * scale }).toHex();
+}
+
+// Same "decide light vs dark by background luminance, binary-search
+// lightness for the passing candidate closest to that side's own boundary"
+// structure as helpers/surfaceColorDerivation.ts's own (unexported)
+// resolveStableContrastAwareTextColor — but seeded from a FIXED, config-
+// supplied hue/saturation (the mobile article list's own single shared
+// ink, AbstractMobileArticleListInkConfig) rather than deriving h/s from
+// the background itself, and bounded to [minLightness, 100 - minDarkness]
+// instead of the full [0, 100] range — see that config type's own doc
+// comment (pages/abstract.config.ts) for why. Page-local rather than
+// widening the shared helper for a single caller's own bespoke bounds.
+function resolveMobileArticleListInkColor(
+  backgroundColor: string,
+  ink: AbstractMobileArticleListInkConfig,
+): string {
+  const floor = Math.min(ink.minLightness, 100 - ink.minDarkness);
+  const ceiling = Math.max(ink.minLightness, 100 - ink.minDarkness);
+  const colorAt = (lightness: number) => colord({ h: ink.hue, s: ink.saturation, l: lightness }).toHex();
+  const contrastAt = (lightness: number) => colord(colorAt(lightness)).contrast(backgroundColor);
+  const preferLight = colord(backgroundColor).luminance() < 0.2;
+  const endpoint = preferLight ? ceiling : floor;
+  const otherEndpoint = preferLight ? floor : ceiling;
+  if (contrastAt(endpoint) < ink.minContrastRatio) {
+    // Even the most extreme allowed lightness can't clear the target —
+    // best-effort fallback, matching every other contrast resolver in this
+    // codebase: return whichever of the two bounds contrasts better rather
+    // than silently returning an under-contrast color.
+    return contrastAt(endpoint) >= contrastAt(otherEndpoint) ? colorAt(endpoint) : colorAt(otherEndpoint);
+  }
+  let passing = endpoint;
+  let failing = otherEndpoint;
+  for (let index = 0; index < 20; index += 1) {
+    const candidate = (passing + failing) / 2;
+    if (contrastAt(candidate) >= ink.minContrastRatio) passing = candidate; else failing = candidate;
+  }
+  return colorAt(passing);
+}
 
 /**
  * Keeps the configured card width as the column-count target, then lets the
@@ -1505,6 +1561,14 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     useState<AbstractTimelineContentConfig>(() => (
       normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG)
     ));
+  const [mobileArticleListInkConfig, setMobileArticleListInkConfig] =
+    useState<AbstractMobileArticleListInkConfig>(() => (
+      normalizeAbstractMobileArticleListInkConfig(DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG)
+    ));
+  // Driven by MobilePinnedArticleSection's own onExpandedChange callback —
+  // see scrollGradientForceMaxDarken's own doc comment at the
+  // <PolymorphicLayout> call site below.
+  const [isMobileArticleListExpanded, setIsMobileArticleListExpanded] = useState(false);
   // The masthead/welcome item is site introduction, not part of the
   // article index. CoverFlow and the narrow column's AboutTimeline share
   // this filtered sequence. `featured` is an opt-in editorial flag
@@ -2091,6 +2155,178 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const headerTypography = resolveTypographyColors(colors.actualLeftSegmentColor, globalTypographyConfig);
   const narrowColumnTypography = resolveTypographyColors(colors.narrowColumnColor, globalTypographyConfig);
   const wideColumnTypography = resolveTypographyColors(colors.wideColumnColor, globalTypographyConfig);
+  // Mobile article-list scroll-contrast guarantee (PLAN-MOBILE-ARTICLE-LIST-
+  // SCROLL-CONTRAST.md): while the mobile tier's scroll-gradient background
+  // is active, colors.wideColumnColor above is already overridden to a
+  // fixed brand ink color (scrollGradientInkColor, usePolymorphicLayoutColors)
+  // — never the real, physically-painted gradient, and never updated as the
+  // background darkens on scroll. wideColumnTypography above is therefore
+  // both resolved against the wrong color AND static for the entire scroll
+  // range.
+  //
+  // These two anchors resolve the mobile article list's own SINGLE shared
+  // ink (AbstractMobileArticleListInkConfig, operator ask — replaces the
+  // two independently-tinted bodyColor/highlightColor values every other
+  // resolveTypographyColors caller still uses) against the REAL background
+  // at its two extremes — at rest (scrollGradientOriginColor) and fully
+  // darkened (that color scaled toward black by the same maxDarken the
+  // background's own overlay uses). Only meaningful while
+  // colors.scrollGradientActive is true; every other tier/page keeps
+  // today's single wideColumnTypography value untouched. See the mobile
+  // article-list's own <AboutTimeline> call site (renderList prop) below
+  // for where these two anchors get live-mixed via CSS color-mix(), not
+  // applied directly.
+  const mobileArticleListBackgroundAtRest = colors.scrollGradientOriginColor ?? colors.wideColumnColor;
+  const mobileArticleListBackgroundDarkened = scaleColorTowardBlack(
+    mobileArticleListBackgroundAtRest, colors.scrollGradientResolved.maxDarken,
+  );
+  const mobileArticleListInkAtRest = colors.scrollGradientActive
+    ? resolveMobileArticleListInkColor(mobileArticleListBackgroundAtRest, mobileArticleListInkConfig)
+    : wideColumnTypography.bodyColor;
+  const mobileArticleListInkDarkened = colors.scrollGradientActive
+    ? resolveMobileArticleListInkColor(mobileArticleListBackgroundDarkened, mobileArticleListInkConfig)
+    : wideColumnTypography.bodyColor;
+  // Live scroll-progress CSS var for the mobile article list's own
+  // color-mix() text (PLAN-MOBILE-ARTICLE-LIST-SCROLL-CONTRAST.md) —
+  // attached to the wrapping div around <MobilePinnedArticleSection> below
+  // (that div is a real ancestor of the rendered rows, unlike
+  // PolymorphicScrollGradientBackground's own darken var, which lives on a
+  // FIXED SIBLING overlay and therefore never inherits down to this
+  // subtree). Ported verbatim from AbstractEditorialHero.tsx's own
+  // identical rAF-smoothed scroll effect — same tau-based exponential
+  // easing (`alpha = 1 - exp(-dt/tau)`), same viewportRangeVh/tauMs INPUTS
+  // (colors.scrollGradientResolved, the same values the background/hero
+  // already use) — so this list's own color transition rides the identical
+  // curve and pace as both of those, per explicit operator ask. Unlike the
+  // hero, only ONE smoothing stage is needed here: the color itself is a
+  // plain, continuous color-mix() between two FIXED precomputed endpoints
+  // (mobileArticleListInkAtRest/-Darkened above), not a per-frame
+  // discontinuous correction search — one smoothed progress value driving
+  // a linear interpolation is already exactly as gradual as the hero's own
+  // first-stage smoothing; a second stage would add lag with nothing to
+  // correct for.
+  const mobileArticleListScrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!colors.scrollGradientActive) return undefined;
+    const el = mobileArticleListScrollRef.current;
+    if (!el) return undefined;
+
+    const { viewportRangeVh, tauMs } = colors.scrollGradientResolved;
+    const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+    const alphaFromTau = (dtMs: number, tau: number) => 1 - Math.exp(-dtMs / Math.max(1, tau));
+
+    const targetRef = { current: 0 };
+    const smoothRef = { current: 0 };
+    const rafRef = { current: null as number | null };
+    const lastTsRef = { current: 0 };
+
+    const writeProgress = (value: number) => {
+      el.style.setProperty('--mobile-article-list-darken', clamp01(value).toFixed(3));
+    };
+
+    // Regression fix, superseded design (operator-reported: selecting a
+    // different article visibly, subtly re-tints/dims the WHOLE list —
+    // confirmed live: an inactive row's own resolved color measurably
+    // shifted purely from a DIFFERENT row becoming active). Root cause:
+    // selecting an article while the list is expanded actually CLOSES the
+    // panel as part of committing the selection (MobilePinnedArticleSection
+    // .tsx's own closePanel — by design, not a bug) — which unlocks body
+    // scroll and restores window.scrollY to wherever the page should land
+    // for that article, a real, legitimate scroll-position change. This
+    // effect was correctly, gradually re-tinting toward that new real
+    // position — "working as designed" for a scroll-driven list, but
+    // visually jarring given the read happens inside what feels like a
+    // static, modal-like view. Operator's own fix (PLAN-MOBILE-ARTICLE-
+    // LIST-EXPAND-DARKEN.md): rather than freezing at an arbitrary
+    // mid-scroll value, force this list's own tint fully toward its
+    // darkened anchor while expanded — same forceMaxDarken semantics, same
+    // config toggle (expandedForcesMaxBackgroundDarken), as the shared
+    // scroll-gradient background now uses (PolymorphicScrollGradientBackground.tsx)
+    // — so the two track together, both settled, for the exact same
+    // reason. Falls back to the plain scroll-driven value whenever not
+    // expanded, or the operator has disabled the toggle.
+    const computeTarget = () => {
+      if (isMobileArticleListExpanded && mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken) {
+        targetRef.current = 1;
+        return;
+      }
+      const viewport = window.innerHeight || 1;
+      const rawProgress = window.scrollY / (viewport * viewportRangeVh);
+      targetRef.current = clamp01(rawProgress);
+    };
+
+    const tick = (ts: number) => {
+      const lastTs = lastTsRef.current || ts;
+      lastTsRef.current = ts;
+      rafRef.current = null;
+
+      const dt = Math.max(0, ts - lastTs);
+      const alpha = alphaFromTau(dt, tauMs);
+      const target = targetRef.current;
+      const current = smoothRef.current + (target - smoothRef.current) * alpha;
+      smoothRef.current = current;
+
+      writeProgress(current);
+
+      if (Math.abs(target - current) >= 0.001) {
+        rafRef.current = window.requestAnimationFrame(tick);
+      }
+    };
+
+    const schedule = () => {
+      if (rafRef.current !== null) return;
+      // Regression fix (already required twice this session on the other
+      // two rAF loops in this codebase, PolymorphicScrollGradientBackground.tsx
+      // and AbstractEditorialHero.tsx): lastTsRef is NOT reset when the
+      // loop converges and stops — only rAF cancellation happens then. If
+      // scrolling resumes after any pause, the next tick's
+      // `lastTs = lastTsRef.current || ts` would otherwise inherit that
+      // stale timestamp instead of falling back to `ts`, producing an
+      // artificially huge dt, alpha≈1, and a one-frame snap on exactly the
+      // pause-then-resume case a user dwelling mid-scroll on this list
+      // would actually hit.
+      lastTsRef.current = 0;
+      rafRef.current = window.requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => {
+      computeTarget();
+      schedule();
+    };
+    const onResize = () => {
+      computeTarget();
+      schedule();
+    };
+
+    writeProgress(0);
+    computeTarget();
+    schedule();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [
+    colors.scrollGradientActive, colors.scrollGradientResolved,
+    isMobileArticleListExpanded, mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken,
+  ]);
+  // Live-mixed CSS string for the mobile article list's own text —
+  // color-mix() between the two precomputed single-ink anchors above,
+  // driven by --mobile-article-list-darken (the smoothed progress var the
+  // effect above writes). Both bodyColorOverride and highlightColorOverride
+  // below get this SAME string (operator ask: one shared color for the
+  // whole list) — active vs. inactive rows are told apart by opacity alone
+  // (bodyOpacityOverride/highlightOpacityOverride, still sourced from
+  // globalTypographyConfig below, unchanged). Every other page/tier (not
+  // colors.scrollGradientActive) falls back to a flat, static color — byte-
+  // identical in spirit to today's wideColumnTypography.bodyColor, just
+  // resolved through the new single-ink config instead.
+  const mobileArticleListColor = colors.scrollGradientActive
+    ? `color-mix(in srgb, ${mobileArticleListInkAtRest} calc(100% - var(--mobile-article-list-darken, 0) * 100%), ${mobileArticleListInkDarkened} calc(var(--mobile-article-list-darken, 0) * 100%))`
+    : mobileArticleListInkAtRest;
   // The authoring shell belongs visually to the surface at the viewport's
   // right edge. In split-column mode it inherits that physical column's
   // resolved color; the classic layout falls back to the page surface
@@ -2399,6 +2635,12 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       onChange: setAbstractTimelineContentConfig,
       defaultValue: normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG),
     }),
+    createConfigScopeBinding({
+      definition: abstractConfigPanelRegistry.resolve(ABSTRACT_MOBILE_ARTICLE_LIST_INK_SCOPE_ID),
+      value: mobileArticleListInkConfig,
+      onChange: setMobileArticleListInkConfig,
+      defaultValue: normalizeAbstractMobileArticleListInkConfig(DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG),
+    }),
   ], [
     dockGradientPerformanceConfig,
     dockIntroductionConfig,
@@ -2424,6 +2666,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     abstractPageLayoutConfig,
     abstractNarrowColumnStackConfig,
     abstractTimelineContentConfig,
+    mobileArticleListInkConfig,
     splitColumnLayoutConfig,
     splitColumnCardStackConfig,
     heroAccordionItemConfig,
@@ -4458,6 +4701,15 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         pageSurfaceConfig={normalizedPageSurfaceConfig}
         paletteColorResolver={paletteColorResolver}
         headerWrapperRef={splitColumnHeaderWrapperRef}
+        // Forces the shared scroll-gradient background to its own max
+        // darken while the mobile article list's expanded panel is open —
+        // operator ask (PLAN-MOBILE-ARTICLE-LIST-EXPAND-DARKEN.md). Gated
+        // by the section's own config toggle so it's fully opt-out-able;
+        // isMobileArticleListExpanded is driven by MobilePinnedArticleSection's
+        // own onExpandedChange callback below.
+        scrollGradientForceMaxDarken={
+          isMobileArticleListExpanded && mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken
+        }
         // Both columns default 'float' on this page (see
         // splitColumnLayoutConfig's own useState initializer) — no reserved
         // space, the card-stack/hero row starts at the true viewport top and
@@ -4654,7 +4906,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                 />
               </div>
             ) : (
-              <div style={{ width: '100vw', marginLeft: 'calc(50% - 50vw)' }}>
+              <div
+                ref={mobileArticleListScrollRef}
+                style={{ width: '100vw', marginLeft: 'calc(50% - 50vw)' }}
+              >
                 <MobilePinnedArticleSection
                   itemCount={carouselAndListItems.length}
                   rows={abstractTimelineRows}
@@ -4664,6 +4919,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   carouselColor={colors.wideColumnPaintColor}
                   panelColor={colors.wideColumnPaintColor}
                   config={mobilePinnedArticleSectionConfig}
+                  onExpandedChange={setIsMobileArticleListExpanded}
                   renderCarousel={(controls: MobilePinnedCarouselControls) => (
                     // Keep the carousel's visual/gesture plane full-bleed,
                     // while the card itself follows the mobile Tailwind grid.
@@ -4707,8 +4963,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                       onSelect={onSelect}
                       accentColor={carouselAndListItems[activeIndex]?.accent ?? '#ffffff'}
                       columnBackgroundColor={colors.wideColumnColor}
-                      bodyColorOverride={wideColumnTypography.bodyColor}
-                      highlightColorOverride={wideColumnTypography.highlightColor}
+                      bodyColorOverride={mobileArticleListColor}
+                      highlightColorOverride={mobileArticleListColor}
                       bodyOpacityOverride={wideColumnTypography.bodyOpacity}
                       highlightOpacityOverride={wideColumnTypography.highlightOpacity}
                       description={abstractTimelineConfig.description || undefined}

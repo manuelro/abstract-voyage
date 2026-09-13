@@ -31,7 +31,7 @@
 }
 
 .stickyViewport[data-expanded='true'] .carousel {
-  opacity: 0.7;
+  opacity: var(--mobile-pinned-expanded-carousel-opacity, 0.7);
 }
 
 .panel {
@@ -70,6 +70,14 @@
     var(--mobile-pinned-expanded-bg-color) calc(var(--mobile-pinned-expanded-bg-opacity) * 100%),
     transparent
   );
+  /* Overrides the base .panel rule's own hardcoded blur(12px) above —
+   * config.expandedListBackdropBlurPx, MobilePinnedArticleSection.tsx.
+   * The collapsed (short-list) state keeps that original fixed value
+   * unchanged; only the expanded state's own blur is configurable, per
+   * the operator's own explicit scoping ("blur of the list container
+   * while expanded"). */
+  backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
+  -webkit-backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
 }
 
 .rowsViewport {

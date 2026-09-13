@@ -42,6 +42,19 @@ export type PolymorphicScrollGradientBackgroundProps = {
    * something ≤100% that works too. See
    * PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md. */
   legibilityTargetRatio?: number;
+  /** Opt-in (default false — inert). When true, the darken schedule above
+   * ignores real scroll position entirely and eases toward `maxDarken`
+   * (via the SAME tau-smoothed transition, not an instant jump) — for a
+   * caller whose own modal-like, scroll-locked overlay wants the backdrop
+   * to read as settled/at-rest while it's open, rather than tracking
+   * whatever `window.scrollY` happens to report during that time (which
+   * can shift for reasons unrelated to real scrolling — e.g.
+   * MobilePinnedArticleSection's own scroll-lock/restore cycle around
+   * selection). Takes priority over the plain scroll-driven value AND the
+   * `legibilityTargetRatio` floor above (max darken already satisfies any
+   * legibility floor that's ≤ maxDarken, which every sane config value
+   * is). See PLAN-MOBILE-ARTICLE-LIST-EXPAND-DARKEN.md. */
+  forceMaxDarken?: boolean;
 };
 
 /**
@@ -66,6 +79,7 @@ export function PolymorphicScrollGradientBackground({
   maxDarken,
   tauMs,
   legibilityTargetRatio = 0,
+  forceMaxDarken = false,
 }: PolymorphicScrollGradientBackgroundProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
 
@@ -147,6 +161,10 @@ export function PolymorphicScrollGradientBackground({
     };
 
     const computeTarget = () => {
+      if (forceMaxDarken) {
+        targetRef.current = maxDarken;
+        return;
+      }
       const viewport = window.innerHeight || 1;
       const rawProgress = window.scrollY / (viewport * viewportRangeVh);
       const progress = clamp(rawProgress, 0, 1);
@@ -205,7 +223,7 @@ export function PolymorphicScrollGradientBackground({
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
     };
-  }, [viewportRangeVh, maxDarken, tauMs, legibilityTargetRatio]);
+  }, [viewportRangeVh, maxDarken, tauMs, legibilityTargetRatio, forceMaxDarken]);
 
   return (
     <>

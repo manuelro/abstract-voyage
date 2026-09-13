@@ -74,6 +74,13 @@ type MobilePinnedArticleSectionProps = {
   carouselColor: string;
   panelColor: string;
   config: MobilePinnedArticleSectionConfig;
+  /** Fires exactly when the expanded panel opens/closes (openPanel/closePanel
+   * below) — lets a caller drive page-level behavior tied to this modal-like
+   * reading state, e.g. config.expandedForcesMaxBackgroundDarken
+   * (pages/abstract.tsx forces the shared scroll-gradient background to its
+   * own max darken while true). Optional; every existing caller not
+   * supplying it behaves exactly as before. */
+  onExpandedChange?: (expanded: boolean) => void;
 };
 
 const clampIndex = (index: number, count: number) => (
@@ -115,6 +122,7 @@ export function MobilePinnedArticleSection({
   carouselColor,
   panelColor,
   config: rawConfig,
+  onExpandedChange,
 }: MobilePinnedArticleSectionProps) {
   const config = useMemo(
     () => normalizeMobilePinnedArticleSectionConfig(rawConfig),
@@ -398,6 +406,7 @@ export function MobilePinnedArticleSection({
     if (config.scrollDrivenNavigationEnabled) sectionTop();
     expandedRef.current = true;
     setExpanded(true);
+    onExpandedChange?.(true);
     lockOuterScroll();
     window.requestAnimationFrame(() => {
       const viewport = rowsViewportRef.current;
@@ -413,7 +422,7 @@ export function MobilePinnedArticleSection({
       viewport.scrollTop = Math.max(0, rowCenter - viewport.clientHeight / 2);
       activeRow.focus({ preventScroll: true });
     });
-  }, [config.scrollDrivenNavigationEnabled, lockOuterScroll, sectionTop]);
+  }, [config.scrollDrivenNavigationEnabled, lockOuterScroll, onExpandedChange, sectionTop]);
 
   const closePanel = useCallback(() => {
     const selectedIndex = expandedSelectionRef.current;
@@ -463,6 +472,7 @@ export function MobilePinnedArticleSection({
     }
     expandedRef.current = false;
     setExpanded(false);
+    onExpandedChange?.(false);
     const restoredScrollY = lockedScrollYRef.current;
     unlockOuterScroll();
     window.requestAnimationFrame(() => {
@@ -479,7 +489,7 @@ export function MobilePinnedArticleSection({
       window.scrollTo({ top: restoredScrollY, behavior: 'auto' });
     });
   }, [
-    config.scrollDrivenNavigationEnabled, itemCount, onActiveIndexCommit, prefersReducedMotion,
+    config.scrollDrivenNavigationEnabled, itemCount, onActiveIndexCommit, onExpandedChange, prefersReducedMotion,
     scrollStepPx, sectionTop, unlockOuterScroll, windowLength,
   ]);
 
@@ -609,6 +619,8 @@ export function MobilePinnedArticleSection({
     '--mobile-pinned-peek-height': config.peekHeightSvh,
     '--mobile-pinned-expanded-bg-color': config.expandedListBackgroundColor || panelColor,
     '--mobile-pinned-expanded-bg-opacity': config.expandedListBackgroundOpacity,
+    '--mobile-pinned-expanded-backdrop-blur-px': `${config.expandedListBackdropBlurPx}px`,
+    '--mobile-pinned-expanded-carousel-opacity': config.expandedCarouselBehindOpacity,
     // The extra travel height only exists to give page-scroll something to
     // consume in scroll-driven mode. Off by default: the section is just
     // 100svh, and there's nothing to scroll through to reach any article —

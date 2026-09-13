@@ -9,9 +9,11 @@ import {
   DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
   DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG,
+  DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG,
   type AbstractNarrowColumnStackConfig,
   type AbstractTimelineContentConfig,
   type AbstractPageLayoutConfig,
+  type AbstractMobileArticleListInkConfig,
 } from './abstract.config';
 
 export const ABSTRACT_PAGE_LAYOUT_SCOPE_ID = 'AbstractPage/layout' as const;
@@ -217,6 +219,82 @@ export const ABSTRACT_TIMELINE_CONTENT_PANEL = defineConfigScope<AbstractTimelin
     targetFile: 'pages/abstract.config.ts',
     targetSymbol: 'DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG',
     targetType: 'AbstractTimelineContentConfig',
+    updateStrategy: 'replace_scope',
+    completeScope: true,
+  },
+});
+
+export const ABSTRACT_MOBILE_ARTICLE_LIST_INK_SCOPE_ID = 'AbstractPage/mobileArticleListInk' as const;
+
+/**
+ * Single shared ink color for the mobile article list's own row text —
+ * see AbstractMobileArticleListInkConfig's own doc comment
+ * (pages/abstract.config.ts) for why this replaced two independently-
+ * tinted active/inactive colors. Operator ask, PLAN-MOBILE-ARTICLE-LIST-
+ * SHARED-INK.md.
+ */
+export const ABSTRACT_MOBILE_ARTICLE_LIST_INK_PANEL = defineConfigScope<AbstractMobileArticleListInkConfig>({
+  id: ABSTRACT_MOBILE_ARTICLE_LIST_INK_SCOPE_ID,
+  component: 'AboutTimeline',
+  scope: 'appearance',
+  title: 'Mobile article list ink',
+  createdAt: '2026-09-13',
+  summary: 'Shared tint, saturation, and lightness bounds for the mobile article list\'s row text',
+  defaultOpen: false,
+  defaultValue: DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG,
+  fields: [
+    {
+      kind: 'number',
+      key: 'hue',
+      label: 'Tint (hue)',
+      description: 'The row text\'s own fixed hue, independent of whatever the scroll-gradient background currently is. Active vs. inactive rows share this exact color — only opacity (AboutTimeline\'s own existing knobs) tells them apart.',
+      min: 0,
+      max: 360,
+      step: 1,
+      unit: '°',
+    },
+    {
+      kind: 'number',
+      key: 'saturation',
+      label: 'Saturation',
+      min: 0,
+      max: 100,
+      step: 1,
+      unit: '%',
+    },
+    {
+      kind: 'number',
+      key: 'minLightness',
+      label: 'Min light',
+      description: 'Floor when the ink resolves to a light color — never dimmer than this, even if the target contrast ratio would technically allow it.',
+      min: 0,
+      max: 100,
+      step: 1,
+      unit: '%',
+    },
+    {
+      kind: 'number',
+      key: 'minDarkness',
+      label: 'Min dark',
+      description: 'The equivalent floor on the dark side — how much darkness is guaranteed when the ink resolves to a dark color, never lighter than (100 - this value).',
+      min: 0,
+      max: 100,
+      step: 1,
+      unit: '%',
+    },
+    {
+      kind: 'number',
+      key: 'minContrastRatio',
+      label: 'Guaranteed contrast ratio',
+      min: 1,
+      max: 21,
+      step: 0.5,
+    },
+  ],
+  copy: {
+    targetFile: 'pages/abstract.config.ts',
+    targetSymbol: 'DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG',
+    targetType: 'AbstractMobileArticleListInkConfig',
     updateStrategy: 'replace_scope',
     completeScope: true,
   },

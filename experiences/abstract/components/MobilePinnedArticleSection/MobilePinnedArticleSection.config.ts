@@ -51,6 +51,28 @@ export type MobilePinnedArticleSectionConfig = {
   expandedListBackgroundColor: string;
   /** Overrides `panelOpacity` while expanded. */
   expandedListBackgroundOpacity: number;
+  /** Backdrop blur radius applied to the expanded panel, in px — was a
+   * hardcoded `blur(12px)` (styles.module.css's own `.panel` rule) with no
+   * config surface at all; 12 here reproduces that exact value. */
+  expandedListBackdropBlurPx: number;
+  /** Opacity of the collapsed carousel card still visible behind/above the
+   * expanded list panel — was a hardcoded `opacity: 0.7`
+   * (`.stickyViewport[data-expanded='true'] .carousel`, styles.module.css)
+   * with no config surface at all; 0.7 here reproduces that exact value. */
+  expandedCarouselBehindOpacity: number;
+  /** Opt-in (default on — operator ask): while the list is expanded, the
+   * page's own scroll-gradient background (PolymorphicScrollGradientBackground,
+   * shared across every PolymorphicLayout page) is forced to its own
+   * maximum darken level, independent of the real scroll position. Reading
+   * happens inside a modal-like, scroll-locked overlay — the background
+   * behind it should read as settled/at-rest, not chase whatever
+   * `window.scrollY` happens to report during that time (which, prior to
+   * this feature, could shift unexpectedly the instant an article was
+   * selected — see MobilePinnedArticleSection.tsx's own onExpandedChange
+   * doc comment for the underlying scroll-lock interaction this sidesteps
+   * entirely, rather than papering over). Off falls back to the background's
+   * own plain scroll-driven schedule, unaffected by this component. */
+  expandedForcesMaxBackgroundDarken: boolean;
 };
 
 export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
@@ -68,9 +90,12 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   scrollEffortMultiplier: 0.8,
   scrollDrivenNavigationEnabled: false,
   expandedListPaddingX: 'px-12',
-  expandedListPaddingY: 'py-4',
+  expandedListPaddingY: 'py-6',
   expandedListBackgroundColor: '',
-  expandedListBackgroundOpacity: 0.82,
+  expandedListBackgroundOpacity: 0,
+  expandedListBackdropBlurPx: 40,
+  expandedCarouselBehindOpacity: 0.5,
+  expandedForcesMaxBackgroundDarken: true,
 } satisfies MobilePinnedArticleSectionConfig;
 
 export function normalizeMobilePinnedArticleSectionConfig(
@@ -99,5 +124,8 @@ export function normalizeMobilePinnedArticleSectionConfig(
       ? base.expandedListBackgroundColor.trim()
       : '',
     expandedListBackgroundOpacity: clamp(base.expandedListBackgroundOpacity, 0, 1),
+    expandedListBackdropBlurPx: Math.round(clamp(base.expandedListBackdropBlurPx, 0, 40)),
+    expandedCarouselBehindOpacity: clamp(base.expandedCarouselBehindOpacity, 0, 1),
+    expandedForcesMaxBackgroundDarken: base.expandedForcesMaxBackgroundDarken !== false,
   };
 }

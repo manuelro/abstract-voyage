@@ -985,6 +985,15 @@ export type PolymorphicLayoutProps = {
    * on by default. A page with no competing mechanism (e.g. /abstract,
    * /contact) can safely opt in. */
   mobileNavAlignEnabled?: boolean;
+  /** Opt-in (default false — inert). Forwarded verbatim to the mounted
+   * <PolymorphicScrollGradientBackground>'s own forceMaxDarken prop — see
+   * that prop's own doc comment for the full contract. A page opts in
+   * while some OTHER modal-like, scroll-locked overlay it owns (e.g.
+   * /abstract's own MobilePinnedArticleSection, via its own
+   * onExpandedChange callback) wants the shared background to read as
+   * settled/at-rest for the duration that overlay is open, independent of
+   * whatever window.scrollY happens to report during that time. */
+  scrollGradientForceMaxDarken?: boolean;
   children?: ReactNode;
 };
 
@@ -1010,6 +1019,7 @@ export function PolymorphicLayout({
   edgeBackdropEnabled,
   onNavAlignmentChange,
   mobileNavAlignEnabled = false,
+  scrollGradientForceMaxDarken = false,
   children,
 }: PolymorphicLayoutProps) {
   const normalizedConfig = normalizePolymorphicLayoutConfig(config);
@@ -1265,7 +1275,10 @@ export function PolymorphicLayout({
   return (
     <>
       {colors.scrollGradientActive ? (
-        <PolymorphicScrollGradientBackground {...colors.scrollGradientResolved} />
+        <PolymorphicScrollGradientBackground
+          {...colors.scrollGradientResolved}
+          forceMaxDarken={scrollGradientForceMaxDarken}
+        />
       ) : null}
       <SplitColumnPageShell
       layoutMode={normalizedConfig.layoutMode}
