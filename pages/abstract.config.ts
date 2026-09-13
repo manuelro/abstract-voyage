@@ -239,11 +239,11 @@ export { ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG } from '../experiences/abstract/comp
 // /about's.
 export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   ...DEFAULT_ABOUT_TIMELINE_CONFIG,
-  maxWidthClassName: 'max-w-lg',
+  maxWidthClassName: 'max-w-prose',
   maxWidthWideClassName: 'md:max-w-lg',
   maxWidthLgClassName: 'lg:max-w-lg',
-  paddingRightClassName: 'pr-5',
-  paddingLeftClassName: 'pl-5',
+  paddingRightClassName: 'pr-8',
+  paddingLeftClassName: 'pl-8',
   rowGap: 'gap-4',
   markerSizeClassName: 'w-2.5 h-2.5',
   markerColorMode: 'text',

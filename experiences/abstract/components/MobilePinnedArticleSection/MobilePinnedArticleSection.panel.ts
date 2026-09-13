@@ -1,8 +1,7 @@
 import { defineConfigScope } from '../../../../components/Panel/config';
+import { PADDING_X_OPTIONS, PADDING_Y_OPTIONS } from '../../../../components/tailwindSpacingScale';
 import {
   DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
-  EXPANDED_LIST_PADDING_X_TOKENS,
-  EXPANDED_LIST_PADDING_Y_TOKENS,
   MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID,
   type MobilePinnedArticleSectionConfig,
 } from './MobilePinnedArticleSection.config';
@@ -38,18 +37,19 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       {
         // 'select', not 'enum' — AGENTS.md's own hard ceiling: past ~6-8
         // options, a SegmentedControl row (kind: 'enum') renders as an
-        // unreadable wall of overlapping/truncated labels. Both token
-        // catalogs below have 9 entries.
+        // unreadable wall of overlapping/truncated labels. The shared
+        // PADDING_X_OPTIONS/PADDING_Y_OPTIONS catalogs below have 34
+        // entries each (tailwindSpacingScale.ts).
         kind: 'select',
         key: 'expandedListPaddingX',
         label: 'Expanded list horizontal padding',
-        options: EXPANDED_LIST_PADDING_X_TOKENS.map(value => ({ label: value.toUpperCase(), value })),
+        options: PADDING_X_OPTIONS,
       },
       {
         kind: 'select',
         key: 'expandedListPaddingY',
         label: 'Expanded list vertical padding',
-        options: EXPANDED_LIST_PADDING_Y_TOKENS.map(value => ({ label: value.toUpperCase(), value })),
+        options: PADDING_Y_OPTIONS,
       },
       {
         kind: 'color',

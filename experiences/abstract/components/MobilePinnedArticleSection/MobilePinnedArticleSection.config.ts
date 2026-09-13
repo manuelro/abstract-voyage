@@ -1,18 +1,28 @@
 import { clamp } from '../../../../helpers/clamp';
+import {
+  PADDING_X_OPTIONS,
+  PADDING_Y_OPTIONS,
+  type PaddingXClass,
+  type PaddingYClass,
+} from '../../../../components/tailwindSpacingScale';
 
 export const MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID =
   'MobilePinnedArticleSection/layout' as const;
 
-// Tailwind's own spacing scale, capped at px-12/py-12 — well past anything
-// this panel needs while staying on-token rather than arbitrary px values.
-export const EXPANDED_LIST_PADDING_X_TOKENS = [
-  'px-0', 'px-1', 'px-2', 'px-3', 'px-4', 'px-6', 'px-8', 'px-10', 'px-12',
-] as const;
-export const EXPANDED_LIST_PADDING_Y_TOKENS = [
-  'py-0', 'py-1', 'py-2', 'py-3', 'py-4', 'py-6', 'py-8', 'py-10', 'py-12',
-] as const;
-export type ExpandedListPaddingX = (typeof EXPANDED_LIST_PADDING_X_TOKENS)[number];
-export type ExpandedListPaddingY = (typeof EXPANDED_LIST_PADDING_Y_TOKENS)[number];
+// Regression fix (operator-reported: the dropdown wasn't showing "the
+// correct list of values based on the available Tailwind tokens") — this
+// used to be its own bespoke, artificially truncated 9-value catalog
+// (px-0/1/2/3/4/6/8/10/12, skipping every half-step AND every odd value
+// past 4, capped at 12), independently hand-maintained instead of reusing
+// the SAME shared, comprehensive PADDING_X_OPTIONS/PADDING_Y_OPTIONS
+// catalog (tailwindSpacingScale.ts) every other padding field in this
+// codebase already draws from (half-steps included, continuing to px-96).
+// Re-exported under these names so no existing config/panel import path
+// needs to change.
+export const EXPANDED_LIST_PADDING_X_TOKENS = PADDING_X_OPTIONS.map(option => option.value);
+export const EXPANDED_LIST_PADDING_Y_TOKENS = PADDING_Y_OPTIONS.map(option => option.value);
+export type ExpandedListPaddingX = PaddingXClass;
+export type ExpandedListPaddingY = PaddingYClass;
 
 export type MobilePinnedArticleSectionConfig = {
   /** Also doubles as "N" for the short list's stop-and-expand window (see
@@ -89,8 +99,8 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   // Set to 1 for strict 1:1 page-to-coverflow travel.
   scrollEffortMultiplier: 0.8,
   scrollDrivenNavigationEnabled: false,
-  expandedListPaddingX: 'px-12',
-  expandedListPaddingY: 'py-6',
+  expandedListPaddingX: 'px-14',
+  expandedListPaddingY: 'py-7',
   expandedListBackgroundColor: '',
   expandedListBackgroundOpacity: 0,
   expandedListBackdropBlurPx: 40,
