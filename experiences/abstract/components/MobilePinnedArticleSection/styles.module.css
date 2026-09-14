@@ -31,11 +31,17 @@
    * (--mobile-pinned-panel-collapse-ms) — operator ask: bringing this card
    * back to full opacity happens "at the same time" the panel fades away,
    * not on its own, independent 320ms. */
-  transition: opacity var(--mobile-pinned-panel-collapse-ms, 320ms) cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .stickyViewport[data-expanded='true'] .carousel {
   opacity: var(--mobile-pinned-expanded-carousel-opacity, 0.7);
+}
+
+/* The flip presentation is the active card, not a backdrop behind a separate
+ * panel. It must retain its full visual weight while either face is visible. */
+.stickyViewport[data-expanded='true'] .carousel[data-presentation='cardFlip'] {
+  opacity: 1;
 }
 
 /* DECOUPLED LISTS (operator ask): the short list and the full list are two
@@ -88,78 +94,14 @@
   left: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  /* Regression fix (operator-reported, Chrome/macOS only — not reproducible
-   * in the iOS simulator or on real mobile Chrome/Safari, and invisible to
-   * getComputedStyle instrumentation — this is a GPU compositor artifact,
-   * not a CSS value ever being wrong): this box used to sit at `height: 0`
-   * at rest and animate `height` up to its expanded value on open. That was
-   * fixed by moving to a static height + `transform: translateY` slide
-   * (below) — but headed (real-GPU) screenshots still showed a ghosted
-   * double-exposure while mid-slide. Root cause is broader than layout:
-   * Chrome's macOS compositor mis-samples a `backdrop-filter` blur against
-   * WHATEVER'S BEHIND IT whenever the blurred element's own on-screen
-   * position is changing on ANY property — height before, transform now —
-   * because the backdrop content it needs to re-sample is itself moving
-   * relative to the blur every frame. The only reliable fix is to never
-   * have `backdrop-filter` active while this box is in motion at all: blur
-   * is OFF by default here and only switches on via the
-   * `[data-blur-settled='true']` rule further down, which
-   * MobilePinnedArticleSection.tsx only sets once the slide's own
-   * `transitionend` confirms it has genuinely stopped moving. This box is
-   * ALWAYS at its full expanded height — `position: absolute` means that
-   * costs nothing layout-wise even while hidden (siblings never see it). */
+  /* Keep the full surface at its expanded height and move it with a transform
+   * so opening visibly slides it up from below the viewport. */
   height: calc(var(--mobile-pinned-expanded-percent) * 1svh);
   overflow: clip;
-  /* Regression fix, round two (operator-reported): with blur off during
-   * motion (above), THIS rule's own previous translucent color-mix
-   * background wasn't opaque enough on its own to hide what's actually
-   * behind this box while it's sliding — repeated headed screenshots
-   * showed the ALWAYS-MOUNTED `.shortListPanel` underneath (z-index 4,
-   * right below the carousel) visibly bleeding through the panel while it
-   * slid up over it, ghosting against the carousel's own headline. A
-   * translucent, unblurred sheet was never going to hide a whole sibling
-   * panel's worth of text. Fix: fully OPAQUE (no color-mix/transparency)
-   * while unsettled — the SAME two-state split as blur above, just for
-   * background instead of backdrop-filter. Only once `[data-blur-
-   * settled='true']` (nothing moving) does the intended translucent+
-   * blurred "frosted glass" look apply (below) — safe at that point since
-   * there's nothing in motion to bleed through mid-frame. */
-  background: var(--mobile-pinned-panel-color);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  /* --mobile-pinned-panel-slide-percent (MobilePinnedArticleSection.tsx) —
-   * 0 = fully in place (open/visible), 100 = translated down by its own
-   * full height, i.e. entirely below `.stickyViewport`'s own `overflow:
-   * hidden` bottom edge (closed/hidden). One value drives BOTH directions
-   * (100 at idle-closed AND while a close is actively sliding it back down,
-   * 0 at idle-open AND while an open is actively sliding it up into view)
-   * — there's no separate "reset" step needed the way the old
-   * height/opacity mechanisms required, since 100 already IS the resting
-   * closed state a close transition ends at. */
-  transform: translateY(calc(var(--mobile-pinned-panel-slide-percent, 100) * 1%));
-  /* OPEN-direction duration/easing (config.panelExpandDurationMs/Easing) —
-   * the `[data-collapsing='true']` rule below overrides this pair with the
-   * CLOSE-direction one the instant a close/slide actually starts (see that
-   * rule's own comment). */
-  transition: transform var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
-}
-
-.panel[data-expanded='true'] {
-  /* Still fully opaque (no color-mix) while unsettled — see the base
-   * `.panel` rule's own comment; the translucent version only applies
-   * once `[data-blur-settled='true']` below takes over. */
-  background: var(--mobile-pinned-expanded-bg-color);
-}
-
-/* Only ever true once the panel's own slide has genuinely stopped moving
- * (MobilePinnedArticleSection.tsx sets this from the transform's real
- * `transitionend`, not a duration guess) — see the base `.panel` rule's own
- * comments for why NEITHER blur NOR a translucent background can safely be
- * active while it's in motion. This is where the actual "frosted glass"
- * look — translucency (config.expandedListBackgroundOpacity) plus blur
- * (config.expandedListBackdropBlurPx) — finally applies, once nothing is
- * moving and there's no motion-frame for either to bleed/ghost through. */
-.panel[data-blur-settled='true'] {
+  /* The frosted sheet is the object that moves. Delaying its blur until
+   * transitionend makes the panel itself appear as a snapped final state,
+   * even when its transform is animating correctly. Keep the intended glass
+   * treatment active from its off-screen starting position onward. */
   background: color-mix(
     in srgb,
     var(--mobile-pinned-expanded-bg-color) calc(var(--mobile-pinned-expanded-bg-opacity) * 100%),
@@ -167,16 +109,106 @@
   );
   backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
   -webkit-backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
+  transform: translate3d(0, calc(var(--mobile-pinned-panel-slide-percent, 100) * 1%), 0);
+  will-change: transform;
+  transition: transform var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
 }
 
-/* CLOSE-direction duration/easing (config.panelCollapseDurationMs/Easing) —
- * `data-collapsing` is set directly from panelSlideOffsetPercent !== 0
- * (MobilePinnedArticleSection.tsx), true for exactly the window a
- * close/slide is in flight, which is also the ONLY window `transform` ever
- * actually changes on this element — so listing it here, and only here,
- * is sufficient; the base rule above never needs a second transform entry. */
+/* The closing flag selects the independently configured collapse direction. */
 .panel[data-collapsing='true'] {
   transition: transform var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, ease);
+}
+
+/* Opt-in full-list presentation: one reversible 3D card. The front keeps the
+ * active CoverFlow card; the back carries the complete article list, anchored
+ * at its top, and its explicit Close control at its bottom. */
+.carousel[data-presentation='cardFlip'] {
+  z-index: 5;
+  perspective: 1400px;
+}
+
+.flipCard {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform: rotateY(0deg);
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
+}
+
+.flipCard[data-flipped='true'] {
+  /* A small overshoot beyond 180° makes the reverse face read as a deliberate
+   * physical turn rather than a flat crossfade. */
+  transform: rotateY(190deg);
+}
+
+/* The front face is visually hidden after the turn, but hidden backfaces are
+ * not consistently excluded from hit testing across mobile engines. Make the
+ * list on the reverse face the only interactive surface while it is open. */
+.flipCard[data-flipped='true'] .flipFront {
+  pointer-events: none;
+}
+
+.flipCard[data-collapsing='true'] {
+  transition: transform var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, ease);
+}
+
+.flipFace {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flipFront {
+  z-index: 1;
+}
+
+.flipBack {
+  display: flex;
+  flex-direction: column;
+  margin: 0 1.5rem;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  background: color-mix(
+    in srgb,
+    var(--mobile-pinned-expanded-bg-color) calc(var(--mobile-pinned-expanded-bg-opacity) * 100%),
+    transparent
+  );
+  backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
+  -webkit-backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
+  transform: rotateY(180deg);
+}
+
+.flipBack .fullListRowsViewport {
+  flex: 1 1 auto;
+}
+
+.flipCloseButton {
+  flex: 0 0 auto;
+  width: calc(100% - 3.5rem);
+  min-height: 44px;
+  margin: 0 1.75rem 1.5rem;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mobile-pinned-expanded-bg-color) 42%, transparent);
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.flipCloseButton:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.flipCloseButton:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 /* Shared base for BOTH lists' own row containers — rows render at their own
@@ -292,7 +324,9 @@
    * prefersReducedMotion is true (that whole slide-out sequence is skipped
    * upstream), so this is defense-in-depth, not a live bug today. */
   .panel[data-collapsing='true'],
-  .carousel {
+  .carousel,
+  .flipCard,
+  .flipCard[data-collapsing='true'] {
     transition: none;
   }
 }

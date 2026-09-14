@@ -33,6 +33,7 @@ export const EXPANDED_LIST_PADDING_X_TOKENS = PADDING_X_OPTIONS.map(option => op
 export const EXPANDED_LIST_PADDING_Y_TOKENS = PADDING_Y_OPTIONS.map(option => option.value);
 export type ExpandedListPaddingX = PaddingXClass;
 export type ExpandedListPaddingY = PaddingYClass;
+export type MobilePinnedArticleListPresentation = 'glassPanel' | 'cardFlip';
 
 export type MobilePinnedArticleSectionConfig = {
   /** Also doubles as "N" for the short list's stop-and-expand window (see
@@ -60,6 +61,10 @@ export type MobilePinnedArticleSectionConfig = {
    * height moves the carousel one card per `scrollEffortMultiplier`-scaled
    * step, exactly as this component originally shipped. */
   scrollDrivenNavigationEnabled: boolean;
+  /** The opt-in alternative to the expanded glass panel. `cardFlip` rotates
+   * the active carousel surface 190 degrees and renders the full list on its
+   * reverse face; `glassPanel` preserves the established bottom-sheet view. */
+  fullListPresentation: MobilePinnedArticleListPresentation;
   /** Horizontal inset applied to the row list while expanded, as a Tailwind
    * spacing token (e.g. `px-6`). */
   expandedListPaddingX: ExpandedListPaddingX;
@@ -69,7 +74,10 @@ export type MobilePinnedArticleSectionConfig = {
   /** Overrides the panel's background color while expanded. Empty string
    * inherits the collapsed panel's own color (`panelColor` prop). */
   expandedListBackgroundColor: string;
-  /** Overrides `panelOpacity` while expanded. */
+  /** Opacity of the expanded panel's *background color layer*, not the panel
+   * element. Kept below 1 by default so the always-on backdrop blur remains
+   * visible while the panel moves; collapse is transform-only and never
+   * animates the panel element's `opacity`. */
   expandedListBackgroundOpacity: number;
   /** Backdrop blur radius applied to the expanded panel, in px — was a
    * hardcoded `blur(12px)` (styles.module.css's own `.panel` rule) with no
@@ -93,8 +101,8 @@ export type MobilePinnedArticleSectionConfig = {
    * entirely, rather than papering over). Off falls back to the background's
    * own plain scroll-driven schedule, unaffected by this component. */
   expandedForcesMaxBackgroundDarken: boolean;
-  /** STAGE-04 — ms for the panel's own open transition (height 0 -> the
-   * expanded percent). Decoupled from panelCollapseDurationMs below — the
+  /** STAGE-04 — ms for the panel's own open transition (from below the
+   * viewport to its expanded position). Decoupled from panelCollapseDurationMs below — the
    * two used to share one duration/CSS var despite being visually and
    * semantically distinct motions (opening vs. closing). */
   panelExpandDurationMs: number;
@@ -117,15 +125,13 @@ export type MobilePinnedArticleSectionConfig = {
    * fade-in, independent of rowFadeOutEasing — entrance and leaving are two
    * distinct motions and may want different curves. */
   rowFadeInEasing: CtaButtonMotionEasing;
-  /** STAGE-06 — ms for ONE row's own opacity fade-out once a row is tapped
-   * to select a different article (no scale/transform). Applies to every
-   * row currently on screen — all of them stay at their own original
-   * position while fading; the underlying row order is swapped to the
-   * final selection only once every row is fully invisible. Chain reaction,
-   * same mechanism as rowFadeInDurationMs: row N starts fading out exactly
-   * when row N-1 finishes, item 1 first, the LAST row last — its own real
-   * `transitionend` is what gates STAGE-07 (the panel starting to close),
-   * not a computed duration. */
+  /** STAGE-06 — ms for ONE row's own opacity fade-out when the full list
+   * closes (selection, Escape, or backdrop; no scale/transform). Applies to
+   * every row currently on screen — all stay at their original position
+   * while fading. Chain reaction, same mechanism as rowFadeInDurationMs:
+   * row N starts exactly when row N-1 finishes, item 1 first, the LAST row
+   * last — its own real `transitionend` gates STAGE-07 (panel closing), not
+   * a computed duration. */
   rowFadeOutDurationMs: number;
   /** STAGE-06 — named easing (CTA_BUTTON_MOTION_EASINGS) for each row's
    * fade-out, independent of rowFadeInEasing. */
@@ -135,16 +141,14 @@ export type MobilePinnedArticleSectionConfig = {
    * panel starts closing. 0 = the panel starts closing the instant the last
    * row disappears. */
   panelCollapseDelayMs: number;
-  /** STAGE-07 — ms for the panel's own close transition: after selecting an
-   * article (and panelCollapseDelayMs has elapsed), the whole panel fades
-   * out (opacity 1 -> 0) rather than visibly shrinking, then fades back in
-   * (opacity 0 -> 1) once the final short list is ready to reveal. This
-   * same duration also governs the carousel card behind the panel fading
-   * back to full opacity, so both halves of that motion stay in sync, and
-   * is reused as the wait before the deferred CoverFlow translate fires.
-   * Directly drives the real CSS transition (styles.module.css's
-   * `.panel`/`.carousel` — via --mobile-pinned-panel-collapse-ms), not just
-   * a JS-side timer. */
+  /** STAGE-07 — ms for the panel's own close transition: only after the last
+   * row has faded does the full glass surface slide back below the viewport.
+   * This should normally mirror panelExpandDurationMs, so opening and closing
+   * are one reversible spatial motion. The same duration governs the
+   * carousel card behind it returning to full opacity and is the wait before
+   * the deferred CoverFlow translate. It directly drives the real CSS
+   * transition (styles.module.css's `.panel`/`.carousel` via
+   * --mobile-pinned-panel-collapse-ms), not just a JS-side timer. */
   panelCollapseDurationMs: number;
   /** STAGE-07 — named easing (CTA_BUTTON_MOTION_EASINGS) for the panel's own
    * close transition, independent of panelExpandEasing. Also used for the
@@ -175,26 +179,51 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   // Set to 1 for strict 1:1 page-to-coverflow travel.
   scrollEffortMultiplier: 0.8,
   scrollDrivenNavigationEnabled: false,
+  fullListPresentation: 'glassPanel',
   expandedListPaddingX: 'px-14',
   expandedListPaddingY: 'py-7',
   expandedListBackgroundColor: '',
-  expandedListBackgroundOpacity: 1,
+  // An opaque color layer would conceal the backdrop completely, making a
+  // configured blur indistinguishable from no blur. This is background paint
+  // alpha only — the panel element itself stays fully opaque throughout both
+  // directions of its transform-only motion.
+  expandedListBackgroundOpacity: 0.72,
   expandedListBackdropBlurPx: 32,
   expandedCarouselBehindOpacity: 0.5,
   expandedForcesMaxBackgroundDarken: true,
-  panelExpandDurationMs: 1000,
-  // 'expressive' resolves to cubic-bezier(0.22, 1, 0.36, 1) — the exact
-  // curve every one of these four fields already used as a raw tuple.
-  panelExpandEasing: 'expressive',
-  rowFadeInDelayMs: 200,
-  rowFadeInDurationMs: 740,
-  rowFadeInEasing: 'expressive',
-  rowFadeOutDurationMs: 930,
-  rowFadeOutEasing: 'expressive',
-  panelCollapseDelayMs: 480,
+  // This surface crosses roughly three quarters of the viewport. Give that
+  // distance enough time to register as a panel arriving from below, rather
+  // than a replacement of the short list. `gaussian` keeps its velocity
+  // centered in the travel, so the frosted surface reads as one continuous
+  // upward slide instead of a front-loaded snap.
+  panelExpandDurationMs: 800,
+  // `gaussian` is a symmetric ease-in-out curve, appropriate for a large
+  // viewport surface entering from off-screen.
+  panelExpandEasing: 'gaussian',
+  // A short settle beat makes the completed surface legible before its
+  // content starts, without turning an intentional sequence into a pause.
+  rowFadeInDelayMs: 80,
+  // Rows are a strict chain: this is both each row's fade duration and the
+  // gap before the next row begins. 110ms is long enough to read as a true
+  // cascade while keeping a six-row list below three quarters of a second.
+  rowFadeInDurationMs: 110,
+  rowFadeInEasing: 'gaussian',
+  // Collapse is the exact temporal inverse of entrance: rows leave from top
+  // to bottom before the glass panel moves. This must stay non-zero; zero
+  // bypasses the transitionend gate and makes the panel appear to snap shut.
+  rowFadeOutDurationMs: 110,
+  rowFadeOutEasing: 'gaussian',
+  // Start the spatial return in the same completion turn as the final row's
+  // fade. Holding an empty glass surface here reads as a flicker or a brief
+  // disappearance before the actual collapse, not as an intentional pause.
+  panelCollapseDelayMs: 0,
+  // Use the same distance, duration, and easing as entry so the panel
+  // returns below the viewport as the visual reverse of its arrival.
   panelCollapseDurationMs: 1000,
-  panelCollapseEasing: 'expressive',
-  listSettleDurationMs: 300,
+  panelCollapseEasing: 'gaussian',
+  // Leave a short beat for the now-visible short list before the CoverFlow
+  // selection commits and moves behind it.
+  listSettleDurationMs: 160,
 } satisfies MobilePinnedArticleSectionConfig;
 
 function normalizeEasing(
@@ -220,6 +249,9 @@ export function normalizeMobilePinnedArticleSectionConfig(
     peekHeightSvh: clamp(base.peekHeightSvh, 4, 24),
     scrollEffortMultiplier: clamp(base.scrollEffortMultiplier, 0.5, 2),
     scrollDrivenNavigationEnabled: base.scrollDrivenNavigationEnabled === true,
+    fullListPresentation: base.fullListPresentation === 'cardFlip'
+      ? 'cardFlip'
+      : 'glassPanel',
     expandedListPaddingX: EXPANDED_LIST_PADDING_X_TOKENS.includes(base.expandedListPaddingX)
       ? base.expandedListPaddingX
       : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingX,

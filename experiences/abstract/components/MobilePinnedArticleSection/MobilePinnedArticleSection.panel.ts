@@ -52,6 +52,16 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
         description: 'Off (default): only the list and carousel swipe change the active article. On: page scroll also drives it (legacy behavior).',
       },
       {
+        kind: 'enum',
+        key: 'fullListPresentation',
+        label: 'Full-list presentation',
+        description: 'Glass panel keeps the existing bottom-sheet view. Card flip rotates the active card 190° to reveal the complete article list and an in-card Close control on its reverse face.',
+        options: [
+          { label: 'Glass panel', value: 'glassPanel' },
+          { label: 'Card flip', value: 'cardFlip' },
+        ],
+      },
+      {
         // 'select', not 'enum' — AGENTS.md's own hard ceiling: past ~6-8
         // options, a SegmentedControl row (kind: 'enum') renders as an
         // unreadable wall of overlapping/truncated labels. The shared
