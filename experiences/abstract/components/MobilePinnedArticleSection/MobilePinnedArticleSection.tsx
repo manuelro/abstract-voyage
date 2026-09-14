@@ -754,15 +754,17 @@ export function MobilePinnedArticleSection({
       }
       // SEL-07 (PLAN-MOBILE-ARTICLE-SELECT-MOTION.md v2): set windowStart to
       // the final target SYNCHRONOUSLY, in the same commit as the expanded=
-      // false flip below — not deferred behind a timer the way v1 did. By
-      // the time this runs, the select sequence's own persistent row list
-      // (expandedDisplayRows, handleListSelect) has already animated to
-      // this exact same order, so there is nothing left to "settle into":
-      // shortListRows (windowStart-derived) simply agrees with what's
-      // already on screen the moment expandedDisplayRows resets to null and
-      // the flat collapsed render takes back over. Deliberately not clamped
-      // to itemCount - windowLength: the ask is "always at the top," full
-      // stop — see computeSelectSurvivors.
+      // false flip below — not deferred behind a timer the way v1 did.
+      // Deliberately NOT clamped to itemCount - windowLength (reverted an
+      // earlier attempt that did): the spec is the selection is ALWAYS the
+      // window's top row, even near the end of the list, where that means
+      // showing fewer than windowLength rows (only however many real items
+      // remain after it) rather than backfilling with earlier items to keep
+      // the row count up — backfilling was tried and rejected (operator
+      // ask): it silently un-pinned the selection from the top for exactly
+      // this range of indices. The visual jump on a later "Expand list" tap
+      // near the end of the list is a SEPARATE bug from this windowing
+      // policy — see openPanel's own short-list-geometry handling.
       setWindowStart(Math.max(selectedIndex, 0));
     } else {
       // STAGE-12 (plain close — Escape/backdrop, no selection made): no
