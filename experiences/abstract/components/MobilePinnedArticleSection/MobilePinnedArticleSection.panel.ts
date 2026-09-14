@@ -185,8 +185,8 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       {
         kind: 'number',
         key: 'panelCollapseDurationMs',
-        label: 'Select: panel fade out/in',
-        description: 'How long the panel takes to fade out after selecting an article, then fade back in once the final short list is ready. The carousel card behind it fades back to full opacity over this same duration.',
+        label: 'Select: panel close',
+        description: 'How long the persistent glass panel takes to return to its compact height, or the flipped card takes to return to its front face. The carousel card behind glass returns to full opacity over this same duration.',
         min: 0,
         max: 1000,
         step: 10,
@@ -196,7 +196,7 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       {
         kind: 'select',
         key: 'panelCollapseEasing',
-        label: 'Select: panel fade out/in easing',
+        label: 'Select: panel close easing',
         options: MOTION_EASING_OPTIONS,
       },
       {

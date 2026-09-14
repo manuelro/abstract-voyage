@@ -76,8 +76,8 @@ export type MobilePinnedArticleSectionConfig = {
   expandedListBackgroundColor: string;
   /** Opacity of the expanded panel's *background color layer*, not the panel
    * element. Kept below 1 by default so the always-on backdrop blur remains
-   * visible while the panel moves; collapse is transform-only and never
-   * animates the panel element's `opacity`. */
+   * visible while the persistent surface resizes; opening and closing animate
+   * height only and never animate the panel element's `opacity`. */
   expandedListBackgroundOpacity: number;
   /** Backdrop blur radius applied to the expanded panel, in px — was a
    * hardcoded `blur(12px)` (styles.module.css's own `.panel` rule) with no
@@ -101,10 +101,9 @@ export type MobilePinnedArticleSectionConfig = {
    * entirely, rather than papering over). Off falls back to the background's
    * own plain scroll-driven schedule, unaffected by this component. */
   expandedForcesMaxBackgroundDarken: boolean;
-  /** STAGE-04 — ms for the panel's own open transition (from below the
-   * viewport to its expanded position). Decoupled from panelCollapseDurationMs below — the
-   * two used to share one duration/CSS var despite being visually and
-   * semantically distinct motions (opening vs. closing). */
+  /** STAGE-04 — ms for the presentation's own open transition. Glass grows
+   * the persistent compact panel to expandedPanelHeightPercent; cardFlip
+   * rotates the active card. Decoupled from panelCollapseDurationMs below. */
   panelExpandDurationMs: number;
   /** STAGE-04 — named easing (CTA_BUTTON_MOTION_EASINGS) for the panel's own
    * open transition, independent of panelCollapseEasing. */
@@ -142,12 +141,12 @@ export type MobilePinnedArticleSectionConfig = {
    * row disappears. */
   panelCollapseDelayMs: number;
   /** STAGE-07 — ms for the panel's own close transition: only after the last
-   * row has faded does the full glass surface slide back below the viewport.
-   * This should normally mirror panelExpandDurationMs, so opening and closing
-   * are one reversible spatial motion. The same duration governs the
-   * carousel card behind it returning to full opacity and is the wait before
-   * the deferred CoverFlow translate. It directly drives the real CSS
-   * transition (styles.module.css's `.panel`/`.carousel` via
+   * row has faded does the persistent glass surface return to its compact
+   * height (or the card rotate to its front face). This should normally mirror
+   * panelExpandDurationMs, so opening and closing are one reversible spatial
+   * motion. The same duration governs the carousel card behind it returning
+   * to full opacity and is the wait before the deferred CoverFlow translate.
+   * It directly drives the real CSS transition (`.panel`/`.carousel` via
    * --mobile-pinned-panel-collapse-ms), not just a JS-side timer. */
   panelCollapseDurationMs: number;
   /** STAGE-07 — named easing (CTA_BUTTON_MOTION_EASINGS) for the panel's own
@@ -186,19 +185,17 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   // An opaque color layer would conceal the backdrop completely, making a
   // configured blur indistinguishable from no blur. This is background paint
   // alpha only — the panel element itself stays fully opaque throughout both
-  // directions of its transform-only motion.
+  // directions of its height-only motion.
   expandedListBackgroundOpacity: 0.72,
   expandedListBackdropBlurPx: 32,
   expandedCarouselBehindOpacity: 0.5,
   expandedForcesMaxBackgroundDarken: true,
-  // This surface crosses roughly three quarters of the viewport. Give that
-  // distance enough time to register as a panel arriving from below, rather
-  // than a replacement of the short list. `gaussian` keeps its velocity
-  // centered in the travel, so the frosted surface reads as one continuous
-  // upward slide instead of a front-loaded snap.
+  // The persistent surface's top edge travels from the compact-list boundary
+  // to the expanded boundary. Give that distance enough time to register as
+  // one object growing upward; `gaussian` centers velocity in the travel.
   panelExpandDurationMs: 800,
   // `gaussian` is a symmetric ease-in-out curve, appropriate for a large
-  // viewport surface entering from off-screen.
+  // change in the surface's visible height.
   panelExpandEasing: 'gaussian',
   // A short settle beat makes the completed surface legible before its
   // content starts, without turning an intentional sequence into a pause.
@@ -217,8 +214,8 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   // fade. Holding an empty glass surface here reads as a flicker or a brief
   // disappearance before the actual collapse, not as an intentional pause.
   panelCollapseDelayMs: 0,
-  // Use the same distance, duration, and easing as entry so the panel
-  // returns below the viewport as the visual reverse of its arrival.
+  // Return the same surface to its compact height as the visual reverse of
+  // its expansion.
   panelCollapseDurationMs: 1000,
   panelCollapseEasing: 'gaussian',
   // Leave a short beat for the now-visible short list before the CoverFlow

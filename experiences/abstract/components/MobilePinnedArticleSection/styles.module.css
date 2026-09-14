@@ -44,16 +44,9 @@
   opacity: 1;
 }
 
-/* DECOUPLED LISTS (operator ask): the short list and the full list are two
- * entirely separate elements now, never nested inside one another.
- * `.shortListPanel` is the always-mounted box living directly below the
- * carousel — it only ever shows the short (windowed) list, never resizes,
- * and never contains the full list. `.panel` below it is now EXCLUSIVELY
- * the full-list overlay: at rest it has zero height/is empty, and only
- * grows + shows content while expanded (or fading through a selection).
- * The two used to be the same DOM element/box (the old `.panel` doubled as
- * both, switching between a "short" and "expanded" height) — that's what
- * made the short list read as "part of the collapsible panel." */
+/* Card-flip keeps a compact list below the carousel because its full list
+ * lives on the card's reverse face. Glass mode does not render this surface;
+ * its short and full lists share the persistent `.panel` below. */
 .shortListPanel {
   position: absolute;
   z-index: 4;
@@ -84,24 +77,32 @@
 
 .panel {
   position: absolute;
-  /* Above .shortListPanel (z-index 4) and .collapseSurface (z-index 3) so
-   * the full-list overlay visually covers both while expanded — the short
-   * list box underneath is never actually seen at that point, it's just
-   * not sharing a DOM element with the overlay anymore. */
-  z-index: 5;
+  /* One bottom-anchored glass object serves both compact and expanded list
+   * states. Its top edge moves by height; the blurred surface itself is never
+   * translated into a separate compositor layer. */
+  z-index: 4;
   right: 0;
   bottom: 0;
   left: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  /* Keep the full surface at its expanded height and move it with a transform
-   * so opening visibly slides it up from below the viewport. */
-  height: calc(var(--mobile-pinned-expanded-percent) * 1svh);
+  height: calc(var(--mobile-pinned-list-percent) * 1svh);
   overflow: clip;
-  /* The frosted sheet is the object that moves. Delaying its blur until
-   * transitionend makes the panel itself appear as a snapped final state,
-   * even when its transform is animating correctly. Keep the intended glass
-   * treatment active from its off-screen starting position onward. */
+  background: color-mix(
+    in srgb,
+    var(--mobile-pinned-panel-color) calc(var(--mobile-pinned-panel-opacity) * 100%),
+    transparent
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: height var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
+}
+
+/* Opening and open use the full-list treatment. Closing keeps that treatment
+ * while the same surface contracts, avoiding a paint swap during motion. */
+.panel[data-phase='opening'],
+.panel[data-phase='open'],
+.panel[data-phase='closing'] {
   background: color-mix(
     in srgb,
     var(--mobile-pinned-expanded-bg-color) calc(var(--mobile-pinned-expanded-bg-opacity) * 100%),
@@ -109,14 +110,16 @@
   );
   backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
   -webkit-backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
-  transform: translate3d(0, calc(var(--mobile-pinned-panel-slide-percent, 100) * 1%), 0);
-  will-change: transform;
-  transition: transform var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
 }
 
-/* The closing flag selects the independently configured collapse direction. */
-.panel[data-collapsing='true'] {
-  transition: transform var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, ease);
+.panel[data-phase='opening'],
+.panel[data-phase='open'] {
+  height: calc(var(--mobile-pinned-expanded-percent) * 1svh);
+}
+
+.panel[data-phase='closing'] {
+  height: calc(var(--mobile-pinned-list-percent) * 1svh);
+  transition: height var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, ease);
 }
 
 /* Opt-in full-list presentation: one reversible 3D card. The front keeps the
@@ -316,14 +319,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .panel,
-  /* Matches .panel[data-collapsing='true']'s own specificity (a class +
-   * an attribute selector) — without this, that more-specific rule's own
-   * `transition` declaration would win over this bare `.panel` override
-   * whenever collapsing is active, regardless of source order. The
-   * component's own JS never actually sets data-collapsing while
-   * prefersReducedMotion is true (that whole slide-out sequence is skipped
-   * upstream), so this is defense-in-depth, not a live bug today. */
-  .panel[data-collapsing='true'],
+  .panel[data-phase='closing'],
   .carousel,
   .flipCard,
   .flipCard[data-collapsing='true'] {

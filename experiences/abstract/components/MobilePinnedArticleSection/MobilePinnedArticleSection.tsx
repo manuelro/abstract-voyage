@@ -38,6 +38,8 @@ type ScrollLockSnapshot = {
   rootCssText: string;
 };
 
+type FullListPresentationPhase = 'closed' | 'opening' | 'open' | 'closing';
+
 export type MobilePinnedListControls = {
   activeIndex: number;
   /** Already sliced by the caller's own windowing (short list) or the full
@@ -152,33 +154,20 @@ export function MobilePinnedArticleSection({
   // into-view/focus on open, touch-gesture handling while expanded, and the
   // STAGE-06 fade-out's own transitionend listener all read this one.
   const rowsViewportRef = useRef<HTMLDivElement | null>(null);
-  // The SHORT list's own viewport — an entirely separate, always-mounted
-  // element living right below the carousel (operator ask: decouple the
-  // two lists; the short list must not be part of the collapsible panel).
-  // Only used to restore focus there once the panel closes.
+  // The SHORT list's viewport. In glass mode it lives inside the same
+  // persistent surface as the full list; card-flip mode keeps its compact
+  // surface below the carousel. Used to restore focus once closing finishes.
   const shortListViewportRef = useRef<HTMLDivElement | null>(null);
   const expandedRef = useRef(false);
   const lockedScrollYRef = useRef(0);
   const sectionDocumentTopRef = useRef(0);
   const [expanded, setExpanded] = useState(false);
-  // Regression fix (operator-reported, Chrome/macOS only): this used to be
-  // an OPACITY fade (panelFadeOpacity, 1 -> 0 -> 1), then a translate that
-  // still animated the panel's own `height` on open (0 -> expanded).
-  // Animating `height` on a box that also has `backdrop-filter` forces a
-  // relayout every frame while the browser re-samples the blur — a known
-  // Chrome/macOS compositor flicker source not present on WebKit or mobile
-  // Chrome, matching exactly what was reported (not reproducible in the iOS
-  // simulator or on real devices). The panel is now ALWAYS at its full
-  // expanded height (styles.module.css) and this is the ONLY thing that
-  // moves it: 0 = fully in place/visible, 100 = translated down by its own
-  // full height, past `.stickyViewport`'s own `overflow: hidden` bottom
-  // edge (hidden). Starts at 100 (hidden) — open slides it to 0, close
-  // slides it back to 100 — so unlike the old height/opacity mechanisms,
-  // there's no separate "reset after" step: 100 already IS the resting
-  // closed state a close transition ends at.
-  const [panelSlideOffsetPercent, setPanelSlideOffsetPercent] = useState(100);
-  const [panelClosing, setPanelClosing] = useState(false);
-  const [cardFlipped, setCardFlipped] = useState(false);
+  // One lifecycle drives both full-list presentations. Glass maps it to the
+  // height of one persistent bottom surface; cardFlip maps it to rotation.
+  // Keeping geometry out of React state prevents visibility mechanisms from
+  // contradicting one another at transition boundaries.
+  const [presentationPhase, setPresentationPhase] =
+    useState<FullListPresentationPhase>('closed');
   const [position, setPosition] = useState(activeIndex);
   const [stepPx, setStepPx] = useState(0);
   const [peekActive, setPeekActive] = useState(true);
@@ -245,6 +234,9 @@ export function MobilePinnedArticleSection({
 
   const [dragActive, setDragActive] = useState(false);
   const usesCardFlip = config.fullListPresentation === 'cardFlip';
+  const presentationClosing = presentationPhase === 'closing';
+  const cardFlipped = presentationPhase === 'opening' || presentationPhase === 'open';
+  const showsFullList = presentationPhase !== 'closed';
   const visibleRows = smallPhone
     ? config.visibleRowsSmallPhone
     : config.visibleRowsLargePhone;
@@ -524,23 +516,9 @@ export function MobilePinnedArticleSection({
     pendingDeferredCommitRef.current = null;
   }, []);
 
-  const openPanel = useCallback(() => {
-    flushPendingDeferredCommit();
-    cancelInFlightCloseSequence();
-    if (snapTimerRef.current !== null) {
-      window.clearTimeout(snapTimerRef.current);
-      snapTimerRef.current = null;
-    }
-    // Caches the true document top before lockOuterScroll below freezes the
-    // page via position:fixed (after which getBoundingClientRect would read
-    // the frozen, no-longer-meaningful layout instead). Only meaningful for
-    // the scroll-driven restoration math in closePanel().
-    if (config.scrollDrivenNavigationEnabled) sectionTop();
-    // Clear any stale panel-expand listener/timer or pending row-entrance
-    // delay from a previous open that never got to finish (e.g. a rapid
-    // open/close/reopen) — nothing from that earlier attempt should fire
-    // late against this fresh one.
+  const cancelInFlightOpenSequence = useCallback(() => {
     panelExpandListenerCleanupRef.current?.();
+    panelExpandListenerCleanupRef.current = null;
     if (panelExpandFallbackTimerRef.current !== null) {
       window.clearTimeout(panelExpandFallbackTimerRef.current);
       panelExpandFallbackTimerRef.current = null;
@@ -553,23 +531,26 @@ export function MobilePinnedArticleSection({
       window.cancelAnimationFrame(openMountFrameRef.current);
       openMountFrameRef.current = null;
     }
+  }, []);
+
+  const openPanel = useCallback(() => {
+    flushPendingDeferredCommit();
+    cancelInFlightCloseSequence();
+    cancelInFlightOpenSequence();
+    if (snapTimerRef.current !== null) {
+      window.clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = null;
+    }
+    // Caches the true document top before lockOuterScroll below freezes the
+    // page via position:fixed (after which getBoundingClientRect would read
+    // the frozen, no-longer-meaningful layout instead). Only meaningful for
+    // the scroll-driven restoration math in closePanel().
+    if (config.scrollDrivenNavigationEnabled) sectionTop();
     expandedRef.current = true;
     setExpanded(true);
-    setPanelClosing(false);
-    // Give the browser a whole paint with the initial surface before changing
-    // its transform on the following frame. A single rAF can collapse the
-    // start and end values into one visual frame.
-    openMountFrameRef.current = window.requestAnimationFrame(() => {
-      openMountFrameRef.current = window.requestAnimationFrame(() => {
-        openMountFrameRef.current = null;
-        if (usesCardFlip) {
-          setCardFlipped(true);
-        } else {
-          setPanelSlideOffsetPercent(0);
-        }
-      });
-    });
+    setPresentationPhase('opening');
     if (prefersReducedMotion) {
+      setPresentationPhase('open');
       setExpandedDisplayRows(null);
     } else {
       // STAGE-04: mount every row hidden (opacity 0 only, no
@@ -612,7 +593,7 @@ export function MobilePinnedArticleSection({
           openMountFrameRef.current = frame;
         }, config.rowFadeInDelayMs);
       };
-      // STAGE-04/05 boundary: wait for the panel's OWN slide-into-view
+      // STAGE-04/05 boundary: wait for the presentation surface's OWN open
       // transition to genuinely finish — its real `transitionend`, not a
       // duration guess (the same "listen for the real event" approach the
       // close side already uses) — THEN wait rowFadeInDelayMs, THEN start
@@ -628,13 +609,15 @@ export function MobilePinnedArticleSection({
           window.clearTimeout(panelExpandFallbackTimerRef.current);
           panelExpandFallbackTimerRef.current = null;
         }
+        setPresentationPhase('open');
         startEntranceAfterDelay();
       };
       if (config.panelExpandDurationMs <= 0 || !motionSurface) {
         finishPanelExpand();
       } else {
         const onPanelTransitionEnd = (event: TransitionEvent) => {
-          if (event.propertyName !== 'transform' || event.target !== motionSurface) return;
+          const expectedProperty = usesCardFlip ? 'transform' : 'height';
+          if (event.propertyName !== expectedProperty || event.target !== motionSurface) return;
           finishPanelExpand();
         };
         motionSurface.addEventListener('transitionend', onPanelTransitionEnd);
@@ -663,8 +646,8 @@ export function MobilePinnedArticleSection({
       activeRow.focus({ preventScroll: true });
     });
   }, [
-    cancelInFlightCloseSequence, config.panelExpandDurationMs, config.rowFadeInDelayMs,
-    config.rowFadeInDurationMs, config.rowFadeInEasing,
+    cancelInFlightCloseSequence, cancelInFlightOpenSequence, config.panelExpandDurationMs,
+    config.rowFadeInDelayMs, config.rowFadeInDurationMs, config.rowFadeInEasing,
     config.scrollDrivenNavigationEnabled, flushPendingDeferredCommit, lockOuterScroll,
     onExpandedChange, prefersReducedMotion, rows, sectionTop, usesCardFlip,
   ]);
@@ -759,24 +742,14 @@ export function MobilePinnedArticleSection({
     // around to fire later against this new one — same shared reset
     // openPanel uses for the mirror-image case (opening while a previous
     // close is still in flight).
+    cancelInFlightOpenSequence();
     cancelInFlightCloseSequence();
 
-    // Reduced motion (and the plain-close path never had any of these fades
-    // to begin with under it, same as before): skip straight to the commit,
-    // no afterClosed dance either — closePanel() itself already commits the
-    // new index synchronously under reduced motion/scroll-driven mode, so
-    // there's nothing left for a deferred hand-off to do. Still needs to
-    // snap the slide offset back to 100 (instantly — prefers-reduced-motion
-    // CSS turns the transition off) since that's now the ONLY thing
-    // controlling this panel's visibility (see panelSlideOffsetPercent's
-    // own doc comment) — data-expanded alone no longer hides it.
+    // Reduced motion skips directly to the closed presentation and commit.
+    // closePanel() already commits the selected index synchronously in this
+    // mode, so there is no deferred hand-off to preserve.
     if (prefersReducedMotion) {
-      if (usesCardFlip) {
-        setCardFlipped(false);
-      } else {
-        setPanelSlideOffsetPercent(100);
-      }
-      setPanelClosing(false);
+      setPresentationPhase('closed');
       setExpandedDisplayRows(null);
       commit();
       return;
@@ -804,17 +777,12 @@ export function MobilePinnedArticleSection({
     })));
 
     const proceedAfterFadeOut = () => {
-      const beginPanelSlide = () => {
+      const beginPanelCollapse = () => {
         selectHoldTimerRef.current = null;
-        // BEAT 2: reverse the selected full-list presentation. Both paths
-        // are transform-only: the glass surface travels below the viewport;
-        // the opt-in card surface rotates back to its front face.
-        setPanelClosing(true);
-        if (usesCardFlip) {
-          setCardFlipped(false);
-        } else {
-          setPanelSlideOffsetPercent(100);
-        }
+        // BEAT 2: reverse the selected full-list presentation. Glass returns
+        // the same persistent surface to its compact height; card flip
+        // rotates back to its front face.
+        setPresentationPhase('closing');
         const motionSurface = usesCardFlip ? flipCardRef.current : panelRef.current;
         let settled = false;
         const finishClose = () => {
@@ -826,14 +794,11 @@ export function MobilePinnedArticleSection({
             window.clearTimeout(panelCollapseFallbackTimerRef.current);
             panelCollapseFallbackTimerRef.current = null;
           }
-          // Panel is now fully off-screen — `commit` runs the actual
-          // close (closePanel flips data-expanded off, swaps the short
-          // list's content) entirely behind the clipped viewport, so
-          // that swap is never seen either. No slide-offset reset needed:
-          // 100 already IS the resting closed value this transition just
-          // finished landing on.
+          // The surface is now compact (or the card is front-facing). Commit
+          // the modal close, then return the short-list content without ever
+          // replacing the glass panel node itself.
           commit();
-          setPanelClosing(false);
+          setPresentationPhase('closed');
           setExpandedDisplayRows(null);
           afterClosed?.();
         };
@@ -841,13 +806,14 @@ export function MobilePinnedArticleSection({
           finishClose();
           return;
         }
-        const onSlideTransitionEnd = (event: TransitionEvent) => {
-          if (event.propertyName !== 'transform' || event.target !== motionSurface) return;
+        const onCollapseTransitionEnd = (event: TransitionEvent) => {
+          const expectedProperty = usesCardFlip ? 'transform' : 'height';
+          if (event.propertyName !== expectedProperty || event.target !== motionSurface) return;
           finishClose();
         };
-        motionSurface.addEventListener('transitionend', onSlideTransitionEnd);
+        motionSurface.addEventListener('transitionend', onCollapseTransitionEnd);
         panelCollapseListenerCleanupRef.current = () => {
-          motionSurface.removeEventListener('transitionend', onSlideTransitionEnd);
+          motionSurface.removeEventListener('transitionend', onCollapseTransitionEnd);
         };
         panelCollapseFallbackTimerRef.current = window.setTimeout(
           finishClose, config.panelCollapseDurationMs + 200,
@@ -855,14 +821,14 @@ export function MobilePinnedArticleSection({
       };
       // A zero hold is a semantic "immediately after the last row" — do not
       // turn it into an extra task/paint with setTimeout(0). That blank frame
-      // leaves an empty glass surface on screen before its transform starts,
+      // leaves an empty glass surface on screen before its motion starts,
       // which reads as a flash rather than one continuous collapse.
       if (config.panelCollapseDelayMs <= 0) {
-        beginPanelSlide();
+        beginPanelCollapse();
         return;
       }
       selectHoldTimerRef.current = window.setTimeout(
-        beginPanelSlide, config.panelCollapseDelayMs,
+        beginPanelCollapse, config.panelCollapseDelayMs,
       );
     };
 
@@ -912,8 +878,9 @@ export function MobilePinnedArticleSection({
     };
     fadeOutFallbackTimerRef.current = window.setTimeout(finish, fadeOutTotalMs + 200);
   }, [
-    cancelInFlightCloseSequence, config.panelCollapseDelayMs, config.panelCollapseDurationMs,
-    config.rowFadeOutDurationMs, config.rowFadeOutEasing, prefersReducedMotion, rows, usesCardFlip,
+    cancelInFlightCloseSequence, cancelInFlightOpenSequence, config.panelCollapseDelayMs,
+    config.panelCollapseDurationMs, config.rowFadeOutDurationMs, config.rowFadeOutEasing,
+    prefersReducedMotion, rows, usesCardFlip,
   ]);
 
   // Plain close (Escape/backdrop) — no row was picked, so `commit` is just
@@ -1109,20 +1076,13 @@ export function MobilePinnedArticleSection({
     '--mobile-pinned-expanded-bg-opacity': config.expandedListBackgroundOpacity,
     '--mobile-pinned-expanded-backdrop-blur-px': `${config.expandedListBackdropBlurPx}px`,
     '--mobile-pinned-expanded-carousel-opacity': config.expandedCarouselBehindOpacity,
-    // Two independent duration/easing pairs for the panel's own height
-    // transition — open (panelExpandDurationMs/Easing) vs. close
-    // (panelCollapseDurationMs/Easing) — since the two are visually and
-    // semantically distinct motions. styles.module.css's own
-    // `.panel[data-collapsing='true']` selector (driven by
-    // panelSlideOffsetPercent below) picks whichever pair actually applies
-    // at a given moment. panelCollapseDurationMs/Easing are ALSO reused for
-    // .carousel's own opacity-restore transition, so the carousel un-dims
-    // in step with the panel sliding away (operator ask).
+    // Independent open/close pairs drive either the persistent glass
+    // surface's height or the card's rotation. The collapse pair is also
+    // reused for the carousel's opacity restoration.
     '--mobile-pinned-panel-expand-ms': `${config.panelExpandDurationMs}ms`,
     '--mobile-pinned-panel-expand-easing': CTA_BUTTON_MOTION_EASINGS[config.panelExpandEasing],
     '--mobile-pinned-panel-collapse-ms': `${config.panelCollapseDurationMs}ms`,
     '--mobile-pinned-panel-collapse-easing': CTA_BUTTON_MOTION_EASINGS[config.panelCollapseEasing],
-    '--mobile-pinned-panel-slide-percent': panelSlideOffsetPercent,
     // The extra travel height only exists to give page-scroll something to
     // consume in scroll-driven mode. Off by default: the section is just
     // 100svh, and there's nothing to scroll through to reach any article —
@@ -1185,6 +1145,39 @@ export function MobilePinnedArticleSection({
     </div>
   );
 
+  const renderShortList = () => (
+    <div
+      ref={shortListViewportRef}
+      className={`${styles.rowsViewport} ${styles.shortListRowsViewport}`}
+      tabIndex={-1}
+    >
+      <div className={styles.timeline}>
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={windowStart}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={prefersReducedMotion ? undefined : { opacity: 0, y: -14 }}
+            transition={
+              prefersReducedMotion
+                ? { duration: 0 }
+                : {
+                  duration: config.listSettleDurationMs / 1000,
+                  ease: MOTION_EASING_BEZIERS[config.panelCollapseEasing],
+                }
+            }
+          >
+            {renderList({
+              activeIndex: safeActiveIndex,
+              rows: shortListRows,
+              onSelect: handleListSelect,
+            })}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+
   return (
     <section ref={outerRef} className={styles.outer} style={style} data-mobile-pinned-articles="true">
       {config.scrollDrivenNavigationEnabled
@@ -1204,7 +1197,7 @@ export function MobilePinnedArticleSection({
               ref={flipCardRef}
               className={styles.flipCard}
               data-flipped={cardFlipped}
-              data-collapsing={panelClosing}
+              data-collapsing={presentationClosing}
             >
               <div className={`${styles.flipFace} ${styles.flipFront}`}>
                 {renderCarousel(carouselControls)}
@@ -1213,7 +1206,7 @@ export function MobilePinnedArticleSection({
                 className={`${styles.flipFace} ${styles.flipBack}`}
                 onKeyDown={handlePanelKeyDown}
               >
-                {expanded || expandedDisplayRows !== null ? renderExpandedList() : null}
+                {showsFullList ? renderExpandedList() : null}
                 {/* Keep the reverse-face control out of the tab order until
                  * the card has actually opened. `backface-visibility: hidden`
                  * only affects paint; it does not make a descendant button
@@ -1224,7 +1217,7 @@ export function MobilePinnedArticleSection({
                     type="button"
                     className={styles.flipCloseButton}
                     onClick={requestClose}
-                    disabled={panelClosing}
+                    disabled={presentationClosing}
                   >
                     Close
                   </button>
@@ -1240,60 +1233,21 @@ export function MobilePinnedArticleSection({
             aria-hidden="true"
           />
         ) : null}
-        {/* DECOUPLED (operator ask): the short list is its own independent
-         * element, always mounted right below the carousel — it is never
-         * nested inside, or otherwise part of, the collapsible full-list
-         * panel below. Its own cross-fade settle animation is unaffected
-         * by anything the full-list panel is doing. */}
-        <div className={styles.shortListPanel}>
-          <div
-            ref={shortListViewportRef}
-            className={`${styles.rowsViewport} ${styles.shortListRowsViewport}`}
-            tabIndex={-1}
-          >
-            <div className={styles.timeline}>
-              <AnimatePresence mode="popLayout" initial={false}>
-                <motion.div
-                  key={windowStart}
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -14 }}
-                  transition={
-                    prefersReducedMotion
-                      ? { duration: 0 }
-                      // Reuses panelCollapseEasing (see that field's own doc
-                      // comment) — this settle is triggered by the same
-                      // closePanel() call that starts the panel's own close
-                      // transition, so the two read as one motion.
-                      : { duration: config.listSettleDurationMs / 1000, ease: MOTION_EASING_BEZIERS[config.panelCollapseEasing] }
-                  }
-                >
-                  {renderList({
-                    activeIndex: safeActiveIndex,
-                    // shortListRows already includes the "Expand list"
-                    // sentinel row appended to the end when showExpandRow
-                    // is true — it's rendered by AboutTimeline itself as a
-                    // real row, not by this component as a separate
-                    // element beside the list.
-                    rows: shortListRows,
-                    onSelect: handleListSelect,
-                  })}
-                </motion.div>
-              </AnimatePresence>
-            </div>
+        {usesCardFlip ? (
+          <div className={styles.shortListPanel}>
+            {renderShortList()}
           </div>
-        </div>
-        {!usesCardFlip ? (
+        ) : (
           <div
             ref={panelRef}
             className={styles.panel}
-            data-expanded={expanded}
-            data-collapsing={panelClosing}
+            data-phase={presentationPhase}
+            data-mobile-pinned-glass-panel="true"
             onKeyDown={handlePanelKeyDown}
           >
-            {expanded || expandedDisplayRows !== null ? renderExpandedList() : null}
+            {showsFullList ? renderExpandedList() : renderShortList()}
           </div>
-        ) : null}
+        )}
         <button
           type="button"
           className={styles.peekTarget}
