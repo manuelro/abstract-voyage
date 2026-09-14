@@ -288,19 +288,41 @@
 }
 
 /* The SHORT list state, used by the shared glass viewport and card flip's
- * compact panel: fixed padding and no dead-end scroll container. */
+ * compact panel: no dead-end scroll container. Padding lives separately in
+ * .shortListPadding below — see that rule's own doc comment for why the two
+ * are no longer the same class. */
 .shortListRowsViewport {
-  padding: 0 1.5rem;
   overflow: clip;
+}
+
+/* Operator-reported regression: during the shared glass viewport's short
+ * list -> full list crossfade (renderSharedGlassList,
+ * MobilePinnedArticleSection.tsx), this fixed 1.5rem inset used to live on
+ * the SAME shared outer element whose class also carried the full list's
+ * config-driven pt-/pr-/pb-/pl- padding. That outer element's class swaps
+ * the instant `showsFullList` flips — before the short list's own fade-out
+ * (AnimatePresence) has even started — so the still-visible, still-fading
+ * short list would instantly inherit the FULL list's (usually wider) padding
+ * and visibly shrink/reflow a beat before the panel had even started
+ * growing. Split into its own class, applied directly on the short list's
+ * own dedicated wrapper (its AnimatePresence fade layer in
+ * renderSharedGlassList; its own top-level wrapper in renderShortList,
+ * card-flip's compact panel) — the short list's padding can no longer be
+ * affected by which OTHER content the shared container happens to be
+ * showing. See .fullListRowsViewport's own comment: the exact same class of
+ * bug, one level up (there it was two lists sharing one class; here it was
+ * two lists sharing one ELEMENT). */
+.shortListPadding {
+  padding: 0 1.5rem;
 }
 
 /* The FULL list's own viewport (inside .panel) — potentially taller than
  * the panel, so it scrolls instead of clipping. Padding is exclusively
  * owned by the pt-/pr-/pb-/pl- Tailwind classes applied directly on this
- * element (config.expandedListPaddingTop/Right/Bottom/Left,
- * MobilePinnedArticleSection.tsx) — this rule deliberately declares no
- * padding of its own so there is nothing to fight those utility classes.
- * Regression note: an EARLIER version of this
+ * element's own dedicated wrapper (config.expandedListPaddingTop/Right/
+ * Bottom/Left, MobilePinnedArticleSection.tsx) — this rule deliberately
+ * declares no padding of its own so there is nothing to fight those utility
+ * classes. Regression note: an EARLIER version of this
  * rule (padding declared unlayered, unconditionally, on the single shared
  * .rowsViewport class both lists used to share) silently beat those same
  * Tailwind classes every time per the CSS cascade-layers spec (unlayered
@@ -311,8 +333,16 @@
   overflow-y: auto;
 }
 
-.timeline {
+/* Containing block for .shortListFadeLayer's absolute overlay below — only
+ * renderSharedGlassList's outer viewport needs this (the short list briefly
+ * coexists with the incoming/outgoing full list there); every other
+ * .rowsViewport usage is unaffected since nothing else inside them
+ * positions against it. */
+.sharedGlassListViewport {
   position: relative;
+}
+
+.timeline {
   width: 100%;
 }
 
@@ -326,7 +356,10 @@
 /* Shared glass viewport only (renderSharedGlassList): the short list briefly
  * coexists with the incoming/outgoing full list while it fades, so it's
  * taken out of normal flow and overlaid exactly on top instead of stacking
- * beneath it and pushing layout around during that window. */
+ * beneath it and pushing layout around during that window. Positions against
+ * .sharedGlassListViewport (the outer viewport, not .timeline) — it carries
+ * its own .shortListPadding directly so it stays visually correct regardless
+ * of what the rest of the viewport is currently padded/sized for. */
 .shortListFadeLayer {
   position: absolute;
   inset: 0;

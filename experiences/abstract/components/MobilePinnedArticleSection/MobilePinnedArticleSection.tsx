@@ -1302,7 +1302,7 @@ export function MobilePinnedArticleSection({
   const renderShortList = () => (
     <div
       ref={shortListViewportRef}
-      className={`${styles.rowsViewport} ${styles.shortListRowsViewport}`}
+      className={`${styles.rowsViewport} ${styles.shortListRowsViewport} ${styles.shortListPadding}`}
       tabIndex={-1}
     >
       <div className={styles.timeline}>
@@ -1315,59 +1315,75 @@ export function MobilePinnedArticleSection({
     <div
       ref={glassRowsViewportRef}
       className={
-        showsFullList
-          ? `${styles.rowsViewport} ${styles.fullListRowsViewport} `
-            + `${config.expandedListPaddingTop} ${config.expandedListPaddingRight} `
-            + `${config.expandedListPaddingBottom} ${config.expandedListPaddingLeft}`
-          : `${styles.rowsViewport} ${styles.shortListRowsViewport}`
+        `${styles.rowsViewport} ${styles.sharedGlassListViewport} `
+        + (showsFullList ? styles.fullListRowsViewport : styles.shortListRowsViewport)
       }
       data-mobile-pinned-glass-viewport="true"
       data-expanded-content={showsFullList}
       tabIndex={-1}
     >
-      <div className={styles.timeline}>
-        {showsFullList ? renderExpandedListContent() : null}
-        {/* Operator ask: the short list fades out/in using the SAME
-         * duration/easing as the glass panel's own open/close (not the
-         * always-on windowStart settle-fade inside renderShortListContent,
-         * which is a separate, unrelated concern — see listSettleDurationMs's
-         * own doc comment). Kept mounted through its exit via AnimatePresence
-         * instead of the hard swap the ternary above still does for the full
-         * list, since a CSS opacity transition can't play across a mount. */}
-        <AnimatePresence initial={false}>
-          {!showsFullList && (
-            <motion.div
-              key="mobile-pinned-short-list-fade"
-              className={styles.shortListFadeLayer}
-              data-mobile-pinned-short-list-fade="true"
-              initial={prefersReducedMotion ? false : { opacity: 0 }}
-              animate={{
-                opacity: 1,
-                transition: prefersReducedMotion
-                  ? { duration: 0 }
-                  : {
-                    duration: config.panelCollapseDurationMs / 1000,
-                    ease: MOTION_EASING_BEZIERS[config.panelCollapseEasing],
-                  },
-              }}
-              // pointerEvents flips to 'none' the instant the exit begins (a
-              // plain, non-animated value in the exit target still applies
-              // immediately) — the panel is already expanding underneath by
-              // then, so this layer is purely a visual fade-out, not tappable.
-              exit={prefersReducedMotion ? undefined : {
-                opacity: 0,
-                pointerEvents: 'none',
-                transition: {
-                  duration: config.panelExpandDurationMs / 1000,
-                  ease: MOTION_EASING_BEZIERS[config.panelExpandEasing],
+      {/* Each list owns its own padding on its own dedicated wrapper below —
+       * see .shortListPadding's doc comment (styles.module.css) for the
+       * regression this fixes: padding used to live on THIS shared outer
+       * element, whose class swaps the instant showsFullList flips, so a
+       * still-fading-out short list would inherit the full list's padding
+       * mid-fade and visibly shrink before the panel had even started
+       * growing. Neither wrapper below is reachable from the other's class
+       * anymore, regardless of how their mount/unmount timing overlaps. */}
+      {showsFullList ? (
+        <div
+          className={
+            `${config.expandedListPaddingTop} ${config.expandedListPaddingRight} `
+            + `${config.expandedListPaddingBottom} ${config.expandedListPaddingLeft}`
+          }
+        >
+          <div className={styles.timeline}>
+            {renderExpandedListContent()}
+          </div>
+        </div>
+      ) : null}
+      {/* Operator ask: the short list fades out/in using the SAME
+       * duration/easing as the glass panel's own open/close (not the
+       * always-on windowStart settle-fade inside renderShortListContent,
+       * which is a separate, unrelated concern — see listSettleDurationMs's
+       * own doc comment). Kept mounted through its exit via AnimatePresence
+       * instead of the hard swap the ternary above still does for the full
+       * list, since a CSS opacity transition can't play across a mount. */}
+      <AnimatePresence initial={false}>
+        {!showsFullList && (
+          <motion.div
+            key="mobile-pinned-short-list-fade"
+            className={`${styles.shortListFadeLayer} ${styles.shortListPadding}`}
+            data-mobile-pinned-short-list-fade="true"
+            initial={prefersReducedMotion ? false : { opacity: 0 }}
+            animate={{
+              opacity: 1,
+              transition: prefersReducedMotion
+                ? { duration: 0 }
+                : {
+                  duration: config.panelCollapseDurationMs / 1000,
+                  ease: MOTION_EASING_BEZIERS[config.panelCollapseEasing],
                 },
-              }}
-            >
+            }}
+            // pointerEvents flips to 'none' the instant the exit begins (a
+            // plain, non-animated value in the exit target still applies
+            // immediately) — the panel is already expanding underneath by
+            // then, so this layer is purely a visual fade-out, not tappable.
+            exit={prefersReducedMotion ? undefined : {
+              opacity: 0,
+              pointerEvents: 'none',
+              transition: {
+                duration: config.panelExpandDurationMs / 1000,
+                ease: MOTION_EASING_BEZIERS[config.panelExpandEasing],
+              },
+            }}
+          >
+            <div className={styles.timeline}>
               {renderShortListContent()}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 
