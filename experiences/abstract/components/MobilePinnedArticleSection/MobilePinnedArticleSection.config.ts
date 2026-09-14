@@ -5,6 +5,16 @@ import {
   type PaddingXClass,
   type PaddingYClass,
 } from '../../../../components/tailwindSpacingScale';
+import type { CtaButtonMotionEasing } from '../../../../components/CtaButton/config/registered';
+
+// Same shared named-easing catalog CtaButton/AboutTimeline/Panel/CardStack
+// etc. all already draw from (CTA_BUTTON_MOTION_EASINGS,
+// components/CtaButton/config/registered.ts) — no bespoke cubic-bezier
+// tuples here, so the settings panel can render these as ordinary
+// `kind: 'enum'` fields instead of hiding untunable raw numbers.
+const MOTION_EASING_KEYS: readonly CtaButtonMotionEasing[] = [
+  'linear', 'standard', 'expressive', 'viscous', 'gentle', 'gaussian',
+];
 
 export const MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID =
   'MobilePinnedArticleSection/layout' as const;
@@ -83,51 +93,71 @@ export type MobilePinnedArticleSectionConfig = {
    * entirely, rather than papering over). Off falls back to the background's
    * own plain scroll-driven schedule, unaffected by this component. */
   expandedForcesMaxBackgroundDarken: boolean;
-  /** Cubic-bezier easing shared by the phases NOT covered by
-   * expandedEnterEasing/expandedSelectEasing below (sentinel mount-in, panel
-   * collapse, post-collapse list settle). Defaults to the curve
-   * styles.module.css's own `.panel` transition already uses. */
-  selectMotionEasing: [number, number, number, number];
-  /** STAGE-04/05 — ms for each expanded-list row's own opacity fade-in when
-   * the panel opens. Opacity only, no scale/transform. */
-  expandedEnterDurationMs: number;
-  /** STAGE-04/05 — ms of stagger delay between each row's entrance fade-in,
-   * item 1 first through item N (index-based: row N starts N *
-   * expandedEnterStaggerMs after row 0). 0 = no stagger, every row fades in
-   * at once. */
-  expandedEnterStaggerMs: number;
-  /** STAGE-04/05 — cubic-bezier easing for the entrance fade-in, independent
-   * of the leaving easing (expandedSelectEasing) — entrance and leaving are
-   * two distinct motions and may want different curves. */
-  expandedEnterEasing: [number, number, number, number];
-  /** STAGE-06 (condensed) — ms for each expanded-list row's own opacity
-   * fade-out once a row is tapped to select a different article. Opacity
-   * only, no scale/transform. Applies to every row currently on screen —
-   * all of them stay in the expanded list at their own original position
-   * while fading, not just the ones that won't survive into the final short
-   * list. The underlying row order is swapped to the final selection only
-   * once every row is fully invisible, then the panel collapses (STAGE-08)
-   * around already-correct, already-visible content. */
-  expandedSelectFadeOutDurationMs: number;
-  /** STAGE-06 — ms of stagger delay between each row's exit fade-out, in the
-   * SAME direction as the entrance: item 1 fades first, the LAST row fades
-   * last (index-based from the start of the list). The panel does not start
-   * collapsing until the last row's fade-out has finished. 0 = no stagger,
-   * every row fades out at once. */
-  expandedSelectStaggerMs: number;
-  /** STAGE-06 — cubic-bezier easing for the leaving fade-out, independent of
-   * the entrance easing (expandedEnterEasing). */
-  expandedSelectEasing: [number, number, number, number];
-  /** STAGE-07/08 — ms held once every row has finished fading out (and the
-   * list has already been swapped to its final order) before the panel
-   * starts collapsing. 0 = no pause. */
-  expandedSelectHoldMs: number;
-  /** Phase 4 — ms for the panel-height collapse. Must match
-   * styles.module.css's `.panel` transition duration (CSS-driven, not
-   * controlled by this value) — kept here only so the JS-side settle timer
-   * that watches for the collapse to finish stays in sync with it. */
+  /** STAGE-04 — ms for the panel's own open transition (height 0 -> the
+   * expanded percent). Decoupled from panelCollapseDurationMs below — the
+   * two used to share one duration/CSS var despite being visually and
+   * semantically distinct motions (opening vs. closing). */
+  panelExpandDurationMs: number;
+  /** STAGE-04 — named easing (CTA_BUTTON_MOTION_EASINGS) for the panel's own
+   * open transition, independent of panelCollapseEasing. */
+  panelExpandEasing: CtaButtonMotionEasing;
+  /** STAGE-04/05 boundary — ms held after the panel's own open transition
+   * has genuinely finished (confirmed via its real `transitionend`, not a
+   * duration guess) before the first row starts fading in. 0 = rows start
+   * the instant the panel finishes opening. */
+  rowFadeInDelayMs: number;
+  /** STAGE-05 — ms for ONE row's own opacity fade-in (no scale/transform).
+   * There is no separate stagger field: the cascade is a strict chain
+   * reaction — row N starts exactly when row N-1 finishes (delay = N *
+   * rowFadeInDurationMs) — so this single number fully determines both an
+   * individual row's fade and the whole cascade's total length
+   * (rowCount * rowFadeInDurationMs). */
+  rowFadeInDurationMs: number;
+  /** STAGE-05 — named easing (CTA_BUTTON_MOTION_EASINGS) for each row's
+   * fade-in, independent of rowFadeOutEasing — entrance and leaving are two
+   * distinct motions and may want different curves. */
+  rowFadeInEasing: CtaButtonMotionEasing;
+  /** STAGE-06 — ms for ONE row's own opacity fade-out once a row is tapped
+   * to select a different article (no scale/transform). Applies to every
+   * row currently on screen — all of them stay at their own original
+   * position while fading; the underlying row order is swapped to the
+   * final selection only once every row is fully invisible. Chain reaction,
+   * same mechanism as rowFadeInDurationMs: row N starts fading out exactly
+   * when row N-1 finishes, item 1 first, the LAST row last — its own real
+   * `transitionend` is what gates STAGE-07 (the panel starting to close),
+   * not a computed duration. */
+  rowFadeOutDurationMs: number;
+  /** STAGE-06 — named easing (CTA_BUTTON_MOTION_EASINGS) for each row's
+   * fade-out, independent of rowFadeInEasing. */
+  rowFadeOutEasing: CtaButtonMotionEasing;
+  /** STAGE-06/07 boundary — ms held after the LAST row's fade-out has
+   * genuinely finished (confirmed via its real `transitionend`) before the
+   * panel starts closing. 0 = the panel starts closing the instant the last
+   * row disappears. */
+  panelCollapseDelayMs: number;
+  /** STAGE-07 — ms for the panel's own close transition: after selecting an
+   * article (and panelCollapseDelayMs has elapsed), the whole panel fades
+   * out (opacity 1 -> 0) rather than visibly shrinking, then fades back in
+   * (opacity 0 -> 1) once the final short list is ready to reveal. This
+   * same duration also governs the carousel card behind the panel fading
+   * back to full opacity, so both halves of that motion stay in sync, and
+   * is reused as the wait before the deferred CoverFlow translate fires.
+   * Directly drives the real CSS transition (styles.module.css's
+   * `.panel`/`.carousel` — via --mobile-pinned-panel-collapse-ms), not just
+   * a JS-side timer. */
   panelCollapseDurationMs: number;
-  /** Phase 5 — ms for the collapsed short list's post-settle fade/slide-in. */
+  /** STAGE-07 — named easing (CTA_BUTTON_MOTION_EASINGS) for the panel's own
+   * close transition, independent of panelExpandEasing. Also used for the
+   * short list's own post-collapse settle cross-fade (listSettleDurationMs
+   * below) — that settle is triggered by the same closePanel() call that
+   * starts this close transition, so the two read as one motion. */
+  panelCollapseEasing: CtaButtonMotionEasing;
+  /** Ms for the collapsed short list's own post-settle fade/slide-in
+   * whenever its windowed selection changes — an always-on feature
+   * independent of the expand/collapse sequence above (it also fires on
+   * plain short-list taps and carousel swipes), left untouched by this
+   * config's expand/collapse simplification. Paired with
+   * panelCollapseEasing (see that field's own doc comment). */
   listSettleDurationMs: number;
 };
 
@@ -148,34 +178,30 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   expandedListPaddingX: 'px-14',
   expandedListPaddingY: 'py-7',
   expandedListBackgroundColor: '',
-  expandedListBackgroundOpacity: 0,
-  expandedListBackdropBlurPx: 40,
+  expandedListBackgroundOpacity: 1,
+  expandedListBackdropBlurPx: 32,
   expandedCarouselBehindOpacity: 0.5,
   expandedForcesMaxBackgroundDarken: true,
-  selectMotionEasing: [0.22, 1, 0.36, 1],
-  expandedEnterDurationMs: 850,
-  expandedEnterStaggerMs: 130,
-  expandedEnterEasing: [0.22, 1, 0.36, 1],
-  expandedSelectFadeOutDurationMs: 870,
-  expandedSelectStaggerMs: 275,
-  expandedSelectEasing: [0.22, 1, 0.36, 1],
-  expandedSelectHoldMs: 480,
+  panelExpandDurationMs: 1000,
+  // 'expressive' resolves to cubic-bezier(0.22, 1, 0.36, 1) — the exact
+  // curve every one of these four fields already used as a raw tuple.
+  panelExpandEasing: 'expressive',
+  rowFadeInDelayMs: 200,
+  rowFadeInDurationMs: 740,
+  rowFadeInEasing: 'expressive',
+  rowFadeOutDurationMs: 930,
+  rowFadeOutEasing: 'expressive',
+  panelCollapseDelayMs: 480,
   panelCollapseDurationMs: 1000,
-  listSettleDurationMs: 1000,
+  panelCollapseEasing: 'expressive',
+  listSettleDurationMs: 300,
 } satisfies MobilePinnedArticleSectionConfig;
 
-const isFiniteNumber = (value: unknown): value is number => (
-  typeof value === 'number' && Number.isFinite(value)
-);
-
 function normalizeEasing(
-  value: [number, number, number, number],
-  fallback: [number, number, number, number],
-): [number, number, number, number] {
-  if (Array.isArray(value) && value.length === 4 && value.every(isFiniteNumber)) {
-    return [value[0], value[1], value[2], value[3]];
-  }
-  return fallback;
+  value: CtaButtonMotionEasing,
+  fallback: CtaButtonMotionEasing,
+): CtaButtonMotionEasing {
+  return MOTION_EASING_KEYS.includes(value) ? value : fallback;
 }
 
 export function normalizeMobilePinnedArticleSectionConfig(
@@ -207,21 +233,24 @@ export function normalizeMobilePinnedArticleSectionConfig(
     expandedListBackdropBlurPx: Math.round(clamp(base.expandedListBackdropBlurPx, 0, 40)),
     expandedCarouselBehindOpacity: clamp(base.expandedCarouselBehindOpacity, 0, 1),
     expandedForcesMaxBackgroundDarken: base.expandedForcesMaxBackgroundDarken !== false,
-    selectMotionEasing: normalizeEasing(
-      base.selectMotionEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.selectMotionEasing,
+    panelExpandDurationMs: Math.round(clamp(base.panelExpandDurationMs, 0, 1000)),
+    panelExpandEasing: normalizeEasing(
+      base.panelExpandEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.panelExpandEasing,
     ),
-    expandedEnterDurationMs: Math.round(clamp(base.expandedEnterDurationMs, 0, 1000)),
-    expandedEnterStaggerMs: Math.round(clamp(base.expandedEnterStaggerMs, 0, 300)),
-    expandedEnterEasing: normalizeEasing(
-      base.expandedEnterEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedEnterEasing,
+    rowFadeInDelayMs: Math.round(clamp(base.rowFadeInDelayMs, 0, 1000)),
+    rowFadeInDurationMs: Math.round(clamp(base.rowFadeInDurationMs, 0, 1000)),
+    rowFadeInEasing: normalizeEasing(
+      base.rowFadeInEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.rowFadeInEasing,
     ),
-    expandedSelectFadeOutDurationMs: Math.round(clamp(base.expandedSelectFadeOutDurationMs, 0, 1000)),
-    expandedSelectStaggerMs: Math.round(clamp(base.expandedSelectStaggerMs, 0, 300)),
-    expandedSelectEasing: normalizeEasing(
-      base.expandedSelectEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedSelectEasing,
+    rowFadeOutDurationMs: Math.round(clamp(base.rowFadeOutDurationMs, 0, 1000)),
+    rowFadeOutEasing: normalizeEasing(
+      base.rowFadeOutEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.rowFadeOutEasing,
     ),
-    expandedSelectHoldMs: Math.round(clamp(base.expandedSelectHoldMs, 0, 1000)),
+    panelCollapseDelayMs: Math.round(clamp(base.panelCollapseDelayMs, 0, 1000)),
     panelCollapseDurationMs: Math.round(clamp(base.panelCollapseDurationMs, 0, 1000)),
+    panelCollapseEasing: normalizeEasing(
+      base.panelCollapseEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.panelCollapseEasing,
+    ),
     listSettleDurationMs: Math.round(clamp(base.listSettleDurationMs, 0, 1000)),
   };
 }

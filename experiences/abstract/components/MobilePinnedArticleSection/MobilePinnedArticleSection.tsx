@@ -12,6 +12,10 @@ import type { AboutTimelineRowData } from '../../../about/components/AboutTimeli
 import type { CoverFlowExternalGeometry } from '../CoverFlow/CoverFlow';
 import { usePrefersReducedMotion } from '../../../../helpers/usePrefersReducedMotion';
 import {
+  CTA_BUTTON_MOTION_EASINGS,
+  type CtaButtonMotionEasing,
+} from '../../../../components/CtaButton/config/registered';
+import {
   normalizeMobilePinnedArticleSectionConfig,
   type MobilePinnedArticleSectionConfig,
 } from './MobilePinnedArticleSection.config';
@@ -96,6 +100,21 @@ const clampIndex = (index: number, count: number) => (
  * that Rules A/B never actually need that clamp, and a worked-example
  * table for the boundary cases.
  */
+// Motion's `ease` prop doesn't accept arbitrary CSS strings (no
+// `cubic-bezier(...)` passthrough) — only a named keyword or a raw
+// [x1,y1,x2,y2] bezier tuple. Same 6 curves as CTA_BUTTON_MOTION_EASINGS
+// (components/CtaButton/config/registered.ts), pre-extracted into the tuple
+// shape Motion needs; there's no shared bezier-tuple catalog yet, so this
+// stays local like every other easing catalog in the codebase.
+const MOTION_EASING_BEZIERS: Record<CtaButtonMotionEasing, 'linear' | readonly [number, number, number, number]> = {
+  linear: 'linear',
+  standard: [0.2, 0, 0, 1],
+  expressive: [0.22, 1, 0.36, 1],
+  viscous: [0.16, 1, 0.3, 1],
+  gentle: [0.33, 1, 0.68, 1],
+  gaussian: [0.37, 0, 0.63, 1],
+};
+
 function computeWindowStart(selectedIndex: number, totalItems: number, windowSize: number): number {
   if (totalItems <= windowSize) return 0;
   const maxStart = totalItems - windowSize;
@@ -107,28 +126,6 @@ function computeWindowStart(selectedIndex: number, totalItems: number, windowSiz
     ? selectedIndex
     : selectedIndex - (windowSize - 1);
   return Math.min(Math.max(start, 0), maxStart);
-}
-
-/**
- * SEL-01 (PLAN-MOBILE-ARTICLE-SELECT-MOTION.md v2): the exact final row set
- * the select sequence converges on — computed once, up front, and used as
- * the single source of truth for every later step (no second, independently
- * -computed "settle" pass). Mirrors closePanel's pre-existing post-collapse
- * target (`Math.max(selectedIndex, 0)` as the short list's windowStart)
- * rather than computeWindowStart's Rule A/B/C, so the still-expanded reorder
- * and the eventual collapsed short list converge on the same window.
- */
-function computeSelectSurvivors(
-  rows: ReadonlyArray<AboutTimelineRowData>,
-  selectedIndex: number,
-  windowLength: number,
-): AboutTimelineRowData[] {
-  const start = Math.max(selectedIndex, 0);
-  return rows.slice(start, start + windowLength);
-}
-
-function cubicBezierCss(easing: readonly [number, number, number, number]): string {
-  return `cubic-bezier(${easing.join(', ')})`;
 }
 
 export function MobilePinnedArticleSection({
@@ -150,11 +147,50 @@ export function MobilePinnedArticleSection({
   );
   const outerRef = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  // The FULL list's own viewport (inside the collapsible panel) — scroll-
+  // into-view/focus on open, touch-gesture handling while expanded, and the
+  // STAGE-06 fade-out's own transitionend listener all read this one.
   const rowsViewportRef = useRef<HTMLDivElement | null>(null);
+  // The SHORT list's own viewport — an entirely separate, always-mounted
+  // element living right below the carousel (operator ask: decouple the
+  // two lists; the short list must not be part of the collapsible panel).
+  // Only used to restore focus there once the panel closes.
+  const shortListViewportRef = useRef<HTMLDivElement | null>(null);
   const expandedRef = useRef(false);
   const lockedScrollYRef = useRef(0);
   const sectionDocumentTopRef = useRef(0);
   const [expanded, setExpanded] = useState(false);
+  // Regression fix (operator-reported, Chrome/macOS only): this used to be
+  // an OPACITY fade (panelFadeOpacity, 1 -> 0 -> 1), then a translate that
+  // still animated the panel's own `height` on open (0 -> expanded).
+  // Animating `height` on a box that also has `backdrop-filter` forces a
+  // relayout every frame while the browser re-samples the blur — a known
+  // Chrome/macOS compositor flicker source not present on WebKit or mobile
+  // Chrome, matching exactly what was reported (not reproducible in the iOS
+  // simulator or on real devices). The panel is now ALWAYS at its full
+  // expanded height (styles.module.css) and this is the ONLY thing that
+  // moves it: 0 = fully in place/visible, 100 = translated down by its own
+  // full height, past `.stickyViewport`'s own `overflow: hidden` bottom
+  // edge (hidden). Starts at 100 (hidden) — open slides it to 0, close
+  // slides it back to 100 — so unlike the old height/opacity mechanisms,
+  // there's no separate "reset after" step: 100 already IS the resting
+  // closed state a close transition ends at.
+  const [panelSlideOffsetPercent, setPanelSlideOffsetPercent] = useState(100);
+  // Regression fix (operator-reported, Chrome/macOS only, real-GPU-only —
+  // invisible to headless/computed-style instrumentation, confirmed via a
+  // headed screenshot burst): even with `transform` instead of `height`
+  // driving the slide above, headed Chrome on macOS still visibly ghosted
+  // the CAROUSEL card's own headline THROUGH the panel while it was
+  // mid-slide — Chrome's macOS compositor mis-samples a `backdrop-filter`
+  // blur against whatever's behind it whenever the blurred element's own
+  // on-screen position is changing, on ANY property. `backdrop-filter` is
+  // now OFF by default (styles.module.css) and only switches on via this
+  // flag, set true the instant the slide's own real `transitionend`
+  // confirms it has stopped moving (STAGE-04/05 boundary below) and false
+  // again the instant a close's own slide-out begins — so blur only pops
+  // on/off at moments nothing is animating, never active during the motion
+  // itself.
+  const [panelBlurSettled, setPanelBlurSettled] = useState(false);
   const [position, setPosition] = useState(activeIndex);
   const [stepPx, setStepPx] = useState(0);
   const [peekActive, setPeekActive] = useState(true);
@@ -186,7 +222,15 @@ export function MobilePinnedArticleSection({
   const openMountFrameRef = useRef<number | null>(null);
   const selectHoldTimerRef = useRef<number | null>(null);
   const selectSequenceFallbackTimerRef = useRef<number | null>(null);
-  const selectMountFrameRef = useRef<number | null>(null);
+  // Same event-driven pattern as the fade-out/collapse pairs below, for the
+  // FIRST transitionend wait in the sequence: the panel's own physical
+  // height-open transition (STAGE-04), gating STAGE-04/05's rowFadeInDelayMs
+  // pause and the row entrance stagger that follows it.
+  const panelExpandListenerCleanupRef = useRef<(() => void) | null>(null);
+  const panelExpandFallbackTimerRef = useRef<number | null>(null);
+  // Holds the rowFadeInDelayMs pause between "panel confirmed open" and
+  // "rows start their entrance chain."
+  const rowFadeInDelayTimerRef = useRef<number | null>(null);
   // Removes the transitionend listener STAGE-06's fade-out attaches below —
   // set whenever one is live, called (and nulled) the moment it fires, is
   // superseded by a new selection, or the component unmounts. Without this,
@@ -203,10 +247,6 @@ export function MobilePinnedArticleSection({
   // event-driven too, not just a computed-duration timer.
   const panelCollapseListenerCleanupRef = useRef<(() => void) | null>(null);
   const panelCollapseFallbackTimerRef = useRef<number | null>(null);
-  // ms-timer for STAGE-09's own list-reveal fade-in — gates STAGE-10 (the
-  // sentinel mount-in dance), which must not start until the reveal itself
-  // has had time to finish.
-  const listRevealTimerRef = useRef<number | null>(null);
   // Holds the deferred "commit the new activeIndex to the parent" closure
   // (operator ask: only after the panel has fully collapsed and the short
   // list is back on screen) between when it's scheduled and when it either
@@ -454,8 +494,50 @@ export function MobilePinnedArticleSection({
     run?.();
   }, []);
 
+  // Bug/regression fix (operator-reported): a fresh open no longer cancels
+  // a still-in-flight CLOSE sequence's own row-fade-out/panel-fade/height-
+  // collapse timers and `transitionend` listeners — only its OWN
+  // open-related refs got reset. Reopening quickly enough (well within
+  // reach on a list with several rows, since the close sequence's row
+  // fade-out alone can run for seconds) left the stale close sequence's
+  // height-collapse `transitionend` listener attached; it then caught the
+  // NEW open's own height-GROW transition finishing, mistook it for its own
+  // collapse finishing, and called `setExpandedDisplayRows(null)` mid-grow
+  // — wiping the STAGE-04 hidden-row array and falling back to the plain,
+  // fully-opaque `rows` render before the real STAGE-05 chain ever got a
+  // chance to run. That read as exactly what was reported: the panel
+  // visibly empty while still growing, then all of a sudden showing every
+  // row at once (no stagger, no fade) partway through — not "sliding up and
+  // showing the articles" per the normal, deliberately-tuned motion path.
+  // Shared with beginCloseSequence's own top-of-function reset below so a
+  // fresh close and a fresh open both start from a genuinely clean slate.
+  const cancelInFlightCloseSequence = useCallback(() => {
+    if (selectHoldTimerRef.current !== null) {
+      window.clearTimeout(selectHoldTimerRef.current);
+      selectHoldTimerRef.current = null;
+    }
+    if (selectSequenceFallbackTimerRef.current !== null) {
+      window.clearTimeout(selectSequenceFallbackTimerRef.current);
+      selectSequenceFallbackTimerRef.current = null;
+    }
+    if (fadeOutFallbackTimerRef.current !== null) {
+      window.clearTimeout(fadeOutFallbackTimerRef.current);
+      fadeOutFallbackTimerRef.current = null;
+    }
+    fadeOutListenerCleanupRef.current?.();
+    fadeOutListenerCleanupRef.current = null;
+    if (panelCollapseFallbackTimerRef.current !== null) {
+      window.clearTimeout(panelCollapseFallbackTimerRef.current);
+      panelCollapseFallbackTimerRef.current = null;
+    }
+    panelCollapseListenerCleanupRef.current?.();
+    panelCollapseListenerCleanupRef.current = null;
+    pendingDeferredCommitRef.current = null;
+  }, []);
+
   const openPanel = useCallback(() => {
     flushPendingDeferredCommit();
+    cancelInFlightCloseSequence();
     if (snapTimerRef.current !== null) {
       window.clearTimeout(snapTimerRef.current);
       snapTimerRef.current = null;
@@ -465,32 +547,118 @@ export function MobilePinnedArticleSection({
     // the frozen, no-longer-meaningful layout instead). Only meaningful for
     // the scroll-driven restoration math in closePanel().
     if (config.scrollDrivenNavigationEnabled) sectionTop();
-    expandedRef.current = true;
-    setExpanded(true);
+    // Clear any stale panel-expand listener/timer or pending row-entrance
+    // delay from a previous open that never got to finish (e.g. a rapid
+    // open/close/reopen) — nothing from that earlier attempt should fire
+    // late against this fresh one.
+    panelExpandListenerCleanupRef.current?.();
+    if (panelExpandFallbackTimerRef.current !== null) {
+      window.clearTimeout(panelExpandFallbackTimerRef.current);
+      panelExpandFallbackTimerRef.current = null;
+    }
+    if (rowFadeInDelayTimerRef.current !== null) {
+      window.clearTimeout(rowFadeInDelayTimerRef.current);
+      rowFadeInDelayTimerRef.current = null;
+    }
     if (openMountFrameRef.current !== null) {
       window.cancelAnimationFrame(openMountFrameRef.current);
       openMountFrameRef.current = null;
     }
+    expandedRef.current = true;
+    setExpanded(true);
+    // The reveal itself — slides the panel (always at its full expanded
+    // height; see styles.module.css) up from fully off-screen into view.
+    // Takes over cleanly even mid-close (panelSlideOffsetPercent partway
+    // back down to 100): CSS transitions retarget from wherever the
+    // interpolated value currently sits, no separate "reset first" step
+    // needed.
+    setPanelSlideOffsetPercent(0);
     if (prefersReducedMotion) {
+      // No transition ever runs under reduced motion (styles.module.css's
+      // own media query), so there's no "in motion" window to protect
+      // blur from — safe (and necessary, since nothing else will) to turn
+      // it on immediately.
+      setPanelBlurSettled(true);
       setExpandedDisplayRows(null);
     } else {
+      // Blur must be OFF for the entire slide-in — only the real
+      // `transitionend` below (finishPanelExpand) turns it back on, once
+      // the panel has genuinely stopped moving. Defensive reset in case a
+      // previous open was interrupted mid-slide with blur already on.
+      setPanelBlurSettled(false);
       // STAGE-04: mount every row hidden (opacity 0 only, no
       // scale/transform), no transition yet — a freshly-mounted element has
-      // no prior frame to interpolate from.
+      // no prior frame to interpolate from. Rows stay hidden until the
+      // panel itself is confirmed open (below) — they never fade in
+      // against a still-resizing box.
       setExpandedDisplayRows(rows.map(row => ({ ...row, itemStyle: { opacity: 0 } })));
-      openMountFrameRef.current = window.requestAnimationFrame(() => {
-        openMountFrameRef.current = null;
-        // STAGE-05: flip to visible, staggered item 1 through item N.
-        const easingCss = cubicBezierCss(config.expandedEnterEasing);
+      const beginRowEntrance = () => {
+        // STAGE-05: flip to visible — a strict chain reaction, not an
+        // arbitrary stagger multiplier: row N starts exactly when row N-1
+        // finishes (delay = N * rowFadeInDurationMs), so this one duration
+        // fully determines both an individual row's fade and the whole
+        // cascade's total length.
+        const easingCss = CTA_BUTTON_MOTION_EASINGS[config.rowFadeInEasing];
         setExpandedDisplayRows(rows.map((row, index) => ({
           ...row,
           itemStyle: {
             opacity: 1,
-            transition: `opacity ${config.expandedEnterDurationMs}ms ${easingCss} `
-              + `${index * config.expandedEnterStaggerMs}ms`,
+            transition: `opacity ${config.rowFadeInDurationMs}ms ${easingCss} `
+              + `${index * config.rowFadeInDurationMs}ms`,
           },
         })));
-      });
+      };
+      const startEntranceAfterDelay = () => {
+        if (config.rowFadeInDelayMs <= 0) {
+          openMountFrameRef.current = window.requestAnimationFrame(() => {
+            openMountFrameRef.current = null;
+            beginRowEntrance();
+          });
+          return;
+        }
+        rowFadeInDelayTimerRef.current = window.setTimeout(() => {
+          rowFadeInDelayTimerRef.current = null;
+          openMountFrameRef.current = window.requestAnimationFrame(() => {
+            openMountFrameRef.current = null;
+            beginRowEntrance();
+          });
+        }, config.rowFadeInDelayMs);
+      };
+      // STAGE-04/05 boundary: wait for the panel's OWN slide-into-view
+      // transition to genuinely finish — its real `transitionend`, not a
+      // duration guess (the same "listen for the real event" approach the
+      // close side already uses) — THEN wait rowFadeInDelayMs, THEN start
+      // the row entrance chain.
+      const panel = panelRef.current;
+      let expandSettled = false;
+      const finishPanelExpand = () => {
+        if (expandSettled) return;
+        expandSettled = true;
+        panelExpandListenerCleanupRef.current?.();
+        panelExpandListenerCleanupRef.current = null;
+        if (panelExpandFallbackTimerRef.current !== null) {
+          window.clearTimeout(panelExpandFallbackTimerRef.current);
+          panelExpandFallbackTimerRef.current = null;
+        }
+        // Slide has genuinely stopped moving — safe to turn blur on now.
+        setPanelBlurSettled(true);
+        startEntranceAfterDelay();
+      };
+      if (config.panelExpandDurationMs <= 0 || !panel) {
+        finishPanelExpand();
+      } else {
+        const onPanelTransitionEnd = (event: TransitionEvent) => {
+          if (event.propertyName !== 'transform' || event.target !== panel) return;
+          finishPanelExpand();
+        };
+        panel.addEventListener('transitionend', onPanelTransitionEnd);
+        panelExpandListenerCleanupRef.current = () => {
+          panel.removeEventListener('transitionend', onPanelTransitionEnd);
+        };
+        panelExpandFallbackTimerRef.current = window.setTimeout(
+          finishPanelExpand, config.panelExpandDurationMs + 200,
+        );
+      }
     }
     onExpandedChange?.(true);
     lockOuterScroll();
@@ -509,7 +677,8 @@ export function MobilePinnedArticleSection({
       activeRow.focus({ preventScroll: true });
     });
   }, [
-    config.expandedEnterDurationMs, config.expandedEnterStaggerMs, config.expandedEnterEasing,
+    cancelInFlightCloseSequence, config.panelExpandDurationMs, config.rowFadeInDelayMs,
+    config.rowFadeInDurationMs, config.rowFadeInEasing,
     config.scrollDrivenNavigationEnabled, flushPendingDeferredCommit, lockOuterScroll,
     onExpandedChange, prefersReducedMotion, rows, sectionTop,
   ]);
@@ -571,11 +740,12 @@ export function MobilePinnedArticleSection({
        * a `position: sticky` ancestor — exactly the case where a browser's
        * own "scroll the focused element into view" fallback is most likely
        * to kick in despite the option. If it does, it must lose to our own
-       * restoredScrollY, not win by running last. Focus the rows viewport
-       * itself (tabIndex={-1} below) now that there's no longer a dedicated
-       * control button to return focus to — it's the container that's
+       * restoredScrollY, not win by running last. Focus the SHORT list's own
+       * viewport (tabIndex={-1} below), not the full list's — the panel is
+       * closing/closed at this point, so its own viewport is about to be (or
+       * already is) invisible; the short list is the container that's
        * actually still on screen and visible right where the user was. */
-      rowsViewportRef.current?.focus({ preventScroll: true });
+      shortListViewportRef.current?.focus({ preventScroll: true });
       window.scrollTo({ top: restoredScrollY, behavior: 'auto' });
     });
   }, [
@@ -583,19 +753,197 @@ export function MobilePinnedArticleSection({
     onExpandedChange, prefersReducedMotion, scrollStepPx, sectionTop, unlockOuterScroll,
   ]);
 
+  // Regression fix (operator-reported): EVERY full-panel collapse — whether
+  // triggered by picking a row (handleListSelect) or by a plain close
+  // (Escape/backdrop, previously wired straight to closePanel() with no
+  // animation at all) — must run the exact same three-beat sequence: (1)
+  // every row fades its opacity out top-to-bottom, a strict chain reaction
+  // (row N starts exactly when row N-1 finishes), (2) only once the LAST
+  // row's own `transitionend` confirms it's fully invisible does the panel
+  // itself begin fading out BY OPACITY ONLY (still at full height), (3)
+  // only once THAT opacity fade's own `transitionend` confirms it's done
+  // does `commit` run and the physical height collapse begin. `commit` is
+  // the one piece that differs per caller — setting expandedSelectionRef
+  // and (in scroll-driven/reduced-motion mode) `position` for a row pick,
+  // or nothing beyond closePanel() itself for a plain close — everything
+  // else about the sequence is identical either way.
+  const beginCloseSequence = useCallback((commit: () => void, afterClosed?: () => void) => {
+    // A rapid re-tap/re-close mid-sequence (a PREVIOUS close's own fade is
+    // still in flight) must not leave anything from that stale sequence
+    // around to fire later against this new one — same shared reset
+    // openPanel uses for the mirror-image case (opening while a previous
+    // close is still in flight).
+    cancelInFlightCloseSequence();
+
+    // Reduced motion (and the plain-close path never had any of these fades
+    // to begin with under it, same as before): skip straight to the commit,
+    // no afterClosed dance either — closePanel() itself already commits the
+    // new index synchronously under reduced motion/scroll-driven mode, so
+    // there's nothing left for a deferred hand-off to do. Still needs to
+    // snap the slide offset back to 100 (instantly — prefers-reduced-motion
+    // CSS turns the transition off) since that's now the ONLY thing
+    // controlling this panel's visibility (see panelSlideOffsetPercent's
+    // own doc comment) — data-expanded alone no longer hides it.
+    if (prefersReducedMotion) {
+      setPanelSlideOffsetPercent(100);
+      setPanelBlurSettled(false);
+      setExpandedDisplayRows(null);
+      commit();
+      return;
+    }
+
+    // BEAT 1: every row stays at its own original position and fades its
+    // OPACITY ONLY (no scale/transform) — a strict chain reaction, not an
+    // arbitrary stagger multiplier: row N starts fading out exactly when
+    // row N-1 finishes (delay = N * rowFadeOutDurationMs), TOP row (index 0)
+    // first, the LAST (bottom) row last, so the last row's own fade is what
+    // proceedAfterFadeOut (below) waits on before anything else happens.
+    // The panel stays fully open, at full height and opacity, the whole
+    // time this runs.
+    const leaveEasingCss = CTA_BUTTON_MOTION_EASINGS[config.rowFadeOutEasing];
+    const currentRows = expandedDisplayRowsRef.current ?? rows;
+    const rowCount = currentRows.length;
+    setExpandedDisplayRows(currentRows.map((row, index) => ({
+      ...row,
+      itemStyle: {
+        opacity: 0,
+        transition: `opacity ${config.rowFadeOutDurationMs}ms ${leaveEasingCss} `
+          + `${index * config.rowFadeOutDurationMs}ms`,
+        pointerEvents: 'none',
+      },
+    })));
+
+    const proceedAfterFadeOut = () => {
+      selectHoldTimerRef.current = window.setTimeout(() => {
+        selectHoldTimerRef.current = null;
+        // BEAT 2: slide the whole panel down out of view — the panel is
+        // now ALWAYS at its full expanded height (styles.module.css), so
+        // this single transform-only motion IS the collapse; there's no
+        // separate height transition left to wait for afterward the way
+        // there used to be. `.stickyViewport`'s own `overflow: hidden`
+        // clips it the moment it moves past the bottom edge. Card behind
+        // it (the carousel) fades back to full opacity over this exact
+        // same duration — see .carousel's own transition in
+        // styles.module.css, synced to the same
+        // --mobile-pinned-panel-collapse-ms var this slide also uses.
+        // Blur turns off in this SAME commit, before the slide-out motion
+        // starts — it must never be on while the panel is moving (see
+        // panelBlurSettled's own doc comment).
+        setPanelBlurSettled(false);
+        setPanelSlideOffsetPercent(100);
+        const panel = panelRef.current;
+        let settled = false;
+        const finishClose = () => {
+          if (settled) return;
+          settled = true;
+          panelCollapseListenerCleanupRef.current?.();
+          panelCollapseListenerCleanupRef.current = null;
+          if (panelCollapseFallbackTimerRef.current !== null) {
+            window.clearTimeout(panelCollapseFallbackTimerRef.current);
+            panelCollapseFallbackTimerRef.current = null;
+          }
+          // Panel is now fully off-screen — `commit` runs the actual
+          // close (closePanel flips data-expanded off, swaps the short
+          // list's content) entirely behind the clipped viewport, so
+          // that swap is never seen either. No slide-offset reset needed:
+          // 100 already IS the resting closed value this transition just
+          // finished landing on.
+          commit();
+          setExpandedDisplayRows(null);
+          afterClosed?.();
+        };
+        if (config.panelCollapseDurationMs <= 0 || !panel) {
+          finishClose();
+          return;
+        }
+        const onSlideTransitionEnd = (event: TransitionEvent) => {
+          if (event.propertyName !== 'transform' || event.target !== panel) return;
+          finishClose();
+        };
+        panel.addEventListener('transitionend', onSlideTransitionEnd);
+        panelCollapseListenerCleanupRef.current = () => {
+          panel.removeEventListener('transitionend', onSlideTransitionEnd);
+        };
+        panelCollapseFallbackTimerRef.current = window.setTimeout(
+          finishClose, config.panelCollapseDurationMs + 200,
+        );
+      }, config.panelCollapseDelayMs);
+    };
+
+    // BEAT 1 must genuinely finish — all the way through the LAST chained
+    // row's own fade — before BEAT 2/3 may begin. A computed-duration
+    // `setTimeout` guess (this component's earlier approach) can fire a few
+    // ms early: setTimeout isn't guaranteed to run in lockstep with the CSS
+    // engine's own transition clock (browser timer clamping/drift), which
+    // is exactly how the panel could start fading/collapsing before the
+    // last row had genuinely finished — a real, reported gap arithmetic
+    // alone couldn't close. Waiting for the row's own `transitionend` event
+    // removes the guesswork. The timer below is a safety net only (e.g. a
+    // browser quirk swallowing the event), not the primary signal.
+    const fadeOutTotalMs = rowCount * config.rowFadeOutDurationMs;
+    if (rowCount === 0 || fadeOutTotalMs <= 0) {
+      proceedAfterFadeOut();
+      return;
+    }
+    const viewport = rowsViewportRef.current;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      fadeOutListenerCleanupRef.current?.();
+      fadeOutListenerCleanupRef.current = null;
+      if (fadeOutFallbackTimerRef.current !== null) {
+        window.clearTimeout(fadeOutFallbackTimerRef.current);
+        fadeOutFallbackTimerRef.current = null;
+      }
+      proceedAfterFadeOut();
+    };
+    const onTransitionEnd = (event: TransitionEvent) => {
+      if (event.propertyName !== 'opacity') return;
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      // The LAST row (highest stagger delay) is the one that finishes
+      // latest — every row stays in its ORIGINAL DOM position during this
+      // fade (nothing reorders until every row is invisible), so "last
+      // child of its own parent" reliably identifies it regardless of how
+      // many rows are in play.
+      if (target.parentElement?.lastElementChild !== target) return;
+      finish();
+    };
+    viewport?.addEventListener('transitionend', onTransitionEnd);
+    fadeOutListenerCleanupRef.current = () => {
+      viewport?.removeEventListener('transitionend', onTransitionEnd);
+    };
+    fadeOutFallbackTimerRef.current = window.setTimeout(finish, fadeOutTotalMs + 200);
+  }, [
+    cancelInFlightCloseSequence, config.panelCollapseDelayMs, config.panelCollapseDurationMs,
+    config.rowFadeOutDurationMs, config.rowFadeOutEasing, prefersReducedMotion, rows,
+  ]);
+
+  // Plain close (Escape/backdrop) — no row was picked, so `commit` is just
+  // closePanel() itself; expandedSelectionRef.current stays null, which
+  // closePanel already treats as "no selection, plain close" (STAGE-12).
+  // Runs the exact same fade-rows-then-fade-panel sequence as picking a row
+  // (beginCloseSequence above) instead of collapsing instantly.
+  const requestClose = useCallback(() => {
+    if (!expandedRef.current) return;
+    beginCloseSequence(closePanel);
+  }, [beginCloseSequence, closePanel]);
+
   useEffect(() => () => {
     if (expandedRef.current) unlockOuterScroll();
     restoreRootSnapAfterDrag();
     document.documentElement.removeAttribute('data-mobile-pinned-snap-active');
     if (openMountFrameRef.current !== null) window.cancelAnimationFrame(openMountFrameRef.current);
+    if (panelExpandFallbackTimerRef.current !== null) window.clearTimeout(panelExpandFallbackTimerRef.current);
+    panelExpandListenerCleanupRef.current?.();
+    if (rowFadeInDelayTimerRef.current !== null) window.clearTimeout(rowFadeInDelayTimerRef.current);
     if (selectHoldTimerRef.current !== null) window.clearTimeout(selectHoldTimerRef.current);
     if (selectSequenceFallbackTimerRef.current !== null) window.clearTimeout(selectSequenceFallbackTimerRef.current);
-    if (selectMountFrameRef.current !== null) window.cancelAnimationFrame(selectMountFrameRef.current);
     if (fadeOutFallbackTimerRef.current !== null) window.clearTimeout(fadeOutFallbackTimerRef.current);
     fadeOutListenerCleanupRef.current?.();
     if (panelCollapseFallbackTimerRef.current !== null) window.clearTimeout(panelCollapseFallbackTimerRef.current);
     panelCollapseListenerCleanupRef.current?.();
-    if (listRevealTimerRef.current !== null) window.clearTimeout(listRevealTimerRef.current);
     pendingDeferredCommitRef.current = null;
   }, [restoreRootSnapAfterDrag, unlockOuterScroll]);
 
@@ -628,7 +976,7 @@ export function MobilePinnedArticleSection({
     if (!expanded) return;
     if (event.key === 'Escape') {
       event.preventDefault();
-      closePanel();
+      requestClose();
       return;
     }
     if (event.key !== 'Tab') return;
@@ -645,7 +993,7 @@ export function MobilePinnedArticleSection({
       event.preventDefault();
       first.focus();
     }
-  }, [closePanel, expanded]);
+  }, [expanded, requestClose]);
 
   // Non-scroll-driven mode's equivalent of scrollToIndex: no page-scroll
   // target to compute, just commit the index and snap `position` (the
@@ -675,263 +1023,50 @@ export function MobilePinnedArticleSection({
       // reads expandedSelectionRef.current, so setting it here is all this
       // branch needs to do before handing off to the exact same commit +
       // (in scroll-driven mode) scroll-restoration logic closePanel already
-      // owns for every other close path (control button, Escape, backdrop).
-      // closePanel deliberately leaves this ref set until the parent prop
-      // confirms the choice; clearing it at this boundary lets the first
-      // unlock scroll event resurrect the pre-expansion index.
+      // owns for every other close path (Escape, backdrop). closePanel
+      // deliberately leaves this ref set until the parent prop confirms the
+      // choice; clearing it at this boundary lets the first unlock scroll
+      // event resurrect the pre-expansion index.
       //
-      // STAGE-06..STAGE-08 (condensed, PLAN-MOBILE-ARTICLE-SELECT-MOTION.md
-      // stage table): the ONE persistent expandedDisplayRows list, rendered
-      // via a SINGLE renderList/AboutTimeline call (see render below). By
-      // the time closePanel runs, the on-screen row content already matches
-      // the final collapsed short list, so its own flip to `expanded=false`
-      // is purely a physical panel-size transition, not a content change.
-      //
-      // A rapid re-tap mid-fade-out (a PREVIOUS selection's own STAGE-06 is
-      // still in flight) must not leave anything from that stale sequence
-      // around to fire later against the new one's own survivors/clamped.
-      if (selectHoldTimerRef.current !== null) {
-        window.clearTimeout(selectHoldTimerRef.current);
-        selectHoldTimerRef.current = null;
-      }
-      if (selectSequenceFallbackTimerRef.current !== null) {
-        window.clearTimeout(selectSequenceFallbackTimerRef.current);
-        selectSequenceFallbackTimerRef.current = null;
-      }
-      if (selectMountFrameRef.current !== null) {
-        window.cancelAnimationFrame(selectMountFrameRef.current);
-        selectMountFrameRef.current = null;
-      }
-      if (fadeOutFallbackTimerRef.current !== null) {
-        window.clearTimeout(fadeOutFallbackTimerRef.current);
-        fadeOutFallbackTimerRef.current = null;
-      }
-      fadeOutListenerCleanupRef.current?.();
-      if (panelCollapseFallbackTimerRef.current !== null) {
-        window.clearTimeout(panelCollapseFallbackTimerRef.current);
-        panelCollapseFallbackTimerRef.current = null;
-      }
-      panelCollapseListenerCleanupRef.current?.();
-      if (listRevealTimerRef.current !== null) {
-        window.clearTimeout(listRevealTimerRef.current);
-        listRevealTimerRef.current = null;
-      }
-      pendingDeferredCommitRef.current = null;
-      // Begins the physical panel collapse. Does NOT, on its own, commit the
-      // new activeIndex/position to the covered CoverFlow in the default
-      // (animated, non-scroll-driven) path — see onActiveIndexCommit's own
-      // doc comment and the deferred commit scheduled inside
-      // proceedAfterFadeOut below.
-      const beginCollapse = () => {
+      // Runs the exact same fade-rows-then-fade-panel-then-collapse sequence
+      // as a plain close (beginCloseSequence, above requestClose) — the only
+      // difference is `commit` also records the picked index, and
+      // `afterClosed` schedules the deferred CoverFlow-translate hand-off a
+      // row pick needs that a plain close doesn't.
+      const commit = () => {
         expandedSelectionRef.current = clamped;
         if (config.scrollDrivenNavigationEnabled || prefersReducedMotion) {
           setPosition(clamped);
         }
         closePanel();
       };
-      if (prefersReducedMotion) {
-        setExpandedDisplayRows(null);
-        beginCollapse();
-        return;
-      }
-      // STAGE-06: the exact final target, computed once up front — the
-      // tapped row is already first in this slice (computeSelectSurvivors),
-      // so no reordering is ever needed, only a swap once invisible (below).
-      const survivors = computeSelectSurvivors(rows, clamped, windowLength);
-      const easingCss = cubicBezierCss(config.selectMotionEasing);
-      const leaveEasingCss = cubicBezierCss(config.expandedSelectEasing);
-      const currentRows = expandedDisplayRowsRef.current ?? rows;
-      const rowCount = currentRows.length;
-      // STAGE-06: every row stays in the expanded list at its own original
-      // position and fades its OPACITY ONLY (no scale/transform) — staggered
-      // in the SAME direction as the entrance: item 1 (index 0) starts first
-      // (delay 0), the LAST row starts last, so the last row's own fade is
-      // what proceedAfterFadeOut (below) waits on before anything else
-      // happens. The panel stays open the whole time.
-      setExpandedDisplayRows(currentRows.map((row, index) => ({
-        ...row,
-        itemStyle: {
-          opacity: 0,
-          transition: `opacity ${config.expandedSelectFadeOutDurationMs}ms ${leaveEasingCss} `
-            + `${index * config.expandedSelectStaggerMs}ms`,
-          pointerEvents: 'none',
-        },
-      })));
-      const proceedAfterFadeOut = () => {
-        // STAGE-07: every row is now fully invisible — swap the array to
-        // the final survivor order but KEEP them invisible (a plain,
-        // transition-less opacity:0 snap — nothing to see yet, so nothing
-        // animates here). Operator ask: "there should be no list visible
-        // during the collapse" — the final content must be correct
-        // underneath, but stays fully hidden until the panel itself has
-        // physically finished moving (STAGE-09 below), not revealed early
-        // the way this used to work.
-        setExpandedDisplayRows(survivors.map(row => ({ ...row, itemStyle: { opacity: 0 } })));
-        selectHoldTimerRef.current = window.setTimeout(() => {
-          selectHoldTimerRef.current = null;
-          // STAGE-08: begin the panel's own physical collapse. The list
-          // stays fully invisible, untouched, for the entire collapse.
-          beginCollapse();
-          const revealSurvivors = () => {
-            // STAGE-09: the panel has genuinely finished collapsing
-            // (confirmed below, not guessed) — only now does the final
-            // short list fade into view, inside its own already-collapsed
-            // container, exactly as it will look from here on.
-            setExpandedDisplayRows(survivors.map(row => ({
-              ...row,
-              itemStyle: {
-                opacity: 1,
-                transition: `opacity ${config.listSettleDurationMs}ms ${easingCss}`,
-              },
-            })));
-            listRevealTimerRef.current = window.setTimeout(() => {
-              listRevealTimerRef.current = null;
-              // SEL-06a (STAGE-10): mount the sentinel HIDDEN with no
-              // transition yet — a freshly-mounted element has no prior
-              // frame to interpolate from, so it needs one committed paint
-              // at the hidden state before the next step can flip it to
-              // visible with a transition and have that actually animate.
-              // The survivor rows themselves drop their itemStyle here too
-              // (their own reveal transition has already finished) so
-              // they're rendered identically to how the plain flat
-              // short-list render will show them a moment later.
-              setExpandedDisplayRows([
-                ...survivors.map(row => ({ ...row, itemStyle: undefined })),
-                { ...expandListSentinelRow, itemStyle: { transform: 'scale(0)', opacity: 0, transformOrigin: 'top left' } },
-              ]);
-              selectMountFrameRef.current = window.requestAnimationFrame(() => {
-                selectMountFrameRef.current = null;
-                // SEL-06b: flip to visible — now that a hidden first frame
-                // exists, adding `transition` here animates it in.
-                setExpandedDisplayRows([
-                  ...survivors.map(row => ({ ...row, itemStyle: undefined })),
-                  {
-                    ...expandListSentinelRow,
-                    itemStyle: {
-                      transform: 'scale(1)',
-                      opacity: 1,
-                      transformOrigin: 'top left',
-                      transition: `transform ${config.listSettleDurationMs}ms ${easingCss}, `
-                        + `opacity ${config.listSettleDurationMs}ms ${easingCss}`,
-                    },
-                  },
-                ]);
-                // SEL-07: hand off. Content already matches the final
-                // collapsed short list — the actual activeIndex/position
-                // commit (and the visible CoverFlow translate it triggers)
-                // is scheduled separately below, deferred until the
-                // sentinel's own mount-in has had time to finish.
-                pendingDeferredCommitRef.current = () => {
-                  setExpandedDisplayRows(null);
-                  if (!config.scrollDrivenNavigationEnabled) {
-                    // Deferred CoverFlow translate (operator ask): only
-                    // now, after the panel has fully collapsed and the
-                    // short list is back and visible, does the covered
-                    // CoverFlow's own spring animate the card into view.
-                    setPosition(clamped);
-                    onActiveIndexCommit(clamped);
-                  }
-                };
-                selectSequenceFallbackTimerRef.current = window.setTimeout(() => {
-                  selectSequenceFallbackTimerRef.current = null;
-                  const run = pendingDeferredCommitRef.current;
-                  pendingDeferredCommitRef.current = null;
-                  run?.();
-                }, config.listSettleDurationMs);
-              });
-            }, config.listSettleDurationMs);
-          };
-          // STAGE-08/09 boundary: wait for the panel's OWN collapse
-          // transition to genuinely finish — the same "listen for the real
-          // event, don't guess" approach STAGE-06's fade-out wait already
-          // uses. A computed-duration timer alone drove this before, and
-          // was doubly wrong: panelCollapseDurationMs never actually
-          // controlled the real CSS transition (styles.module.css hard-
-          // coded 320ms regardless of this config value — see that rule's
-          // own comment, now fixed to read `--mobile-pinned-panel-collapse
-          // -ms`), and the survivor list used to be revealed to full
-          // opacity immediately, well before this wait even started —
-          // together, exactly the "list visible during the collapse" bug
-          // this whole restructure fixes.
-          const panel = panelRef.current;
-          let panelSettled = false;
-          const finishPanelCollapse = () => {
-            if (panelSettled) return;
-            panelSettled = true;
-            panelCollapseListenerCleanupRef.current?.();
-            panelCollapseListenerCleanupRef.current = null;
-            if (panelCollapseFallbackTimerRef.current !== null) {
-              window.clearTimeout(panelCollapseFallbackTimerRef.current);
-              panelCollapseFallbackTimerRef.current = null;
-            }
-            revealSurvivors();
-          };
-          if (config.panelCollapseDurationMs <= 0 || !panel) {
-            finishPanelCollapse();
-            return;
+      const afterClosed = () => {
+        // SEL-07: hand off. Deferred CoverFlow translate (operator ask):
+        // only now, after the panel has fully closed — during which the
+        // independent short list underneath has already had this whole
+        // fade-out+close window to settle into its own final form — does
+        // the covered CoverFlow's own spring animate the card into view.
+        // One more short wait (listSettleDurationMs) gives that short-list
+        // settle a beat to actually finish before the translate fires,
+        // preserving the "list settles, then coverflow catches up" two-beat
+        // reveal this was always meant to be. Not scheduled at all under
+        // reduced motion (beginCloseSequence skips straight to `commit`,
+        // never calling this) or scroll-driven mode (closePanel already
+        // commits synchronously there).
+        pendingDeferredCommitRef.current = () => {
+          if (!config.scrollDrivenNavigationEnabled) {
+            setPosition(clamped);
+            onActiveIndexCommit(clamped);
           }
-          const onPanelTransitionEnd = (event: TransitionEvent) => {
-            if (event.propertyName !== 'height' || event.target !== panel) return;
-            finishPanelCollapse();
-          };
-          panel.addEventListener('transitionend', onPanelTransitionEnd);
-          panelCollapseListenerCleanupRef.current = () => {
-            panel.removeEventListener('transitionend', onPanelTransitionEnd);
-          };
-          panelCollapseFallbackTimerRef.current = window.setTimeout(
-            finishPanelCollapse, config.panelCollapseDurationMs + 200,
-          );
-        }, config.expandedSelectHoldMs);
+        };
+        selectSequenceFallbackTimerRef.current = window.setTimeout(() => {
+          selectSequenceFallbackTimerRef.current = null;
+          const run = pendingDeferredCommitRef.current;
+          pendingDeferredCommitRef.current = null;
+          run?.();
+        }, config.listSettleDurationMs);
       };
-      // STAGE-06 must genuinely finish — all the way through the LAST
-      // staggered row's own fade — before STAGE-07/08 (list swap + panel
-      // collapse) may begin. A computed-duration `setTimeout` guess (this
-      // component's earlier approach) can fire a few ms early: setTimeout
-      // isn't guaranteed to run in lockstep with the CSS engine's own
-      // transition clock (browser timer clamping/drift), which is exactly
-      // how the panel could start collapsing before the last row had
-      // genuinely finished fading — a real, reported gap arithmetic alone
-      // couldn't close. Waiting for the row's own `transitionend` event
-      // removes the guesswork: the panel does not collapse until the
-      // browser itself confirms the fade is done. The timer below is a
-      // safety net only (e.g. a browser quirk swallowing the event), not
-      // the primary signal.
-      const fadeOutTotalMs = config.expandedSelectFadeOutDurationMs
-        + Math.max(0, rowCount - 1) * config.expandedSelectStaggerMs;
-      if (rowCount === 0 || fadeOutTotalMs <= 0) {
-        proceedAfterFadeOut();
-        return;
-      }
-      const viewport = rowsViewportRef.current;
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        fadeOutListenerCleanupRef.current?.();
-        fadeOutListenerCleanupRef.current = null;
-        if (fadeOutFallbackTimerRef.current !== null) {
-          window.clearTimeout(fadeOutFallbackTimerRef.current);
-          fadeOutFallbackTimerRef.current = null;
-        }
-        proceedAfterFadeOut();
-      };
-      const onTransitionEnd = (event: TransitionEvent) => {
-        if (event.propertyName !== 'opacity') return;
-        const target = event.target;
-        if (!(target instanceof HTMLElement)) return;
-        // The LAST row (highest stagger delay) is the one that finishes
-        // latest — every row stays in its ORIGINAL DOM position during this
-        // fade (nothing reorders until every row is invisible), so "last
-        // child of its own parent" reliably identifies it regardless of how
-        // many rows are in play.
-        if (target.parentElement?.lastElementChild !== target) return;
-        finish();
-      };
-      viewport?.addEventListener('transitionend', onTransitionEnd);
-      fadeOutListenerCleanupRef.current = () => {
-        viewport?.removeEventListener('transitionend', onTransitionEnd);
-      };
-      fadeOutFallbackTimerRef.current = window.setTimeout(finish, fadeOutTotalMs + 200);
+      beginCloseSequence(commit, afterClosed);
       return;
     }
     if (config.scrollDrivenNavigationEnabled) {
@@ -940,11 +1075,9 @@ export function MobilePinnedArticleSection({
     }
     commitIndexDirect(clamped);
   }, [
-    closePanel, commitIndexDirect, config.expandedSelectFadeOutDurationMs, config.expandedSelectStaggerMs,
-    config.expandedSelectEasing, config.expandedSelectHoldMs, config.selectMotionEasing,
-    config.listSettleDurationMs, config.panelCollapseDurationMs, config.scrollDrivenNavigationEnabled,
-    expandListSentinelRow, itemCount, onActiveIndexCommit, openPanel, prefersReducedMotion, rows,
-    scrollToIndex, windowLength,
+    beginCloseSequence, closePanel, commitIndexDirect, config.listSettleDurationMs,
+    config.scrollDrivenNavigationEnabled, itemCount, onActiveIndexCommit, openPanel,
+    prefersReducedMotion, scrollToIndex,
   ]);
 
   const handleCarouselDragEnd = useCallback((velocityX: number) => {
@@ -980,9 +1113,20 @@ export function MobilePinnedArticleSection({
     '--mobile-pinned-expanded-bg-opacity': config.expandedListBackgroundOpacity,
     '--mobile-pinned-expanded-backdrop-blur-px': `${config.expandedListBackdropBlurPx}px`,
     '--mobile-pinned-expanded-carousel-opacity': config.expandedCarouselBehindOpacity,
-    // Drives styles.module.css's own `.panel` height transition duration —
-    // see that rule's own comment for why this used to be a no-op knob.
+    // Two independent duration/easing pairs for the panel's own height
+    // transition — open (panelExpandDurationMs/Easing) vs. close
+    // (panelCollapseDurationMs/Easing) — since the two are visually and
+    // semantically distinct motions. styles.module.css's own
+    // `.panel[data-collapsing='true']` selector (driven by
+    // panelSlideOffsetPercent below) picks whichever pair actually applies
+    // at a given moment. panelCollapseDurationMs/Easing are ALSO reused for
+    // .carousel's own opacity-restore transition, so the carousel un-dims
+    // in step with the panel sliding away (operator ask).
+    '--mobile-pinned-panel-expand-ms': `${config.panelExpandDurationMs}ms`,
+    '--mobile-pinned-panel-expand-easing': CTA_BUTTON_MOTION_EASINGS[config.panelExpandEasing],
     '--mobile-pinned-panel-collapse-ms': `${config.panelCollapseDurationMs}ms`,
+    '--mobile-pinned-panel-collapse-easing': CTA_BUTTON_MOTION_EASINGS[config.panelCollapseEasing],
+    '--mobile-pinned-panel-slide-percent': panelSlideOffsetPercent,
     // The extra travel height only exists to give page-scroll something to
     // consume in scroll-driven mode. Off by default: the section is just
     // 100svh, and there's nothing to scroll through to reach any article —
@@ -991,15 +1135,6 @@ export function MobilePinnedArticleSection({
       ? `calc(100svh + ${Math.max(1, travelPx)}px)`
       : '100svh',
   } as CSSProperties;
-
-  // True while the row list should still read (padding, scroll behavior)
-  // as "expanded-style" content — this outlives `expanded` itself:
-  // `expanded` flips false the instant the panel's physical collapse
-  // starts (STAGE-08), but expandedDisplayRows keeps rendering select-
-  // sequence content through that whole collapse and the reveal that
-  // follows it, before the flat short-list render finally takes back
-  // over. See styles.module.css's own `[data-expanded-content]` rules.
-  const showExpandedContentStyling = expanded || expandedDisplayRows !== null;
 
   return (
     <section ref={outerRef} className={styles.outer} style={style} data-mobile-pinned-articles="true">
@@ -1050,89 +1185,111 @@ export function MobilePinnedArticleSection({
         {expanded ? (
           <div
             className={styles.collapseSurface}
-            onClick={closePanel}
+            onClick={requestClose}
             aria-hidden="true"
           />
         ) : null}
-        <div ref={panelRef} className={styles.panel} data-expanded={expanded} onKeyDown={handlePanelKeyDown}>
+        {/* DECOUPLED (operator ask): the short list is its own independent
+         * element, always mounted right below the carousel — it is never
+         * nested inside, or otherwise part of, the collapsible full-list
+         * panel below. Its own cross-fade settle animation is unaffected
+         * by anything the full-list panel is doing. */}
+        <div className={styles.shortListPanel}>
           <div
-            ref={rowsViewportRef}
-            className={
-              showExpandedContentStyling
-                ? `${styles.rowsViewport} ${config.expandedListPaddingX} ${config.expandedListPaddingY}`
-                : styles.rowsViewport
-            }
-            // BUG FIX (operator-reported, screenshot evidence): the padding
-            // CSS rules below key off THIS attribute, not the panel's own
-            // `data-expanded` — that one flips to false the instant the
-            // physical collapse starts, while this row content needs to
-            // keep reading as expanded-style padding through the entire
-            // collapse and the reveal that follows it. See
-            // styles.module.css's own `[data-expanded-content]` rules for
-            // why a second, independent attribute is needed here (a plain
-            // CSS-cascade-layers issue, not just a className mismatch).
-            data-expanded-content={showExpandedContentStyling}
+            ref={shortListViewportRef}
+            className={`${styles.rowsViewport} ${styles.shortListRowsViewport}`}
             tabIndex={-1}
           >
             <div className={styles.timeline}>
-              {expandedDisplayRows !== null ? (
-                // SEL-01..SEL-07 (PLAN-MOBILE-ARTICLE-SELECT-MOTION.md v4):
-                // ONE single renderList/AboutTimeline call for the whole
-                // sequence — never split into one AboutTimeline instance per
-                // row (that broke this component's own sibling-relative
-                // vertical-spacing CSS, `.item:not(:last-child) .row`, since
-                // a single-row array is always its own last child, and broke
-                // the width cascade the same way). Each row's own
-                // `itemStyle` (plain inline style, no Motion, no
-                // layout/FLIP, no grid-rows/overflow clipping) drives a
-                // genuine CSS transition — `transform: scale()` from a
-                // top-left pivot plus opacity, nothing else. Survivors carry
-                // no itemStyle and never move; a leaving row's removal from
-                // this array (once its shrink finishes) is a plain,
-                // unanimated reflow the browser performs on its own.
-                renderList({
-                  activeIndex: safeActiveIndex,
-                  rows: expandedDisplayRows,
-                  onSelect: handleListSelect,
-                })
-              ) : expanded ? (
-                renderList({
-                  activeIndex: safeActiveIndex,
-                  rows,
-                  onSelect: handleListSelect,
-                })
-              ) : (
-                // Ordinary (non-select-driven) collapsed navigation — keyed by
-                // windowStart, cross-fades as a whole block. Untouched by the
-                // v2 select sequence above; still used for plain Escape/
-                // backdrop/control-button closes and swipe/keyboard nav.
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.div
-                    key={windowStart}
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={prefersReducedMotion ? undefined : { opacity: 0, y: -14 }}
-                    transition={
-                      prefersReducedMotion
-                        ? { duration: 0 }
-                        : { duration: config.listSettleDurationMs / 1000, ease: config.selectMotionEasing }
-                    }
-                  >
-                    {renderList({
-                      activeIndex: safeActiveIndex,
-                      // shortListRows already includes the "Expand list"
-                      // sentinel row appended to the end when showExpandRow
-                      // is true — it's rendered by AboutTimeline itself as a
-                      // real row, not by this component as a separate
-                      // element beside the list.
-                      rows: shortListRows,
-                      onSelect: handleListSelect,
-                    })}
-                  </motion.div>
-                </AnimatePresence>
-              )}
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.div
+                  key={windowStart}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -14 }}
+                  transition={
+                    prefersReducedMotion
+                      ? { duration: 0 }
+                      // Reuses panelCollapseEasing (see that field's own doc
+                      // comment) — this settle is triggered by the same
+                      // closePanel() call that starts the panel's own close
+                      // transition, so the two read as one motion.
+                      : { duration: config.listSettleDurationMs / 1000, ease: MOTION_EASING_BEZIERS[config.panelCollapseEasing] }
+                  }
+                >
+                  {renderList({
+                    activeIndex: safeActiveIndex,
+                    // shortListRows already includes the "Expand list"
+                    // sentinel row appended to the end when showExpandRow
+                    // is true — it's rendered by AboutTimeline itself as a
+                    // real row, not by this component as a separate
+                    // element beside the list.
+                    rows: shortListRows,
+                    onSelect: handleListSelect,
+                  })}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
+        </div>
+        {/* DECOUPLED (operator ask): this panel now EXCLUSIVELY renders the
+         * full list — it never shows shortListRows. Always sits at its full
+         * expanded height (styles.module.css — Chrome/macOS backdrop-filter
+         * + animated-height flicker fix) and is slid fully off-screen at
+         * rest via transform; it only gets content while `expanded` or
+         * mid-select-sequence (expandedDisplayRows !== null). */}
+        <div
+          ref={panelRef}
+          className={styles.panel}
+          data-expanded={expanded}
+          // Selects the CLOSE-direction duration/easing pair in
+          // styles.module.css (`--mobile-pinned-panel-collapse-*`) instead
+          // of the OPEN pair — true for exactly the window
+          // panelSlideOffsetPercent is non-zero, which is exactly the
+          // window a close/slide is in flight. Reusing this existing state
+          // means no separate "which direction is active" state is needed.
+          data-collapsing={panelSlideOffsetPercent !== 0}
+          // Gates `backdrop-filter` on (styles.module.css) — see
+          // panelBlurSettled's own doc comment for why blur must never be
+          // active while this box's transform is actively transitioning.
+          data-blur-settled={panelBlurSettled}
+          onKeyDown={handlePanelKeyDown}
+        >
+          {expanded || expandedDisplayRows !== null ? (
+            <div
+              ref={rowsViewportRef}
+              className={
+                `${styles.rowsViewport} ${styles.fullListRowsViewport} `
+                + `${config.expandedListPaddingX} ${config.expandedListPaddingY}`
+              }
+              tabIndex={-1}
+            >
+              <div className={styles.timeline}>
+                {expandedDisplayRows !== null ? (
+                  // STAGE-06 (PLAN-MOBILE-ARTICLE-SELECT-MOTION.md): a
+                  // SINGLE renderList/AboutTimeline call for the whole
+                  // fade-out sequence — never split into one AboutTimeline
+                  // instance per row (that broke this component's own
+                  // sibling-relative vertical-spacing CSS, since a
+                  // single-row array is always its own last child, and
+                  // broke the width cascade the same way). Each row's own
+                  // `itemStyle` (plain inline style, no Motion) drives a
+                  // genuine CSS opacity transition.
+                  renderList({
+                    activeIndex: safeActiveIndex,
+                    rows: expandedDisplayRows,
+                    onSelect: handleListSelect,
+                  })
+                ) : (
+                  renderList({
+                    activeIndex: safeActiveIndex,
+                    rows,
+                    onSelect: handleListSelect,
+                  })
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
         <button
           type="button"

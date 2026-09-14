@@ -27,14 +27,28 @@
   inset: 0 0 auto;
   height: calc(var(--mobile-pinned-carousel-percent) * 1%);
   opacity: 1;
-  transition: opacity 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* Synced to the SAME duration the panel's own fade-out/in below uses
+   * (--mobile-pinned-panel-collapse-ms) — operator ask: bringing this card
+   * back to full opacity happens "at the same time" the panel fades away,
+   * not on its own, independent 320ms. */
+  transition: opacity var(--mobile-pinned-panel-collapse-ms, 320ms) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .stickyViewport[data-expanded='true'] .carousel {
   opacity: var(--mobile-pinned-expanded-carousel-opacity, 0.7);
 }
 
-.panel {
+/* DECOUPLED LISTS (operator ask): the short list and the full list are two
+ * entirely separate elements now, never nested inside one another.
+ * `.shortListPanel` is the always-mounted box living directly below the
+ * carousel — it only ever shows the short (windowed) list, never resizes,
+ * and never contains the full list. `.panel` below it is now EXCLUSIVELY
+ * the full-list overlay: at rest it has zero height/is empty, and only
+ * grows + shows content while expanded (or fading through a selection).
+ * The two used to be the same DOM element/box (the old `.panel` doubled as
+ * both, switching between a "short" and "expanded" height) — that's what
+ * made the short list read as "part of the collapsible panel." */
+.shortListPanel {
   position: absolute;
   z-index: 4;
   right: 0;
@@ -60,96 +74,146 @@
   );
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  /* config.panelCollapseDurationMs (MobilePinnedArticleSection.tsx) — was a
-   * bare hardcoded 320ms with the config field only ever reading its OWN
-   * assumed-to-match value back for an unrelated JS-side timer, so changing
-   * this config knob never actually touched the real collapse speed at all
-   * (operator-reported audit finding). --mobile-pinned-panel-collapse-ms is
-   * only ever supplied by that component; the 320ms fallback here preserves
-   * the original hardcoded value for any other consumer of this module. */
-  transition: height var(--mobile-pinned-panel-collapse-ms, 320ms) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.panel {
+  position: absolute;
+  /* Above .shortListPanel (z-index 4) and .collapseSurface (z-index 3) so
+   * the full-list overlay visually covers both while expanded — the short
+   * list box underneath is never actually seen at that point, it's just
+   * not sharing a DOM element with the overlay anymore. */
+  z-index: 5;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  /* Regression fix (operator-reported, Chrome/macOS only — not reproducible
+   * in the iOS simulator or on real mobile Chrome/Safari, and invisible to
+   * getComputedStyle instrumentation — this is a GPU compositor artifact,
+   * not a CSS value ever being wrong): this box used to sit at `height: 0`
+   * at rest and animate `height` up to its expanded value on open. That was
+   * fixed by moving to a static height + `transform: translateY` slide
+   * (below) — but headed (real-GPU) screenshots still showed a ghosted
+   * double-exposure while mid-slide. Root cause is broader than layout:
+   * Chrome's macOS compositor mis-samples a `backdrop-filter` blur against
+   * WHATEVER'S BEHIND IT whenever the blurred element's own on-screen
+   * position is changing on ANY property — height before, transform now —
+   * because the backdrop content it needs to re-sample is itself moving
+   * relative to the blur every frame. The only reliable fix is to never
+   * have `backdrop-filter` active while this box is in motion at all: blur
+   * is OFF by default here and only switches on via the
+   * `[data-blur-settled='true']` rule further down, which
+   * MobilePinnedArticleSection.tsx only sets once the slide's own
+   * `transitionend` confirms it has genuinely stopped moving. This box is
+   * ALWAYS at its full expanded height — `position: absolute` means that
+   * costs nothing layout-wise even while hidden (siblings never see it). */
+  height: calc(var(--mobile-pinned-expanded-percent) * 1svh);
+  overflow: clip;
+  /* Regression fix, round two (operator-reported): with blur off during
+   * motion (above), THIS rule's own previous translucent color-mix
+   * background wasn't opaque enough on its own to hide what's actually
+   * behind this box while it's sliding — repeated headed screenshots
+   * showed the ALWAYS-MOUNTED `.shortListPanel` underneath (z-index 4,
+   * right below the carousel) visibly bleeding through the panel while it
+   * slid up over it, ghosting against the carousel's own headline. A
+   * translucent, unblurred sheet was never going to hide a whole sibling
+   * panel's worth of text. Fix: fully OPAQUE (no color-mix/transparency)
+   * while unsettled — the SAME two-state split as blur above, just for
+   * background instead of backdrop-filter. Only once `[data-blur-
+   * settled='true']` (nothing moving) does the intended translucent+
+   * blurred "frosted glass" look apply (below) — safe at that point since
+   * there's nothing in motion to bleed through mid-frame. */
+  background: var(--mobile-pinned-panel-color);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  /* --mobile-pinned-panel-slide-percent (MobilePinnedArticleSection.tsx) —
+   * 0 = fully in place (open/visible), 100 = translated down by its own
+   * full height, i.e. entirely below `.stickyViewport`'s own `overflow:
+   * hidden` bottom edge (closed/hidden). One value drives BOTH directions
+   * (100 at idle-closed AND while a close is actively sliding it back down,
+   * 0 at idle-open AND while an open is actively sliding it up into view)
+   * — there's no separate "reset" step needed the way the old
+   * height/opacity mechanisms required, since 100 already IS the resting
+   * closed state a close transition ends at. */
+  transform: translateY(calc(var(--mobile-pinned-panel-slide-percent, 100) * 1%));
+  /* OPEN-direction duration/easing (config.panelExpandDurationMs/Easing) —
+   * the `[data-collapsing='true']` rule below overrides this pair with the
+   * CLOSE-direction one the instant a close/slide actually starts (see that
+   * rule's own comment). */
+  transition: transform var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
 }
 
 .panel[data-expanded='true'] {
-  height: calc(var(--mobile-pinned-expanded-percent) * 1svh);
+  /* Still fully opaque (no color-mix) while unsettled — see the base
+   * `.panel` rule's own comment; the translucent version only applies
+   * once `[data-blur-settled='true']` below takes over. */
+  background: var(--mobile-pinned-expanded-bg-color);
+}
+
+/* Only ever true once the panel's own slide has genuinely stopped moving
+ * (MobilePinnedArticleSection.tsx sets this from the transform's real
+ * `transitionend`, not a duration guess) — see the base `.panel` rule's own
+ * comments for why NEITHER blur NOR a translucent background can safely be
+ * active while it's in motion. This is where the actual "frosted glass"
+ * look — translucency (config.expandedListBackgroundOpacity) plus blur
+ * (config.expandedListBackdropBlurPx) — finally applies, once nothing is
+ * moving and there's no motion-frame for either to bleed/ghost through. */
+.panel[data-blur-settled='true'] {
   background: color-mix(
     in srgb,
     var(--mobile-pinned-expanded-bg-color) calc(var(--mobile-pinned-expanded-bg-opacity) * 100%),
     transparent
   );
-  /* Overrides the base .panel rule's own hardcoded blur(12px) above —
-   * config.expandedListBackdropBlurPx, MobilePinnedArticleSection.tsx.
-   * The collapsed (short-list) state keeps that original fixed value
-   * unchanged; only the expanded state's own blur is configurable, per
-   * the operator's own explicit scoping ("blur of the list container
-   * while expanded"). */
   backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
   -webkit-backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
 }
 
+/* CLOSE-direction duration/easing (config.panelCollapseDurationMs/Easing) —
+ * `data-collapsing` is set directly from panelSlideOffsetPercent !== 0
+ * (MobilePinnedArticleSection.tsx), true for exactly the window a
+ * close/slide is in flight, which is also the ONLY window `transform` ever
+ * actually changes on this element — so listing it here, and only here,
+ * is sufficient; the base rule above never needs a second transform entry. */
+.panel[data-collapsing='true'] {
+  transition: transform var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, ease);
+}
+
+/* Shared base for BOTH lists' own row containers — rows render at their own
+ * natural size (the exact same AboutTimeline config/markup as desktop, no
+ * forced per-row height), top-anchored. */
 .rowsViewport {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* Rows render at their own natural size now (the exact same AboutTimeline
-   * config/markup as desktop — no forced per-row height here anymore, that
-   * was the mobile-only stretch that made rows read as "too far apart").
-   * Top-anchored to match the expanded list below, rather than centered in
-   * the leftover space below the collapsed (naturally shorter) row count. */
   justify-content: flex-start;
-  /* `clip` prevents the collapsed list from becoming a dead-end scroll
-   * container. Vertical gestures therefore continue to the document while
-   * the panel still clips rows to its own bounds. */
-  overflow: clip;
   overscroll-behavior: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Collapsed-only padding, moved off the base .rowsViewport rule above.
- * Regression fix: this component's own base rule used to declare
- * `padding: 0 1.5rem` unconditionally — a plain CSS Modules rule, compiled
- * WITHOUT any `@layer`, whereas Tailwind's own px-* / py-* utilities compile
- * INTO `@layer utilities`. Per the CSS cascade-layers spec, an unlayered
- * declaration always wins over ANY layered declaration for the same
- * property on the same element, regardless of selector specificity or
- * source order — so config.expandedListPaddingX/Y's own classes
- * (MobilePinnedArticleSection.tsx, applied only while expanded) were being
- * silently overridden every time, on every page, with no visual feedback
- * that anything was wrong (operator-reported: "not affecting the UI in any
- * form"). Scoping the fixed value to the collapsed state only means the
- * expanded state now has NO competing unlayered padding declaration at
- * all, so the Tailwind classes finally win as originally intended. Same
- * class of bug already found and fixed once this session in
- * AboutTimeline.module.css's own line-height rules — see that file's own
- * .caption doc comment for the general pattern.
- *
- * Keyed on `[data-expanded-content]` set DIRECTLY on .rowsViewport itself
- * (MobilePinnedArticleSection.tsx), not on the ancestor .panel's own
- * `[data-expanded]` — those two go out of sync mid select-sequence: the
- * panel's own attribute (and its physical height) already flips back to
- * "collapsed" the instant its collapse animation STARTS, while the row
- * content styled for the expanded container (padding included) needs to
- * keep reading as "still expanded-style" through that entire collapse and
- * the reveal that follows it, only reverting once the flat short-list
- * render actually takes back over. Using the panel's own attribute here
- * (the original, pre-fix version of this rule) silently snapped this
- * padding back to the smaller collapsed value the instant the collapse
- * began — a second, independent contributor to the same "disconnect
- * during the collapse motion" the operator screenshotted, on top of the
- * list content being revealed too early (see handleListSelect's own
- * comments). */
-.rowsViewport:not([data-expanded-content='true']) {
+/* The SHORT list's own viewport (inside .shortListPanel) — fixed padding,
+ * never scrolls (the box never grows past what N rows fit; `clip` prevents
+ * it from becoming a dead-end scroll container, so vertical gestures
+ * continue to the document instead). */
+.shortListRowsViewport {
   padding: 0 1.5rem;
+  overflow: clip;
 }
 
-.rowsViewport[data-expanded-content='true'] {
-  /* Expanded is the full list, potentially taller than the panel — scrolls
-   * instead of clipping. Already top-anchored via the base rule above.
-   * Padding is now genuinely, exclusively owned by the px-* / py-* Tailwind
-   * classes applied directly on this element (config.expandedListPaddingX/Y,
-   * MobilePinnedArticleSection.tsx) — no rule in this file declares padding
-   * here, so there is nothing left to fight those utility classes. */
+/* The FULL list's own viewport (inside .panel) — potentially taller than
+ * the panel, so it scrolls instead of clipping. Padding is exclusively
+ * owned by the px- / py- Tailwind classes applied directly on this element
+ * (config.expandedListPaddingX/Y, MobilePinnedArticleSection.tsx) — this
+ * rule deliberately declares no padding of its own so there is nothing to
+ * fight those utility classes. Regression note: an EARLIER version of this
+ * rule (padding declared unlayered, unconditionally, on the single shared
+ * .rowsViewport class both lists used to share) silently beat those same
+ * Tailwind classes every time per the CSS cascade-layers spec (unlayered
+ * always beats layered, regardless of source order/specificity) — this
+ * class no longer being shared with the short list at all is what finally
+ * closes that off structurally, not just re-scoping a selector. */
+.fullListRowsViewport {
   overflow-y: auto;
 }
 
@@ -220,6 +284,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .panel,
+  /* Matches .panel[data-collapsing='true']'s own specificity (a class +
+   * an attribute selector) — without this, that more-specific rule's own
+   * `transition` declaration would win over this bare `.panel` override
+   * whenever collapsing is active, regardless of source order. The
+   * component's own JS never actually sets data-collapsing while
+   * prefersReducedMotion is true (that whole slide-out sequence is skipped
+   * upstream), so this is defense-in-depth, not a live bug today. */
+  .panel[data-collapsing='true'],
   .carousel {
     transition: none;
   }

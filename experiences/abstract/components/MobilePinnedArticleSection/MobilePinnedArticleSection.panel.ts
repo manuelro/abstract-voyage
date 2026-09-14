@@ -8,6 +8,23 @@ import {
 
 export { MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID };
 
+// Local catalog, same "each panel.ts keeps its own copy" convention as
+// CtaButton.panel.ts/AboutTimeline.panel.ts/SplitColumnCardPreview's
+// stack.panel.ts — all draw from the same 6-key CtaButtonMotionEasing union
+// (CTA_BUTTON_MOTION_EASINGS, components/CtaButton/config/registered.ts)
+// without importing a shared options array. `kind: 'select'`, not 'enum' —
+// this field appears 4 times in this one panel, so 4 SegmentedControl rows
+// of 6 buttons each read as an unreadable wall of inline labels; a native
+// `<select>` dropdown collapses each down to one line until opened.
+const MOTION_EASING_OPTIONS = [
+  { label: 'LINEAR', value: 'linear' },
+  { label: 'STANDARD', value: 'standard' },
+  { label: 'EXPRESSIVE (default)', value: 'expressive' },
+  { label: 'VISCOUS', value: 'viscous' },
+  { label: 'GENTLE', value: 'gentle' },
+  { label: 'GAUSSIAN', value: 'gaussian' },
+] as const;
+
 export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
   defineConfigScope<MobilePinnedArticleSectionConfig>({
     id: MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID,
@@ -18,11 +35,7 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
     summary: 'Mobile carousel and article-list viewport proportions',
     defaultOpen: false,
     defaultValue: DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
-    // selectMotionEasing/expandedEnterEasing/expandedSelectEasing are each a
-    // 4-number cubic-bezier tuple — no field `kind` supports a tuple
-    // control, so they're hidden rather than rendered; the duration/stagger
-    // fields below are the tunable surface.
-    hiddenKeys: ['listHeightPercent', 'selectMotionEasing', 'expandedEnterEasing', 'expandedSelectEasing'],
+    hiddenKeys: ['listHeightPercent'],
     fields: [
       { kind: 'number', key: 'visibleRowsLargePhone', label: 'Rows on large phones', min: 1, max: 6, step: 1, integer: true },
       { kind: 'number', key: 'visibleRowsSmallPhone', label: 'Rows on small phones', min: 1, max: 6, step: 1, integer: true },
@@ -88,9 +101,37 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       },
       {
         kind: 'number',
-        key: 'expandedEnterDurationMs',
+        key: 'panelExpandDurationMs',
+        label: 'Expand: panel open',
+        description: 'How long the panel takes to grow open when its full list is expanded.',
+        min: 0,
+        max: 1000,
+        step: 10,
+        unit: 'ms',
+        integer: true,
+      },
+      {
+        kind: 'select',
+        key: 'panelExpandEasing',
+        label: 'Expand: panel open easing',
+        options: MOTION_EASING_OPTIONS,
+      },
+      {
+        kind: 'number',
+        key: 'rowFadeInDelayMs',
+        label: 'Expand: pause before rows appear',
+        description: 'Pause after the panel finishes opening, before the first row starts fading in. 0 = rows start the instant the panel finishes opening.',
+        min: 0,
+        max: 1000,
+        step: 10,
+        unit: 'ms',
+        integer: true,
+      },
+      {
+        kind: 'number',
+        key: 'rowFadeInDurationMs',
         label: 'Expand: row fade-in',
-        description: 'When the panel opens, how long each row takes to fade its opacity in (no scale/transform).',
+        description: 'How long each row takes to fade its opacity in (no scale/transform). Rows chain: row 2 starts exactly when row 1 finishes, and so on — this one duration determines both a single row\'s fade and the whole cascade\'s total length.',
         min: 0,
         max: 1000,
         step: 10,
@@ -98,21 +139,16 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
         integer: true,
       },
       {
-        kind: 'number',
-        key: 'expandedEnterStaggerMs',
-        label: 'Expand: row fade-in stagger',
-        description: 'Delay added per row (item 1 first, item N last) so the expand entrance cascades top to bottom instead of every row fading in at once. 0 = no stagger.',
-        min: 0,
-        max: 300,
-        step: 5,
-        unit: 'ms',
-        integer: true,
+        kind: 'select',
+        key: 'rowFadeInEasing',
+        label: 'Expand: row fade-in easing',
+        options: MOTION_EASING_OPTIONS,
       },
       {
         kind: 'number',
-        key: 'expandedSelectFadeOutDurationMs',
+        key: 'rowFadeOutDurationMs',
         label: 'Select: row fade-out',
-        description: 'On tapping a row in the expanded list, how long every row takes to fade its opacity out (no scale/transform). The list is reordered to its final selection only once every row is fully invisible.',
+        description: 'On tapping a row in the expanded list, how long each row takes to fade its opacity out (no scale/transform), chained the same way as the fade-in. The panel doesn\'t start closing until the last row finishes.',
         min: 0,
         max: 1000,
         step: 10,
@@ -120,21 +156,16 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
         integer: true,
       },
       {
-        kind: 'number',
-        key: 'expandedSelectStaggerMs',
-        label: 'Select: row fade-out stagger',
-        description: 'Delay added per row in the SAME direction as the entrance — item 1 fades first, the last row fades last — so the exit cascades top to bottom. The panel doesn\'t collapse until the last row finishes. 0 = no stagger.',
-        min: 0,
-        max: 300,
-        step: 5,
-        unit: 'ms',
-        integer: true,
+        kind: 'select',
+        key: 'rowFadeOutEasing',
+        label: 'Select: row fade-out easing',
+        options: MOTION_EASING_OPTIONS,
       },
       {
         kind: 'number',
-        key: 'expandedSelectHoldMs',
-        label: 'Select: hold before collapse',
-        description: 'Pause after every row has finished fading out and the list has been reordered, before the panel starts collapsing. 0 = no pause.',
+        key: 'panelCollapseDelayMs',
+        label: 'Select: pause before panel closes',
+        description: 'Pause after the last row has finished fading out, before the panel starts closing. 0 = the panel starts closing the instant the last row disappears.',
         min: 0,
         max: 1000,
         step: 10,
@@ -144,13 +175,19 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       {
         kind: 'number',
         key: 'panelCollapseDurationMs',
-        label: 'Select: panel collapse',
-        description: 'Should match styles.module.css\'s .panel transition duration — kept here so the JS-side settle timer stays in sync with the CSS collapse.',
+        label: 'Select: panel fade out/in',
+        description: 'How long the panel takes to fade out after selecting an article, then fade back in once the final short list is ready. The carousel card behind it fades back to full opacity over this same duration.',
         min: 0,
         max: 1000,
         step: 10,
         unit: 'ms',
         integer: true,
+      },
+      {
+        kind: 'select',
+        key: 'panelCollapseEasing',
+        label: 'Select: panel fade out/in easing',
+        options: MOTION_EASING_OPTIONS,
       },
       {
         kind: 'number',

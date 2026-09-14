@@ -1,5 +1,20 @@
 # PLAN — Normalized article-select motion for MobilePinnedArticleSection's expanded list
 
+## Short list / full list decoupling (2026-09-13)
+
+Operator ask: the short list and full list were architecturally ONE shared DOM element/component (`.panel`, switching between a "short" height/style and an "expanded" height/style) — the short list was, structurally, "part of the collapsible panel." Fixed by splitting into two fully independent elements:
+
+- **`.shortListPanel`** (new) — always mounted, positioned directly below the carousel exactly where the old collapsed `.panel` sat, height fixed at `listHeightPercent`, never resizes, never shows the full list. Contains its own `.shortListRowsViewport` (fixed padding, `overflow: clip`) and its own pre-existing cross-fade settle animation (the `windowStart`-keyed `AnimatePresence` block) — completely unaffected by anything the full-list panel does.
+- **`.panel`** (existing element, narrowed scope) — now EXCLUSIVELY the full-list overlay. At rest, `height: 0` and renders no content at all (no more doubling as the short list's resting box). Only grows/renders content while `expanded` or mid-select-sequence (`expandedDisplayRows !== null`). Raised to `z-index: 5` (above the short list's `z-index: 4` and the backdrop's `z-index: 3`) so it visually covers the short list whenever both are mounted (expanded state) — the two never fight for the same box.
+- `computeSelectSurvivors` (the helper that used to hand the full-list panel a "final row set" so it could render an interim collapsed-looking state inside itself) is gone entirely — no longer needed, since the short list is a separate element that settles into its own final form via its own existing `windowStart` mechanism, on its own schedule.
+- `handleListSelect`'s STAGE-06/07/08 sequence simplified accordingly: once every row has faded out inside the (now full-list-only) panel, that panel just closes (fades to 0 opacity via the existing `panelFadeOpacity` mechanism, then clears its own content) — it no longer needs to reveal a "final survivor" list or mount a sentinel row inside itself, since the short list underneath (already updated the moment `closePanel()` commits `windowStart`) handles all of that independently.
+- Deferred CoverFlow commit (from the prior fix) is preserved, now scheduled off the full-list panel's own close completion plus one `listSettleDurationMs` beat, giving the independent short list's own settle animation time to finish before the CoverFlow's translate motion fires — preserving the "list settles, then coverflow catches up" two-beat reveal.
+- Focus-restore on close now targets the short list's own viewport (`shortListViewportRef`), not the full list's — the full list's own viewport may already be invisible/closing at that point.
+
+**Verified live**: DOM structure confirms the two are true siblings (short list panel never nested inside the full list panel) at every state; full panel height is exactly `0` at rest; both remain independently mounted while expanded (full list visually on top, covering the short list underneath); after a selection, the full panel's own row count returns to `0` (closed, no content) on its own timeline while the short list settles to its own final 4-row state (survivor rows + "Expand list") independently. Zero console errors, whole-project typecheck clean.
+
+**Caught during verification**: a CSS comment containing the literal sequence `px-*/py-*` accidentally closed the enclosing `/* ... */` comment block early (`*/` is a comment terminator regardless of context), breaking the whole stylesheet's build. Fixed by rewording the comment; worth remembering for any future CSS comment mentioning Tailwind's `*`-suffixed utility naming convention.
+
 ## STAGE-07/08/09 collapse-disconnect fix + config-knob audit (2026-09-13)
 
 Operator screenshot evidence: mid-collapse, the row-content padding vanished and the FINAL short list was already fully visible while the panel container was still tall/mid-collapse — directly contradicting the ask that the list must be completely invisible for the entire physical collapse, only appearing once the panel has fully settled.
