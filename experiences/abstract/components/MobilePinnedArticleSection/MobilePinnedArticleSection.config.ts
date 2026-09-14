@@ -1,9 +1,13 @@
 import { clamp } from '../../../../helpers/clamp';
 import {
-  PADDING_X_OPTIONS,
-  PADDING_Y_OPTIONS,
-  type PaddingXClass,
-  type PaddingYClass,
+  PADDING_TOP_OPTIONS,
+  PADDING_RIGHT_OPTIONS,
+  PADDING_BOTTOM_OPTIONS,
+  PADDING_LEFT_OPTIONS,
+  type PaddingTopClass,
+  type PaddingRightClass,
+  type PaddingBottomClass,
+  type PaddingLeftClass,
 } from '../../../../components/tailwindSpacingScale';
 
 export const MOBILE_PINNED_ARTICLE_SECTION_EASINGS = {
@@ -29,15 +33,20 @@ export const MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID =
 // used to be its own bespoke, artificially truncated 9-value catalog
 // (px-0/1/2/3/4/6/8/10/12, skipping every half-step AND every odd value
 // past 4, capped at 12), independently hand-maintained instead of reusing
-// the SAME shared, comprehensive PADDING_X_OPTIONS/PADDING_Y_OPTIONS
-// catalog (tailwindSpacingScale.ts) every other padding field in this
-// codebase already draws from (half-steps included, continuing to px-96).
-// Re-exported under these names so no existing config/panel import path
-// needs to change.
-export const EXPANDED_LIST_PADDING_X_TOKENS = PADDING_X_OPTIONS.map(option => option.value);
-export const EXPANDED_LIST_PADDING_Y_TOKENS = PADDING_Y_OPTIONS.map(option => option.value);
-export type ExpandedListPaddingX = PaddingXClass;
-export type ExpandedListPaddingY = PaddingYClass;
+// the SAME shared, comprehensive PADDING_TOP/RIGHT/BOTTOM/LEFT_OPTIONS
+// catalogs (tailwindSpacingScale.ts) every other per-edge padding field in
+// this codebase already draws from (half-steps included, continuing to
+// *-96). Segregated into one token per edge (operator ask) instead of the
+// X/Y pair these replace, so each side of the expanded list can carry its
+// own value independent of the others.
+export const EXPANDED_LIST_PADDING_TOP_TOKENS = PADDING_TOP_OPTIONS.map(option => option.value);
+export const EXPANDED_LIST_PADDING_RIGHT_TOKENS = PADDING_RIGHT_OPTIONS.map(option => option.value);
+export const EXPANDED_LIST_PADDING_BOTTOM_TOKENS = PADDING_BOTTOM_OPTIONS.map(option => option.value);
+export const EXPANDED_LIST_PADDING_LEFT_TOKENS = PADDING_LEFT_OPTIONS.map(option => option.value);
+export type ExpandedListPaddingTop = PaddingTopClass;
+export type ExpandedListPaddingRight = PaddingRightClass;
+export type ExpandedListPaddingBottom = PaddingBottomClass;
+export type ExpandedListPaddingLeft = PaddingLeftClass;
 export type MobilePinnedArticleListPresentation = 'glassPanel' | 'cardFlip';
 
 export type MobilePinnedArticleSectionConfig = {
@@ -70,12 +79,19 @@ export type MobilePinnedArticleSectionConfig = {
    * the active carousel surface 190 degrees and renders the full list on its
    * reverse face; `glassPanel` preserves the established bottom-sheet view. */
   fullListPresentation: MobilePinnedArticleListPresentation;
-  /** Horizontal inset applied to the row list while expanded, as a Tailwind
-   * spacing token (e.g. `px-6`). */
-  expandedListPaddingX: ExpandedListPaddingX;
-  /** Vertical inset applied to the row list while expanded, as a Tailwind
-   * spacing token (e.g. `py-0`). */
-  expandedListPaddingY: ExpandedListPaddingY;
+  /** Top inset applied to the row list while expanded, as a Tailwind spacing
+   * token (e.g. `pt-7`). Segregated per-edge (was a single X/Y pair) so each
+   * side can carry its own value independent of the others. */
+  expandedListPaddingTop: ExpandedListPaddingTop;
+  /** Right inset applied to the row list while expanded, as a Tailwind
+   * spacing token (e.g. `pr-10`). */
+  expandedListPaddingRight: ExpandedListPaddingRight;
+  /** Bottom inset applied to the row list while expanded, as a Tailwind
+   * spacing token (e.g. `pb-7`). */
+  expandedListPaddingBottom: ExpandedListPaddingBottom;
+  /** Left inset applied to the row list while expanded, as a Tailwind
+   * spacing token (e.g. `pl-10`). */
+  expandedListPaddingLeft: ExpandedListPaddingLeft;
   /** Overrides the panel's background color while expanded. Empty string
    * uses the caller's resolved opaque fallback surface when supplied, then
    * falls back to the collapsed panel color. This preserves visible paint if
@@ -183,8 +199,12 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   scrollEffortMultiplier: 0.8,
   scrollDrivenNavigationEnabled: false,
   fullListPresentation: 'glassPanel',
-  expandedListPaddingX: 'px-10',
-  expandedListPaddingY: 'py-7',
+  // px-10/py-7 split evenly across their two edges — same rendered padding
+  // as before segregation, just addressable per-side now.
+  expandedListPaddingTop: 'pt-7',
+  expandedListPaddingRight: 'pr-14',
+  expandedListPaddingBottom: 'pb-7',
+  expandedListPaddingLeft: 'pl-10',
   expandedListBackgroundColor: '',
   // Keep enough translucency to reveal the fixed-size blur layer while the
   // resolved fallback color preserves the panel silhouette if Chromium drops
@@ -266,12 +286,18 @@ export function normalizeMobilePinnedArticleSectionConfig(
     fullListPresentation: base.fullListPresentation === 'cardFlip'
       ? 'cardFlip'
       : 'glassPanel',
-    expandedListPaddingX: EXPANDED_LIST_PADDING_X_TOKENS.includes(base.expandedListPaddingX)
-      ? base.expandedListPaddingX
-      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingX,
-    expandedListPaddingY: EXPANDED_LIST_PADDING_Y_TOKENS.includes(base.expandedListPaddingY)
-      ? base.expandedListPaddingY
-      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingY,
+    expandedListPaddingTop: EXPANDED_LIST_PADDING_TOP_TOKENS.includes(base.expandedListPaddingTop)
+      ? base.expandedListPaddingTop
+      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingTop,
+    expandedListPaddingRight: EXPANDED_LIST_PADDING_RIGHT_TOKENS.includes(base.expandedListPaddingRight)
+      ? base.expandedListPaddingRight
+      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingRight,
+    expandedListPaddingBottom: EXPANDED_LIST_PADDING_BOTTOM_TOKENS.includes(base.expandedListPaddingBottom)
+      ? base.expandedListPaddingBottom
+      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingBottom,
+    expandedListPaddingLeft: EXPANDED_LIST_PADDING_LEFT_TOKENS.includes(base.expandedListPaddingLeft)
+      ? base.expandedListPaddingLeft
+      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.expandedListPaddingLeft,
     expandedListBackgroundColor: typeof base.expandedListBackgroundColor === 'string'
       ? base.expandedListBackgroundColor.trim()
       : '',

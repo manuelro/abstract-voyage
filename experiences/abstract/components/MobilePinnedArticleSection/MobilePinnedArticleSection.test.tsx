@@ -231,7 +231,12 @@ describe('MobilePinnedArticleSection persistent glass panel', () => {
     act(() => transitionEnd(panel as HTMLElement, 'height'));
     act(flushAnimationFrame);
 
+    // Excludes the short list's own fade-out layer (data-mobile-pinned-short-
+    // list-fade) — it now briefly coexists with the incoming full list while
+    // it fades using the panel's own expand duration/easing, a separate
+    // concern from these full-list row entrance transitions.
     const transitions = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+      .filter(tab => !tab.closest('[data-mobile-pinned-short-list-fade]'))
       .map(tab => tab.style.transition);
     expect(transitions).toEqual([
       'opacity 100ms ease-out 0ms',

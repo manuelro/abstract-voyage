@@ -27,16 +27,15 @@
   inset: 0 0 auto;
   height: calc(var(--mobile-pinned-carousel-percent) * 1%);
   opacity: 1;
-  /* Keep the sampled backdrop from changing at the exact moment the glass
-   * panel reaches a geometry boundary. The old stable implementation settled
-   * this layer in 320ms; the component derives these values from the panel's
-   * configured direction duration, capped at that proven interval. */
-  transition: opacity var(--mobile-pinned-carousel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, cubic-bezier(0.22, 1, 0.36, 1));
+  /* Same duration/easing as the glass panel's own close transition (operator
+   * ask), so the card dimming behind it reads as one motion with the panel
+   * rather than a separately-paced layer. */
+  transition: opacity var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .stickyViewport[data-phase='preparing'] .carousel,
 .stickyViewport[data-phase='opening'] .carousel {
-  transition-duration: var(--mobile-pinned-carousel-expand-ms, 320ms);
+  transition-duration: var(--mobile-pinned-panel-expand-ms, 320ms);
   transition-timing-function: var(--mobile-pinned-panel-expand-easing, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
@@ -297,10 +296,11 @@
 
 /* The FULL list's own viewport (inside .panel) — potentially taller than
  * the panel, so it scrolls instead of clipping. Padding is exclusively
- * owned by the px- / py- Tailwind classes applied directly on this element
- * (config.expandedListPaddingX/Y, MobilePinnedArticleSection.tsx) — this
- * rule deliberately declares no padding of its own so there is nothing to
- * fight those utility classes. Regression note: an EARLIER version of this
+ * owned by the pt-/pr-/pb-/pl- Tailwind classes applied directly on this
+ * element (config.expandedListPaddingTop/Right/Bottom/Left,
+ * MobilePinnedArticleSection.tsx) — this rule deliberately declares no
+ * padding of its own so there is nothing to fight those utility classes.
+ * Regression note: an EARLIER version of this
  * rule (padding declared unlayered, unconditionally, on the single shared
  * .rowsViewport class both lists used to share) silently beat those same
  * Tailwind classes every time per the CSS cascade-layers spec (unlayered
@@ -312,6 +312,7 @@
 }
 
 .timeline {
+  position: relative;
   width: 100%;
 }
 
@@ -320,6 +321,15 @@
   max-width: none !important;
   padding: 0 !important;
   margin: 0 !important;
+}
+
+/* Shared glass viewport only (renderSharedGlassList): the short list briefly
+ * coexists with the incoming/outgoing full list while it fades, so it's
+ * taken out of normal flow and overlaid exactly on top instead of stacking
+ * beneath it and pushing layout around during that window. */
+.shortListFadeLayer {
+  position: absolute;
+  inset: 0;
 }
 
 .collapseSurface {

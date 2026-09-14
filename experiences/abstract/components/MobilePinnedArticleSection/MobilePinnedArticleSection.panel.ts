@@ -1,5 +1,10 @@
 import { defineConfigScope } from '../../../../components/Panel/config';
-import { PADDING_X_OPTIONS, PADDING_Y_OPTIONS } from '../../../../components/tailwindSpacingScale';
+import {
+  PADDING_TOP_OPTIONS,
+  PADDING_RIGHT_OPTIONS,
+  PADDING_BOTTOM_OPTIONS,
+  PADDING_LEFT_OPTIONS,
+} from '../../../../components/tailwindSpacingScale';
 import {
   DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
   MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID,
@@ -59,18 +64,31 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
         // 'select', not 'enum' — AGENTS.md's own hard ceiling: past ~6-8
         // options, a SegmentedControl row (kind: 'enum') renders as an
         // unreadable wall of overlapping/truncated labels. The shared
-        // PADDING_X_OPTIONS/PADDING_Y_OPTIONS catalogs below have 34
-        // entries each (tailwindSpacingScale.ts).
+        // PADDING_TOP/RIGHT/BOTTOM/LEFT_OPTIONS catalogs below have 34
+        // entries each (tailwindSpacingScale.ts). Segregated per-edge
+        // (operator ask) instead of one shared X/Y pair.
         kind: 'select',
-        key: 'expandedListPaddingX',
-        label: 'Expanded list horizontal padding',
-        options: PADDING_X_OPTIONS,
+        key: 'expandedListPaddingTop',
+        label: 'Expanded list top padding',
+        options: PADDING_TOP_OPTIONS,
       },
       {
         kind: 'select',
-        key: 'expandedListPaddingY',
-        label: 'Expanded list vertical padding',
-        options: PADDING_Y_OPTIONS,
+        key: 'expandedListPaddingRight',
+        label: 'Expanded list right padding',
+        options: PADDING_RIGHT_OPTIONS,
+      },
+      {
+        kind: 'select',
+        key: 'expandedListPaddingBottom',
+        label: 'Expanded list bottom padding',
+        options: PADDING_BOTTOM_OPTIONS,
+      },
+      {
+        kind: 'select',
+        key: 'expandedListPaddingLeft',
+        label: 'Expanded list left padding',
+        options: PADDING_LEFT_OPTIONS,
       },
       {
         kind: 'color',

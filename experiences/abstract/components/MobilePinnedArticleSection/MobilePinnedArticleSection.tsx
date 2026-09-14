@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -160,6 +161,10 @@ export function MobilePinnedArticleSection({
     [rawConfig],
   );
   const outerRef = useRef<HTMLElement | null>(null);
+  // Measured/bridged across the position:sticky <-> position:fixed(overlay)
+  // flip that fires on open and close — see positionFlipRectRef's own doc
+  // comment below for why this exists.
+  const stickyViewportRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const flipCardRef = useRef<HTMLDivElement | null>(null);
   const glassRowsViewportRef = useRef<HTMLDivElement | null>(null);
@@ -173,6 +178,25 @@ export function MobilePinnedArticleSection({
   const shortListViewportRef = useRef<HTMLDivElement | null>(null);
   const expandedRef = useRef(false);
   const lockedScrollYRef = useRef(0);
+  // Operator-reported: opening the panel (confirmed direction — not closing)
+  // snapped the card/list to a new screen position in a single frame,
+  // whenever the section hadn't fully reached its `position: sticky`
+  // "stuck" offset yet (e.g. tapping to open while the section is still
+  // scrolling into view). Root cause: `.stickyViewport` flips CSS
+  // `position: sticky` (in-flow, scroll-relative — can sit below top:0 while
+  // not yet stuck) to `position: fixed` (viewport-pinned overlay, always
+  // top:0) the instant openPanel()/closePanel() runs. position:fixed and
+  // position:sticky are different positioning algorithms with no CSS
+  // transition path between them, so this was a hard, un-animatable jump in
+  // whichever direction the section wasn't already stuck. Bridged instead
+  // with a FLIP (First-Last-Invert-Play): openPanel()/closePanel() snapshot
+  // the viewport's on-screen rect into this ref the instant before flipping
+  // everything; the useLayoutEffect below reads it back once the flip has
+  // committed, applies the resulting delta as a translateY (so nothing
+  // visibly moves yet), then animates that offset down to 0 over the same
+  // panelExpandDurationMs/Easing (opening) or panelCollapseDurationMs/Easing
+  // (closing) driving the rest of that direction's motion.
+  const positionFlipRectRef = useRef<DOMRect | null>(null);
   const sectionDocumentTopRef = useRef(0);
   const [expanded, setExpanded] = useState(false);
   // One lifecycle drives both full-list presentations. Glass maps it to the
@@ -572,6 +596,9 @@ export function MobilePinnedArticleSection({
     // the frozen, no-longer-meaningful layout instead). Only meaningful for
     // the scroll-driven restoration math in closePanel().
     if (config.scrollDrivenNavigationEnabled) sectionTop();
+    // Snapshot BEFORE the sticky -> fixed flip below — see
+    // positionFlipRectRef's own doc comment for why.
+    positionFlipRectRef.current = stickyViewportRef.current?.getBoundingClientRect() ?? null;
     expandedRef.current = true;
     setExpanded(true);
     setPresentationPhase('preparing');
@@ -748,6 +775,9 @@ export function MobilePinnedArticleSection({
       }
       setExpandedDisplayRows(null);
     }
+    // Snapshot BEFORE the fixed -> sticky flip below — see
+    // positionFlipRectRef's own doc comment for why.
+    positionFlipRectRef.current = stickyViewportRef.current?.getBoundingClientRect() ?? null;
     expandedRef.current = false;
     setExpanded(false);
     onExpandedChange?.(false);
@@ -771,6 +801,54 @@ export function MobilePinnedArticleSection({
   }, [
     config.scrollDrivenNavigationEnabled, itemCount, onActiveIndexCommit,
     onExpandedChange, prefersReducedMotion, scrollStepPx, sectionTop, unlockOuterScroll,
+  ]);
+
+  // Plays the FLIP bridge openPanel()/closePanel() set up above. Runs
+  // post-commit, pre-paint (useLayoutEffect, not useEffect) so the inverted
+  // starting transform is what the browser paints first — the user never
+  // sees the raw jump, only the slide that follows it. Uses the matching
+  // expand or collapse duration/easing depending on which direction `expanded`
+  // just flipped. Reduced motion intentionally skips the slide and just
+  // discards the snapshot; the position change itself is instant, which is
+  // the expected reduced-motion behavior.
+  useLayoutEffect(() => {
+    const rectBefore = positionFlipRectRef.current;
+    positionFlipRectRef.current = null;
+    if (!rectBefore || prefersReducedMotion) return;
+    const node = stickyViewportRef.current;
+    if (!node) return;
+    const rectAfter = node.getBoundingClientRect();
+    const deltaY = rectBefore.top - rectAfter.top;
+    if (Math.abs(deltaY) < 1) return;
+    const durationMs = expanded ? config.panelExpandDurationMs : config.panelCollapseDurationMs;
+    const easingCss = MOBILE_PINNED_ARTICLE_SECTION_EASINGS[
+      expanded ? config.panelExpandEasing : config.panelCollapseEasing
+    ];
+    node.style.transition = 'none';
+    node.style.transform = `translateY(${deltaY}px)`;
+    // Force a synchronous layout flush so the browser actually paints the
+    // inverted position before the rAF below starts the real transition —
+    // without this, both style writes could land in the same paint and the
+    // transition would have no visible starting frame to animate from.
+    void node.offsetHeight;
+    const frame = window.requestAnimationFrame(() => {
+      node.style.transition = `transform ${durationMs}ms ${easingCss}`;
+      node.style.transform = '';
+    });
+    const clearInlineStyles = () => {
+      node.style.transition = '';
+      node.removeEventListener('transitionend', clearInlineStyles);
+    };
+    node.addEventListener('transitionend', clearInlineStyles);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      node.removeEventListener('transitionend', clearInlineStyles);
+      node.style.transition = '';
+      node.style.transform = '';
+    };
+  }, [
+    expanded, config.panelExpandDurationMs, config.panelExpandEasing,
+    config.panelCollapseDurationMs, config.panelCollapseEasing, prefersReducedMotion,
   ]);
 
   // Every full-panel collapse shares one timeline, whether it came from a
@@ -1121,19 +1199,14 @@ export function MobilePinnedArticleSection({
     '--mobile-pinned-expanded-bg-opacity': config.expandedListBackgroundOpacity,
     '--mobile-pinned-expanded-backdrop-blur-px': `${config.expandedListBackdropBlurPx}px`,
     '--mobile-pinned-expanded-carousel-opacity': config.expandedCarouselBehindOpacity,
-    // Independent open/close pairs drive either the persistent glass
-    // surface's height or the card's rotation. The collapse pair is also
-    // reused for the carousel's opacity restoration.
+    // Independent open/close pairs drive the persistent glass surface's
+    // height, the card's rotation, and (operator ask) the carousel card's
+    // own opacity dimming behind it — all three read as one motion now
+    // rather than the card settling on its own separately-paced schedule.
     '--mobile-pinned-panel-expand-ms': `${config.panelExpandDurationMs}ms`,
     '--mobile-pinned-panel-expand-easing': MOBILE_PINNED_ARTICLE_SECTION_EASINGS[config.panelExpandEasing],
     '--mobile-pinned-panel-collapse-ms': `${config.panelCollapseDurationMs}ms`,
     '--mobile-pinned-panel-collapse-easing': MOBILE_PINNED_ARTICLE_SECTION_EASINGS[config.panelCollapseEasing],
-    // The backdrop sampled through the glass should settle before the panel
-    // reaches its own transition boundary. The old stable implementation's
-    // carousel fade was 320ms; cap both directions at that proven interval
-    // while respecting deliberately shorter panel durations.
-    '--mobile-pinned-carousel-expand-ms': `${Math.min(config.panelExpandDurationMs, 320)}ms`,
-    '--mobile-pinned-carousel-collapse-ms': `${Math.min(config.panelCollapseDurationMs, 320)}ms`,
     // The extra travel height only exists to give page-scroll something to
     // consume in scroll-driven mode. Off by default: the section is just
     // 100svh, and there's nothing to scroll through to reach any article —
@@ -1215,7 +1288,8 @@ export function MobilePinnedArticleSection({
       ref={rowsViewportRef}
       className={
         `${styles.rowsViewport} ${styles.fullListRowsViewport} `
-        + `${config.expandedListPaddingX} ${config.expandedListPaddingY}`
+        + `${config.expandedListPaddingTop} ${config.expandedListPaddingRight} `
+        + `${config.expandedListPaddingBottom} ${config.expandedListPaddingLeft}`
       }
       tabIndex={-1}
     >
@@ -1243,7 +1317,8 @@ export function MobilePinnedArticleSection({
       className={
         showsFullList
           ? `${styles.rowsViewport} ${styles.fullListRowsViewport} `
-            + `${config.expandedListPaddingX} ${config.expandedListPaddingY}`
+            + `${config.expandedListPaddingTop} ${config.expandedListPaddingRight} `
+            + `${config.expandedListPaddingBottom} ${config.expandedListPaddingLeft}`
           : `${styles.rowsViewport} ${styles.shortListRowsViewport}`
       }
       data-mobile-pinned-glass-viewport="true"
@@ -1251,7 +1326,47 @@ export function MobilePinnedArticleSection({
       tabIndex={-1}
     >
       <div className={styles.timeline}>
-        {showsFullList ? renderExpandedListContent() : renderShortListContent()}
+        {showsFullList ? renderExpandedListContent() : null}
+        {/* Operator ask: the short list fades out/in using the SAME
+         * duration/easing as the glass panel's own open/close (not the
+         * always-on windowStart settle-fade inside renderShortListContent,
+         * which is a separate, unrelated concern — see listSettleDurationMs's
+         * own doc comment). Kept mounted through its exit via AnimatePresence
+         * instead of the hard swap the ternary above still does for the full
+         * list, since a CSS opacity transition can't play across a mount. */}
+        <AnimatePresence initial={false}>
+          {!showsFullList && (
+            <motion.div
+              key="mobile-pinned-short-list-fade"
+              className={styles.shortListFadeLayer}
+              data-mobile-pinned-short-list-fade="true"
+              initial={prefersReducedMotion ? false : { opacity: 0 }}
+              animate={{
+                opacity: 1,
+                transition: prefersReducedMotion
+                  ? { duration: 0 }
+                  : {
+                    duration: config.panelCollapseDurationMs / 1000,
+                    ease: MOTION_EASING_BEZIERS[config.panelCollapseEasing],
+                  },
+              }}
+              // pointerEvents flips to 'none' the instant the exit begins (a
+              // plain, non-animated value in the exit target still applies
+              // immediately) — the panel is already expanding underneath by
+              // then, so this layer is purely a visual fade-out, not tappable.
+              exit={prefersReducedMotion ? undefined : {
+                opacity: 0,
+                pointerEvents: 'none',
+                transition: {
+                  duration: config.panelExpandDurationMs / 1000,
+                  ease: MOTION_EASING_BEZIERS[config.panelExpandEasing],
+                },
+              }}
+            >
+              {renderShortListContent()}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -1269,6 +1384,7 @@ export function MobilePinnedArticleSection({
         ))
         : null}
       <div
+        ref={stickyViewportRef}
         className={styles.stickyViewport}
         data-expanded={expanded}
         data-phase={presentationPhase}
