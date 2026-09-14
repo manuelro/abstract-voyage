@@ -12,11 +12,9 @@ import type { AboutTimelineRowData } from '../../../about/components/AboutTimeli
 import type { CoverFlowExternalGeometry } from '../CoverFlow/CoverFlow';
 import { usePrefersReducedMotion } from '../../../../helpers/usePrefersReducedMotion';
 import {
-  CTA_BUTTON_MOTION_EASINGS,
-  type CtaButtonMotionEasing,
-} from '../../../../components/CtaButton/config/registered';
-import {
+  MOBILE_PINNED_ARTICLE_SECTION_EASINGS,
   normalizeMobilePinnedArticleSectionConfig,
+  type MobilePinnedArticleSectionEasing,
   type MobilePinnedArticleSectionConfig,
 } from './MobilePinnedArticleSection.config';
 import styles from './styles.module.css';
@@ -107,20 +105,28 @@ const clampIndex = (index: number, count: number) => (
  * that Rules A/B never actually need that clamp, and a worked-example
  * table for the boundary cases.
  */
-// Motion's `ease` prop doesn't accept arbitrary CSS strings (no
-// `cubic-bezier(...)` passthrough) — only a named keyword or a raw
-// [x1,y1,x2,y2] bezier tuple. Same 6 curves as CTA_BUTTON_MOTION_EASINGS
-// (components/CtaButton/config/registered.ts), pre-extracted into the tuple
-// shape Motion needs; there's no shared bezier-tuple catalog yet, so this
-// stays local like every other easing catalog in the codebase.
-const MOTION_EASING_BEZIERS: Record<CtaButtonMotionEasing, 'linear' | readonly [number, number, number, number]> = {
+// Motion accepts named keywords or raw bezier tuples, but not arbitrary CSS
+// easing strings. Keep this in step with the familiar config names.
+const MOTION_EASING_BEZIERS: Record<MobilePinnedArticleSectionEasing, 'linear' | readonly [number, number, number, number]> = {
   linear: 'linear',
-  standard: [0.2, 0, 0, 1],
-  expressive: [0.22, 1, 0.36, 1],
-  viscous: [0.16, 1, 0.3, 1],
-  gentle: [0.33, 1, 0.68, 1],
-  gaussian: [0.37, 0, 0.63, 1],
+  ease: [0.25, 0.1, 0.25, 1],
+  easeIn: [0.42, 0, 1, 1],
+  easeOut: [0, 0, 0.58, 1],
+  easeInOut: [0.42, 0, 0.58, 1],
 };
+
+function rowStartDelayMs(index: number, durationMs: number, overlapPercent: number): number {
+  return Math.round(index * durationMs * (1 - overlapPercent / 100));
+}
+
+function rowCascadeDurationMs(
+  rowCount: number,
+  durationMs: number,
+  overlapPercent: number,
+): number {
+  if (rowCount <= 0 || durationMs <= 0) return 0;
+  return durationMs + rowStartDelayMs(rowCount - 1, durationMs, overlapPercent);
+}
 
 function computeWindowStart(selectedIndex: number, totalItems: number, windowSize: number): number {
   if (totalItems <= windowSize) return 0;
@@ -568,35 +574,30 @@ export function MobilePinnedArticleSection({
     if (config.scrollDrivenNavigationEnabled) sectionTop();
     expandedRef.current = true;
     setExpanded(true);
-    setPresentationPhase(usesCardFlip ? 'opening' : 'preparing');
+    setPresentationPhase('preparing');
     if (prefersReducedMotion) {
       setPresentationPhase('open');
       setExpandedDisplayRows(null);
     } else {
       // STAGE-04: mount every row hidden (opacity 0 only, no
       // scale/transform), no transition yet — a freshly-mounted element has
-      // no prior frame to interpolate from. Rows stay hidden until the
-      // panel itself is confirmed open (below) — they never fade in
-      // against a still-resizing box.
+      // no prior frame to interpolate from.
       setExpandedDisplayRows(rows.map(row => ({ ...row, itemStyle: { opacity: 0 } })));
       const beginRowEntrance = () => {
-        // STAGE-05: flip to visible — a strict chain reaction, not an
-        // arbitrary stagger multiplier: row N starts exactly when row N-1
-        // finishes (delay = N * rowFadeInDurationMs), so this one duration
-        // fully determines both an individual row's fade and the whole
-        // cascade's total length.
-        const easingCss = CTA_BUTTON_MOTION_EASINGS[config.rowFadeInEasing];
+        const easingCss = MOBILE_PINNED_ARTICLE_SECTION_EASINGS[config.rowFadeInEasing];
         setExpandedDisplayRows(rows.map((row, index) => ({
           ...row,
           itemStyle: {
             opacity: 1,
             transition: `opacity ${config.rowFadeInDurationMs}ms ${easingCss} `
-              + `${index * config.rowFadeInDurationMs}ms`,
+              + `${rowStartDelayMs(
+                index, config.rowFadeInDurationMs, config.rowFadeInOverlapPercent,
+              )}ms`,
           },
         })));
       };
-      const startEntranceAfterDelay = () => {
-        if (config.rowFadeInDelayMs <= 0) {
+      const startEntranceAfterDelay = (delayMs: number) => {
+        if (delayMs <= 0) {
           const frame = window.requestAnimationFrame(() => {
             openMountFrameRef.current = null;
             beginRowEntrance();
@@ -611,13 +612,9 @@ export function MobilePinnedArticleSection({
             beginRowEntrance();
           });
           openMountFrameRef.current = frame;
-        }, config.rowFadeInDelayMs);
+        }, delayMs);
       };
-      // STAGE-04/05 boundary: wait for the presentation surface's OWN open
-      // transition to genuinely finish — its real `transitionend`, not a
-      // duration guess (the same "listen for the real event" approach the
-      // close side already uses) — THEN wait rowFadeInDelayMs, THEN start
-      // the row entrance chain.
+      const startsRowsDuringPanelOpen = config.panelExpandFirstRowOverlapPercent > 0;
       const motionSurface = usesCardFlip ? flipCardRef.current : panelRef.current;
       let expandSettled = false;
       const finishPanelExpand = () => {
@@ -630,7 +627,9 @@ export function MobilePinnedArticleSection({
           panelExpandFallbackTimerRef.current = null;
         }
         setPresentationPhase('open');
-        startEntranceAfterDelay();
+        if (!startsRowsDuringPanelOpen) {
+          startEntranceAfterDelay(config.rowFadeInDelayMs);
+        }
       };
       if (config.panelExpandDurationMs <= 0 || !motionSurface) {
         finishPanelExpand();
@@ -647,7 +646,23 @@ export function MobilePinnedArticleSection({
         panelExpandFallbackTimerRef.current = window.setTimeout(
           finishPanelExpand, config.panelExpandDurationMs + 200,
         );
-        if (!usesCardFlip) {
+        const startPanelMotion = () => {
+          panelMotionStartFrameRef.current = null;
+          setPresentationPhase('opening');
+          if (startsRowsDuringPanelOpen) {
+            const firstRowStartMs = Math.max(
+              0,
+              Math.round(
+                config.panelExpandDurationMs
+                * (1 - config.panelExpandFirstRowOverlapPercent / 100),
+              ) + config.rowFadeInDelayMs,
+            );
+            startEntranceAfterDelay(firstRowStartMs);
+          }
+        };
+        if (usesCardFlip) {
+          panelMotionStartFrameRef.current = window.requestAnimationFrame(startPanelMotion);
+        } else {
           // A state update scheduled in the first rAF can still be folded into
           // the click's first paint. Wait through that paint, then start the
           // height transition in the following frame. The preparation state
@@ -657,8 +672,7 @@ export function MobilePinnedArticleSection({
           panelPrepareFrameRef.current = window.requestAnimationFrame(() => {
             panelPrepareFrameRef.current = null;
             panelMotionStartFrameRef.current = window.requestAnimationFrame(() => {
-              panelMotionStartFrameRef.current = null;
-              setPresentationPhase('opening');
+              startPanelMotion();
             });
           });
         }
@@ -682,7 +696,8 @@ export function MobilePinnedArticleSection({
     });
   }, [
     cancelInFlightCloseSequence, cancelInFlightOpenSequence, config.panelExpandDurationMs,
-    config.rowFadeInDelayMs, config.rowFadeInDurationMs, config.rowFadeInEasing,
+    config.panelExpandFirstRowOverlapPercent, config.rowFadeInDelayMs,
+    config.rowFadeInDurationMs, config.rowFadeInEasing, config.rowFadeInOverlapPercent,
     config.scrollDrivenNavigationEnabled, flushPendingDeferredCommit, lockOuterScroll,
     onExpandedChange, prefersReducedMotion, rows, sectionTop, usesCardFlip,
   ]);
@@ -758,19 +773,10 @@ export function MobilePinnedArticleSection({
     onExpandedChange, prefersReducedMotion, scrollStepPx, sectionTop, unlockOuterScroll,
   ]);
 
-  // Regression fix (operator-reported): EVERY full-panel collapse — whether
-  // triggered by picking a row (handleListSelect) or by a plain close
-  // (Escape/backdrop, previously wired straight to closePanel() with no
-  // animation at all) — must run the exact same three-beat sequence: (1)
-  // every row fades its opacity out top-to-bottom, a strict chain reaction
-  // (row N starts exactly when row N-1 finishes), (2) only once the LAST
-  // row's own `transitionend` confirms it's fully invisible does the panel
-  // itself returns to compact height, (3) only once that height transition's
-  // own `transitionend` confirms it is done does `commit` run. `commit` is
-  // the one piece that differs per caller — setting expandedSelectionRef
-  // and (in scroll-driven/reduced-motion mode) `position` for a row pick,
-  // or nothing beyond closePanel() itself for a plain close — everything
-  // else about the sequence is identical either way.
+  // Every full-panel collapse shares one timeline, whether it came from a
+  // row selection or a plain close. Rows and the panel may now overlap, but
+  // the close commits only after BOTH the final row and the panel have
+  // genuinely finished their respective transitions.
   const beginCloseSequence = useCallback((commit: () => void, afterClosed?: () => void) => {
     // A rapid re-tap/re-close mid-sequence (a PREVIOUS close's own fade is
     // still in flight) must not leave anything from that stale sequence
@@ -790,101 +796,93 @@ export function MobilePinnedArticleSection({
       return;
     }
 
-    // BEAT 1: every row stays at its own original position and fades its
-    // OPACITY ONLY (no scale/transform) — a strict chain reaction, not an
-    // arbitrary stagger multiplier: row N starts fading out exactly when
-    // row N-1 finishes (delay = N * rowFadeOutDurationMs), TOP row (index 0)
-    // first, the LAST (bottom) row last, so the last row's own fade is what
-    // proceedAfterFadeOut (below) waits on before anything else happens.
-    // The panel stays fully open, at full height and opacity, the whole
-    // time this runs.
-    const leaveEasingCss = CTA_BUTTON_MOTION_EASINGS[config.rowFadeOutEasing];
+    const leaveEasingCss = MOBILE_PINNED_ARTICLE_SECTION_EASINGS[config.rowFadeOutEasing];
     const currentRows = expandedDisplayRowsRef.current ?? rows;
     const rowCount = currentRows.length;
+    const fadeOutTotalMs = rowCascadeDurationMs(
+      rowCount, config.rowFadeOutDurationMs, config.rowFadeOutOverlapPercent,
+    );
     setExpandedDisplayRows(currentRows.map((row, index) => ({
       ...row,
       itemStyle: {
         opacity: 0,
         transition: `opacity ${config.rowFadeOutDurationMs}ms ${leaveEasingCss} `
-          + `${index * config.rowFadeOutDurationMs}ms`,
+          + `${rowStartDelayMs(
+            index, config.rowFadeOutDurationMs, config.rowFadeOutOverlapPercent,
+          )}ms`,
         pointerEvents: 'none',
       },
     })));
 
-    const proceedAfterFadeOut = () => {
-      const beginPanelCollapse = () => {
-        selectHoldTimerRef.current = null;
-        // BEAT 2: reverse the selected full-list presentation. Glass returns
-        // the same persistent surface to its compact height; card flip
-        // rotates back to its front face.
-        setPresentationPhase('closing');
-        const motionSurface = usesCardFlip ? flipCardRef.current : panelRef.current;
-        let settled = false;
-        const finishClose = () => {
-          if (settled) return;
-          settled = true;
-          panelCollapseListenerCleanupRef.current?.();
-          panelCollapseListenerCleanupRef.current = null;
-          if (panelCollapseFallbackTimerRef.current !== null) {
-            window.clearTimeout(panelCollapseFallbackTimerRef.current);
-            panelCollapseFallbackTimerRef.current = null;
-          }
-          // The surface is now compact (or the card is front-facing). Commit
-          // the modal close, then return the short-list content without ever
-          // replacing the glass panel node itself.
-          commit();
-          setPresentationPhase('closed');
-          setExpandedDisplayRows(null);
-          afterClosed?.();
-        };
-        if (config.panelCollapseDurationMs <= 0 || !motionSurface) {
-          finishClose();
-          return;
+    let rowsSettled = rowCount === 0 || fadeOutTotalMs <= 0;
+    let panelSettled = false;
+    let panelStarted = false;
+    let closeSettled = false;
+    const finishClose = () => {
+      if (!rowsSettled || !panelSettled || closeSettled) return;
+      closeSettled = true;
+      commit();
+      setPresentationPhase('closed');
+      setExpandedDisplayRows(null);
+      afterClosed?.();
+    };
+    const beginPanelCollapse = () => {
+      if (panelStarted) return;
+      panelStarted = true;
+      selectHoldTimerRef.current = null;
+      setPresentationPhase('closing');
+      const motionSurface = usesCardFlip ? flipCardRef.current : panelRef.current;
+      let settled = false;
+      const finishPanelCollapse = () => {
+        if (settled) return;
+        settled = true;
+        panelCollapseListenerCleanupRef.current?.();
+        panelCollapseListenerCleanupRef.current = null;
+        if (panelCollapseFallbackTimerRef.current !== null) {
+          window.clearTimeout(panelCollapseFallbackTimerRef.current);
+          panelCollapseFallbackTimerRef.current = null;
         }
-        const onCollapseTransitionEnd = (event: TransitionEvent) => {
-          const expectedProperty = usesCardFlip ? 'transform' : 'height';
-          if (event.propertyName !== expectedProperty || event.target !== motionSurface) return;
-          finishClose();
-        };
-        motionSurface.addEventListener('transitionend', onCollapseTransitionEnd);
-        panelCollapseListenerCleanupRef.current = () => {
-          motionSurface.removeEventListener('transitionend', onCollapseTransitionEnd);
-        };
-        panelCollapseFallbackTimerRef.current = window.setTimeout(
-          finishClose, config.panelCollapseDurationMs + 200,
-        );
+        panelSettled = true;
+        finishClose();
       };
-      // A zero hold is a semantic "immediately after the last row" — do not
-      // turn it into an extra task/paint with setTimeout(0). That blank frame
-      // leaves an empty glass surface on screen before its motion starts,
-      // which reads as a flash rather than one continuous collapse.
-      if (config.panelCollapseDelayMs <= 0) {
+      if (config.panelCollapseDurationMs <= 0 || !motionSurface) {
+        finishPanelCollapse();
+        return;
+      }
+      const onCollapseTransitionEnd = (event: TransitionEvent) => {
+        const expectedProperty = usesCardFlip ? 'transform' : 'height';
+        if (event.propertyName !== expectedProperty || event.target !== motionSurface) return;
+        finishPanelCollapse();
+      };
+      motionSurface.addEventListener('transitionend', onCollapseTransitionEnd);
+      panelCollapseListenerCleanupRef.current = () => {
+        motionSurface.removeEventListener('transitionend', onCollapseTransitionEnd);
+      };
+      panelCollapseFallbackTimerRef.current = window.setTimeout(
+        finishPanelCollapse, config.panelCollapseDurationMs + 200,
+      );
+    };
+    const schedulePanelCollapse = (delayMs: number) => {
+      if (delayMs <= 0) {
         beginPanelCollapse();
         return;
       }
-      selectHoldTimerRef.current = window.setTimeout(
-        beginPanelCollapse, config.panelCollapseDelayMs,
-      );
+      selectHoldTimerRef.current = window.setTimeout(beginPanelCollapse, delayMs);
     };
 
-    // BEAT 1 must genuinely finish — all the way through the LAST chained
-    // row's own fade — before BEAT 2/3 may begin. A computed-duration
-    // `setTimeout` guess (this component's earlier approach) can fire a few
-    // ms early: setTimeout isn't guaranteed to run in lockstep with the CSS
-    // engine's own transition clock (browser timer clamping/drift), which
-    // is exactly how the panel could start fading/collapsing before the
-    // last row had genuinely finished — a real, reported gap arithmetic
-    // alone couldn't close. Waiting for the row's own `transitionend` event
-    // removes the guesswork. The timer below is a safety net only (e.g. a
-    // browser quirk swallowing the event), not the primary signal.
-    const fadeOutTotalMs = rowCount * config.rowFadeOutDurationMs;
-    if (rowCount === 0 || fadeOutTotalMs <= 0) {
-      proceedAfterFadeOut();
+    // At 0% retain the exact event-driven serial sequence. Higher values use
+    // the configured cascade geometry to pull panel close into the exit
+    // timeline; completion still waits for the real final-row event.
+    const panelOverlap = config.panelCollapseFirstRowOverlapPercent / 100;
+    const panelStartDelayMs = Math.round(fadeOutTotalMs * (1 - panelOverlap))
+      + config.panelCollapseDelayMs;
+    if (rowsSettled) {
+      schedulePanelCollapse(config.panelCollapseDelayMs);
       return;
     }
     const viewport = rowsViewportRef.current ?? glassRowsViewportRef.current;
     let settled = false;
-    const finish = () => {
+    const finishRows = () => {
       if (settled) return;
       settled = true;
       fadeOutListenerCleanupRef.current?.();
@@ -893,7 +891,11 @@ export function MobilePinnedArticleSection({
         window.clearTimeout(fadeOutFallbackTimerRef.current);
         fadeOutFallbackTimerRef.current = null;
       }
-      proceedAfterFadeOut();
+      rowsSettled = true;
+      if (panelOverlap <= 0) {
+        schedulePanelCollapse(config.panelCollapseDelayMs);
+      }
+      finishClose();
     };
     const onTransitionEnd = (event: TransitionEvent) => {
       if (event.propertyName !== 'opacity') return;
@@ -905,16 +907,20 @@ export function MobilePinnedArticleSection({
       // child of its own parent" reliably identifies it regardless of how
       // many rows are in play.
       if (target.parentElement?.lastElementChild !== target) return;
-      finish();
+      finishRows();
     };
     viewport?.addEventListener('transitionend', onTransitionEnd);
     fadeOutListenerCleanupRef.current = () => {
       viewport?.removeEventListener('transitionend', onTransitionEnd);
     };
-    fadeOutFallbackTimerRef.current = window.setTimeout(finish, fadeOutTotalMs + 200);
+    fadeOutFallbackTimerRef.current = window.setTimeout(finishRows, fadeOutTotalMs + 200);
+    if (panelOverlap > 0) {
+      schedulePanelCollapse(panelStartDelayMs);
+    }
   }, [
     cancelInFlightCloseSequence, cancelInFlightOpenSequence, config.panelCollapseDelayMs,
-    config.panelCollapseDurationMs, config.rowFadeOutDurationMs, config.rowFadeOutEasing,
+    config.panelCollapseDurationMs, config.panelCollapseFirstRowOverlapPercent,
+    config.rowFadeOutDurationMs, config.rowFadeOutEasing, config.rowFadeOutOverlapPercent,
     prefersReducedMotion, rows, usesCardFlip,
   ]);
 
@@ -1119,9 +1125,9 @@ export function MobilePinnedArticleSection({
     // surface's height or the card's rotation. The collapse pair is also
     // reused for the carousel's opacity restoration.
     '--mobile-pinned-panel-expand-ms': `${config.panelExpandDurationMs}ms`,
-    '--mobile-pinned-panel-expand-easing': CTA_BUTTON_MOTION_EASINGS[config.panelExpandEasing],
+    '--mobile-pinned-panel-expand-easing': MOBILE_PINNED_ARTICLE_SECTION_EASINGS[config.panelExpandEasing],
     '--mobile-pinned-panel-collapse-ms': `${config.panelCollapseDurationMs}ms`,
-    '--mobile-pinned-panel-collapse-easing': CTA_BUTTON_MOTION_EASINGS[config.panelCollapseEasing],
+    '--mobile-pinned-panel-collapse-easing': MOBILE_PINNED_ARTICLE_SECTION_EASINGS[config.panelCollapseEasing],
     // The backdrop sampled through the glass should settle before the panel
     // reaches its own transition boundary. The old stable implementation's
     // carousel fade was 320ms; cap both directions at that proven interval

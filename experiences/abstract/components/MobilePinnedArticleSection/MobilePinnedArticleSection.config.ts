@@ -5,17 +5,21 @@ import {
   type PaddingXClass,
   type PaddingYClass,
 } from '../../../../components/tailwindSpacingScale';
-import type { CtaButtonMotionEasing } from '../../../../components/CtaButton/config/registered';
 
-// Same shared named-easing catalog CtaButton/AboutTimeline/Panel/CardStack
-// etc. all already draw from (CTA_BUTTON_MOTION_EASINGS,
-// components/CtaButton/config/registered.ts) — no bespoke cubic-bezier
-// tuples here, so the settings panel can expose readable named options rather
-// than untunable raw numbers. The panel uses compact `select` fields for the
-// repeated easing controls.
-const MOTION_EASING_KEYS: readonly CtaButtonMotionEasing[] = [
-  'linear', 'standard', 'expressive', 'viscous', 'gentle', 'gaussian',
-];
+export const MOBILE_PINNED_ARTICLE_SECTION_EASINGS = {
+  linear: 'linear',
+  ease: 'ease',
+  easeIn: 'ease-in',
+  easeOut: 'ease-out',
+  easeInOut: 'ease-in-out',
+} as const;
+
+export type MobilePinnedArticleSectionEasing =
+  keyof typeof MOBILE_PINNED_ARTICLE_SECTION_EASINGS;
+
+const MOTION_EASING_KEYS = Object.keys(
+  MOBILE_PINNED_ARTICLE_SECTION_EASINGS,
+) as MobilePinnedArticleSectionEasing[];
 
 export const MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID =
   'MobilePinnedArticleSection/layout' as const;
@@ -108,57 +112,53 @@ export type MobilePinnedArticleSectionConfig = {
    * the persistent compact panel to expandedPanelHeightPercent; cardFlip
    * rotates the active card. Decoupled from panelCollapseDurationMs below. */
   panelExpandDurationMs: number;
-  /** STAGE-04 — named easing (CTA_BUTTON_MOTION_EASINGS) for the panel's own
-   * open transition, independent of panelCollapseEasing. */
-  panelExpandEasing: CtaButtonMotionEasing;
-  /** STAGE-04/05 boundary — ms held after the panel's own open transition
-   * has genuinely finished (confirmed via its real `transitionend`, not a
-   * duration guess) before the first row starts fading in. 0 = rows start
-   * the instant the panel finishes opening. */
+  /** STAGE-04 — familiar CSS-style easing name for the panel's own open
+   * transition, independent of panelCollapseEasing. */
+  panelExpandEasing: MobilePinnedArticleSectionEasing;
+  /** Percentage of the panel-open duration that overlaps the first row's
+   * entrance. `0` preserves the serial panel-then-rows sequence; `100`
+   * starts the first row with the panel. */
+  panelExpandFirstRowOverlapPercent: number;
+  /** Extra ms before the first row starts fading in. At 0% panel/row overlap
+   * it begins after the panel transition; otherwise it is added to the
+   * calculated overlap position. */
   rowFadeInDelayMs: number;
-  /** STAGE-05 — ms for ONE row's own opacity fade-in (no scale/transform).
-   * There is no separate stagger field: the cascade is a strict chain
-   * reaction — row N starts exactly when row N-1 finishes (delay = N *
-   * rowFadeInDurationMs) — so this single number fully determines both an
-   * individual row's fade and the whole cascade's total length
-   * (rowCount * rowFadeInDurationMs). */
+  /** STAGE-05 — ms for one row's own opacity fade-in (no scale/transform). */
   rowFadeInDurationMs: number;
-  /** STAGE-05 — named easing (CTA_BUTTON_MOTION_EASINGS) for each row's
-   * fade-in, independent of rowFadeOutEasing — entrance and leaving are two
-   * distinct motions and may want different curves. */
-  rowFadeInEasing: CtaButtonMotionEasing;
+  /** Percentage of a row's entrance duration that overlaps the next row.
+   * `0` is sequential; `100` starts every row together. */
+  rowFadeInOverlapPercent: number;
+  /** STAGE-05 — familiar CSS-style easing name for each row's fade-in. */
+  rowFadeInEasing: MobilePinnedArticleSectionEasing;
   /** STAGE-06 — ms for ONE row's own opacity fade-out when the full list
    * closes (selection, Escape, or backdrop; no scale/transform). Applies to
    * every row currently on screen — all stay at their original position
-   * while fading. Chain reaction, same mechanism as rowFadeInDurationMs:
-   * row N starts exactly when row N-1 finishes, item 1 first, the LAST row
-   * last — its own real `transitionend` gates STAGE-07 (panel closing), not
-   * a computed duration. */
+   * while fading. */
   rowFadeOutDurationMs: number;
-  /** STAGE-06 — named easing (CTA_BUTTON_MOTION_EASINGS) for each row's
-   * fade-out, independent of rowFadeInEasing. */
-  rowFadeOutEasing: CtaButtonMotionEasing;
-  /** STAGE-06/07 boundary — ms held after the LAST row's fade-out has
-   * genuinely finished (confirmed via its real `transitionend`) before the
-   * panel starts closing. 0 = the panel starts closing the instant the last
-   * row disappears. */
+  /** Percentage of a row's exit duration that overlaps the next row's exit.
+   * `0` is sequential; `100` starts every row together. */
+  rowFadeOutOverlapPercent: number;
+  /** STAGE-06 — familiar CSS-style easing name for each row's fade-out. */
+  rowFadeOutEasing: MobilePinnedArticleSectionEasing;
+  /** Percentage of the row-exit cascade that overlaps the panel close.
+   * `0` starts closing after the final row; `100` starts closing with the
+   * first row. Completion waits for both motions. */
+  panelCollapseFirstRowOverlapPercent: number;
+  /** Extra ms after the overlap schedule before the panel starts closing. */
   panelCollapseDelayMs: number;
-  /** STAGE-07 — ms for the panel's own close transition: only after the last
-   * row has faded does the persistent glass surface return to its compact
-   * height (or the card rotate to its front face). This should normally mirror
-   * panelExpandDurationMs, so opening and closing are one reversible spatial
-   * motion. The carousel behind it settles within the first 320ms of this
-   * interval so the backdrop is stable before the panel reaches its boundary;
-   * this duration is also the wait before the deferred CoverFlow translate.
-   * It directly drives the real CSS transition (`.panel`/`.carousel` via
+  /** STAGE-07 — ms for the panel's own close transition. It can overlap the
+   * row-exit cascade according to panelCollapseFirstRowOverlapPercent, and
+   * the close finishes only once both motions have completed. The carousel
+   * behind it settles within the first 320ms of this interval. It directly
+   * drives the real CSS transition (`.panel`/`.carousel` via
    * --mobile-pinned-panel-collapse-ms), not just a JS-side timer. */
   panelCollapseDurationMs: number;
-  /** STAGE-07 — named easing (CTA_BUTTON_MOTION_EASINGS) for the panel's own
-   * close transition, independent of panelExpandEasing. Also used for the
+  /** STAGE-07 — familiar CSS-style easing name for the panel's own close
+   * transition, independent of panelExpandEasing. Also used for the
    * short list's own post-collapse settle cross-fade (listSettleDurationMs
    * below) — that settle is triggered by the same closePanel() call that
    * starts this close transition, so the two read as one motion. */
-  panelCollapseEasing: CtaButtonMotionEasing;
+  panelCollapseEasing: MobilePinnedArticleSectionEasing;
   /** Ms for the collapsed short list's own post-settle fade/slide-in
    * whenever its windowed selection changes — an always-on feature
    * independent of the expand/collapse sequence above (it also fires on
@@ -183,54 +183,68 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   scrollEffortMultiplier: 0.8,
   scrollDrivenNavigationEnabled: false,
   fullListPresentation: 'glassPanel',
-  expandedListPaddingX: 'px-14',
+  expandedListPaddingX: 'px-10',
   expandedListPaddingY: 'py-7',
   expandedListBackgroundColor: '',
   // Keep enough translucency to reveal the fixed-size blur layer while the
   // resolved fallback color preserves the panel silhouette if Chromium drops
   // a filtered frame.
-  expandedListBackgroundOpacity: 0.72,
-  expandedListBackdropBlurPx: 32,
-  expandedCarouselBehindOpacity: 0.5,
+  expandedListBackgroundOpacity: 0,
+  expandedListBackdropBlurPx: 40,
+  expandedCarouselBehindOpacity: 0.72,
   expandedForcesMaxBackgroundDarken: true,
   // The persistent surface's top edge travels from the compact-list boundary
-  // to the expanded boundary. Give that distance enough time to register as
-  // one object growing upward; `gaussian` centers velocity in the travel.
-  panelExpandDurationMs: 800,
-  // `gaussian` is a symmetric ease-in-out curve, appropriate for a large
-  // change in the surface's visible height.
-  panelExpandEasing: 'gaussian',
+  // to the expanded boundary. A symmetric curve makes this read as one object
+  // growing upward rather than a fast reveal.
+  panelExpandDurationMs: 720,
+  panelExpandEasing: 'easeInOut',
+  panelExpandFirstRowOverlapPercent: 20,
   // A short settle beat makes the completed surface legible before its
   // content starts, without turning an intentional sequence into a pause.
-  rowFadeInDelayMs: 80,
-  // Rows are a strict chain: this is both each row's fade duration and the
-  // gap before the next row begins. 110ms is long enough to read as a true
-  // cascade while keeping a six-row list below three quarters of a second.
-  rowFadeInDurationMs: 110,
-  rowFadeInEasing: 'gaussian',
+  rowFadeInDelayMs: 10,
+  // Overlapped row entrances keep the cascade legible without making every
+  // article wait for the previous one to finish completely.
+  rowFadeInDurationMs: 150,
+  rowFadeInOverlapPercent: 70,
+  rowFadeInEasing: 'easeInOut',
   // Collapse is the exact temporal inverse of entrance: rows leave from top
   // to bottom before the glass panel moves. This must stay non-zero; zero
   // bypasses the transitionend gate and makes the panel appear to snap shut.
-  rowFadeOutDurationMs: 110,
-  rowFadeOutEasing: 'gaussian',
+  rowFadeOutDurationMs: 180,
+  rowFadeOutOverlapPercent: 70,
+  rowFadeOutEasing: 'easeOut',
+  panelCollapseFirstRowOverlapPercent: 50,
   // Start the spatial return in the same completion turn as the final row's
   // fade. Holding an empty glass surface here reads as a flicker or a brief
   // disappearance before the actual collapse, not as an intentional pause.
-  panelCollapseDelayMs: 0,
+  panelCollapseDelayMs: 20,
   // Return the same surface to its compact height as the visual reverse of
   // its expansion.
-  panelCollapseDurationMs: 1000,
-  panelCollapseEasing: 'gaussian',
+  panelCollapseDurationMs: 560,
+  panelCollapseEasing: 'easeInOut',
   // Leave a short beat for the now-visible short list before the CoverFlow
   // selection commits and moves behind it.
   listSettleDurationMs: 160,
 } satisfies MobilePinnedArticleSectionConfig;
 
 function normalizeEasing(
-  value: CtaButtonMotionEasing,
-  fallback: CtaButtonMotionEasing,
-): CtaButtonMotionEasing {
-  return MOTION_EASING_KEYS.includes(value) ? value : fallback;
+  value: unknown,
+  fallback: MobilePinnedArticleSectionEasing,
+): MobilePinnedArticleSectionEasing {
+  if (typeof value !== 'string') return fallback;
+  if (MOTION_EASING_KEYS.includes(value as MobilePinnedArticleSectionEasing)) {
+    return value as MobilePinnedArticleSectionEasing;
+  }
+  // Keep previously persisted values functional while exposing only the
+  // familiar names above going forward.
+  const legacyEasings: Record<string, MobilePinnedArticleSectionEasing> = {
+    standard: 'ease',
+    expressive: 'easeOut',
+    viscous: 'easeOut',
+    gentle: 'easeOut',
+    gaussian: 'easeInOut',
+  };
+  return legacyEasings[value] ?? fallback;
 }
 
 export function normalizeMobilePinnedArticleSectionConfig(
@@ -269,14 +283,22 @@ export function normalizeMobilePinnedArticleSectionConfig(
     panelExpandEasing: normalizeEasing(
       base.panelExpandEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.panelExpandEasing,
     ),
+    panelExpandFirstRowOverlapPercent: Math.round(
+      clamp(base.panelExpandFirstRowOverlapPercent, 0, 100),
+    ),
     rowFadeInDelayMs: Math.round(clamp(base.rowFadeInDelayMs, 0, 1000)),
     rowFadeInDurationMs: Math.round(clamp(base.rowFadeInDurationMs, 0, 1000)),
+    rowFadeInOverlapPercent: Math.round(clamp(base.rowFadeInOverlapPercent, 0, 100)),
     rowFadeInEasing: normalizeEasing(
       base.rowFadeInEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.rowFadeInEasing,
     ),
     rowFadeOutDurationMs: Math.round(clamp(base.rowFadeOutDurationMs, 0, 1000)),
+    rowFadeOutOverlapPercent: Math.round(clamp(base.rowFadeOutOverlapPercent, 0, 100)),
     rowFadeOutEasing: normalizeEasing(
       base.rowFadeOutEasing, DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.rowFadeOutEasing,
+    ),
+    panelCollapseFirstRowOverlapPercent: Math.round(
+      clamp(base.panelCollapseFirstRowOverlapPercent, 0, 100),
     ),
     panelCollapseDelayMs: Math.round(clamp(base.panelCollapseDelayMs, 0, 1000)),
     panelCollapseDurationMs: Math.round(clamp(base.panelCollapseDurationMs, 0, 1000)),

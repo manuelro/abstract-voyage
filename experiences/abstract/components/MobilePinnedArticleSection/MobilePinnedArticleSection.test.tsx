@@ -174,4 +174,71 @@ describe('MobilePinnedArticleSection persistent glass panel', () => {
     expect(css).toContain('.flipCard[data-flipped=\'true\']');
     expect(css).toContain('transform: rotateY(190deg)');
   });
+
+  it('uses the configured overlap to offset each row entrance', () => {
+    const rows: AboutTimelineRowData[] = [
+      { caption: 'First article', slideIndex: 0 },
+      { caption: 'Second article', slideIndex: 1 },
+      { caption: 'Third article', slideIndex: 2 },
+    ];
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() => root.render(
+      <MobilePinnedArticleSection
+        itemCount={rows.length}
+        rows={rows}
+        activeIndex={0}
+        onActiveIndexChange={() => undefined}
+        onActiveIndexCommit={() => undefined}
+        renderCarousel={() => <div>Carousel</div>}
+        renderList={({ activeIndex, rows: listRows, onSelect }) => (
+          <div>
+            {listRows.map(row => (
+              <button
+                key={row.slideIndex}
+                type="button"
+                role="tab"
+                aria-selected={row.slideIndex === activeIndex}
+                style={row.itemStyle}
+                onClick={() => onSelect(row.slideIndex)}
+              >
+                {row.caption}
+              </button>
+            ))}
+          </div>
+        )}
+        carouselColor="#d7d7e5"
+        panelColor="#d7d7e5"
+        config={{
+          ...DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
+          panelExpandDurationMs: 100,
+          rowFadeInDelayMs: 0,
+          rowFadeInDurationMs: 100,
+          rowFadeInOverlapPercent: 50,
+        }}
+      />,
+    ));
+
+    const expandButton = Array.from(container.querySelectorAll('button'))
+      .find(button => button.textContent === 'Expand list');
+    act(() => expandButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    act(flushAnimationFrame);
+    act(flushAnimationFrame);
+
+    const panel = container.querySelector<HTMLElement>('[data-mobile-pinned-glass-panel="true"]');
+    act(() => transitionEnd(panel as HTMLElement, 'height'));
+    act(flushAnimationFrame);
+
+    const transitions = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+      .map(tab => tab.style.transition);
+    expect(transitions).toEqual([
+      'opacity 100ms ease-out 0ms',
+      'opacity 100ms ease-out 50ms',
+      'opacity 100ms ease-out 100ms',
+    ]);
+
+    act(() => root.unmount());
+  });
 });

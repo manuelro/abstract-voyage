@@ -8,21 +8,15 @@ import {
 
 export { MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID };
 
-// Local catalog, same "each panel.ts keeps its own copy" convention as
-// CtaButton.panel.ts/AboutTimeline.panel.ts/SplitColumnCardPreview's
-// stack.panel.ts — all draw from the same 6-key CtaButtonMotionEasing union
-// (CTA_BUTTON_MOTION_EASINGS, components/CtaButton/config/registered.ts)
-// without importing a shared options array. `kind: 'select'`, not 'enum' —
-// this field appears 4 times in this one panel, so 4 SegmentedControl rows
-// of 6 buttons each read as an unreadable wall of inline labels; a native
-// `<select>` dropdown collapses each down to one line until opened.
+// `kind: 'select'`, not 'enum' — these familiar easing names recur several
+// times in the same panel, so native selects remain much easier to scan than
+// repeated segmented-control rows.
 const MOTION_EASING_OPTIONS = [
-  { label: 'LINEAR', value: 'linear' },
-  { label: 'STANDARD', value: 'standard' },
-  { label: 'EXPRESSIVE (default)', value: 'expressive' },
-  { label: 'VISCOUS', value: 'viscous' },
-  { label: 'GENTLE', value: 'gentle' },
-  { label: 'GAUSSIAN', value: 'gaussian' },
+  { label: 'Linear', value: 'linear' },
+  { label: 'Ease', value: 'ease' },
+  { label: 'Ease in', value: 'easeIn' },
+  { label: 'Ease out', value: 'easeOut' },
+  { label: 'Ease in out', value: 'easeInOut' },
 ] as const;
 
 export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
@@ -128,9 +122,20 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       },
       {
         kind: 'number',
+        key: 'panelExpandFirstRowOverlapPercent',
+        label: 'Expand: panel / first-row overlap',
+        description: 'How much of the panel-opening duration overlaps the first row entrance. 0% keeps the panel and rows sequential; 100% starts them together.',
+        min: 0,
+        max: 100,
+        step: 1,
+        unit: '%',
+        integer: true,
+      },
+      {
+        kind: 'number',
         key: 'rowFadeInDelayMs',
-        label: 'Expand: pause before rows appear',
-        description: 'Pause after the panel finishes opening, before the first row starts fading in. 0 = rows start the instant the panel finishes opening.',
+        label: 'Expand: extra first-row delay',
+        description: 'Extra delay before the first row begins. At 0% panel overlap it follows the panel opening; otherwise it is added to the overlap timing.',
         min: 0,
         max: 1000,
         step: 10,
@@ -141,7 +146,7 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
         kind: 'number',
         key: 'rowFadeInDurationMs',
         label: 'Expand: row fade-in',
-        description: 'How long each row takes to fade its opacity in (no scale/transform). Rows chain: row 2 starts exactly when row 1 finishes, and so on — this one duration determines both a single row\'s fade and the whole cascade\'s total length.',
+        description: 'How long each row takes to fade its opacity in. The row-to-row overlap control determines when the next row starts.',
         min: 0,
         max: 1000,
         step: 10,
@@ -156,9 +161,20 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       },
       {
         kind: 'number',
+        key: 'rowFadeInOverlapPercent',
+        label: 'Expand: row-to-row overlap',
+        description: 'How much of one row entrance overlaps the next. 0% is sequential; 100% starts every row together.',
+        min: 0,
+        max: 100,
+        step: 1,
+        unit: '%',
+        integer: true,
+      },
+      {
+        kind: 'number',
         key: 'rowFadeOutDurationMs',
         label: 'Select: row fade-out',
-        description: 'On tapping a row in the expanded list, how long each row takes to fade its opacity out (no scale/transform), chained the same way as the fade-in. The panel doesn\'t start closing until the last row finishes.',
+        description: 'On tapping a row in the expanded list, how long each row takes to fade its opacity out. Row and panel overlap controls determine the rest of the exit timing.',
         min: 0,
         max: 1000,
         step: 10,
@@ -173,9 +189,31 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       },
       {
         kind: 'number',
+        key: 'rowFadeOutOverlapPercent',
+        label: 'Select: row-to-row overlap',
+        description: 'How much of one row exit overlaps the next. 0% is sequential; 100% starts every row together.',
+        min: 0,
+        max: 100,
+        step: 1,
+        unit: '%',
+        integer: true,
+      },
+      {
+        kind: 'number',
+        key: 'panelCollapseFirstRowOverlapPercent',
+        label: 'Select: panel / first-row overlap',
+        description: 'How much of the row-exit cascade overlaps panel close. 0% waits for the final row; 100% starts panel close with the first row. Closing completes only after both motions finish.',
+        min: 0,
+        max: 100,
+        step: 1,
+        unit: '%',
+        integer: true,
+      },
+      {
+        kind: 'number',
         key: 'panelCollapseDelayMs',
-        label: 'Select: pause before panel closes',
-        description: 'Pause after the last row has finished fading out, before the panel starts closing. 0 = the panel starts closing the instant the last row disappears.',
+        label: 'Select: extra panel-close delay',
+        description: 'Extra delay added after the selected panel/row overlap point. At 0% overlap, it is the pause after the final row exits.',
         min: 0,
         max: 1000,
         step: 10,
