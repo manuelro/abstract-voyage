@@ -41,6 +41,9 @@ type FullListPresentationPhase = 'closed' | 'preparing' | 'opening' | 'open' | '
 
 export type MobilePinnedListControls = {
   activeIndex: number;
+  /** Whether this render is the compact carousel companion list or the full
+   * reading list. Callers can keep presentation-specific styling isolated. */
+  presentation: 'short' | 'expanded';
   /** Already sliced by the caller's own windowing (short list) or the full
    * array (expanded) — see computeWindowStart below. Callers should render
    * this directly rather than re-deriving their own rows array, so the
@@ -1250,11 +1253,13 @@ export function MobilePinnedArticleSection({
     expandedDisplayRows !== null
       ? renderList({
         activeIndex: safeActiveIndex,
+        presentation: 'expanded',
         rows: expandedDisplayRows,
         onSelect: handleListSelect,
       })
       : renderList({
         activeIndex: safeActiveIndex,
+        presentation: 'expanded',
         rows,
         onSelect: handleListSelect,
       })
@@ -1278,6 +1283,7 @@ export function MobilePinnedArticleSection({
       >
         {renderList({
           activeIndex: safeActiveIndex,
+          presentation: 'short',
           rows: shortListRows,
           onSelect: handleListSelect,
         })}

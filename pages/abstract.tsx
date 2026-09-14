@@ -300,6 +300,10 @@ import {
 } from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
 import { SiteFooter } from '../experiences/abstract/components/SiteFooter/SiteFooter';
+import {
+  buildScrollAdaptiveInkColor,
+  useScrollAdaptiveInk,
+} from '../experiences/abstract/components/useScrollAdaptiveInk';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
 import {
   normalizePolymorphicLayoutConfig,
@@ -2219,6 +2223,39 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // first-stage smoothing; a second stage would add lag with nothing to
   // correct for.
   const mobileArticleListScrollRef = useRef<HTMLDivElement | null>(null);
+  // The desktop timeline and the mobile short list are both compact
+  // companions to CoverFlow. Keep their adaptive ink on a dedicated ref so
+  // the expanded mobile reading list can retain its existing color path.
+  const shortArticleListInkRef = useRef<HTMLDivElement | null>(null);
+  const shortArticleListBaseColor = colors.breakpointTier !== 'mobile'
+    ? narrowColumnTypography.bodyColor
+    : mobileArticleListInkAtRest;
+  const shortArticleListHighlightBaseColor = colors.breakpointTier !== 'mobile'
+    ? narrowColumnTypography.highlightColor
+    : mobileArticleListInkAtRest;
+  useScrollAdaptiveInk({
+    ref: shortArticleListInkRef,
+    enabled: colors.scrollGradientActive,
+    baseColor: shortArticleListBaseColor,
+    maxAmount: normalizedSplitColumnHeroConfig.paragraphGradientScrollLightenMaxAmount,
+    targetContrastRatio: normalizedSplitColumnHeroConfig.paragraphGradientScrollLightenTargetContrastRatio,
+    scrollGradientDarkenViewportRangeVh: colors.scrollGradientResolved.viewportRangeVh,
+    scrollGradientDarkenTauMs: colors.scrollGradientResolved.tauMs,
+    scrollGradientOriginColor: colors.scrollGradientOriginColor,
+    scrollGradientMaxDarken: colors.scrollGradientResolved.maxDarken,
+  });
+  const shortArticleListBodyColor = colors.scrollGradientActive
+    ? buildScrollAdaptiveInkColor(
+      shortArticleListBaseColor,
+      normalizedSplitColumnHeroConfig.paragraphGradientScrollLightenMaxAmount,
+    )
+    : shortArticleListBaseColor;
+  const shortArticleListHighlightColor = colors.scrollGradientActive
+    ? buildScrollAdaptiveInkColor(
+      shortArticleListHighlightBaseColor,
+      normalizedSplitColumnHeroConfig.paragraphGradientScrollLightenMaxAmount,
+    )
+    : shortArticleListHighlightBaseColor;
   // Live-value refs, same pattern PolymorphicScrollGradientBackground.tsx
   // now uses (PLAN-DARKEN-FLASH-FIX.md) — updated directly in the render
   // body so the PERSISTENT rAF loop below always reads today's latest
@@ -4946,7 +4983,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
               </div>
             ) : (
               <div
-                ref={mobileArticleListScrollRef}
+                ref={element => {
+                  mobileArticleListScrollRef.current = element;
+                  shortArticleListInkRef.current = element;
+                }}
                 style={{ width: '100vw', marginLeft: 'calc(50% - 50vw)' }}
               >
                 <MobilePinnedArticleSection
@@ -5000,15 +5040,15 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                       />
                     </div>
                   )}
-                  renderList={({ activeIndex, rows: listRows, onSelect }) => (
+                  renderList={({ activeIndex, presentation, rows: listRows, onSelect }) => (
                     <AboutTimeline
                       rows={listRows}
                       activeIndex={activeIndex}
                       onSelect={onSelect}
                       accentColor={carouselAndListItems[activeIndex]?.accent ?? '#ffffff'}
                       columnBackgroundColor={colors.wideColumnColor}
-                      bodyColorOverride={mobileArticleListColor}
-                      highlightColorOverride={mobileArticleListColor}
+                      bodyColorOverride={presentation === 'short' ? shortArticleListBodyColor : mobileArticleListColor}
+                      highlightColorOverride={presentation === 'short' ? shortArticleListHighlightColor : mobileArticleListColor}
                       bodyOpacityOverride={wideColumnTypography.bodyOpacity}
                       highlightOpacityOverride={wideColumnTypography.highlightOpacity}
                       description={abstractTimelineConfig.description || undefined}
@@ -5081,15 +5121,18 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
               </div>
             )}
             bottom={isCoverFlowDesktopTier ? (
-              <div data-abstract-article-list-section="true">
+              <div
+                ref={shortArticleListInkRef}
+                data-abstract-article-list-section="true"
+              >
                 <AboutTimeline
                   rows={abstractTimelineRows}
                   activeIndex={articleActiveIndex}
                   onSelect={handleTimelineActiveIndexChange}
                   accentColor={carouselAndListItems[articleActiveIndex]?.accent ?? '#ffffff'}
                   columnBackgroundColor={colors.narrowColumnColor}
-                  bodyColorOverride={narrowColumnTypography.bodyColor}
-                  highlightColorOverride={narrowColumnTypography.highlightColor}
+                  bodyColorOverride={shortArticleListBodyColor}
+                  highlightColorOverride={shortArticleListHighlightColor}
                   bodyOpacityOverride={narrowColumnTypography.bodyOpacity}
                   highlightOpacityOverride={narrowColumnTypography.highlightOpacity}
                   description={abstractTimelineConfig.description || undefined}
