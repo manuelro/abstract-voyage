@@ -124,7 +124,7 @@
 
 /* Preparation changes paint and mounts the hidden full-list display list one
  * complete frame before geometry moves. Every later phase retains exactly the
- * same glass treatment, including the transitionend boundary. */
+ * same glass background treatment, including the transitionend boundary. */
 .panel[data-phase='preparing'] .panelGlass,
 .panel[data-phase='opening'] .panelGlass,
 .panel[data-phase='open'] .panelGlass,
@@ -134,8 +134,26 @@
     var(--mobile-pinned-expanded-bg-color) calc(var(--mobile-pinned-expanded-bg-opacity) * 100%),
     transparent
   );
+}
+
+/* Blur starts at zero on this same pre-transition paint frame, giving the
+ * opening rule below a real 0 -> max value to interpolate from instead of
+ * snapping in already at full blur. */
+.panel[data-phase='preparing'] .panelGlass {
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+}
+
+/* Blur ramps up to the configured max over the same duration/easing as the
+ * panel's own height open, so the glass reads as one growing, sharpening
+ * surface rather than a blur that snaps in ahead of the geometry. */
+.panel[data-phase='opening'] .panelGlass,
+.panel[data-phase='open'] .panelGlass {
   backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
   -webkit-backdrop-filter: blur(var(--mobile-pinned-expanded-backdrop-blur-px, 12px));
+  transition:
+    backdrop-filter var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease),
+    -webkit-backdrop-filter var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
 }
 
 .panel[data-phase='opening'],
@@ -146,6 +164,23 @@
 .panel[data-phase='closing'] {
   height: calc(var(--mobile-pinned-list-percent) * 1svh);
   transition: height var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, ease);
+}
+
+/* Glass blur fades out over the same collapse duration/easing as the panel's
+ * own height close, so the surface reads as one settling motion rather than
+ * a blurred panel snapping to a sharp one. Also applies at rest once
+ * 'closed' is reached — .panelGlass's own base rule below still carries a
+ * hardcoded blur(12px) (pre-dating both fades) that would otherwise silently
+ * reassert itself the instant the transition ends, leaving the short list's
+ * permanent resting state blurred against the vivid carousel card behind it
+ * instead of at the zero-blur endpoint this fade settles toward. */
+.panel[data-phase='closing'] .panelGlass,
+.panel[data-phase='closed'] .panelGlass {
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition:
+    backdrop-filter var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, ease),
+    -webkit-backdrop-filter var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, ease);
 }
 
 /* Opt-in full-list presentation: one reversible 3D card. The front keeps the
