@@ -186,7 +186,7 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
         kind: 'number',
         key: 'panelCollapseDurationMs',
         label: 'Select: panel close',
-        description: 'How long the persistent glass panel takes to return to its compact height, or the flipped card takes to return to its front face. The carousel card behind glass returns to full opacity over this same duration.',
+        description: 'How long the persistent glass panel takes to return to its compact height, or the flipped card takes to return to its front face. The carousel behind glass settles within the first 320ms so its paint is stable before the panel reaches its boundary.',
         min: 0,
         max: 1000,
         step: 10,

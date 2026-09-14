@@ -27,11 +27,17 @@
   inset: 0 0 auto;
   height: calc(var(--mobile-pinned-carousel-percent) * 1%);
   opacity: 1;
-  /* Synced to the SAME duration the panel's own fade-out/in below uses
-   * (--mobile-pinned-panel-collapse-ms) — operator ask: bringing this card
-   * back to full opacity happens "at the same time" the panel fades away,
-   * not on its own, independent 320ms. */
-  transition: opacity var(--mobile-pinned-panel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, cubic-bezier(0.22, 1, 0.36, 1));
+  /* Keep the sampled backdrop from changing at the exact moment the glass
+   * panel reaches a geometry boundary. The old stable implementation settled
+   * this layer in 320ms; the component derives these values from the panel's
+   * configured direction duration, capped at that proven interval. */
+  transition: opacity var(--mobile-pinned-carousel-collapse-ms, 320ms) var(--mobile-pinned-panel-collapse-easing, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.stickyViewport[data-phase='preparing'] .carousel,
+.stickyViewport[data-phase='opening'] .carousel {
+  transition-duration: var(--mobile-pinned-carousel-expand-ms, 320ms);
+  transition-timing-function: var(--mobile-pinned-panel-expand-easing, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .stickyViewport[data-expanded='true'] .carousel {
@@ -77,9 +83,9 @@
 
 .panel {
   position: absolute;
-  /* One bottom-anchored glass object serves both compact and expanded list
-   * states. Its top edge moves by height; the blurred surface itself is never
-   * translated into a separate compositor layer. */
+  /* One bottom-anchored geometry wrapper serves both list states. It clips a
+   * separate, constant-size glass layer below, so Chromium never has to resize
+   * the backdrop-filter's own backing surface during the height transition. */
   z-index: 4;
   right: 0;
   bottom: 0;
@@ -88,6 +94,17 @@
   grid-template-rows: minmax(0, 1fr);
   height: calc(var(--mobile-pinned-list-percent) * 1svh);
   overflow: clip;
+  transition: height var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
+}
+
+.panelGlass {
+  position: absolute;
+  z-index: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(var(--mobile-pinned-expanded-percent) * 1svh);
+  pointer-events: none;
   background: color-mix(
     in srgb,
     var(--mobile-pinned-panel-color) calc(var(--mobile-pinned-panel-opacity) * 100%),
@@ -95,14 +112,23 @@
   );
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: height var(--mobile-pinned-panel-expand-ms, 320ms) var(--mobile-pinned-panel-expand-easing, ease);
 }
 
-/* Opening and open use the full-list treatment. Closing keeps that treatment
- * while the same surface contracts, avoiding a paint swap during motion. */
-.panel[data-phase='opening'],
-.panel[data-phase='open'],
-.panel[data-phase='closing'] {
+.panelContent {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* Preparation changes paint and mounts the hidden full-list display list one
+ * complete frame before geometry moves. Every later phase retains exactly the
+ * same glass treatment, including the transitionend boundary. */
+.panel[data-phase='preparing'] .panelGlass,
+.panel[data-phase='opening'] .panelGlass,
+.panel[data-phase='open'] .panelGlass,
+.panel[data-phase='closing'] .panelGlass {
   background: color-mix(
     in srgb,
     var(--mobile-pinned-expanded-bg-color) calc(var(--mobile-pinned-expanded-bg-opacity) * 100%),
@@ -227,10 +253,8 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* The SHORT list's own viewport (inside .shortListPanel) — fixed padding,
- * never scrolls (the box never grows past what N rows fit; `clip` prevents
- * it from becoming a dead-end scroll container, so vertical gestures
- * continue to the document instead). */
+/* The SHORT list state, used by the shared glass viewport and card flip's
+ * compact panel: fixed padding and no dead-end scroll container. */
 .shortListRowsViewport {
   padding: 0 1.5rem;
   overflow: clip;

@@ -17,8 +17,17 @@ function transitionEnd(element: Element, propertyName: string) {
   element.dispatchEvent(event);
 }
 
+let animationFrameCallbacks: FrameRequestCallback[] = [];
+
+function flushAnimationFrame() {
+  const callbacks = animationFrameCallbacks;
+  animationFrameCallbacks = [];
+  callbacks.forEach(callback => callback(0));
+}
+
 describe('MobilePinnedArticleSection persistent glass panel', () => {
   beforeEach(() => {
+    animationFrameCallbacks = [];
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn((query: string) => ({
@@ -37,8 +46,8 @@ describe('MobilePinnedArticleSection persistent glass panel', () => {
       value: vi.fn(),
     });
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
-      callback(0);
-      return 1;
+      animationFrameCallbacks.push(callback);
+      return animationFrameCallbacks.length;
     });
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
   });
@@ -50,7 +59,7 @@ describe('MobilePinnedArticleSection persistent glass panel', () => {
     document.documentElement.removeAttribute('style');
   });
 
-  it('keeps one panel node through height-driven open and close transitions', () => {
+  it('keeps one panel and rows viewport through prepared open and close transitions', () => {
     const rows: AboutTimelineRowData[] = [
       { caption: 'First article', slideIndex: 0 },
       { caption: 'Second article', slideIndex: 1 },
@@ -105,6 +114,10 @@ describe('MobilePinnedArticleSection persistent glass panel', () => {
     expect(panel).not.toBeNull();
     expect(panel?.dataset.phase).toBe('closed');
     expect(container.querySelectorAll('[data-mobile-pinned-glass-panel="true"]')).toHaveLength(1);
+    const rowsViewport = container.querySelector<HTMLElement>(
+      '[data-mobile-pinned-glass-viewport="true"]',
+    );
+    expect(rowsViewport).not.toBeNull();
 
     const expandButton = Array.from(container.querySelectorAll('button'))
       .find(button => button.textContent === 'Expand list');
@@ -113,6 +126,11 @@ describe('MobilePinnedArticleSection persistent glass panel', () => {
     act(() => expandButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
     expect(container.querySelector('[data-mobile-pinned-glass-panel="true"]')).toBe(panel);
+    expect(container.querySelector('[data-mobile-pinned-glass-viewport="true"]')).toBe(rowsViewport);
+    expect(panel?.dataset.phase).toBe('preparing');
+    act(flushAnimationFrame);
+    expect(panel?.dataset.phase).toBe('preparing');
+    act(flushAnimationFrame);
     expect(panel?.dataset.phase).toBe('opening');
     expect(onExpandedChange).toHaveBeenLastCalledWith(true);
 
@@ -128,6 +146,7 @@ describe('MobilePinnedArticleSection persistent glass panel', () => {
     act(() => transitionEnd(panel as HTMLElement, 'height'));
 
     expect(container.querySelector('[data-mobile-pinned-glass-panel="true"]')).toBe(panel);
+    expect(container.querySelector('[data-mobile-pinned-glass-viewport="true"]')).toBe(rowsViewport);
     expect(panel?.dataset.phase).toBe('closed');
     expect(container.querySelectorAll('[data-mobile-pinned-glass-panel="true"]')).toHaveLength(1);
     expect(onExpandedChange).toHaveBeenLastCalledWith(false);
@@ -137,16 +156,21 @@ describe('MobilePinnedArticleSection persistent glass panel', () => {
     act(() => root.unmount());
   });
 
-  it('keeps transform and opacity out of glass while preserving card-flip rotation', () => {
+  it('separates height motion from fixed-size glass paint and preserves card-flip rotation', () => {
     const css = readFileSync(resolve(
       process.cwd(),
       'experiences/abstract/components/MobilePinnedArticleSection/styles.module.css',
     ), 'utf8');
     const panelRule = css.match(/\.panel \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const glassRule = css.match(/\.panelGlass \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
     expect(panelRule).toContain('transition: height');
+    expect(panelRule).not.toContain('backdrop-filter:');
     expect(panelRule).not.toContain('transform:');
     expect(panelRule).not.toContain('opacity:');
+    expect(glassRule).toContain('height: calc(var(--mobile-pinned-expanded-percent) * 1svh)');
+    expect(glassRule).toContain('backdrop-filter: blur(12px)');
+    expect(glassRule).not.toContain('transition:');
     expect(css).toContain('.flipCard[data-flipped=\'true\']');
     expect(css).toContain('transform: rotateY(190deg)');
   });

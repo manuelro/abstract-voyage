@@ -38,7 +38,7 @@ type ScrollLockSnapshot = {
   rootCssText: string;
 };
 
-type FullListPresentationPhase = 'closed' | 'opening' | 'open' | 'closing';
+type FullListPresentationPhase = 'closed' | 'preparing' | 'opening' | 'open' | 'closing';
 
 export type MobilePinnedListControls = {
   activeIndex: number;
@@ -77,6 +77,11 @@ type MobilePinnedArticleSectionProps = {
   renderList: (controls: MobilePinnedListControls) => ReactNode;
   carouselColor: string;
   panelColor: string;
+  /** Opaque page-surface color underneath a potentially transparent panel
+   * paint. The persistent glass layer uses it when no explicit expanded
+   * background is configured, so a transient backdrop-filter compositor
+   * dropout cannot make the whole panel disappear. */
+  expandedPanelFallbackColor?: string;
   config: MobilePinnedArticleSectionConfig;
   /** Fires exactly when the expanded panel opens/closes (openPanel/closePanel
    * below) — lets a caller drive page-level behavior tied to this modal-like
@@ -140,6 +145,7 @@ export function MobilePinnedArticleSection({
   renderList,
   carouselColor,
   panelColor,
+  expandedPanelFallbackColor,
   config: rawConfig,
   onExpandedChange,
 }: MobilePinnedArticleSectionProps) {
@@ -150,6 +156,7 @@ export function MobilePinnedArticleSection({
   const outerRef = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const flipCardRef = useRef<HTMLDivElement | null>(null);
+  const glassRowsViewportRef = useRef<HTMLDivElement | null>(null);
   // The FULL list's own viewport (inside the collapsible panel) — scroll-
   // into-view/focus on open, touch-gesture handling while expanded, and the
   // STAGE-06 fade-out's own transitionend listener all read this one.
@@ -196,6 +203,11 @@ export function MobilePinnedArticleSection({
   // recreated on every animation tick (the state itself changes on every
   // staggered frame) — same ref-mirrors-state pattern as expandedRef/expanded.
   const expandedDisplayRowsRef = useRef<AboutTimelineRowData[] | null>(null);
+  // Glass mode gets one painted preparation frame before height motion. This
+  // lets Chromium establish the fixed-size filtered backing layer and the
+  // full-list display list before it starts clipping that layer differently.
+  const panelPrepareFrameRef = useRef<number | null>(null);
+  const panelMotionStartFrameRef = useRef<number | null>(null);
   const openMountFrameRef = useRef<number | null>(null);
   const selectHoldTimerRef = useRef<number | null>(null);
   const selectSequenceFallbackTimerRef = useRef<number | null>(null);
@@ -517,6 +529,14 @@ export function MobilePinnedArticleSection({
   }, []);
 
   const cancelInFlightOpenSequence = useCallback(() => {
+    if (panelPrepareFrameRef.current !== null) {
+      window.cancelAnimationFrame(panelPrepareFrameRef.current);
+      panelPrepareFrameRef.current = null;
+    }
+    if (panelMotionStartFrameRef.current !== null) {
+      window.cancelAnimationFrame(panelMotionStartFrameRef.current);
+      panelMotionStartFrameRef.current = null;
+    }
     panelExpandListenerCleanupRef.current?.();
     panelExpandListenerCleanupRef.current = null;
     if (panelExpandFallbackTimerRef.current !== null) {
@@ -548,7 +568,7 @@ export function MobilePinnedArticleSection({
     if (config.scrollDrivenNavigationEnabled) sectionTop();
     expandedRef.current = true;
     setExpanded(true);
-    setPresentationPhase('opening');
+    setPresentationPhase(usesCardFlip ? 'opening' : 'preparing');
     if (prefersReducedMotion) {
       setPresentationPhase('open');
       setExpandedDisplayRows(null);
@@ -627,12 +647,27 @@ export function MobilePinnedArticleSection({
         panelExpandFallbackTimerRef.current = window.setTimeout(
           finishPanelExpand, config.panelExpandDurationMs + 200,
         );
+        if (!usesCardFlip) {
+          // A state update scheduled in the first rAF can still be folded into
+          // the click's first paint. Wait through that paint, then start the
+          // height transition in the following frame. The preparation state
+          // has the full list mounted but hidden and the fixed-size glass
+          // backing already painted, so Chromium does not rebuild both while
+          // the panel boundary is moving.
+          panelPrepareFrameRef.current = window.requestAnimationFrame(() => {
+            panelPrepareFrameRef.current = null;
+            panelMotionStartFrameRef.current = window.requestAnimationFrame(() => {
+              panelMotionStartFrameRef.current = null;
+              setPresentationPhase('opening');
+            });
+          });
+        }
       }
     }
     onExpandedChange?.(true);
     lockOuterScroll();
     window.requestAnimationFrame(() => {
-      const viewport = rowsViewportRef.current;
+      const viewport = rowsViewportRef.current ?? glassRowsViewportRef.current;
       const activeRow = viewport?.querySelector<HTMLElement>(
         '[role="tab"][aria-selected="true"]',
       );
@@ -714,7 +749,8 @@ export function MobilePinnedArticleSection({
        * closing/closed at this point, so its own viewport is about to be (or
        * already is) invisible; the short list is the container that's
        * actually still on screen and visible right where the user was. */
-      shortListViewportRef.current?.focus({ preventScroll: true });
+      (shortListViewportRef.current ?? glassRowsViewportRef.current)
+        ?.focus({ preventScroll: true });
       window.scrollTo({ top: restoredScrollY, behavior: 'auto' });
     });
   }, [
@@ -729,9 +765,8 @@ export function MobilePinnedArticleSection({
   // every row fades its opacity out top-to-bottom, a strict chain reaction
   // (row N starts exactly when row N-1 finishes), (2) only once the LAST
   // row's own `transitionend` confirms it's fully invisible does the panel
-  // itself begin fading out BY OPACITY ONLY (still at full height), (3)
-  // only once THAT opacity fade's own `transitionend` confirms it's done
-  // does `commit` run and the physical height collapse begin. `commit` is
+  // itself returns to compact height, (3) only once that height transition's
+  // own `transitionend` confirms it is done does `commit` run. `commit` is
   // the one piece that differs per caller — setting expandedSelectionRef
   // and (in scroll-driven/reduced-motion mode) `position` for a row pick,
   // or nothing beyond closePanel() itself for a plain close — everything
@@ -847,7 +882,7 @@ export function MobilePinnedArticleSection({
       proceedAfterFadeOut();
       return;
     }
-    const viewport = rowsViewportRef.current;
+    const viewport = rowsViewportRef.current ?? glassRowsViewportRef.current;
     let settled = false;
     const finish = () => {
       if (settled) return;
@@ -897,6 +932,8 @@ export function MobilePinnedArticleSection({
     if (expandedRef.current) unlockOuterScroll();
     restoreRootSnapAfterDrag();
     document.documentElement.removeAttribute('data-mobile-pinned-snap-active');
+    if (panelPrepareFrameRef.current !== null) window.cancelAnimationFrame(panelPrepareFrameRef.current);
+    if (panelMotionStartFrameRef.current !== null) window.cancelAnimationFrame(panelMotionStartFrameRef.current);
     if (openMountFrameRef.current !== null) window.cancelAnimationFrame(openMountFrameRef.current);
     if (panelExpandFallbackTimerRef.current !== null) window.clearTimeout(panelExpandFallbackTimerRef.current);
     panelExpandListenerCleanupRef.current?.();
@@ -912,7 +949,7 @@ export function MobilePinnedArticleSection({
 
   useEffect(() => {
     if (!expanded) return undefined;
-    const viewport = rowsViewportRef.current;
+    const viewport = rowsViewportRef.current ?? glassRowsViewportRef.current;
     if (!viewport) return undefined;
     let touchY = 0;
     const onTouchStart = (event: TouchEvent) => {
@@ -1072,7 +1109,9 @@ export function MobilePinnedArticleSection({
     '--mobile-pinned-list-percent': config.listHeightPercent,
     '--mobile-pinned-expanded-percent': config.expandedPanelHeightPercent,
     '--mobile-pinned-peek-height': config.peekHeightSvh,
-    '--mobile-pinned-expanded-bg-color': config.expandedListBackgroundColor || panelColor,
+    '--mobile-pinned-expanded-bg-color': config.expandedListBackgroundColor
+      || expandedPanelFallbackColor
+      || panelColor,
     '--mobile-pinned-expanded-bg-opacity': config.expandedListBackgroundOpacity,
     '--mobile-pinned-expanded-backdrop-blur-px': `${config.expandedListBackdropBlurPx}px`,
     '--mobile-pinned-expanded-carousel-opacity': config.expandedCarouselBehindOpacity,
@@ -1083,6 +1122,12 @@ export function MobilePinnedArticleSection({
     '--mobile-pinned-panel-expand-easing': CTA_BUTTON_MOTION_EASINGS[config.panelExpandEasing],
     '--mobile-pinned-panel-collapse-ms': `${config.panelCollapseDurationMs}ms`,
     '--mobile-pinned-panel-collapse-easing': CTA_BUTTON_MOTION_EASINGS[config.panelCollapseEasing],
+    // The backdrop sampled through the glass should settle before the panel
+    // reaches its own transition boundary. The old stable implementation's
+    // carousel fade was 320ms; cap both directions at that proven interval
+    // while respecting deliberately shorter panel durations.
+    '--mobile-pinned-carousel-expand-ms': `${Math.min(config.panelExpandDurationMs, 320)}ms`,
+    '--mobile-pinned-carousel-collapse-ms': `${Math.min(config.panelCollapseDurationMs, 320)}ms`,
     // The extra travel height only exists to give page-scroll something to
     // consume in scroll-driven mode. Off by default: the section is just
     // 100svh, and there's nothing to scroll through to reach any article —
@@ -1120,6 +1165,45 @@ export function MobilePinnedArticleSection({
     },
   };
 
+  const renderExpandedListContent = () => (
+    expandedDisplayRows !== null
+      ? renderList({
+        activeIndex: safeActiveIndex,
+        rows: expandedDisplayRows,
+        onSelect: handleListSelect,
+      })
+      : renderList({
+        activeIndex: safeActiveIndex,
+        rows,
+        onSelect: handleListSelect,
+      })
+  );
+
+  const renderShortListContent = () => (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={windowStart}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={prefersReducedMotion ? undefined : { opacity: 0, y: -14 }}
+        transition={
+          prefersReducedMotion
+            ? { duration: 0 }
+            : {
+              duration: config.listSettleDurationMs / 1000,
+              ease: MOTION_EASING_BEZIERS[config.panelCollapseEasing],
+            }
+        }
+      >
+        {renderList({
+          activeIndex: safeActiveIndex,
+          rows: shortListRows,
+          onSelect: handleListSelect,
+        })}
+      </motion.div>
+    </AnimatePresence>
+  );
+
   const renderExpandedList = () => (
     <div
       ref={rowsViewportRef}
@@ -1130,17 +1214,7 @@ export function MobilePinnedArticleSection({
       tabIndex={-1}
     >
       <div className={styles.timeline}>
-        {expandedDisplayRows !== null
-          ? renderList({
-            activeIndex: safeActiveIndex,
-            rows: expandedDisplayRows,
-            onSelect: handleListSelect,
-          })
-          : renderList({
-            activeIndex: safeActiveIndex,
-            rows,
-            onSelect: handleListSelect,
-          })}
+        {renderExpandedListContent()}
       </div>
     </div>
   );
@@ -1152,28 +1226,26 @@ export function MobilePinnedArticleSection({
       tabIndex={-1}
     >
       <div className={styles.timeline}>
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.div
-            key={windowStart}
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={prefersReducedMotion ? undefined : { opacity: 0, y: -14 }}
-            transition={
-              prefersReducedMotion
-                ? { duration: 0 }
-                : {
-                  duration: config.listSettleDurationMs / 1000,
-                  ease: MOTION_EASING_BEZIERS[config.panelCollapseEasing],
-                }
-            }
-          >
-            {renderList({
-              activeIndex: safeActiveIndex,
-              rows: shortListRows,
-              onSelect: handleListSelect,
-            })}
-          </motion.div>
-        </AnimatePresence>
+        {renderShortListContent()}
+      </div>
+    </div>
+  );
+
+  const renderSharedGlassList = () => (
+    <div
+      ref={glassRowsViewportRef}
+      className={
+        showsFullList
+          ? `${styles.rowsViewport} ${styles.fullListRowsViewport} `
+            + `${config.expandedListPaddingX} ${config.expandedListPaddingY}`
+          : `${styles.rowsViewport} ${styles.shortListRowsViewport}`
+      }
+      data-mobile-pinned-glass-viewport="true"
+      data-expanded-content={showsFullList}
+      tabIndex={-1}
+    >
+      <div className={styles.timeline}>
+        {showsFullList ? renderExpandedListContent() : renderShortListContent()}
       </div>
     </div>
   );
@@ -1190,7 +1262,11 @@ export function MobilePinnedArticleSection({
           />
         ))
         : null}
-      <div className={styles.stickyViewport} data-expanded={expanded}>
+      <div
+        className={styles.stickyViewport}
+        data-expanded={expanded}
+        data-phase={presentationPhase}
+      >
         <div className={styles.carousel} data-presentation={usesCardFlip ? 'cardFlip' : 'glassPanel'}>
           {usesCardFlip ? (
             <div
@@ -1245,7 +1321,10 @@ export function MobilePinnedArticleSection({
             data-mobile-pinned-glass-panel="true"
             onKeyDown={handlePanelKeyDown}
           >
-            {showsFullList ? renderExpandedList() : renderShortList()}
+            <div className={styles.panelGlass} aria-hidden="true" />
+            <div className={styles.panelContent}>
+              {renderSharedGlassList()}
+            </div>
           </div>
         )}
         <button

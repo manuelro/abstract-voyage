@@ -1,6 +1,6 @@
 # Mobile Pinned Persistent Glass Panel
 
-Status: Implemented and verified on 2026-09-14.
+Status: Implemented; Chromium desktop hardening added on 2026-09-14.
 
 ## Objective
 
@@ -10,32 +10,39 @@ and optional card-flip presentation.
 
 ## Architecture
 
-The `glassPanel` presentation owns one persistent, bottom-anchored glass
-surface. In its closed state that surface contains the short list and uses
-`listHeightPercent`; while opening, open, or closing it contains the full list.
-Its top edge moves by animating `height`, never by translating a blurred layer.
+The `glassPanel` presentation owns one persistent, bottom-anchored panel and
+one persistent rows viewport. The panel is split into an outer geometry wrapper
+and a fixed-size inner glass layer. Only the wrapper height changes; the
+`backdrop-filter` layer always retains the expanded dimensions and is revealed
+through clipping. This avoids reallocating Chromium's filtered backing surface
+on every animation frame.
+
+Opening first enters a one-frame `preparing` state. That state mounts the hidden
+full-list display list, resolves the opaque fallback paint, starts the short
+carousel-dimming settle, and lets Chromium commit those changes before height
+motion begins.
 
 The `cardFlip` presentation remains independent: its short list keeps its own
 compact surface and its full list remains on the reverse card face. Both
-presentations consume one shared four-phase state:
+presentations consume one shared lifecycle (card flip skips `preparing`):
 
 ```text
-closed -> opening -> open -> closing -> closed
+closed -> preparing -> opening -> open -> closing -> closed
 ```
 
 ## Configuration Mapping
 
 - `listHeightPercent`: persistent glass panel's closed height.
 - `expandedPanelHeightPercent`: persistent glass panel's open height.
-- `panelExpandDurationMs` / `panelExpandEasing`: opening height or flip motion.
+- `panelExpandDurationMs` / `panelExpandEasing`: opening wrapper height or flip motion.
 - `panelCollapseDurationMs` / `panelCollapseEasing`: closing height or flip motion.
 - Existing row fade, delay, padding, glass, carousel dimming, background
   darkening, list settling, and presentation fields retain their contracts.
 
 ## Interaction Contract
 
-1. Opening keeps the panel node mounted, switches its content to the hidden
-   full-list rows, and expands the same surface.
+1. Opening keeps the panel and rows-viewport nodes mounted, prepares hidden
+   full-list rows for one paint, and expands the same wrapper.
 2. The real surface `transitionend` gates the configured row entrance delay.
 3. Closing fades the full-list rows first, then contracts the same surface.
 4. The short list returns only after the real close transition finishes.
@@ -45,10 +52,13 @@ closed -> opening -> open -> closing -> closed
 
 ## Acceptance Criteria
 
-- Exactly one painted glass panel exists in `glassPanel` mode.
-- Its DOM identity survives a complete open/close cycle.
+- Exactly one painted glass layer exists in `glassPanel` mode.
+- The panel and rows viewport DOM identities survive a complete cycle.
 - The glass panel never uses transform or element opacity for visibility.
-- Backdrop blur remains on the stationary, bottom-anchored surface.
+- Backdrop blur remains on a constant-size, bottom-anchored inner surface.
+- The changing carousel backdrop settles before the panel's motion boundary.
+- An opaque resolved page color backs the translucent blur instead of allowing
+  a dropped filtered frame to become a fully transparent panel.
 - Open and close use their independently configured duration/easing pairs.
 - Escape, backdrop close, selection, rapid interruption, and reduced motion
   preserve the existing behavior.

@@ -4929,6 +4929,11 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   onActiveIndexCommit={handleMobileArticleIndexCommit}
                   carouselColor={colors.wideColumnPaintColor}
                   panelColor={colors.wideColumnPaintColor}
+                  expandedPanelFallbackColor={
+                    mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken
+                      ? mobileArticleListBackgroundDarkened
+                      : mobileArticleListBackgroundAtRest
+                  }
                   config={mobilePinnedArticleSectionConfig}
                   onExpandedChange={setIsMobileArticleListExpanded}
                   renderCarousel={(controls: MobilePinnedCarouselControls) => (

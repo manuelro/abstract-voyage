@@ -10,8 +10,9 @@ import type { CtaButtonMotionEasing } from '../../../../components/CtaButton/con
 // Same shared named-easing catalog CtaButton/AboutTimeline/Panel/CardStack
 // etc. all already draw from (CTA_BUTTON_MOTION_EASINGS,
 // components/CtaButton/config/registered.ts) — no bespoke cubic-bezier
-// tuples here, so the settings panel can render these as ordinary
-// `kind: 'enum'` fields instead of hiding untunable raw numbers.
+// tuples here, so the settings panel can expose readable named options rather
+// than untunable raw numbers. The panel uses compact `select` fields for the
+// repeated easing controls.
 const MOTION_EASING_KEYS: readonly CtaButtonMotionEasing[] = [
   'linear', 'standard', 'expressive', 'viscous', 'gentle', 'gaussian',
 ];
@@ -72,12 +73,14 @@ export type MobilePinnedArticleSectionConfig = {
    * spacing token (e.g. `py-0`). */
   expandedListPaddingY: ExpandedListPaddingY;
   /** Overrides the panel's background color while expanded. Empty string
-   * inherits the collapsed panel's own color (`panelColor` prop). */
+   * uses the caller's resolved opaque fallback surface when supplied, then
+   * falls back to the collapsed panel color. This preserves visible paint if
+   * a browser temporarily drops the backdrop-filter compositor surface. */
   expandedListBackgroundColor: string;
   /** Opacity of the expanded panel's *background color layer*, not the panel
    * element. Kept below 1 by default so the always-on backdrop blur remains
-   * visible while the persistent surface resizes; opening and closing animate
-   * height only and never animate the panel element's `opacity`. */
+   * visible through the fixed-size inner glass layer; opening and closing
+   * animate only its clipping wrapper's height and never the panel opacity. */
   expandedListBackgroundOpacity: number;
   /** Backdrop blur radius applied to the expanded panel, in px — was a
    * hardcoded `blur(12px)` (styles.module.css's own `.panel` rule) with no
@@ -144,8 +147,9 @@ export type MobilePinnedArticleSectionConfig = {
    * row has faded does the persistent glass surface return to its compact
    * height (or the card rotate to its front face). This should normally mirror
    * panelExpandDurationMs, so opening and closing are one reversible spatial
-   * motion. The same duration governs the carousel card behind it returning
-   * to full opacity and is the wait before the deferred CoverFlow translate.
+   * motion. The carousel behind it settles within the first 320ms of this
+   * interval so the backdrop is stable before the panel reaches its boundary;
+   * this duration is also the wait before the deferred CoverFlow translate.
    * It directly drives the real CSS transition (`.panel`/`.carousel` via
    * --mobile-pinned-panel-collapse-ms), not just a JS-side timer. */
   panelCollapseDurationMs: number;
@@ -182,10 +186,9 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   expandedListPaddingX: 'px-14',
   expandedListPaddingY: 'py-7',
   expandedListBackgroundColor: '',
-  // An opaque color layer would conceal the backdrop completely, making a
-  // configured blur indistinguishable from no blur. This is background paint
-  // alpha only — the panel element itself stays fully opaque throughout both
-  // directions of its height-only motion.
+  // Keep enough translucency to reveal the fixed-size blur layer while the
+  // resolved fallback color preserves the panel silhouette if Chromium drops
+  // a filtered frame.
   expandedListBackgroundOpacity: 0.72,
   expandedListBackdropBlurPx: 32,
   expandedCarouselBehindOpacity: 0.5,
