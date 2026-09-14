@@ -994,6 +994,10 @@ export type PolymorphicLayoutProps = {
    * settled/at-rest for the duration that overlay is open, independent of
    * whatever window.scrollY happens to report during that time. */
   scrollGradientForceMaxDarken?: boolean;
+  scrollGradientReturnToLight?: Pick<
+    PolymorphicScrollGradientBackgroundProps,
+    'returnToLightEnabled' | 'returnToLightRangeVh' | 'returnToLightFinalDarken'
+  >;
   children?: ReactNode;
 };
 
@@ -1020,6 +1024,7 @@ export function PolymorphicLayout({
   onNavAlignmentChange,
   mobileNavAlignEnabled = false,
   scrollGradientForceMaxDarken = false,
+  scrollGradientReturnToLight,
   children,
 }: PolymorphicLayoutProps) {
   const normalizedConfig = normalizePolymorphicLayoutConfig(config);
@@ -1277,6 +1282,7 @@ export function PolymorphicLayout({
       {colors.scrollGradientActive ? (
         <PolymorphicScrollGradientBackground
           {...colors.scrollGradientResolved}
+          {...scrollGradientReturnToLight}
           forceMaxDarken={scrollGradientForceMaxDarken}
         />
       ) : null}

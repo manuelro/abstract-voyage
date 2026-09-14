@@ -22,6 +22,13 @@ export const WORDMARK_SCOPE_ID: any = (() => {
   })
   return p
 })()
+export const WORDMARK_FIELDS: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
 export const WORDMARK_PANEL: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },

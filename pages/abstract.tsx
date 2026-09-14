@@ -201,7 +201,11 @@ import {
   normalizeSiteHeaderColorOverrideConfig,
   type SiteHeaderColorOverrideConfig,
 } from '../experiences/abstract/components/SiteHeader/config/colorOverride';
-import { DEFAULT_WORDMARK_CONFIG } from '../experiences/abstract/components/SiteHeader/config/wordmark';
+import {
+  DEFAULT_WORDMARK_CONFIG,
+  normalizeWordmarkConfig,
+  type WordmarkConfig,
+} from '../experiences/abstract/components/SiteHeader/config/wordmark';
 import { useNormalizedSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/hooks/useNormalizedSiteHeaderConfig';
 import { ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_PANEL } from '../experiences/abstract/components/SiteHeader/config/colorOverride.panel';
 import { AbstractHeroGrid } from '../experiences/abstract/components/AbstractHeroGrid';
@@ -250,6 +254,7 @@ import {
 import { ABSTRACT_LAB_SECTION_APPEARANCE_SCOPE_ID } from '../experiences/abstract/LabSection.panel';
 import {
   ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG,
+  DEFAULT_ABSTRACT_FOOTER_CONFIG,
   DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG,
   DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG,
   DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG,
@@ -260,12 +265,14 @@ import {
   normalizeAbstractNarrowColumnStackConfig,
   normalizeAbstractTimelineContentConfig,
   normalizeAbstractPageLayoutConfig,
+  normalizeAbstractFooterConfig,
   normalizeAbstractMobileArticleListInkConfig,
   type AbstractNarrowColumnStackConfig,
   type AbstractNarrowColumnStackHorizontalAlign,
   type AbstractNarrowColumnStackVerticalAlign,
   type AbstractPageLayoutConfig,
   type AbstractTimelineContentConfig,
+  type AbstractFooterConfig,
   type AbstractMobileArticleListInkConfig,
 } from './abstract.config';
 import {
@@ -284,6 +291,7 @@ import { Card } from '../experiences/abstract/components/Card/Card';
 import { CARD_APPEARANCE_SCOPE_ID } from '../experiences/abstract/components/Card/config/appearance.panel';
 import {
   ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID,
+  ABSTRACT_FOOTER_SCOPE_ID,
   ABSTRACT_PAGE_LAYOUT_SCOPE_ID,
   ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
   ABSTRACT_TIMELINE_CONTENT_SCOPE_ID,
@@ -291,6 +299,7 @@ import {
   ABSTRACT_MOBILE_ARTICLE_LIST_INK_SCOPE_ID,
 } from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
+import { SiteFooter } from '../experiences/abstract/components/SiteFooter/SiteFooter';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
 import {
   normalizePolymorphicLayoutConfig,
@@ -1710,6 +1719,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     useState<AbstractNarrowColumnStackConfig>(() => (
       normalizeAbstractNarrowColumnStackConfig(DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG)
     ));
+  const [abstractFooterConfig, setAbstractFooterConfig] =
+    useState<AbstractFooterConfig>(() => (
+      normalizeAbstractFooterConfig(DEFAULT_ABSTRACT_FOOTER_CONFIG)
+    ));
   // The split-column branch consumes this complete config; the classic
   // fallback deliberately reads its narrow-column alignment triplet too,
   // so no second page or hero panel can become an alternate layout owner.
@@ -2605,6 +2618,12 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       ),
     }),
     createConfigScopeBinding({
+      definition: abstractConfigPanelRegistry.resolve(ABSTRACT_FOOTER_SCOPE_ID),
+      value: abstractFooterConfig,
+      onChange: setAbstractFooterConfig,
+      defaultValue: normalizeAbstractFooterConfig(DEFAULT_ABSTRACT_FOOTER_CONFIG),
+    }),
+    createConfigScopeBinding({
       definition: ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
       value: splitColumnLayoutConfig,
       onChange: next => setSplitColumnLayoutConfig(previous => (
@@ -2688,6 +2707,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     heroCtaComposerConfig,
     abstractPageLayoutConfig,
     abstractNarrowColumnStackConfig,
+    abstractFooterConfig,
     abstractTimelineContentConfig,
     mobileArticleListInkConfig,
     splitColumnLayoutConfig,
@@ -2815,6 +2835,9 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     );
     setAbstractNarrowColumnStackConfig(
       normalizeAbstractNarrowColumnStackConfig(DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG),
+    );
+    setAbstractFooterConfig(
+      normalizeAbstractFooterConfig(DEFAULT_ABSTRACT_FOOTER_CONFIG),
     );
     setAbstractTimelineContentConfig(
       normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG),
@@ -4711,6 +4734,11 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         className={styles.splitColumnViewport}
         pageSurfaceConfig={normalizedPageSurfaceConfig}
         paletteColorResolver={paletteColorResolver}
+        scrollGradientReturnToLight={{
+          returnToLightEnabled: abstractFooterConfig.backgroundReturnToLightEnabled,
+          returnToLightRangeVh: abstractFooterConfig.backgroundReturnToLightRangeVh,
+          returnToLightFinalDarken: abstractFooterConfig.backgroundReturnToLightFinalDarken,
+        }}
         headerWrapperRef={splitColumnHeaderWrapperRef}
         // Forces the shared scroll-gradient background to its own max
         // darken while the mobile article list's expanded panel is open —
@@ -5116,6 +5144,19 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         `}</style>
       </PolymorphicLayout>
     )}
+      <SiteFooter
+        config={abstractFooterConfig}
+        accordionItemConfig={heroAccordionItemConfig}
+        pageSurfaceConfig={normalizedPageSurfaceConfig}
+        wordmarkConfig={effectiveWordmarkConfig}
+        wordmarkStops={heroHeaderLogoStops}
+        wordmarkWidthClassName={normalizedSiteHeaderConfig.logoWidth}
+        wordmarkDesktopWidthClassName={normalizedSiteHeaderConfig.desktopLogoWidth}
+        scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
+        scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
+        scrollGradientOriginColor={colors.scrollGradientOriginColor}
+        scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
+      />
       {/* The app-level CuboidNavigationRoot deliberately leaves authoring
           tools inside Face A with their page. Condition unchanged —
           split-column only, matching this panel's existing behavior. */}

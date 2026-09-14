@@ -15,11 +15,14 @@ export type SvgStop = {
 export type Pivot = 'left-center' | 'right-center' | 'center';
 
 /**
- * Normalize a color string into a hex-like form that colord understands reliably.
- * If it doesn't start with '#', we prefix it.
+ * Normalize bare hex strings while leaving valid CSS color expressions alone.
+ * SVG stop colors can use `color-mix()` with a custom property, which lets a
+ * multi-stop wordmark respond to scroll without React re-rendering each frame.
  */
-export const normalizeColor = (c: string): string =>
-  c.trim().startsWith('#') ? c.trim() : `#${c.trim()}`;
+export const normalizeColor = (c: string): string => {
+  const color = c.trim();
+  return color.startsWith('#') || /[a-zA-Z(]/.test(color) ? color : `#${color}`;
+};
 
 /**
  * Mix two arrays of gradient stops by index at factor t in [0..1].

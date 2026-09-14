@@ -42,6 +42,12 @@ export type PolymorphicScrollGradientBackgroundProps = {
    * something ≤100% that works too. See
    * PLAN-HERO-SCROLL-CONTRAST-GUARANTEE.md. */
   legibilityTargetRatio?: number;
+  /** Opt-in footer/endcap behavior. Once an element marked with
+   * data-scroll-gradient-return-anchor enters from below, the dark overlay
+   * eases back toward finalDarken over rangeVh viewport heights. */
+  returnToLightEnabled?: boolean;
+  returnToLightRangeVh?: number;
+  returnToLightFinalDarken?: number;
   /** Opt-in (default false — inert). When true, the darken schedule above
    * ignores real scroll position entirely and eases toward `maxDarken`
    * (via the SAME tau-smoothed transition, not an instant jump) — for a
@@ -79,6 +85,9 @@ export function PolymorphicScrollGradientBackground({
   maxDarken,
   tauMs,
   legibilityTargetRatio = 0,
+  returnToLightEnabled = false,
+  returnToLightRangeVh = 1,
+  returnToLightFinalDarken = 0,
   forceMaxDarken = false,
 }: PolymorphicScrollGradientBackgroundProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -137,6 +146,12 @@ export function PolymorphicScrollGradientBackground({
   tauMsRef.current = tauMs;
   const legibilityTargetRatioRef = useRef(legibilityTargetRatio);
   legibilityTargetRatioRef.current = legibilityTargetRatio;
+  const returnToLightEnabledRef = useRef(returnToLightEnabled);
+  returnToLightEnabledRef.current = returnToLightEnabled;
+  const returnToLightRangeVhRef = useRef(returnToLightRangeVh);
+  returnToLightRangeVhRef.current = returnToLightRangeVh;
+  const returnToLightFinalDarkenRef = useRef(returnToLightFinalDarken);
+  returnToLightFinalDarkenRef.current = returnToLightFinalDarken;
   const forceMaxDarkenRef = useRef(forceMaxDarken);
   forceMaxDarkenRef.current = forceMaxDarken;
   // Set once, inside the persistent effect below, to that effect's own
@@ -207,7 +222,20 @@ export function PolymorphicScrollGradientBackground({
       const progress = clamp(rawProgress, 0, 1);
       const scrollDarken = progress * maxDarkenNow;
       const legibilityDarken = Math.min(maxDarkenNow, requiredDarkenForLegibility(legibilityTargetRatioRef.current));
-      targetRef.current = Math.max(scrollDarken, legibilityDarken);
+      let nextTarget = Math.max(scrollDarken, legibilityDarken);
+
+      if (returnToLightEnabledRef.current) {
+        const anchor = document.querySelector<HTMLElement>('[data-scroll-gradient-return-anchor="true"]');
+        if (anchor) {
+          const rect = anchor.getBoundingClientRect();
+          const returnRangePx = Math.max(1, viewport * returnToLightRangeVhRef.current);
+          const returnProgress = clamp((viewport - rect.top) / returnRangePx, 0, 1);
+          const finalDarken = clamp(returnToLightFinalDarkenRef.current, 0, maxDarkenNow);
+          nextTarget += (finalDarken - nextTarget) * returnProgress;
+        }
+      }
+
+      targetRef.current = nextTarget;
     };
 
     const tick = (ts: number) => {
@@ -278,7 +306,16 @@ export function PolymorphicScrollGradientBackground({
   // real scroll/resize event to happen to fire.
   useEffect(() => {
     recomputeNowRef.current?.();
-  }, [viewportRangeVh, maxDarken, tauMs, legibilityTargetRatio, forceMaxDarken]);
+  }, [
+    viewportRangeVh,
+    maxDarken,
+    tauMs,
+    legibilityTargetRatio,
+    returnToLightEnabled,
+    returnToLightRangeVh,
+    returnToLightFinalDarken,
+    forceMaxDarken,
+  ]);
 
   return (
     <>

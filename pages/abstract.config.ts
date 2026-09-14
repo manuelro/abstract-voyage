@@ -7,6 +7,32 @@ import {
   DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
   type AboutMobileAccordionConfig,
 } from '../experiences/about/components/AboutMobileAccordion.config';
+import type {
+  BorderTopWidthClass,
+  GapClass,
+  MarginTopClass,
+  PaddingBottomClass,
+  PaddingTopClass,
+  PaddingXClass,
+  PaddingYClass,
+} from '../components/tailwindSpacingScale';
+import {
+  BORDER_TOP_WIDTH_OPTIONS,
+  GAP_OPTIONS,
+  MARGIN_TOP_OPTIONS,
+  PADDING_BOTTOM_OPTIONS,
+  PADDING_TOP_OPTIONS,
+  PADDING_X_OPTIONS,
+  PADDING_Y_OPTIONS,
+} from '../components/tailwindSpacingScale';
+import type {
+  FontSizeClass,
+  FontWeightClass,
+} from '../components/tailwindTypographyScale';
+import {
+  FONT_SIZE_OPTIONS,
+  FONT_WEIGHT_OPTIONS,
+} from '../components/tailwindTypographyScale';
 
 export type AbstractPagePresentationMode = 'splitColumn' | 'classic';
 export type AbstractNarrowColumnStackHorizontalAlign = 'start' | 'center' | 'end' | 'stretch';
@@ -93,6 +119,61 @@ export type AbstractMobileArticleListInkConfig = {
   minContrastRatio: number;
 };
 
+export type AbstractFooterConfig = {
+  enabled: boolean;
+  navigationLabel: string;
+  backgroundMode: 'transparent' | 'surface' | 'custom';
+  backgroundColor: string;
+  textColorMode: 'derived' | 'custom';
+  textColor: string;
+  descriptionColor: string;
+  textSurfaceOffset: number;
+  descriptionSurfaceOffset: number;
+  adaptiveInkEnabled: boolean;
+  adaptiveInkMaxAmount: number;
+  adaptiveInkTargetContrastRatio: number;
+  sectionPaddingYClassName: PaddingYClass;
+  pageItemGapClassName: GapClass;
+  pageItemPaddingYClassName: PaddingYClass;
+  pageItemPaddingXClassName: PaddingXClass;
+  pageTitlePaddingBottomClassName: PaddingBottomClass;
+  pageTitleFontSizeClassName: FontSizeClass;
+  pageTitleFontWeightClassName: FontWeightClass;
+  pageDescriptionMarginTopClassName: MarginTopClass;
+  pageDescriptionPaddingTopClassName: PaddingTopClass;
+  pageDescriptionFontSizeClassName: FontSizeClass;
+  pageDescriptionFontWeightClassName: FontWeightClass;
+  pageLinkBulletEnabled: boolean;
+  pageLinkBorderEnabled: boolean;
+  pageLinkBorderWidthClassName: BorderTopWidthClass;
+  pageLinkBorderColorMode: 'derived' | 'custom';
+  pageLinkBorderColor: string;
+  pageLinkBorderSurfaceOffset: number;
+  pageLinkBorderOpacity: number;
+  contactSpaceBeforeClassName: MarginTopClass;
+  contactFontSizeClassName: FontSizeClass;
+  contactFontWeightClassName: FontWeightClass;
+  contactEmailEnabled: boolean;
+  contactText: string;
+  wordmarkSpaceBeforeClassName: MarginTopClass;
+  wordmarkOpacity: number;
+  backgroundReturnToLightEnabled: boolean;
+  backgroundReturnToLightRangeVh: number;
+  backgroundReturnToLightFinalDarken: number;
+  abstractEnabled: boolean;
+  abstractTitle: string;
+  abstractDescription: string;
+  aboutEnabled: boolean;
+  aboutTitle: string;
+  aboutDescription: string;
+  journalEnabled: boolean;
+  journalTitle: string;
+  journalDescription: string;
+  contactEnabled: boolean;
+  contactTitle: string;
+  contactDescription: string;
+};
+
 export const DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG = {
   // Matches the hue family the previous highlightColor search happened to
   // land on (a cool blue) — introducing this config is a close visual
@@ -103,6 +184,61 @@ export const DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG = {
   minDarkness: 10,
   minContrastRatio: 4.5,
 } satisfies AbstractMobileArticleListInkConfig;
+
+export const DEFAULT_ABSTRACT_FOOTER_CONFIG = {
+  enabled: true,
+  navigationLabel: 'Footer navigation',
+  backgroundMode: 'transparent',
+  backgroundColor: '#f8fafc',
+  textColorMode: 'derived',
+  textColor: '#111827',
+  descriptionColor: '#475569',
+  textSurfaceOffset: -0.82,
+  descriptionSurfaceOffset: -0.52,
+  adaptiveInkEnabled: true,
+  adaptiveInkMaxAmount: 0.75,
+  adaptiveInkTargetContrastRatio: 3,
+  sectionPaddingYClassName: 'py-20',
+  pageItemGapClassName: 'gap-7',
+  pageItemPaddingYClassName: 'py-0',
+  pageItemPaddingXClassName: 'px-7',
+  pageTitlePaddingBottomClassName: 'pb-0',
+  pageTitleFontSizeClassName: 'text-sm',
+  pageTitleFontWeightClassName: 'font-normal',
+  pageDescriptionMarginTopClassName: 'mt-1',
+  pageDescriptionPaddingTopClassName: 'pt-0',
+  pageDescriptionFontSizeClassName: 'text-sm',
+  pageDescriptionFontWeightClassName: 'font-normal',
+  pageLinkBulletEnabled: false,
+  pageLinkBorderEnabled: false,
+  pageLinkBorderWidthClassName: 'border-t',
+  pageLinkBorderColorMode: 'derived',
+  pageLinkBorderColor: '#111827',
+  pageLinkBorderSurfaceOffset: -0.35,
+  pageLinkBorderOpacity: 0.28,
+  contactSpaceBeforeClassName: 'mt-0',
+  contactFontSizeClassName: 'text-sm',
+  contactFontWeightClassName: 'font-normal',
+  contactEmailEnabled: false,
+  contactText: 'reach@abstract.voyage',
+  wordmarkSpaceBeforeClassName: 'mt-40',
+  wordmarkOpacity: 1,
+  backgroundReturnToLightEnabled: true,
+  backgroundReturnToLightRangeVh: 0.9,
+  backgroundReturnToLightFinalDarken: 0,
+  abstractEnabled: false,
+  abstractTitle: 'Abstract',
+  abstractDescription: 'A living index of work, writing, experiments, and interface systems.',
+  aboutEnabled: true,
+  aboutTitle: 'About',
+  aboutDescription: 'Context on the person, practice, and decision-making behind the work.',
+  journalEnabled: true,
+  journalTitle: 'Journal',
+  journalDescription: 'Long-form notes on software, teams, systems, and craft.',
+  contactEnabled: true,
+  contactTitle: 'Contact',
+  contactDescription: 'A focused channel for starting a conversation or carrying a draft forward.',
+} satisfies AbstractFooterConfig;
 
 export const DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG = {
   topRegionPercent: 18,
@@ -124,6 +260,22 @@ const STACK_VERTICAL_ALIGNMENTS: ReadonlyArray<AbstractNarrowColumnStackVertical
 const TIMELINE_CONTENT_ORDERS: ReadonlyArray<AbstractTimelineContentOrder> = [
   'newest', 'oldest', 'titleAsc', 'titleDesc',
 ];
+const FOOTER_BACKGROUND_MODES: ReadonlyArray<AbstractFooterConfig['backgroundMode']> = [
+  'transparent', 'surface', 'custom',
+];
+const FOOTER_TEXT_COLOR_MODES: ReadonlyArray<AbstractFooterConfig['textColorMode']> = ['derived', 'custom'];
+const FOOTER_PADDING_Y_CLASSES = PADDING_Y_OPTIONS.map(option => option.value);
+const FOOTER_PADDING_X_CLASSES = PADDING_X_OPTIONS.map(option => option.value);
+const FOOTER_PADDING_TOP_CLASSES = PADDING_TOP_OPTIONS.map(option => option.value);
+const FOOTER_PADDING_BOTTOM_CLASSES = PADDING_BOTTOM_OPTIONS.map(option => option.value);
+const FOOTER_MARGIN_TOP_CLASSES = MARGIN_TOP_OPTIONS.map(option => option.value);
+const FOOTER_GAP_CLASSES = GAP_OPTIONS.map(option => option.value);
+const FOOTER_BORDER_TOP_WIDTH_CLASSES = BORDER_TOP_WIDTH_OPTIONS.map(option => option.value);
+const FOOTER_BORDER_COLOR_MODES: ReadonlyArray<AbstractFooterConfig['pageLinkBorderColorMode']> = [
+  'derived', 'custom',
+];
+const FOOTER_FONT_SIZE_CLASSES = FONT_SIZE_OPTIONS.map(option => option.value);
+const FOOTER_FONT_WEIGHT_CLASSES = FONT_WEIGHT_OPTIONS.map(option => option.value);
 
 const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallback: T) => (
   values.includes(value as T) ? value as T : fallback
@@ -213,6 +365,151 @@ export function normalizeAbstractMobileArticleListInkConfig(
     minLightness: clampRange(base.minLightness, 0, 100, D.minLightness),
     minDarkness: clampRange(base.minDarkness, 0, 100, D.minDarkness),
     minContrastRatio: clampRange(base.minContrastRatio, 1, 21, D.minContrastRatio),
+  };
+}
+
+export function normalizeAbstractFooterConfig(
+  config: Partial<AbstractFooterConfig> | undefined,
+): AbstractFooterConfig {
+  const D = DEFAULT_ABSTRACT_FOOTER_CONFIG;
+  const base = { ...D, ...(config ?? {}) };
+  const text = (value: unknown, fallback: string) => (
+    typeof value === 'string' ? value : fallback
+  );
+  const nonEmptyText = (value: unknown, fallback: string) => (
+    typeof value === 'string' && value.trim() ? value : fallback
+  );
+
+  return {
+    enabled: base.enabled !== false,
+    navigationLabel: nonEmptyText(base.navigationLabel, D.navigationLabel),
+    backgroundMode: token(base.backgroundMode, FOOTER_BACKGROUND_MODES, D.backgroundMode),
+    backgroundColor: nonEmptyText(base.backgroundColor, D.backgroundColor),
+    textColorMode: token(base.textColorMode, FOOTER_TEXT_COLOR_MODES, D.textColorMode),
+    textColor: nonEmptyText(base.textColor, D.textColor),
+    descriptionColor: nonEmptyText(base.descriptionColor, D.descriptionColor),
+    textSurfaceOffset: clampRange(base.textSurfaceOffset, -1, 1, D.textSurfaceOffset),
+    descriptionSurfaceOffset: clampRange(
+      base.descriptionSurfaceOffset, -1, 1, D.descriptionSurfaceOffset,
+    ),
+    adaptiveInkEnabled: Boolean(base.adaptiveInkEnabled),
+    adaptiveInkMaxAmount: clampRange(base.adaptiveInkMaxAmount, 0, 1, D.adaptiveInkMaxAmount),
+    adaptiveInkTargetContrastRatio: clampRange(
+      base.adaptiveInkTargetContrastRatio, 0, 21, D.adaptiveInkTargetContrastRatio,
+    ),
+    sectionPaddingYClassName: token(
+      base.sectionPaddingYClassName,
+      FOOTER_PADDING_Y_CLASSES,
+      D.sectionPaddingYClassName,
+    ),
+    pageItemGapClassName: token(base.pageItemGapClassName, FOOTER_GAP_CLASSES, D.pageItemGapClassName),
+    pageItemPaddingYClassName: token(
+      base.pageItemPaddingYClassName,
+      FOOTER_PADDING_Y_CLASSES,
+      D.pageItemPaddingYClassName,
+    ),
+    pageItemPaddingXClassName: token(
+      base.pageItemPaddingXClassName,
+      FOOTER_PADDING_X_CLASSES,
+      D.pageItemPaddingXClassName,
+    ),
+    pageTitlePaddingBottomClassName: token(
+      base.pageTitlePaddingBottomClassName,
+      FOOTER_PADDING_BOTTOM_CLASSES,
+      D.pageTitlePaddingBottomClassName,
+    ),
+    pageTitleFontSizeClassName: token(
+      base.pageTitleFontSizeClassName,
+      FOOTER_FONT_SIZE_CLASSES,
+      D.pageTitleFontSizeClassName,
+    ),
+    pageTitleFontWeightClassName: token(
+      base.pageTitleFontWeightClassName,
+      FOOTER_FONT_WEIGHT_CLASSES,
+      D.pageTitleFontWeightClassName,
+    ),
+    pageDescriptionMarginTopClassName: token(
+      base.pageDescriptionMarginTopClassName,
+      FOOTER_MARGIN_TOP_CLASSES,
+      D.pageDescriptionMarginTopClassName,
+    ),
+    pageDescriptionPaddingTopClassName: token(
+      base.pageDescriptionPaddingTopClassName,
+      FOOTER_PADDING_TOP_CLASSES,
+      D.pageDescriptionPaddingTopClassName,
+    ),
+    pageDescriptionFontSizeClassName: token(
+      base.pageDescriptionFontSizeClassName,
+      FOOTER_FONT_SIZE_CLASSES,
+      D.pageDescriptionFontSizeClassName,
+    ),
+    pageDescriptionFontWeightClassName: token(
+      base.pageDescriptionFontWeightClassName,
+      FOOTER_FONT_WEIGHT_CLASSES,
+      D.pageDescriptionFontWeightClassName,
+    ),
+    pageLinkBulletEnabled: Boolean(base.pageLinkBulletEnabled),
+    pageLinkBorderEnabled: Boolean(base.pageLinkBorderEnabled),
+    pageLinkBorderWidthClassName: token(
+      base.pageLinkBorderWidthClassName,
+      FOOTER_BORDER_TOP_WIDTH_CLASSES,
+      D.pageLinkBorderWidthClassName,
+    ),
+    pageLinkBorderColorMode: token(
+      base.pageLinkBorderColorMode,
+      FOOTER_BORDER_COLOR_MODES,
+      D.pageLinkBorderColorMode,
+    ),
+    pageLinkBorderColor: nonEmptyText(base.pageLinkBorderColor, D.pageLinkBorderColor),
+    pageLinkBorderSurfaceOffset: clampRange(
+      base.pageLinkBorderSurfaceOffset,
+      -1,
+      1,
+      D.pageLinkBorderSurfaceOffset,
+    ),
+    pageLinkBorderOpacity: clampRange(base.pageLinkBorderOpacity, 0, 1, D.pageLinkBorderOpacity),
+    contactSpaceBeforeClassName: token(
+      base.contactSpaceBeforeClassName,
+      FOOTER_MARGIN_TOP_CLASSES,
+      D.contactSpaceBeforeClassName,
+    ),
+    contactFontSizeClassName: token(
+      base.contactFontSizeClassName,
+      FOOTER_FONT_SIZE_CLASSES,
+      D.contactFontSizeClassName,
+    ),
+    contactFontWeightClassName: token(
+      base.contactFontWeightClassName,
+      FOOTER_FONT_WEIGHT_CLASSES,
+      D.contactFontWeightClassName,
+    ),
+    contactEmailEnabled: Boolean(base.contactEmailEnabled),
+    contactText: text(base.contactText, D.contactText),
+    wordmarkSpaceBeforeClassName: token(
+      base.wordmarkSpaceBeforeClassName,
+      FOOTER_MARGIN_TOP_CLASSES,
+      D.wordmarkSpaceBeforeClassName,
+    ),
+    wordmarkOpacity: clampRange(base.wordmarkOpacity, 0, 1, D.wordmarkOpacity),
+    backgroundReturnToLightEnabled: Boolean(base.backgroundReturnToLightEnabled),
+    backgroundReturnToLightRangeVh: clampRange(
+      base.backgroundReturnToLightRangeVh, 0.1, 4, D.backgroundReturnToLightRangeVh,
+    ),
+    backgroundReturnToLightFinalDarken: clampRange(
+      base.backgroundReturnToLightFinalDarken, 0, 1, D.backgroundReturnToLightFinalDarken,
+    ),
+    abstractEnabled: Boolean(base.abstractEnabled),
+    abstractTitle: nonEmptyText(base.abstractTitle, D.abstractTitle),
+    abstractDescription: text(base.abstractDescription, D.abstractDescription),
+    aboutEnabled: Boolean(base.aboutEnabled),
+    aboutTitle: nonEmptyText(base.aboutTitle, D.aboutTitle),
+    aboutDescription: text(base.aboutDescription, D.aboutDescription),
+    journalEnabled: Boolean(base.journalEnabled),
+    journalTitle: nonEmptyText(base.journalTitle, D.journalTitle),
+    journalDescription: text(base.journalDescription, D.journalDescription),
+    contactEnabled: Boolean(base.contactEnabled),
+    contactTitle: nonEmptyText(base.contactTitle, D.contactTitle),
+    contactDescription: text(base.contactDescription, D.contactDescription),
   };
 }
 

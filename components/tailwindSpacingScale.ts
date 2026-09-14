@@ -993,6 +993,16 @@ export const OUTER_BORDER_WIDTH_OPTIONS = [
 
 export type OuterBorderWidthClass = typeof OUTER_BORDER_WIDTH_OPTIONS[number]['value'];
 
+export const BORDER_TOP_WIDTH_OPTIONS = [
+  { label: '0px (none)', value: 'border-t-0' },
+  { label: '1px', value: 'border-t' },
+  { label: '2px', value: 'border-t-2' },
+  { label: '4px', value: 'border-t-4' },
+  { label: '8px', value: 'border-t-8' },
+] as const;
+
+export type BorderTopWidthClass = typeof BORDER_TOP_WIDTH_OPTIONS[number]['value'];
+
 /** A divider line between stacked siblings, Tailwind's own `divide-y-*`
  * scale (border-top on every child but the first) — the same "0 is a real
  * option on the scale" shape as OUTER_BORDER_WIDTH_OPTIONS above, for a

@@ -28,7 +28,7 @@ const WORDMARK_SCALE_PIVOT_OPTIONS = [
   { label: 'BOTTOM RIGHT', value: 'bottom-right' },
 ] as const;
 
-const WORDMARK_FIELDS: ReadonlyArray<ConfigScopeEntry<WordmarkConfig>> = [
+export const WORDMARK_FIELDS: ReadonlyArray<ConfigScopeEntry<WordmarkConfig>> = [
   {
     kind: 'group',
     label: 'Color',
@@ -145,7 +145,7 @@ const WORDMARK_FIELDS: ReadonlyArray<ConfigScopeEntry<WordmarkConfig>> = [
         visibleWhen: config => config.introEnabled,
       },
       {
-        kind: 'enum',
+        kind: 'select',
         key: 'introEasing',
         label: 'Easing',
         options: WORDMARK_INTRO_EASING_OPTIONS,

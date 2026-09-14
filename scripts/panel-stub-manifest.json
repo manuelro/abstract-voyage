@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T20:59:36.873Z",
+  "generatedAt": "2026-09-14T21:07:28.388Z",
   "scopes": [
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -236,6 +236,7 @@
       "stub": "experiences/abstract/components/SiteHeader/config/wordmark.panel.stub.ts",
       "exports": [
         "WORDMARK_SCOPE_ID",
+        "WORDMARK_FIELDS",
         "WORDMARK_PANEL"
       ]
     },
@@ -367,11 +368,15 @@
       "exports": [
         "ABSTRACT_PAGE_LAYOUT_SCOPE_ID",
         "ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID",
+        "ABSTRACT_FOOTER_SCOPE_ID",
         "ABSTRACT_POLYMORPHIC_LAYOUT_PANEL",
         "ABSTRACT_PAGE_LAYOUT_PANEL",
         "ABSTRACT_NARROW_COLUMN_STACK_PANEL",
+        "ABSTRACT_FOOTER_PANEL",
         "ABSTRACT_TIMELINE_CONTENT_SCOPE_ID",
         "ABSTRACT_TIMELINE_CONTENT_PANEL",
+        "ABSTRACT_MOBILE_ARTICLE_LIST_INK_SCOPE_ID",
+        "ABSTRACT_MOBILE_ARTICLE_LIST_INK_PANEL",
         "ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID",
         "ABSTRACT_HERO_ACCORDION_ITEM_PANEL"
       ]
