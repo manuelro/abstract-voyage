@@ -2,9 +2,9 @@ import {
   memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode,
 } from 'react';
 import {
+  animate,
   motion,
   useMotionValue,
-  useSpring,
   useTransform,
   type PanInfo,
   type MotionValue,
@@ -194,6 +194,20 @@ function clampIndex(index: number, length: number) {
   return Math.min(Math.max(index, 0), Math.max(length - 1, 0));
 }
 
+/** Same stiffness/damping/mass every settle-to-index motion on `positionX`
+ * shares (drag release, click-to-snap, wheel jump, and an externally-driven
+ * caller's own animated position request) — one physical feel across every
+ * way a card can become active, not a per-call-site guess. `velocity` is
+ * supplied per call from `positionX.getVelocity()`, the value's own actual
+ * recent rate of change, so a settle continues real gesture momentum
+ * instead of starting from rest. */
+const POSITION_SPRING_TRANSITION = {
+  type: 'spring',
+  stiffness: 150,
+  damping: 30,
+  mass: 1,
+} as const;
+
 /** The tallest a flat, at-rest card of `containerHeightPx` worth of
  * available vertical room can be while still guaranteeing its *hovered*
  * envelope (useCardLiftPhysics's own `scale()` + upward `translate3d` lift
@@ -349,20 +363,72 @@ export function CoverFlow<T>({
   enableClickToSnapRef.current = config.enableClickToSnap;
   onActiveIndexChangeRef.current = onActiveIndexChange;
 
-  const scrollX = useMotionValue(safeInitial);
-  const springX = useSpring(scrollX, { stiffness: 150, damping: 30, mass: 1 });
+  // Single source of truth for every card's transform — was a raw scrollX
+  // MotionValue plus a springX = useSpring(scrollX, ...) derived from it,
+  // switched between per-render via an effectiveScrollX ternary keyed on
+  // externalDriver.animatePosition. That spring ran continuously in the
+  // background (Motion subscribes/animates a useSpring source regardless of
+  // whether its output is ever read) even while unrendered during a drag,
+  // silently drifting away from the raw, finger-tracked value. The instant
+  // a drag ended and rendering swapped from raw scrollX to that stale,
+  // lagging springX, the card jumped to wherever the spring happened to be
+  // rather than continuing from where the finger left off — then, still
+  // carrying residual velocity from chasing a moving target, overshot the
+  // new destination before settling. That two-part discontinuity (jump +
+  // overshoot/correction) was the reported release jitter
+  // (BUGS-AUDIT-COVERFLOW-DRAG-RELEASE-JITTER.md). Collapsing to one value
+  // that both drag-tracking (.set()/.jump()) and settle motion (animate(),
+  // see POSITION_SPRING_TRANSITION above) write to removes the swap
+  // entirely: there is no second value to drift out of sync with the one
+  // actually being rendered, on either this externally-driven path or the
+  // internal (desktop, non-externalDriver) one below.
+  const positionX = useMotionValue(safeInitial);
   const externallyControlled = externalDriver !== undefined;
   const externalDriverRef = useRef(externalDriver);
   externalDriverRef.current = externalDriver;
-  const effectiveScrollX = prefersReducedMotion
-    || (externallyControlled && !externalDriver?.animatePosition)
-    ? scrollX
-    : springX;
+  // Set by onDragEnd's external branch below, immediately before it calls
+  // driver.onDragEnd?.() — carries that gesture's own framer-computed
+  // PanInfo.velocity (converted to positionX's units), for the position-sync
+  // effect below to read the ONE time it next animates. Deliberately NOT
+  // positionX.getVelocity() for this case: that's a raw two-sample
+  // derivative of this component's own .set() calls, and for an
+  // externally-driven drag those .set() calls arrive via a parent
+  // component's own state-update round trip — real-world scheduling jitter
+  // between calls can make that raw derivative spike to a physically
+  // meaningless value (confirmed live: an ordinary drag produced a >500px
+  // overshoot past the settled card position from exactly this). PanInfo's
+  // own velocity is a windowed estimate over the whole recent gesture, not
+  // two samples, and is immune to that single-interval noise.
+  const externalReleaseVelocityRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!externalDriver) return;
-    scrollX.set(clampIndex(externalDriver.position, items.length));
-  }, [externalDriver?.position, items.length, scrollX]);
+    const clamped = clampIndex(externalDriver.position, items.length);
+    if (prefersReducedMotion) {
+      positionX.jump(clamped);
+    } else if (externalDriver.animatePosition) {
+      // An explicit animated destination request — either a genuine drag
+      // release (externalReleaseVelocityRef set just before this fires) or
+      // a programmatic jump with no gesture behind it (e.g. tapping a row
+      // in the expanded mobile list), in which case positionX's own current
+      // velocity is the only signal available and is a safe one: it's
+      // continuing an already in-flight settle rather than derived from a
+      // fresh, potentially irregular sampling interval.
+      const releaseVelocity = externalReleaseVelocityRef.current;
+      externalReleaseVelocityRef.current = null;
+      animate(positionX, clamped, {
+        ...POSITION_SPRING_TRANSITION,
+        velocity: releaseVelocity ?? positionX.getVelocity(),
+      });
+    } else {
+      // Continuous 1:1 tracking while a drag is in progress (or a
+      // scroll-driven sync) — .set(), matching onDrag's own raw tracking.
+      positionX.set(clamped);
+    }
+  }, [
+    externalDriver?.position, externalDriver?.animatePosition,
+    prefersReducedMotion, items.length, positionX,
+  ]);
 
   useEffect(() => {
     const onGeometryChange = externalDriverRef.current?.onGeometryChange;
@@ -466,14 +532,24 @@ export function CoverFlow<T>({
   // External activeIndex is the only source of truth for a change this
   // component didn't itself originate (jumpToIndex/onDragEnd below already
   // update activeIndexRef synchronously before calling onActiveIndexChange,
-  // so the prop echoing back the same value is a no-op here).
+  // so the prop echoing back the same value is a no-op here). Animates
+  // (rather than jumping) so a caller-driven index change — e.g. some other
+  // page element changing which article is active — reads as the same
+  // settle motion as every other way a card becomes active, not a
+  // competing instant snap.
   useEffect(() => {
     const clamped = clampIndex(activeIndex, items.length);
     if (clamped !== activeIndexRef.current) {
       activeIndexRef.current = clamped;
-      if (!externallyControlled) scrollX.set(clamped);
+      if (!externallyControlled) {
+        if (prefersReducedMotion) {
+          positionX.jump(clamped);
+        } else {
+          animate(positionX, clamped, { ...POSITION_SPRING_TRANSITION, velocity: positionX.getVelocity() });
+        }
+      }
     }
-  }, [activeIndex, externallyControlled, items.length, scrollX]);
+  }, [activeIndex, externallyControlled, items.length, positionX, prefersReducedMotion]);
 
   const jumpToIndex = useCallback(
     (index: number) => {
@@ -484,10 +560,20 @@ export function CoverFlow<T>({
         return;
       }
       activeIndexRef.current = clamped;
-      scrollX.set(clamped);
+      // Click-to-snap / wheel jump — same settle motion as a drag release
+      // (POSITION_SPRING_TRANSITION), not an instant teleport: previously
+      // this instant .set() still read as a smooth animated jump because
+      // the always-on background springX absorbed it; that spring no
+      // longer exists (see positionX's own doc comment above), so the
+      // animation has to be explicit here.
+      if (prefersReducedMotion) {
+        positionX.jump(clamped);
+      } else {
+        animate(positionX, clamped, { ...POSITION_SPRING_TRANSITION, velocity: positionX.getVelocity() });
+      }
       onActiveIndexChangeRef.current(clamped);
     },
-    [items.length, scrollX],
+    [items.length, positionX, prefersReducedMotion],
   );
 
   useEffect(() => {
@@ -514,7 +600,7 @@ export function CoverFlow<T>({
         now - lastJump > 150;
 
       if (shouldJump) {
-        jumpToIndex(Math.round(scrollX.get()) + (accumulator > 0 ? 1 : -1));
+        jumpToIndex(Math.round(positionX.get()) + (accumulator > 0 ? 1 : -1));
         accumulator = 0;
         lastJump = now;
       }
@@ -522,7 +608,7 @@ export function CoverFlow<T>({
 
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
-  }, [jumpToIndex, scrollX]);
+  }, [jumpToIndex, positionX]);
 
   const handleCardClick = useCallback(
     (item: T, index: number) => {
@@ -537,8 +623,16 @@ export function CoverFlow<T>({
 
   const externalDragActiveRef = useRef(false);
   const onDragStart = useCallback(() => {
-    if (!externalDriverRef.current) setIsDragging(true);
-  }, []);
+    if (externalDriverRef.current) return;
+    setIsDragging(true);
+    // Cancel any still-running settle animation (a re-grab before the
+    // previous release finished easing in) before raw 1:1 tracking below
+    // starts writing to positionX — .set() alone does NOT stop an active
+    // animate() call (only .jump() does), so without this the settle
+    // animation's own rAF loop would keep fighting the drag's per-frame
+    // .set() calls for control of the same value.
+    positionX.stop();
+  }, [positionX]);
 
   const onDrag = useCallback(
     (_: unknown, info: PanInfo) => {
@@ -550,14 +644,24 @@ export function CoverFlow<T>({
           if (!horizontalIntent) return;
           externalDragActiveRef.current = true;
           setIsDragging(true);
+          // Same cancellation as the internal onDragStart above — this
+          // path's own drag-start moment is detected here (horizontalIntent
+          // crossing its threshold), not in the separate onDragStart
+          // callback, since an externally-driven drag is only confirmed
+          // once real horizontal intent is seen.
+          positionX.stop();
           driver.onDragStart?.();
         }
         driver.onDrag?.(info.delta.x);
         return;
       }
-      scrollX.set(scrollX.get() - info.delta.x / (centerGap * 0.8));
+      // Raw, unsprung 1:1 tracking — positionX IS the rendered value now
+      // (no background spring absorbing this), so the card follows the
+      // pointer exactly during the gesture; .set() (not .jump()) preserves
+      // the natural velocity accumulation onDragEnd reads below.
+      positionX.set(positionX.get() - info.delta.x / (centerGap * 0.8));
     },
-    [centerGap, scrollX],
+    [centerGap, positionX],
   );
 
   const onDragEnd = useCallback(
@@ -567,18 +671,40 @@ export function CoverFlow<T>({
       if (driver) {
         const wasExternallyDragging = externalDragActiveRef.current;
         externalDragActiveRef.current = false;
-        if (wasExternallyDragging) driver.onDragEnd?.(info.velocity.x);
+        if (wasExternallyDragging) {
+          // Same unit conversion onDrag's own .set() uses (delta.x /
+          // (centerGap * 0.8)), negated for the same reason: increasing
+          // pointer x DECREASES positionX. Stored for the position-sync
+          // effect above to read the one time it animates in response to
+          // the driver.onDragEnd call below.
+          externalReleaseVelocityRef.current = -info.velocity.x / (centerGap * 0.8);
+          driver.onDragEnd?.(info.velocity.x);
+        }
         return;
       }
-      const projected = scrollX.get() - info.velocity.x * 0.002;
+      const projected = positionX.get() - info.velocity.x * 0.002;
       const clamped = clampIndex(Math.round(projected), items.length);
       if (clamped !== activeIndexRef.current) {
         activeIndexRef.current = clamped;
         onActiveIndexChangeRef.current(clamped);
       }
-      scrollX.set(clamped);
+      if (prefersReducedMotion) {
+        positionX.jump(clamped);
+      } else {
+        // Glides from the exact position the finger just left off (no
+        // swap, no jump) toward the settled index, seeded with the drag's
+        // own PanInfo.velocity (framer's windowed estimate over the whole
+        // gesture — NOT positionX.getVelocity(), a raw two-sample
+        // derivative vulnerable to single-interval timing noise; see
+        // externalReleaseVelocityRef's own doc comment for the live-verified
+        // failure mode that caused).
+        animate(positionX, clamped, {
+          ...POSITION_SPRING_TRANSITION,
+          velocity: -info.velocity.x / (centerGap * 0.8),
+        });
+      }
     },
-    [items.length, scrollX],
+    [centerGap, items.length, positionX, prefersReducedMotion],
   );
 
   if (items.length === 0) return null;
@@ -615,7 +741,7 @@ export function CoverFlow<T>({
             key={index}
             item={item}
             index={index}
-            scrollX={effectiveScrollX}
+            scrollX={positionX}
             width={itemWidth}
             height={itemHeight}
             stackSpacing={stackSpacing}
