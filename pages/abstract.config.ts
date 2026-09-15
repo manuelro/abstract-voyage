@@ -221,7 +221,7 @@ export const DEFAULT_ABSTRACT_FOOTER_CONFIG = {
   navigationLabel: 'Footer navigation',
   backgroundMode: 'surface',
   backgroundColor: '#f8fafc',
-  backgroundOpacity: 0.07,
+  backgroundOpacity: 0.1,
   textColorMode: 'derived',
   textColor: '#111827',
   descriptionColor: '#475569',

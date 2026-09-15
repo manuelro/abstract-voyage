@@ -105,6 +105,7 @@ import {
 } from '../experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection';
 import {
   DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
+  MOBILE_PINNED_ARTICLE_SECTION_EASINGS,
   MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID,
   normalizeMobilePinnedArticleSectionConfig,
 } from '../experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection.config';
@@ -2310,7 +2311,27 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     returnToLightRangeVh: abstractFooterConfig.backgroundReturnToLightRangeVh,
     returnToLightFinalDarken: abstractFooterConfig.backgroundReturnToLightFinalDarken,
   };
-  useScrollAdaptiveInk({ ref: shortArticleListMobileInkRef, ...shortArticleListInkOptions });
+  // Bug fix (operator-reported: the short list's text visibly snapped to a
+  // different color the instant the panel expanded) — 'short' and 'expanded'
+  // used to read from two INDEPENDENT ink pipelines (this one vs.
+  // mobileArticleListColor's own separate --mobile-article-list-darken
+  // color-mix further below), each landing on its own resting value at the
+  // moment of the switch. forceProgress (useScrollAdaptiveInk.ts) lets this
+  // SAME pipeline also hold at full progress while the panel is expanded and
+  // configured to force-darken — mirroring forceMaxRef's own
+  // isMobileArticleListExpanded && expandedForcesMaxBackgroundDarken gate
+  // below, just applied to ink instead of background. The 'expanded'
+  // presentation's own renderList call (below) now reads this SAME
+  // shortArticleListBodyColor/-HighlightColor instead of a second color, so
+  // there is only ever one live value — nothing to snap between. Desktop
+  // never expands this way, so its own ink call is untouched.
+  useScrollAdaptiveInk({
+    ref: shortArticleListMobileInkRef,
+    ...shortArticleListInkOptions,
+    forceProgress: isMobileArticleListExpanded && mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken
+      ? 1
+      : undefined,
+  });
   useScrollAdaptiveInk({ ref: shortArticleListDesktopInkRef, ...shortArticleListInkOptions });
   const shortArticleListBodyColor = colors.scrollGradientActive
     ? buildScrollAdaptiveInkColor(
@@ -5115,8 +5136,8 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                       onSelect={onSelect}
                       accentColor={carouselAndListItems[activeIndex]?.accent ?? '#ffffff'}
                       columnBackgroundColor={colors.wideColumnColor}
-                      bodyColorOverride={presentation === 'short' ? shortArticleListBodyColor : mobileArticleListColor}
-                      highlightColorOverride={presentation === 'short' ? shortArticleListHighlightColor : mobileArticleListColor}
+                      bodyColorOverride={shortArticleListBodyColor}
+                      highlightColorOverride={shortArticleListHighlightColor}
                       // Bug fix (live-verified via Playwright pixel sampling): the
                       // short list's own row opacity used to fall through to
                       // wideColumnTypography.bodyOpacity/highlightOpacity — a flat
@@ -5273,26 +5294,56 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         `}</style>
       </PolymorphicLayout>
     )}
-      <SiteFooter
-        config={abstractFooterConfig}
-        accordionItemConfig={heroAccordionItemConfig}
-        pageSurfaceConfig={normalizedPageSurfaceConfig}
-        wordmarkConfig={effectiveWordmarkConfig}
-        wordmarkStops={heroHeaderLogoStops}
-        wordmarkWidthClassName={normalizedSiteHeaderConfig.logoWidth}
-        wordmarkDesktopWidthClassName={normalizedSiteHeaderConfig.desktopLogoWidth}
-        scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
-        scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
-        scrollGradientOriginColor={colors.scrollGradientOriginColor}
-        scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
-        // Same darkest-endpoint value the mobile article list's own ink
-        // already resolves against (mobileArticleListBackgroundDarkened
-        // above) — reused verbatim rather than a second computation, so
-        // the footer's 'gradientDarkest' background/border options track
-        // the identical color every other gradient-anchored surface on
-        // this page settles to.
-        scrollGradientDarkestColor={colors.scrollGradientActive ? mobileArticleListBackgroundDarkened : undefined}
-      />
+      {/* Fades the footer out using the SAME duration/easing as the mobile
+          article list's own panel-expand motion (and back in with the
+          collapse motion) — operator ask: the footer sitting behind the
+          expanded, modal-like list panel should visually step aside with
+          it, not just sit there statically while covered. pointerEvents/
+          aria-hidden while expanded keep its now-invisible links out of the
+          tab order and hit-testing, consistent with the panel's own
+          "modal-like, scroll-locked overlay" treatment
+          (MobilePinnedArticleSectionConfig's own expandedForcesMaxBackgroundDarken
+          doc comment). isMobileArticleListExpanded stays permanently false
+          on every non-mobile tier (only MobilePinnedArticleSection's own
+          onExpandedChange ever sets it), so this is a no-op there. */}
+      <div
+        aria-hidden={isMobileArticleListExpanded}
+        style={{
+          opacity: isMobileArticleListExpanded ? 0 : 1,
+          transitionProperty: 'opacity',
+          transitionDuration: `${isMobileArticleListExpanded
+            ? mobilePinnedArticleSectionConfig.panelExpandDurationMs
+            : mobilePinnedArticleSectionConfig.panelCollapseDurationMs}ms`,
+          transitionTimingFunction: MOBILE_PINNED_ARTICLE_SECTION_EASINGS[
+            isMobileArticleListExpanded
+              ? mobilePinnedArticleSectionConfig.panelExpandEasing
+              : mobilePinnedArticleSectionConfig.panelCollapseEasing
+          ],
+          pointerEvents: isMobileArticleListExpanded ? 'none' : 'auto',
+        }}
+      >
+        <SiteFooter
+          config={abstractFooterConfig}
+          accordionItemConfig={heroAccordionItemConfig}
+          pageSurfaceConfig={normalizedPageSurfaceConfig}
+          wordmarkConfig={effectiveWordmarkConfig}
+          wordmarkStops={heroHeaderLogoStops}
+          wordmarkWidthClassName={normalizedSiteHeaderConfig.logoWidth}
+          wordmarkDesktopWidthClassName={normalizedSiteHeaderConfig.desktopLogoWidth}
+          scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
+          scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
+          scrollGradientOriginColor={colors.scrollGradientOriginColor}
+          scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
+          // Same darkest-endpoint value the mobile article list's own ink
+          // already resolves against (mobileArticleListBackgroundDarkened
+          // above) — reused verbatim rather than a second computation, so
+          // the footer's 'gradientDarkest' background/border options track
+          // the identical color every other gradient-anchored surface on
+          // this page settles to.
+          scrollGradientDarkestColor={colors.scrollGradientActive ? mobileArticleListBackgroundDarkened : undefined}
+        />
+      </div>
+
       {/* The app-level CuboidNavigationRoot deliberately leaves authoring
           tools inside Face A with their page. Condition unchanged —
           split-column only, matching this panel's existing behavior. */}

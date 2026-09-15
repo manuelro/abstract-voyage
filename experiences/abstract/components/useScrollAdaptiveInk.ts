@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { colord } from 'colord';
 
 export const SCROLL_ADAPTIVE_INK_PROGRESS_VAR = '--scroll-adaptive-ink-progress';
@@ -79,6 +79,7 @@ export function useScrollAdaptiveInk({
   returnToLightEnabled = false,
   returnToLightRangeVh = 1,
   returnToLightFinalDarken = 0,
+  forceProgress,
 }: {
   ref: RefObject<HTMLElement>;
   enabled: boolean;
@@ -92,7 +93,23 @@ export function useScrollAdaptiveInk({
   returnToLightEnabled?: boolean;
   returnToLightRangeVh?: number;
   returnToLightFinalDarken?: number;
+  /** Opt-in (undefined for every existing caller — hero, footer — so their
+   * own behavior is byte-identical). When defined (0..1), bypasses the
+   * scroll-position/return-to-light calculation entirely and targets this
+   * value instead — the same "hold at a fixed progress regardless of real
+   * scrollY" need MobilePinnedArticleSection's own expanded-panel darken
+   * already has (pages/abstract.tsx's forceMaxRef), applied to ink instead
+   * of background. Read via a ref, not a dependency, so flipping it (e.g.
+   * on expand/collapse) triggers an immediate recompute WITHOUT tearing
+   * down and re-seeding the main effect's smoothing state at 0 — the exact
+   * "reset to 0 → flash" bug already fixed three times elsewhere in this
+   * codebase for this same class of rAF loop. */
+  forceProgress?: number;
 }) {
+  const forceProgressRef = useRef(forceProgress);
+  forceProgressRef.current = forceProgress;
+  const recomputeNowRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     if (!enabled) return undefined;
     const el = ref.current;
@@ -125,6 +142,10 @@ export function useScrollAdaptiveInk({
     };
 
     const computeTarget = () => {
+      if (forceProgressRef.current !== undefined) {
+        targetRef.current = clamp01(forceProgressRef.current);
+        return;
+      }
       const viewport = window.innerHeight || 1;
       const scrollProgress = clamp01(window.scrollY / (viewport * scrollGradientDarkenViewportRangeVh));
       let nextProgress = scrollProgress;
@@ -182,6 +203,10 @@ export function useScrollAdaptiveInk({
     writeProgress(0);
     computeTarget();
     schedule();
+    recomputeNowRef.current = () => {
+      computeTarget();
+      schedule();
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
 
@@ -189,6 +214,7 @@ export function useScrollAdaptiveInk({
       if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
+      recomputeNowRef.current = null;
     };
   }, [
     ref, enabled, baseColor, maxAmount, targetContrastRatio,
@@ -196,4 +222,12 @@ export function useScrollAdaptiveInk({
     scrollGradientOriginColor, scrollGradientMaxDarken,
     returnToLightEnabled, returnToLightRangeVh, returnToLightFinalDarken,
   ]);
+
+  // Deliberately separate from the main effect above: forceProgress toggling
+  // (e.g. an expand/collapse state flip) should recompute the CURRENT target
+  // immediately, not tear down/reseed the persistent rAF loop's own smoothing
+  // state — see forceProgress's own doc comment.
+  useEffect(() => {
+    recomputeNowRef.current?.();
+  }, [forceProgress]);
 }
