@@ -942,7 +942,17 @@ export function AbstractJournalLabHueFadeCard({
     // tilt/scale still while this card's own box is being externally
     // translated by the step; the shadow's own fade needs to keep running
     // through that exact window, not pause for it.
-    shadowEnabled: stackActiveSlide,
+    // Also off while neutralSurfaceOpacityOverride is set (the peek-outline
+    // threshold, see its own doc comment above) — an outline-only card has
+    // no fill to cast a shadow FROM, so the resting elevation shadow this
+    // hook otherwise always applies to the active slide read as an opaque,
+    // soft-edged rectangle sitting on the page behind the (correctly)
+    // transparent card interior, defeating the "genuinely see-through"
+    // outline look (operator-reported: card area never truly fused with the
+    // page background even after the fill/border fixes). Reverts to the
+    // ordinary stackActiveSlide-only gate the instant the override is lifted
+    // (omitted, not just falsy) at the reveal threshold.
+    shadowEnabled: stackActiveSlide && stackPresentation?.neutralSurfaceOpacityOverride === undefined,
     // The shadow's own fade in/out as a card crosses the neighbor/active
     // boundary — operator-configurable via the Card stack panel's own
     // "Shadow fade duration"/"Shadow fade easing" (stackPresentation's own

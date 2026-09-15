@@ -69,12 +69,19 @@ export type MobilePinnedArticleSectionConfig = {
    * into its pinned, primary-focus position. Off preserves today's behavior
    * exactly: the gradient is always fully visible, no border. */
   peekOutlineModeEnabled: boolean;
-  /** Scroll distance, in svh (same unit as peekHeightSvh), over which the
-   * outline-to-gradient cross-fade ramps from 0 to 1 as the section
-   * approaches its pinned position. Only read while peekOutlineModeEnabled
-   * is on. Deliberately independent of peekHeightSvh — that field sizes the
-   * peek sliver's own layout height, a different concern from how much
-   * scroll this reveal takes. */
+  /** How close, in svh (same unit as peekHeightSvh), the section's top must
+   * come to its pinned position before the outline snaps to the full
+   * gradient — a threshold margin, not a ramp: focusProgress resolves to a
+   * flat 0 or 1, flipping the instant `top - scrollY` falls within this
+   * many svh, never a fractional cross-fade tied to exactly how close it
+   * is. Only read while peekOutlineModeEnabled is on. A larger value flips
+   * earlier/more forgivingly (tolerates sub-pixel scroll-snap slop, dynamic
+   * mobile toolbar resize, etc. — see MobilePinnedArticleSection.tsx's own
+   * focusProgress effect for the operator-reported failure mode a too-small
+   * margin produces: the flip never visibly fires even once the section
+   * looks fully settled). Deliberately independent of peekHeightSvh — that
+   * field sizes the peek sliver's own layout height, a different concern
+   * from how close counts as "arrived." */
   peekFocusRangeSvh: number;
   /** Vertical scroll pixels required for one CoverFlow horizontal step.
    * `1` preserves direct 1:1 movement; lower values increase carousel travel
@@ -207,8 +214,19 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   listHeightPercent: 38,
   panelOpacity: 0.82,
   peekHeightSvh: 15,
-  peekOutlineModeEnabled: true,
-  peekFocusRangeSvh: 100,
+  peekOutlineModeEnabled: false,
+  // Re-tuned for this field's new margin semantics (see its own doc
+  // comment) — 100 was a leftover from the old ramp-denominator formula,
+  // where a bigger number only widened how early the outline STARTED
+  // easing, never when it finished (that always landed at the exact
+  // geometric top === scrollY instant, the operator-reported bug this
+  // field's rewrite fixes). Under the new "how close counts as arrived"
+  // meaning, 100 (a full viewport height of margin) would flip to fully
+  // revealed almost as soon as any part of the section entered the
+  // viewport at all, defeating the outline effect entirely. 30 — a bit
+  // past peekHeightSvh's own 15 — gives real slack against scroll-snap/
+  // toolbar-resize slop without dissolving the outline prematurely.
+  peekFocusRangeSvh: 30,
   // 0.8 shortens the per-article page travel by 20% while keeping every
   // scroll, snap, restoration, and swipe calculation on the same scale.
   // Set to 1 for strict 1:1 page-to-coverflow travel.

@@ -481,12 +481,35 @@ export function MobilePinnedArticleSection({
       setFocusProgress(1);
       return undefined;
     }
-    const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+    // Threshold, not a scroll-linked ramp (operator ask — see
+    // pages/abstract.tsx's own peekOutlineActive doc comment for the
+    // consuming side of this same decision): focusProgress here only ever
+    // resolves to exactly 0 or exactly 1, flipping the instant the section's
+    // top comes within `peekFocusRangeSvh` of its pinned position, rather
+    // than fractionally approaching 1 as `top - scrollY` shrinks toward 0.
+    // A prior version divided by focusRangePx to produce that fraction,
+    // which meant the flip to 1 only ever happened at the exact instant
+    // `top - scrollY` reached zero (this section's own document top exactly
+    // level with the viewport's top edge) — mathematically correct, but
+    // operator-reported to visibly NOT have fired even once the section
+    // plainly looked fully settled (its short list already visible below
+    // the card). `top` itself is measured live off the real DOM
+    // (outerRef.getBoundingClientRect()), so it's never stale, but "exactly
+    // level" is a much stricter bar than "visually settled" tolerates —
+    // sub-pixel rounding, a scroll-snap stop landing a hair short, or a
+    // dynamic mobile browser toolbar changing `window.innerHeight` between
+    // the moment `top` was captured and the moment the user perceives
+    // "done" can all leave a few pixels of gap that never closes. Treating
+    // `peekFocusRangeSvh` as a MARGIN (how close counts as "arrived") rather
+    // than a ramp denominator makes the flip robust to exactly that kind of
+    // slop, and gives operators a single, directly-tunable "how early/how
+    // exact" knob instead of one that (as built) couldn't actually move the
+    // flip's timing at all.
     const update = () => {
       if (expandedRef.current) return;
       const top = sectionTop();
-      const focusRangePx = Math.max(1, (window.innerHeight || 1) * (config.peekFocusRangeSvh / 100));
-      setFocusProgress(clamp01(1 - (top - window.scrollY) / focusRangePx));
+      const focusMarginPx = Math.max(1, (window.innerHeight || 1) * (config.peekFocusRangeSvh / 100));
+      setFocusProgress(top - window.scrollY <= focusMarginPx ? 1 : 0);
     };
     update();
     window.addEventListener('scroll', update, { passive: true });
