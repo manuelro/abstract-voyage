@@ -13,6 +13,15 @@ const whenStaggeredCardRevealEnabled = (config: Readonly<CoverFlowConfig>) => (
   config.staggeredCardRevealEnabled
 );
 
+const whenGaussianSettleMotion = (config: Readonly<CoverFlowConfig>) => (
+  config.settleMotionCurve === 'gaussian'
+);
+
+const SETTLE_MOTION_CURVE_OPTIONS = [
+  { label: 'Spring (default)', value: 'spring' },
+  { label: 'Gaussian', value: 'gaussian' },
+] as const;
+
 // Local catalog, same "each panel.ts keeps its own copy" convention
 // AboutTimeline.panel.ts's own MOTION_EASING_OPTIONS already follows — no
 // shared CSS-easing-curve catalog exists yet for this codebase's config
@@ -236,6 +245,65 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           max: 50,
           step: 1,
           unit: 'px',
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Settle motion',
+      fields: [
+        {
+          kind: 'select',
+          key: 'settleMotionCurve',
+          label: 'Jump-to-index curve',
+          description: 'Governs every DISCRETE jump — click-to-snap, wheel, an externally-requested index change, and selecting a row in the expanded mobile list. Never the drag-release settle, which always keeps its own momentum-seeded spring. Gaussian: slow start, one smooth peak near the midpoint, slow finish — a soft landing by construction rather than by damping tuning.',
+          options: SETTLE_MOTION_CURVE_OPTIONS,
+        },
+        {
+          kind: 'number',
+          key: 'gaussianSettleBaseDurationMs',
+          label: 'Gaussian base duration',
+          description: 'Duration for a 1-step jump (adjacent index).',
+          min: 100,
+          max: 3000,
+          step: 10,
+          unit: 'ms',
+          integer: true,
+          visibleWhen: whenGaussianSettleMotion,
+        },
+        {
+          kind: 'number',
+          key: 'gaussianSettlePerStepDurationMs',
+          label: 'Gaussian duration per extra step',
+          description: 'Added to the base duration for each additional index of travel distance beyond the first, capped at Gaussian max duration below.',
+          min: 0,
+          max: 1000,
+          step: 10,
+          unit: 'ms',
+          integer: true,
+          visibleWhen: whenGaussianSettleMotion,
+        },
+        {
+          kind: 'number',
+          key: 'gaussianSettleMaxDurationMs',
+          label: 'Gaussian max duration',
+          description: 'Ceiling on the distance-scaled duration — keeps a long jump (e.g. the last row of a long expanded list) prompt rather than sluggish.',
+          min: 100,
+          max: 3000,
+          step: 10,
+          unit: 'ms',
+          integer: true,
+          visibleWhen: whenGaussianSettleMotion,
+        },
+        {
+          kind: 'number',
+          key: 'gaussianSettleSteepness',
+          label: 'Gaussian steepness',
+          description: 'How peaked the velocity bell is. Higher: more time near-stationary at both ends with a sharper burst of speed through the middle. Lower: closer to a gentle, almost-linear ramp.',
+          min: 0.5,
+          max: 5,
+          step: 0.1,
+          visibleWhen: whenGaussianSettleMotion,
         },
       ],
     },

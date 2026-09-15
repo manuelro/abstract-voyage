@@ -11,6 +11,8 @@ import {
 } from 'motion/react';
 import { useMeasuredElementRect } from '../../../../components/useMeasuredElementRect';
 import { useBreakpointTier } from '../../../../components/useBreakpointTier';
+import { clamp } from '../../../../helpers/clamp';
+import { createGaussianEase } from '../../../../helpers/gaussianEasing';
 import { DEFAULT_COVER_FLOW_CONFIG, type CoverFlowConfig } from './CoverFlow.config';
 
 /**
@@ -401,6 +403,37 @@ export function CoverFlow<T>({
   // two samples, and is immune to that single-interval noise.
   const externalReleaseVelocityRef = useRef<number | null>(null);
 
+  // Shared by every DISCRETE "jump to a specific index" transition — never
+  // the drag-release path (that one's momentum comes from the gesture
+  // itself, see POSITION_SPRING_TRANSITION's own doc comment; a fixed-shape
+  // curve has no principled way to absorb an arbitrary input velocity).
+  // Rebuilt only when steepness changes, not per transition.
+  const gaussianEase = useMemo(
+    () => createGaussianEase(config.gaussianSettleSteepness),
+    [config.gaussianSettleSteepness],
+  );
+  const animateGaussianToIndex = useCallback((target: number) => {
+    // positionX's own live value, not activeIndexRef — this helper is
+    // shared across call sites (some external-driver-only, some internal-
+    // only) that don't all maintain activeIndexRef the same way; positionX
+    // is the one value every path already keeps current.
+    const distance = Math.max(1, Math.abs(target - Math.round(positionX.get())));
+    const durationMs = clamp(
+      config.gaussianSettleBaseDurationMs
+        + config.gaussianSettlePerStepDurationMs * (distance - 1),
+      config.gaussianSettleBaseDurationMs,
+      config.gaussianSettleMaxDurationMs,
+    );
+    animate(positionX, target, {
+      type: 'tween',
+      duration: durationMs / 1000,
+      ease: gaussianEase,
+    });
+  }, [
+    config.gaussianSettleBaseDurationMs, config.gaussianSettlePerStepDurationMs,
+    config.gaussianSettleMaxDurationMs, gaussianEase, positionX,
+  ]);
+
   useEffect(() => {
     if (!externalDriver) return;
     const clamped = clampIndex(externalDriver.position, items.length);
@@ -410,16 +443,20 @@ export function CoverFlow<T>({
       // An explicit animated destination request — either a genuine drag
       // release (externalReleaseVelocityRef set just before this fires) or
       // a programmatic jump with no gesture behind it (e.g. tapping a row
-      // in the expanded mobile list), in which case positionX's own current
-      // velocity is the only signal available and is a safe one: it's
-      // continuing an already in-flight settle rather than derived from a
-      // fresh, potentially irregular sampling interval.
+      // in the expanded mobile list). Only the latter is eligible for the
+      // Gaussian curve — a drag release always keeps its momentum-seeded
+      // spring regardless of config.settleMotionCurve, per that field's own
+      // doc comment (CoverFlow.config.ts).
       const releaseVelocity = externalReleaseVelocityRef.current;
       externalReleaseVelocityRef.current = null;
-      animate(positionX, clamped, {
-        ...POSITION_SPRING_TRANSITION,
-        velocity: releaseVelocity ?? positionX.getVelocity(),
-      });
+      if (releaseVelocity === null && config.settleMotionCurve === 'gaussian') {
+        animateGaussianToIndex(clamped);
+      } else {
+        animate(positionX, clamped, {
+          ...POSITION_SPRING_TRANSITION,
+          velocity: releaseVelocity ?? positionX.getVelocity(),
+        });
+      }
     } else {
       // Continuous 1:1 tracking while a drag is in progress (or a
       // scroll-driven sync) — .set(), matching onDrag's own raw tracking.
@@ -428,6 +465,7 @@ export function CoverFlow<T>({
   }, [
     externalDriver?.position, externalDriver?.animatePosition,
     prefersReducedMotion, items.length, positionX,
+    config.settleMotionCurve, animateGaussianToIndex,
   ]);
 
   useEffect(() => {
@@ -544,12 +582,17 @@ export function CoverFlow<T>({
       if (!externallyControlled) {
         if (prefersReducedMotion) {
           positionX.jump(clamped);
+        } else if (config.settleMotionCurve === 'gaussian') {
+          animateGaussianToIndex(clamped);
         } else {
           animate(positionX, clamped, { ...POSITION_SPRING_TRANSITION, velocity: positionX.getVelocity() });
         }
       }
     }
-  }, [activeIndex, externallyControlled, items.length, positionX, prefersReducedMotion]);
+  }, [
+    activeIndex, externallyControlled, items.length, positionX, prefersReducedMotion,
+    config.settleMotionCurve, animateGaussianToIndex,
+  ]);
 
   const jumpToIndex = useCallback(
     (index: number) => {
@@ -568,12 +611,14 @@ export function CoverFlow<T>({
       // animation has to be explicit here.
       if (prefersReducedMotion) {
         positionX.jump(clamped);
+      } else if (config.settleMotionCurve === 'gaussian') {
+        animateGaussianToIndex(clamped);
       } else {
         animate(positionX, clamped, { ...POSITION_SPRING_TRANSITION, velocity: positionX.getVelocity() });
       }
       onActiveIndexChangeRef.current(clamped);
     },
-    [items.length, positionX, prefersReducedMotion],
+    [items.length, positionX, prefersReducedMotion, config.settleMotionCurve, animateGaussianToIndex],
   );
 
   useEffect(() => {

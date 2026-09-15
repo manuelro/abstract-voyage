@@ -205,6 +205,45 @@ export type CoverFlowConfig = {
   cardRevealExitDelayMs: number;
   cardRevealExitDurationMs: number;
   cardRevealExitEasingCss: string;
+  /** Opt-in (default 'spring' — today's exact behavior, byte-identical).
+   * Governs the motion for every DISCRETE "jump to a specific index"
+   * transition — click-to-snap, wheel-jump, an externally-requested index
+   * change, and (CoverFlow's own most common trigger for this) selecting a
+   * row in MobilePinnedArticleSection's expanded list. Deliberately does
+   * NOT apply to drag-release settling, which stays on 'spring' regardless
+   * of this field: that transition is seeded with the actual gesture's own
+   * release velocity (PanInfo.velocity), and a fixed-shape curve has no
+   * principled way to absorb an arbitrary continuous input velocity the way
+   * a spring naturally does.
+   *
+   * 'gaussian': position follows a Gaussian CDF (helpers/gaussianEasing.ts)
+   * — equivalently, VELOCITY traces the Gaussian bell curve itself: slow
+   * start, one smooth peak near the midpoint, slow finish, arriving at
+   * (effectively) zero velocity — a soft landing by construction, not by
+   * damping tuning. This is deliberately the Gaussian's CUMULATIVE
+   * distribution shaping position, not a Gaussian-shaped ACCELERATION
+   * curve: an acceleration curve that stays positive throughout only ever
+   * increases velocity, so it can never land at rest — see helpers/
+   * gaussianEasing.ts's own doc comment for the full reasoning. */
+  settleMotionCurve: 'spring' | 'gaussian';
+  /** 'gaussian' only. Duration for a 1-step jump (adjacent index). Longer
+   * jumps add gaussianSettlePerStepDurationMs per additional index of
+   * travel distance, capped at gaussianSettleMaxDurationMs — a jump across
+   * many rows (e.g. selecting the last row of a long expanded list) reads
+   * as a deliberately longer glide, not the same fixed-duration curve
+   * sped up or truncated. */
+  gaussianSettleBaseDurationMs: number;
+  /** 'gaussian' only — see gaussianSettleBaseDurationMs's own doc comment. */
+  gaussianSettlePerStepDurationMs: number;
+  /** 'gaussian' only — ceiling on the distance-scaled duration above, so a
+   * very long jump still reads as prompt rather than sluggish. */
+  gaussianSettleMaxDurationMs: number;
+  /** 'gaussian' only. How peaked the velocity bell is (the Gaussian's
+   * effective scale, passed to helpers/gaussianEasing.ts's createGaussianEase)
+   * — higher reads as more time near-stationary at both ends with a sharper
+   * burst of speed through the middle; lower reads closer to a gentle,
+   * almost-linear ramp. */
+  gaussianSettleSteepness: number;
 };
 
 const DEFAULT_CARD_WIDTH_RATIO = 0.62;
@@ -253,6 +292,11 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   cardRevealExitDelayMs: 20,
   cardRevealExitDurationMs: 320,
   cardRevealExitEasingCss: 'ease-out',
+  settleMotionCurve: 'gaussian',
+  gaussianSettleBaseDurationMs: 420,
+  gaussianSettlePerStepDurationMs: 90,
+  gaussianSettleMaxDurationMs: 900,
+  gaussianSettleSteepness: 2.2,
 } satisfies CoverFlowConfig;
 
 const CARD_DISTANCE_RATIO_MIN = 0.2;
@@ -295,6 +339,12 @@ const CARD_REVEAL_EXIT_DELAY_MS_MIN = 0;
 const CARD_REVEAL_EXIT_DELAY_MS_MAX = 2000;
 const CARD_REVEAL_EXIT_DURATION_MS_MIN = 0;
 const CARD_REVEAL_EXIT_DURATION_MS_MAX = 3000;
+const GAUSSIAN_SETTLE_DURATION_MS_MIN = 100;
+const GAUSSIAN_SETTLE_DURATION_MS_MAX = 3000;
+const GAUSSIAN_SETTLE_PER_STEP_DURATION_MS_MIN = 0;
+const GAUSSIAN_SETTLE_PER_STEP_DURATION_MS_MAX = 1000;
+const GAUSSIAN_SETTLE_STEEPNESS_MIN = 0.5;
+const GAUSSIAN_SETTLE_STEEPNESS_MAX = 5;
 
 export function normalizeCoverFlowConfig(
   config: Partial<CoverFlowConfig> | undefined,
@@ -367,5 +417,20 @@ export function normalizeCoverFlowConfig(
       && base.cardRevealExitEasingCss.length > 0
       ? base.cardRevealExitEasingCss
       : DEFAULT_COVER_FLOW_CONFIG.cardRevealExitEasingCss,
+    settleMotionCurve: base.settleMotionCurve === 'gaussian' ? 'gaussian' : 'spring',
+    gaussianSettleBaseDurationMs: clamp(
+      base.gaussianSettleBaseDurationMs, GAUSSIAN_SETTLE_DURATION_MS_MIN, GAUSSIAN_SETTLE_DURATION_MS_MAX,
+    ),
+    gaussianSettlePerStepDurationMs: clamp(
+      base.gaussianSettlePerStepDurationMs,
+      GAUSSIAN_SETTLE_PER_STEP_DURATION_MS_MIN,
+      GAUSSIAN_SETTLE_PER_STEP_DURATION_MS_MAX,
+    ),
+    gaussianSettleMaxDurationMs: clamp(
+      base.gaussianSettleMaxDurationMs, GAUSSIAN_SETTLE_DURATION_MS_MIN, GAUSSIAN_SETTLE_DURATION_MS_MAX,
+    ),
+    gaussianSettleSteepness: clamp(
+      base.gaussianSettleSteepness, GAUSSIAN_SETTLE_STEEPNESS_MIN, GAUSSIAN_SETTLE_STEEPNESS_MAX,
+    ),
   };
 }
