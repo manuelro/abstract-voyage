@@ -94,6 +94,17 @@ export type ArticleCardProps = {
    * `neutral` uses dark ink and light borders for a quiet surface while
    * retaining the same content and layout. */
   appearance?: ArticleCardAppearance;
+  /** Opt-in (default false): drops the card root's own unconditional
+   * `bg-black` fill, leaving the root genuinely transparent behind whatever
+   * `background`/`backgroundImage` layer the caller supplies (or, if none is
+   * opaque at a given moment, whatever sits behind this card in the page).
+   * Every existing caller relies on `bg-black` as the opaque base their own
+   * background layer paints over, so this defaults to false (today's exact
+   * behavior) everywhere it isn't explicitly set. Built for an outline-only
+   * presentation (border + ink text, no fill) where a caller's background
+   * layer has deliberately faded itself to nothing and needs the root to
+   * disappear along with it, rather than exposing its own opaque fallback. */
+  backgroundTransparent?: boolean;
   /** 'cta-link' (default): only the CTA text is a link. 'whole-card':
    * the card root is the link and the CTA renders as plain text.
    * 'parent-link': the card is non-interactive content inside a link owned by
@@ -235,6 +246,7 @@ export function ArticleCard({
   contentBlockHeight,
   contentStyle,
   appearance = 'gradient',
+  backgroundTransparent = false,
   physics = 'none',
   physicsConfig,
   rotationDeg = 0,
@@ -296,7 +308,7 @@ export function ArticleCard({
     // Own its typography so every consumer — including abstract's card
     // stack — consistently inherits Instrument Sans through Tailwind's
     // semantic font-sans token rather than the surrounding page's font.
-    'group relative block h-full w-full overflow-hidden bg-black font-sans text-white',
+    `group relative block h-full w-full overflow-hidden font-sans text-white${backgroundTransparent ? '' : ' bg-black'}`,
     className,
   ].filter(Boolean).join(' ');
 

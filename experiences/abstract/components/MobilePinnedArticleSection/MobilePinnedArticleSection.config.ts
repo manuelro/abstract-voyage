@@ -62,6 +62,20 @@ export type MobilePinnedArticleSectionConfig = {
   listHeightPercent: number;
   panelOpacity: number;
   peekHeightSvh: number;
+  /** Opt-in (default off). While on, the active CoverFlow card renders
+   * outline-only — a border and text in one derived ink color, no gradient
+   * fill — while this section is merely peeking at the top of the viewport,
+   * then cross-fades to the full colorful gradient as the user scrolls it
+   * into its pinned, primary-focus position. Off preserves today's behavior
+   * exactly: the gradient is always fully visible, no border. */
+  peekOutlineModeEnabled: boolean;
+  /** Scroll distance, in svh (same unit as peekHeightSvh), over which the
+   * outline-to-gradient cross-fade ramps from 0 to 1 as the section
+   * approaches its pinned position. Only read while peekOutlineModeEnabled
+   * is on. Deliberately independent of peekHeightSvh — that field sizes the
+   * peek sliver's own layout height, a different concern from how much
+   * scroll this reveal takes. */
+  peekFocusRangeSvh: number;
   /** Vertical scroll pixels required for one CoverFlow horizontal step.
    * `1` preserves direct 1:1 movement; lower values increase carousel travel
    * per finger pixel, higher values make each article require more travel.
@@ -186,13 +200,15 @@ export type MobilePinnedArticleSectionConfig = {
 
 export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   visibleRowsLargePhone: 3,
-  visibleRowsSmallPhone: 3,
+  visibleRowsSmallPhone: 4,
   smallPhoneMaxHeightPx: 700,
   expandedPanelHeightPercent: 76,
   carouselHeightPercent: 62,
   listHeightPercent: 38,
   panelOpacity: 0.82,
-  peekHeightSvh: 12,
+  peekHeightSvh: 15,
+  peekOutlineModeEnabled: true,
+  peekFocusRangeSvh: 100,
   // 0.8 shortens the per-article page travel by 20% while keeping every
   // scroll, snap, restoration, and swipe calculation on the same scale.
   // Set to 1 for strict 1:1 page-to-coverflow travel.
@@ -281,6 +297,8 @@ export function normalizeMobilePinnedArticleSectionConfig(
     listHeightPercent: 100 - carouselHeightPercent,
     panelOpacity: clamp(base.panelOpacity, 0, 1),
     peekHeightSvh: clamp(base.peekHeightSvh, 4, 24),
+    peekOutlineModeEnabled: base.peekOutlineModeEnabled === true,
+    peekFocusRangeSvh: clamp(base.peekFocusRangeSvh, 4, 100),
     scrollEffortMultiplier: clamp(base.scrollEffortMultiplier, 0.5, 2),
     scrollDrivenNavigationEnabled: base.scrollDrivenNavigationEnabled === true,
     fullListPresentation: base.fullListPresentation === 'cardFlip'

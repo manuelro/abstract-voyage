@@ -177,7 +177,18 @@
      active card's own edge should read as borderless, not as a
      transparent-through-opacity 3px ring. */
   border-width: 0;
-  border-radius: inherit;
+  /* NOT `border-radius: inherit` (former value here): this element's
+     immediate parent is a plain unrounded `absolute inset-0` wrapper, so
+     `inherit` always resolved to 0 regardless of the ancestor chain's own
+     radius further up — the border stroke drew square while the
+     ArticleCard root's own `overflow: hidden` clipped its outer edge to a
+     real radius, producing a visible seam where a rounded clip met a
+     square stroke (operator-reported corner mismatch on the peek-outline
+     border). The `cardRadius` Tailwind class is already appended to this
+     element's own className alongside `styles.stackNeutralSurface` — the
+     SAME token ArticleCard's root uses — so leaving border-radius
+     unset here lets that utility class set the real value directly instead
+     of relying on inheritance that never reached this far. */
   /* border-box, not padding-box: the fill (backgroundColor, the neighbor
      card's own flat surfaceColor) must extend underneath the border ring
      itself, not stop at its inner edge. Border-color is genuine rgba now

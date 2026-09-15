@@ -717,6 +717,20 @@ export type HueFadeCardProps = {
      * this, sourced from `CardAppearanceConfig.activeScrimOpacity`/
      * `neighborScrimOpacity`. */
     scrimOpacity?: number;
+    /** Opt-in (undefined for every existing caller — CardStack.tsx never
+     * sets this, so its own cards are byte-identical). When defined (0-1),
+     * this card renders the SAME neutral border/neutral-ink treatment
+     * `stackNeutralSurface` already gives an inactive neighbor — even
+     * though `state` is 'active' — at this continuous opacity instead of
+     * the usual on/off `state`-derived one, and the gradient mesh
+     * underneath fades to the inverse (`1 - this value`). Built for
+     * MobilePinnedArticleSection's own peek-outline reveal
+     * (pages/abstract.tsx's renderCoverFlowItem): the active card reads as
+     * an outline (border + text, no gradient) while merely peeking, then
+     * smoothly cross-fades to the full gradient as scroll brings it into
+     * focus — reusing this exact cover/reveal mechanism rather than a
+     * second, parallel one. */
+    neutralSurfaceOpacityOverride?: number;
     transitionDurationMs: number;
     transitionEasingCss: string;
     transitionDelayMs: number;
@@ -1344,6 +1358,15 @@ export function AbstractJournalLabHueFadeCard({
   // excerpt visibility, etc.) still reads the raw inactiveStackPresentation.
   const inactiveNeutralPresentation = inactiveStackPresentation
     && stackPresentation?.frameMode !== 'gradient-mesh';
+  // neutralSurfaceOpacityOverride's own opt-in continuous treatment (see its
+  // doc comment above) — an ACTIVE card with this defined reads the neutral
+  // border/ink treatment too, alongside (never instead of) the normal
+  // inactive-derived case above. Only these three call sites (the custom-
+  // property block, stackNeutralSurface's own visibility, and ArticleCard's
+  // appearance prop) need this OR — every other "inactive" check in this
+  // component stays on the raw inactiveStackPresentation/-NeutralPresentation.
+  const neutralPresentationOverrideActive = stackPresentation?.neutralSurfaceOpacityOverride !== undefined;
+  const neutralAppearanceActive = inactiveNeutralPresentation || neutralPresentationOverrideActive;
   const stackAppearanceStyle = stackPresentation ? {
     '--article-card-appearance-duration': `${stackPresentation.transitionDurationMs}ms`,
     '--article-card-appearance-easing': stackPresentation.transitionEasingCss,
@@ -1386,7 +1409,7 @@ export function AbstractJournalLabHueFadeCard({
     // properties are simply unread there regardless, but omitting them
     // outright keeps this object's own intent legible without relying on
     // that.
-    ...(inactiveNeutralPresentation ? {
+    ...(neutralAppearanceActive ? {
       '--article-card-label-color': stackPresentation.textColor,
       '--article-card-meta-color': stackPresentation.textColor,
       '--article-card-topic-color': stackPresentation.textColor,
@@ -1398,40 +1421,61 @@ export function AbstractJournalLabHueFadeCard({
     } : null),
   } as CSSProperties : undefined;
   const background = (
-    <div
-      className="absolute inset-0"
-      style={{
-        background: getArticleCardFallbackBackground(visualSlide.seed),
-      }}
-    >
-      {isVisible && (targetHasFace || renderedHasFace) ? (
-        <LiquidGradientAdapter
-          slide={visualSlide}
-          motion={motion}
-          config={gradientConfig}
-          activity={meshActivity}
-          palette={activePalette}
-          hologramConfig={journalHologramConfig}
-          hologramInteraction={interactionRef}
-          hologramDampingAttackMs={ctaConfig.proximityAttackMs}
-          hologramDampingReleaseMs={ctaConfig.proximityReleaseMs}
-          // Same activation ramp as useCardLiftPhysics above, applied to
-          // every proximity-driven hologram term — offsetX/Y (the field's
-          // own pan), hueShift, saturationBoost, and brightnessBoost alike
-          // (see GradientRenderer.tsx's own isActive/activationRampDurationMs
-          // doc comments) — driven by the identical stackActiveSlide flip
-          // and duration, so scale/lift/tilt/hologram all move together as
-          // one ramp.
-          isActive={stackActiveSlide}
-          activationRampDurationMs={activationRampDurationMs}
-          activationRampEasingCss={CTA_BUTTON_MOTION_EASINGS[ctaConfig.stateExitEasing]}
-        />
-      ) : null}
+    <div className="absolute inset-0">
+      <div
+        className="absolute inset-0"
+        style={{
+          background: getArticleCardFallbackBackground(visualSlide.seed),
+          // neutralSurfaceOpacityOverride's own opt-in continuous cross-fade
+          // (see its doc comment): the ENTIRE colorful surface — this
+          // fallback paint AND the live mesh nested inside it below — fades
+          // to the INVERSE of the outline cover's own opacity, sharing that
+          // single value instead of a second, independently-driven one, and
+          // the same duration/easing custom properties stackNeutralSurface's
+          // own CSS transition already reads — so cover-fades-in and
+          // gradient-fades-out are always exactly in lockstep. Previously
+          // only the mesh's own inner wrapper carried this opacity, leaving
+          // this fallback paint permanently opaque underneath — the reported
+          // "gradient background showing through the outline" bug. Undefined
+          // for every other caller (no wrapper style at all), so this is a
+          // no-op everywhere else.
+          ...(neutralPresentationOverrideActive ? {
+            opacity: 1 - (stackPresentation?.neutralSurfaceOpacityOverride ?? 0),
+            transitionProperty: 'opacity',
+            transitionDuration: 'var(--article-card-gradient-reveal-duration)',
+            transitionTimingFunction: 'var(--article-card-gradient-reveal-easing)',
+          } : undefined),
+        }}
+      >
+        {isVisible && (targetHasFace || renderedHasFace) ? (
+          <LiquidGradientAdapter
+            slide={visualSlide}
+            motion={motion}
+            config={gradientConfig}
+            activity={meshActivity}
+            palette={activePalette}
+            hologramConfig={journalHologramConfig}
+            hologramInteraction={interactionRef}
+            hologramDampingAttackMs={ctaConfig.proximityAttackMs}
+            hologramDampingReleaseMs={ctaConfig.proximityReleaseMs}
+            // Same activation ramp as useCardLiftPhysics above, applied to
+            // every proximity-driven hologram term — offsetX/Y (the field's
+            // own pan), hueShift, saturationBoost, and brightnessBoost alike
+            // (see GradientRenderer.tsx's own isActive/activationRampDurationMs
+            // doc comments) — driven by the identical stackActiveSlide flip
+            // and duration, so scale/lift/tilt/hologram all move together as
+            // one ramp.
+            isActive={stackActiveSlide}
+            activationRampDurationMs={activationRampDurationMs}
+            activationRampEasingCss={CTA_BUTTON_MOTION_EASINGS[ctaConfig.stateExitEasing]}
+          />
+        ) : null}
+      </div>
       {stackPresentation ? (
         <div
           aria-hidden="true"
           className={`${styles.stackNeutralSurface} ${cardRadius}`}
-          data-visible={inactiveNeutralPresentation ? 'true' : 'false'}
+          data-visible={neutralAppearanceActive ? 'true' : 'false'}
           data-frame-mode={stackPresentation.frameMode}
           // Only while this card is actually crossing the neighbor/active
           // boundary (never at rest, either fully covered or fully
@@ -1456,6 +1500,15 @@ export function AbstractJournalLabHueFadeCard({
           style={{
             backgroundColor: stackPresentation.surfaceColor,
             borderColor: stackPresentation.cardBorderColor,
+            // neutralSurfaceOpacityOverride's own continuous opacity,
+            // overriding the boolean data-visible-driven 0/1 above, and a
+            // fully transparent fill — "outline" means border only, no
+            // background, unlike the desktop neighbor's opaque/translucent
+            // surfaceColor fill.
+            ...(neutralPresentationOverrideActive ? {
+              backgroundColor: 'transparent',
+              opacity: stackPresentation?.neutralSurfaceOpacityOverride,
+            } : null),
           }}
         />
       ) : null}
@@ -1521,7 +1574,14 @@ export function AbstractJournalLabHueFadeCard({
               proportionalContentInsetCqw={cardProportionalContentInsetCqw}
               contentBlockHeight={cardContentBlockHeight}
               contentStyle={contentStyle}
-              appearance={inactiveNeutralPresentation ? 'neutral' : 'gradient'}
+              appearance={neutralAppearanceActive ? 'neutral' : 'gradient'}
+              // Only the peek-outline continuous override wants a genuinely
+              // transparent root (see ArticleCard's own backgroundTransparent
+              // doc comment) — the plain inactive-neighbor case
+              // (inactiveNeutralPresentation) keeps its established opaque
+              // bg-black base, since stackNeutralSurface fills over it with
+              // its own real surfaceColor there, not a transparent cover.
+              backgroundTransparent={neutralPresentationOverrideActive}
               excerptVisible={layoutConfig.descriptionVisible}
               excerptHoverOnly={stackActiveSlide ? false : layoutConfig.descriptionHoverReveal}
               // staggerRevealDelaysMs (opt-in) switches the CTA away from

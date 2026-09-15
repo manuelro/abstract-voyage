@@ -30,6 +30,12 @@ export type MobilePinnedCarouselControls = {
   onDragScroll: (deltaX: number) => void;
   onDragScrollEnd: (velocityX: number) => void;
   onGeometryChange: (geometry: CoverFlowExternalGeometry) => void;
+  /** 0 while this section is merely peeking at the top of the viewport, 1
+   * once it has scrolled into its pinned, primary-focus position — see
+   * config.peekOutlineModeEnabled/-peekFocusRangeSvh. Always 1 while that
+   * toggle is off, so a caller that ignores this field renders exactly as
+   * before. */
+  focusProgress: number;
 };
 
 type ScrollLockSnapshot = {
@@ -211,6 +217,10 @@ export function MobilePinnedArticleSection({
   const [position, setPosition] = useState(activeIndex);
   const [stepPx, setStepPx] = useState(0);
   const [peekActive, setPeekActive] = useState(true);
+  // Defaults to 1 (fully focused) so this stays inert — every consumer of
+  // MobilePinnedCarouselControls.focusProgress renders exactly as before —
+  // whenever config.peekOutlineModeEnabled is off.
+  const [focusProgress, setFocusProgress] = useState(1);
   const [smallPhone, setSmallPhone] = useState(false);
   const snapTimerRef = useRef<number | null>(null);
   const rootInlineSnapTypeRef = useRef('');
@@ -458,6 +468,34 @@ export function MobilePinnedArticleSection({
       window.removeEventListener('orientationchange', schedule);
     };
   }, [config.scrollDrivenNavigationEnabled, scrollStepPx, scrollToIndex, sectionTop, syncFromScroll, travelPx]);
+
+  // Deliberately independent of the config.scrollDrivenNavigationEnabled-
+  // gated effect above (that one only exists to let page scroll drive the
+  // CAROUSEL's own active index — an opt-in, off-by-default legacy mode).
+  // peekOutlineModeEnabled has nothing to do with that: it needs to track
+  // real page scroll against this section's own pinned position in the
+  // ordinary, default scroll experience too, so it gets its own listener,
+  // gated only on its own toggle.
+  useEffect(() => {
+    if (!config.peekOutlineModeEnabled) {
+      setFocusProgress(1);
+      return undefined;
+    }
+    const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+    const update = () => {
+      if (expandedRef.current) return;
+      const top = sectionTop();
+      const focusRangePx = Math.max(1, (window.innerHeight || 1) * (config.peekFocusRangeSvh / 100));
+      setFocusProgress(clamp01(1 - (top - window.scrollY) / focusRangePx));
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [config.peekOutlineModeEnabled, config.peekFocusRangeSvh, sectionTop]);
 
   const lockOuterScroll = useCallback(() => {
     if (scrollLockSnapshotRef.current) return;
@@ -1224,6 +1262,7 @@ export function MobilePinnedArticleSection({
   const carouselControls: MobilePinnedCarouselControls = {
     activeIndex: safeActiveIndex,
     position,
+    focusProgress,
     animatePosition: expanded || (!config.scrollDrivenNavigationEnabled && !dragActive),
     onIndexRequest: config.scrollDrivenNavigationEnabled ? scrollToIndex : commitIndexDirect,
     onDragScrollStart: () => {

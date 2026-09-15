@@ -43,6 +43,23 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       { kind: 'number', key: 'carouselHeightPercent', label: 'Carousel height', min: 40, max: 80, step: 1, unit: '%' },
       { kind: 'number', key: 'panelOpacity', label: 'Panel opacity', min: 0, max: 1, step: 0.01 },
       { kind: 'number', key: 'peekHeightSvh', label: 'Initial peek height', min: 4, max: 24, step: 1, unit: 'svh' },
+      {
+        kind: 'boolean',
+        key: 'peekOutlineModeEnabled',
+        label: 'Outline while peeking',
+        description: 'Opt-in: the active card renders outline-only (border + text, no gradient) while this section is merely peeking at the top of the viewport, then cross-fades to the full gradient as it scrolls into focus.',
+      },
+      {
+        kind: 'number',
+        key: 'peekFocusRangeSvh',
+        label: 'Outline reveal range',
+        description: 'Scroll distance the outline-to-gradient cross-fade ramps over as the section approaches its pinned position.',
+        min: 4,
+        max: 100,
+        step: 1,
+        unit: 'svh',
+        visibleWhen: config => config.peekOutlineModeEnabled,
+      },
       { kind: 'number', key: 'scrollEffortMultiplier', label: 'Scroll effort multiplier', min: 0.5, max: 2, step: 0.05 },
       {
         kind: 'boolean',

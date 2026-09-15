@@ -4307,6 +4307,13 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     geometry: { width: number; height: number },
     reveal: CoverFlowCardReveal,
     position: { distanceFromActive: number },
+    // Opt-in, only ever supplied by the mobile branch's own renderItem
+    // wrapper below (MobilePinnedCarouselControls.focusProgress) — CoverFlow
+    // itself calls renderItem with exactly the six params above, so the
+    // desktop instance's call site (a bare `renderItem={renderCoverFlowItem}`)
+    // never passes a 7th argument and this defaults to 1 (fully focused,
+    // today's exact behavior) there.
+    focusProgress: number = 1,
   ) => {
     const slot: AbstractJournalLabFlipSlot = {
       index,
@@ -4412,6 +4419,30 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     // down to both proximity engines identically.
     const activationRampDurationMs =
       coverFlowConfig.activationRampRate * ACTIVATION_RAMP_REFERENCE_DURATION_MS;
+    // Opt-in (mobilePinnedArticleSectionConfig.peekOutlineModeEnabled) — only
+    // ever true for the mobile branch's own active card (desktop's call site
+    // never supplies focusProgress, so it defaults to 1 and this is always
+    // false there). Border/text ink reuses shortArticleListBodyColor
+    // verbatim — the SAME scroll-gradient-derived, contrast-aware ink the
+    // hero and footer already use, not a new derivation.
+    //
+    // Threshold, not a scroll-linked progression (operator ask — a prior
+    // version tied neutralSurfaceOpacityOverride continuously to
+    // `1 - focusProgress`, so the outline visibly scrubbed in and out as the
+    // user scrolled instead of just being "on" or "off"): this flag is the
+    // ENTIRE signal. Once true, the override below is a flat `1` (fully
+    // outlined, zero gradient) regardless of how far below 1 focusProgress
+    // actually is; the moment focusProgress reaches 1 (section fully
+    // pinned/focused) this flips false and the override is omitted entirely
+    // (fully revealed gradient, zero outline). The only thing scroll
+    // position controls is WHEN that flip happens — the actual cross-fade
+    // between the two states still animates smoothly, but via
+    // AbstractJournalLabCollection's own gradientRevealDurationMs/-EasingCss
+    // CSS transition firing once at the threshold, not via a value that
+    // tracks scroll position throughout the whole peek range.
+    const peekOutlineActive = isActive
+      && mobilePinnedArticleSectionConfig.peekOutlineModeEnabled
+      && focusProgress < 1;
     return (
       <div
         className={`cover-flow-card ${isActive ? 'cover-flow-card--active' : 'cover-flow-card--inactive'}`}
@@ -4461,6 +4492,15 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             ...coverFlowStackPresentationBase,
             surfaceColor: coverFlowCardSurfaceColor,
             state: isActive ? 'active' : 'inactive',
+            ...(peekOutlineActive ? {
+              textColor: shortArticleListBodyColor,
+              topicBorderColor: shortArticleListBodyColor,
+              cardBorderColor: shortArticleListBodyColor,
+              // Flat 1, not `1 - focusProgress` — see peekOutlineActive's own
+              // doc comment above for why this is a threshold, not a
+              // scroll-scrubbed value.
+              neutralSurfaceOpacityOverride: 1,
+            } : null),
           }}
         />
       </div>
@@ -4472,7 +4512,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     normalizedCtaButtonConfig, coverFlowStackPresentationBase, coverFlowContentInsetCqw,
     coverFlowColumnBackgroundColor, coverFlowConfig.inactiveCardColumnDarkeningStep,
     coverFlowConfig.inactiveCardHoverAmplitudeStep, coverFlowConfig.activationRampRate,
-    cardAppearanceConfig,
+    cardAppearanceConfig, mobilePinnedArticleSectionConfig.peekOutlineModeEnabled, shortArticleListBodyColor,
   ]);
 
   return (
@@ -5103,7 +5143,15 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                         items={carouselAndListItems}
                         activeIndex={controls.activeIndex}
                         onActiveIndexChange={controls.onIndexRequest}
-                        renderItem={renderCoverFlowItem}
+                        // Wrapped (rather than passing renderCoverFlowItem
+                        // directly, as the desktop instance below does) only
+                        // to supply the 7th, mobile-only focusProgress
+                        // argument from this render's own controls closure —
+                        // CoverFlow itself always calls this with exactly the
+                        // six params it receives here.
+                        renderItem={(item, index, isActive, geometry, reveal, position) => (
+                          renderCoverFlowItem(item, index, isActive, geometry, reveal, position, controls.focusProgress)
+                        )}
                         config={mobileCoverFlowConfig}
                         prefersReducedMotion={coverFlowPrefersReducedMotion}
                         suppressEntranceAnimation={!coverFlowEntranceRestored}
