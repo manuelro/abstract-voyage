@@ -122,8 +122,22 @@ export type AbstractMobileArticleListInkConfig = {
 export type AbstractFooterConfig = {
   enabled: boolean;
   navigationLabel: string;
-  backgroundMode: 'transparent' | 'surface' | 'custom';
+  /** 'gradientDarkest' (opt-in): backgroundColor is ignored — the footer's
+   * background instead tracks scrollGradientDarkestColor (SiteFooter.tsx's
+   * own prop), the page's shared scroll-gradient background scaled toward
+   * black by its own configured maxDarken. Lets the footer's surface read
+   * as "the gradient, fully settled," matching whatever palette is
+   * currently live instead of a flat, independently-picked color. */
+  backgroundMode: 'transparent' | 'surface' | 'custom' | 'gradientDarkest';
   backgroundColor: string;
+  /** Alpha applied to the resolved background color (surface/custom/
+   * gradientDarkest) via color-mix() — independent of backgroundMode, so
+   * any of those three can also read as a translucent tint over whatever
+   * sits behind the footer, rather than only ever fully opaque or fully
+   * absent ('transparent' mode). 1 (fully opaque) preserves prior
+   * behavior for every existing config exactly. Moot for 'transparent'
+   * mode, which paints nothing regardless. */
+  backgroundOpacity: number;
   textColorMode: 'derived' | 'custom';
   textColor: string;
   descriptionColor: string;
@@ -150,6 +164,23 @@ export type AbstractFooterConfig = {
   pageLinkBorderColor: string;
   pageLinkBorderSurfaceOffset: number;
   pageLinkBorderOpacity: number;
+  /** The footer section's own top edge — independent of pageLinkBorderEnabled
+   * above (that one draws a rule above each individual nav item; this one
+   * draws a single rule along the whole footer's top, the seam between the
+   * footer and whatever content precedes it). */
+  topBorderEnabled: boolean;
+  topBorderWidthClassName: BorderTopWidthClass;
+  /** 'derived': backgroundReferenceColor (the footer's own resolved
+   * background) shifted by topBorderSurfaceOffset, same primitive
+   * pageLinkBorderColorMode's own 'derived' uses. 'gradientDarkest'
+   * (opt-in): scrollGradientDarkestColor verbatim (no offset) — the same
+   * shared-gradient anchor backgroundMode's own 'gradientDarkest' option
+   * reads, so the top border can read as "this gradient's own edge" even
+   * when the footer's background itself uses a different mode. */
+  topBorderColorMode: 'derived' | 'custom' | 'gradientDarkest';
+  topBorderColor: string;
+  topBorderSurfaceOffset: number;
+  topBorderOpacity: number;
   contactSpaceBeforeClassName: MarginTopClass;
   contactFontSizeClassName: FontSizeClass;
   contactFontWeightClassName: FontWeightClass;
@@ -190,6 +221,7 @@ export const DEFAULT_ABSTRACT_FOOTER_CONFIG = {
   navigationLabel: 'Footer navigation',
   backgroundMode: 'transparent',
   backgroundColor: '#f8fafc',
+  backgroundOpacity: 0,
   textColorMode: 'derived',
   textColor: '#111827',
   descriptionColor: '#475569',
@@ -216,6 +248,12 @@ export const DEFAULT_ABSTRACT_FOOTER_CONFIG = {
   pageLinkBorderColor: '#111827',
   pageLinkBorderSurfaceOffset: -0.35,
   pageLinkBorderOpacity: 0.28,
+  topBorderEnabled: true,
+  topBorderWidthClassName: 'border-t',
+  topBorderColorMode: 'derived',
+  topBorderColor: '#111827',
+  topBorderSurfaceOffset: -0.77,
+  topBorderOpacity: 0.25,
   contactSpaceBeforeClassName: 'mt-0',
   contactFontSizeClassName: 'text-sm',
   contactFontWeightClassName: 'font-normal',
@@ -261,9 +299,12 @@ const TIMELINE_CONTENT_ORDERS: ReadonlyArray<AbstractTimelineContentOrder> = [
   'newest', 'oldest', 'titleAsc', 'titleDesc',
 ];
 const FOOTER_BACKGROUND_MODES: ReadonlyArray<AbstractFooterConfig['backgroundMode']> = [
-  'transparent', 'surface', 'custom',
+  'transparent', 'surface', 'custom', 'gradientDarkest',
 ];
 const FOOTER_TEXT_COLOR_MODES: ReadonlyArray<AbstractFooterConfig['textColorMode']> = ['derived', 'custom'];
+const FOOTER_TOP_BORDER_COLOR_MODES: ReadonlyArray<AbstractFooterConfig['topBorderColorMode']> = [
+  'derived', 'custom', 'gradientDarkest',
+];
 const FOOTER_PADDING_Y_CLASSES = PADDING_Y_OPTIONS.map(option => option.value);
 const FOOTER_PADDING_X_CLASSES = PADDING_X_OPTIONS.map(option => option.value);
 const FOOTER_PADDING_TOP_CLASSES = PADDING_TOP_OPTIONS.map(option => option.value);
@@ -385,6 +426,7 @@ export function normalizeAbstractFooterConfig(
     navigationLabel: nonEmptyText(base.navigationLabel, D.navigationLabel),
     backgroundMode: token(base.backgroundMode, FOOTER_BACKGROUND_MODES, D.backgroundMode),
     backgroundColor: nonEmptyText(base.backgroundColor, D.backgroundColor),
+    backgroundOpacity: clampRange(base.backgroundOpacity, 0, 1, D.backgroundOpacity),
     textColorMode: token(base.textColorMode, FOOTER_TEXT_COLOR_MODES, D.textColorMode),
     textColor: nonEmptyText(base.textColor, D.textColor),
     descriptionColor: nonEmptyText(base.descriptionColor, D.descriptionColor),
@@ -468,6 +510,16 @@ export function normalizeAbstractFooterConfig(
       D.pageLinkBorderSurfaceOffset,
     ),
     pageLinkBorderOpacity: clampRange(base.pageLinkBorderOpacity, 0, 1, D.pageLinkBorderOpacity),
+    topBorderEnabled: Boolean(base.topBorderEnabled),
+    topBorderWidthClassName: token(
+      base.topBorderWidthClassName,
+      FOOTER_BORDER_TOP_WIDTH_CLASSES,
+      D.topBorderWidthClassName,
+    ),
+    topBorderColorMode: token(base.topBorderColorMode, FOOTER_TOP_BORDER_COLOR_MODES, D.topBorderColorMode),
+    topBorderColor: nonEmptyText(base.topBorderColor, D.topBorderColor),
+    topBorderSurfaceOffset: clampRange(base.topBorderSurfaceOffset, -1, 1, D.topBorderSurfaceOffset),
+    topBorderOpacity: clampRange(base.topBorderOpacity, 0, 1, D.topBorderOpacity),
     contactSpaceBeforeClassName: token(
       base.contactSpaceBeforeClassName,
       FOOTER_MARGIN_TOP_CLASSES,

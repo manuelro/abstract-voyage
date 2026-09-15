@@ -2172,6 +2172,23 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const headerTypography = resolveTypographyColors(colors.actualLeftSegmentColor, globalTypographyConfig);
   const narrowColumnTypography = resolveTypographyColors(colors.narrowColumnColor, globalTypographyConfig);
   const wideColumnTypography = resolveTypographyColors(colors.wideColumnColor, globalTypographyConfig);
+  // Light-surface anchor for the mobile short list's own scroll-adaptive
+  // ink (below) — resolveTypographyColors' own resolveRole bakes each
+  // role's real render opacity (bodyOpacity/highlightOpacity, both < 1 for
+  // AboutTimelineRow's inactive rows) INTO the contrast search itself, via
+  // resolveContrastAwareTextColor's targetOpacity param — exactly what
+  // narrowColumnTypography/wideColumnTypography above already get for
+  // free. A plain deriveSurfaceColor (SiteFooter's own formula — footer
+  // text always renders at opacity 1, so it never needed this) looked
+  // "correct" in isolation but came out visibly washed once actually
+  // painted at AboutTimelineRow's real opacity (confirmed live via
+  // Playwright pixel sampling: opacity 0.42 diluted an undercompensated
+  // dark base into a low-contrast gray). Resolved once against the page's
+  // light surface (the background the short list settles to once
+  // useScrollAdaptiveInk's returnToLight has fully reduced progress).
+  const shortArticleListLightSurfaceTypography = resolveTypographyColors(
+    normalizedPageSurfaceConfig.color, globalTypographyConfig,
+  );
   // Mobile article-list scroll-contrast guarantee (PLAN-MOBILE-ARTICLE-LIST-
   // SCROLL-CONTRAST.md): while the mobile tier's scroll-gradient background
   // is active, colors.wideColumnColor above is already overridden to a
@@ -2224,36 +2241,87 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // correct for.
   const mobileArticleListScrollRef = useRef<HTMLDivElement | null>(null);
   // The desktop timeline and the mobile short list are both compact
-  // companions to CoverFlow. Keep their adaptive ink on a dedicated ref so
-  // the expanded mobile reading list can retain its existing color path.
-  const shortArticleListInkRef = useRef<HTMLDivElement | null>(null);
+  // companions to CoverFlow, and BOTH branches are always mounted in the DOM
+  // simultaneously (PolymorphicLayout renders narrowColumn and wideColumn
+  // side by side; only CSS media queries decide which is visually shown per
+  // breakpoint) — so a single shared ref here would have its `.current`
+  // overwritten by whichever of the two elements commits last, silently
+  // starving the OTHER (possibly the one actually visible) of any further
+  // useScrollAdaptiveInk writes: it freezes at whatever
+  // --scroll-adaptive-ink-progress value happened to be set the last time it
+  // briefly held the ref, never receiving the return-to-light correction as
+  // the page scrolls into the footer (operator-reported, confirmed live via
+  // Playwright: the visible mobile row stayed washed out while the actual
+  // ref-holder — the hidden desktop instance — correctly darkened). Two
+  // independent refs/hook instances, one per DOM subtree, is what SiteFooter
+  // implicitly gets for free by only ever mounting once.
+  const shortArticleListMobileInkRef = useRef<HTMLDivElement | null>(null);
+  const shortArticleListDesktopInkRef = useRef<HTMLDivElement | null>(null);
+  // Bug fix (operator-reported, screenshot evidence): the mobile branch used
+  // to seed its base color from mobileArticleListInkAtRest — a color tuned
+  // by AbstractMobileArticleListInkConfig to read LIGHT against the dark
+  // at-rest gradient, then only ever pushed lighter still by
+  // useScrollAdaptiveInk's white color-mix. Once the physical background
+  // scrolled past that dark assumption into a lighter tone, the ink had no
+  // way back to dark and went illegible. Now anchored to the LIGHT page
+  // surface instead (shortArticleListLightSurfaceTypography above) —
+  // dark-on-light by construction, matching SiteFooter's own baseTextColor
+  // — so the SAME useScrollAdaptiveInk hook only ever lightens it while the
+  // gradient is actively darkened, tracking the footer's own light/dark
+  // curve. Uses resolveTypographyColors (not SiteFooter's own plain
+  // deriveSurfaceColor) specifically because AboutTimelineRow renders
+  // inactive rows at reduced opacity (bodyOpacity/highlightOpacity, both
+  // <1) — resolveTypographyColors' role resolution bakes that real render
+  // opacity into its contrast search, so the result still reads legibly
+  // once diluted. SiteFooter never needed this since its own text always
+  // renders at opacity 1, and a first pass here that borrowed its plain
+  // formula verbatim came out visibly washed once actually painted at 0.42
+  // opacity (confirmed live via Playwright pixel sampling).
   const shortArticleListBaseColor = colors.breakpointTier !== 'mobile'
     ? narrowColumnTypography.bodyColor
-    : mobileArticleListInkAtRest;
+    : shortArticleListLightSurfaceTypography.bodyColor;
   const shortArticleListHighlightBaseColor = colors.breakpointTier !== 'mobile'
     ? narrowColumnTypography.highlightColor
-    : mobileArticleListInkAtRest;
-  useScrollAdaptiveInk({
-    ref: shortArticleListInkRef,
+    : shortArticleListLightSurfaceTypography.highlightColor;
+  // Bug fix (2nd pass, live-verified via Playwright): the previous fix only
+  // corrected the BASE color but left the ink progress computed from raw,
+  // monotonically-increasing window.scrollY — so it kept ratcheting toward
+  // white for the rest of the page's scroll range and never came back down
+  // once the real background behind the (sticky/pinned) short list turned
+  // light near the footer. SiteFooter.tsx never hits this because it ALSO
+  // forwards these same three returnToLight* fields
+  // (config.backgroundReturnToLightEnabled/-RangeVh/-FinalDarken) to its own
+  // identical useScrollAdaptiveInk call, which resets the ink progress back
+  // toward 0 as the shared data-scroll-gradient-return-anchor element
+  // approaches the viewport. Forwarding the exact same abstractFooterConfig
+  // fields here is what actually makes the short list track the footer's
+  // own color, not just share its formula. Called twice (mobile/desktop
+  // refs above) since each DOM subtree needs its own live-updated instance.
+  const shortArticleListInkOptions = {
     enabled: colors.scrollGradientActive,
     baseColor: shortArticleListBaseColor,
-    maxAmount: normalizedSplitColumnHeroConfig.paragraphGradientScrollLightenMaxAmount,
-    targetContrastRatio: normalizedSplitColumnHeroConfig.paragraphGradientScrollLightenTargetContrastRatio,
+    maxAmount: abstractFooterConfig.adaptiveInkMaxAmount,
+    targetContrastRatio: abstractFooterConfig.adaptiveInkTargetContrastRatio,
     scrollGradientDarkenViewportRangeVh: colors.scrollGradientResolved.viewportRangeVh,
     scrollGradientDarkenTauMs: colors.scrollGradientResolved.tauMs,
     scrollGradientOriginColor: colors.scrollGradientOriginColor,
     scrollGradientMaxDarken: colors.scrollGradientResolved.maxDarken,
-  });
+    returnToLightEnabled: abstractFooterConfig.backgroundReturnToLightEnabled,
+    returnToLightRangeVh: abstractFooterConfig.backgroundReturnToLightRangeVh,
+    returnToLightFinalDarken: abstractFooterConfig.backgroundReturnToLightFinalDarken,
+  };
+  useScrollAdaptiveInk({ ref: shortArticleListMobileInkRef, ...shortArticleListInkOptions });
+  useScrollAdaptiveInk({ ref: shortArticleListDesktopInkRef, ...shortArticleListInkOptions });
   const shortArticleListBodyColor = colors.scrollGradientActive
     ? buildScrollAdaptiveInkColor(
       shortArticleListBaseColor,
-      normalizedSplitColumnHeroConfig.paragraphGradientScrollLightenMaxAmount,
+      abstractFooterConfig.adaptiveInkMaxAmount,
     )
     : shortArticleListBaseColor;
   const shortArticleListHighlightColor = colors.scrollGradientActive
     ? buildScrollAdaptiveInkColor(
       shortArticleListHighlightBaseColor,
-      normalizedSplitColumnHeroConfig.paragraphGradientScrollLightenMaxAmount,
+      abstractFooterConfig.adaptiveInkMaxAmount,
     )
     : shortArticleListHighlightBaseColor;
   // Live-value refs, same pattern PolymorphicScrollGradientBackground.tsx
@@ -4985,7 +5053,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
               <div
                 ref={element => {
                   mobileArticleListScrollRef.current = element;
-                  shortArticleListInkRef.current = element;
+                  shortArticleListMobileInkRef.current = element;
                 }}
                 style={{ width: '100vw', marginLeft: 'calc(50% - 50vw)' }}
               >
@@ -5049,8 +5117,26 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                       columnBackgroundColor={colors.wideColumnColor}
                       bodyColorOverride={presentation === 'short' ? shortArticleListBodyColor : mobileArticleListColor}
                       highlightColorOverride={presentation === 'short' ? shortArticleListHighlightColor : mobileArticleListColor}
-                      bodyOpacityOverride={wideColumnTypography.bodyOpacity}
-                      highlightOpacityOverride={wideColumnTypography.highlightOpacity}
+                      // Bug fix (live-verified via Playwright pixel sampling): the
+                      // short list's own row opacity used to fall through to
+                      // wideColumnTypography.bodyOpacity/highlightOpacity — a flat
+                      // GlobalTypographyConfig constant (0.42 here) meant for rows
+                      // resolved against wideColumnColor's DARK reference, where a
+                      // light ink at 42% opacity still clears contrast easily. Once
+                      // the short list's own ink switched to a dark-on-LIGHT
+                      // resolution (shortArticleListBodyColor above, matching the
+                      // footer), that same 42% dilution put AA contrast physically
+                      // out of reach — even pure black, blended at 42% opacity over
+                      // a near-white background, tops out around ~2.8:1
+                      // (resolveContrastAwareTextColor's own opacity-aware search
+                      // confirmed this live: it returned #000000, its best
+                      // candidate, having already hit the ceiling). SiteFooter never
+                      // hits this because its text renders at opacity 1, full stop —
+                      // matching that (for the SHORT presentation only; the
+                      // expanded/glass-panel list keeps its existing, already-legible
+                      // dimming) is what actually closes the gap.
+                      bodyOpacityOverride={presentation === 'short' ? 1 : wideColumnTypography.bodyOpacity}
+                      highlightOpacityOverride={presentation === 'short' ? 1 : wideColumnTypography.highlightOpacity}
                       description={abstractTimelineConfig.description || undefined}
                       config={abstractTimelineConfig}
                       prefersReducedMotion={coverFlowPrefersReducedMotion}
@@ -5122,7 +5208,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
             )}
             bottom={isCoverFlowDesktopTier ? (
               <div
-                ref={shortArticleListInkRef}
+                ref={shortArticleListDesktopInkRef}
                 data-abstract-article-list-section="true"
               >
                 <AboutTimeline
@@ -5199,6 +5285,13 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
         scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
         scrollGradientOriginColor={colors.scrollGradientOriginColor}
         scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
+        // Same darkest-endpoint value the mobile article list's own ink
+        // already resolves against (mobileArticleListBackgroundDarkened
+        // above) — reused verbatim rather than a second computation, so
+        // the footer's 'gradientDarkest' background/border options track
+        // the identical color every other gradient-anchored surface on
+        // this page settles to.
+        scrollGradientDarkestColor={colors.scrollGradientActive ? mobileArticleListBackgroundDarkened : undefined}
       />
       {/* The app-level CuboidNavigationRoot deliberately leaves authoring
           tools inside Face A with their page. Condition unchanged —

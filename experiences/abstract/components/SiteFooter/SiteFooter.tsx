@@ -36,6 +36,15 @@ export type SiteFooterProps = {
   scrollGradientDarkenTauMs?: number;
   scrollGradientOriginColor?: string;
   scrollGradientMaxDarken?: number;
+  /** The shared scroll-gradient background's own darkest color — its
+   * origin color (scrollGradientOriginColor) scaled toward black by its own
+   * configured maxDarken, the SAME endpoint PolymorphicScrollGradientBackground
+   * itself settles to at full darken (pages/abstract.tsx's own
+   * mobileArticleListBackgroundDarkened computes this identically). Read by
+   * config.backgroundMode/topBorderColorMode's own 'gradientDarkest' option
+   * below. Undefined wherever the caller has no scroll-gradient background
+   * at all — both options fall back to the plain surface reference then. */
+  scrollGradientDarkestColor?: string;
 };
 
 export function SiteFooter({
@@ -50,6 +59,7 @@ export function SiteFooter({
   scrollGradientDarkenTauMs,
   scrollGradientOriginColor,
   scrollGradientMaxDarken,
+  scrollGradientDarkestColor,
 }: SiteFooterProps) {
   const footerRef = useRef<HTMLElement | null>(null);
   const accordionItemMotion = useLiquidSliderMotion(DEFAULT_LIQUID_SLIDER_CONFIG);
@@ -59,12 +69,23 @@ export function SiteFooter({
 
   const backgroundReferenceColor = config.backgroundMode === 'custom'
     ? config.backgroundColor
-    : pageSurfaceConfig.color;
-  const backgroundColor = config.backgroundMode === 'custom'
+    : config.backgroundMode === 'gradientDarkest'
+      ? scrollGradientDarkestColor ?? pageSurfaceConfig.color
+      : pageSurfaceConfig.color;
+  const opaqueBackgroundColor = config.backgroundMode === 'custom'
     ? config.backgroundColor
     : config.backgroundMode === 'surface'
       ? pageSurfaceConfig.color
-      : undefined;
+      : config.backgroundMode === 'gradientDarkest'
+        ? scrollGradientDarkestColor ?? pageSurfaceConfig.color
+        : undefined;
+  // backgroundOpacity is independent of backgroundMode (any of the three
+  // painted modes can also read as translucent) — color-mix() toward
+  // transparent rather than an rgba string, matching the border opacity
+  // treatment below and every other opacity knob in this component.
+  const backgroundColor = opaqueBackgroundColor && config.backgroundOpacity < 1
+    ? `color-mix(in srgb, ${opaqueBackgroundColor} ${config.backgroundOpacity * 100}%, transparent)`
+    : opaqueBackgroundColor;
   const baseTextColor = config.textColorMode === 'custom'
     ? config.textColor
     : deriveSurfaceColor(backgroundReferenceColor, config.textSurfaceOffset);
@@ -97,6 +118,21 @@ export function SiteFooter({
   const borderColor = config.adaptiveInkEnabled && config.pageLinkBorderColorMode !== 'custom'
     ? buildScrollAdaptiveInkColor(baseBorderColor, config.adaptiveInkMaxAmount)
     : baseBorderColor;
+  // Footer-level top border (the seam above the whole section) — a second,
+  // independent border resolution alongside pageLinkBorder's own per-item
+  // rule above, same 'derived'/adaptive-ink treatment plus a third
+  // 'gradientDarkest' option: the shared scroll-gradient's own darkest
+  // color verbatim (no offset — it's already an extreme, not a surface to
+  // nudge away from), letting the top edge read as "this gradient's own
+  // edge" even when config.backgroundMode uses a different mode.
+  const baseTopBorderColor = config.topBorderColorMode === 'custom'
+    ? config.topBorderColor
+    : config.topBorderColorMode === 'gradientDarkest'
+      ? scrollGradientDarkestColor ?? backgroundReferenceColor
+      : deriveSurfaceColor(backgroundReferenceColor, config.topBorderSurfaceOffset);
+  const topBorderColor = config.adaptiveInkEnabled && config.topBorderColorMode !== 'custom'
+    ? buildScrollAdaptiveInkColor(baseTopBorderColor, config.adaptiveInkMaxAmount)
+    : baseTopBorderColor;
   // Keep the wordmark in the same visual state as the footer copy. The
   // scroll-adaptive hook writes its progress to the footer itself, so each
   // CSS `color-mix()` below updates at paint time without re-rendering a
@@ -153,8 +189,15 @@ export function SiteFooter({
     <footer
       ref={footerRef}
       data-scroll-gradient-return-anchor={config.backgroundReturnToLightEnabled ? 'true' : undefined}
-      className="relative z-10 overflow-hidden"
-      style={{ ...footerStyle, backgroundColor, color: textColor }}
+      className={`relative z-10 overflow-hidden ${config.topBorderEnabled ? config.topBorderWidthClassName : 'border-t-0'}`}
+      style={{
+        ...footerStyle,
+        backgroundColor,
+        color: textColor,
+        borderColor: config.topBorderEnabled
+          ? `color-mix(in srgb, ${topBorderColor} ${config.topBorderOpacity * 100}%, transparent)`
+          : 'transparent',
+      }}
     >
       <PageContainer
         config={pageSurfaceConfig}
