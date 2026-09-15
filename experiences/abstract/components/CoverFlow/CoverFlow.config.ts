@@ -308,7 +308,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   // Echoes inactiveCardHoverAmplitudeStep's own original (later-superseded)
   // default — a familiar starting point to tune live from, giving 400ms
   // under ACTIVATION_RAMP_REFERENCE_DURATION_MS above.
-  activationRampRate: 0.31,
+  activationRampRate: 1,
   staggeredCardRevealEnabled: true,
   staggeredCardRevealStepMs: 90,
   // Matches components/ArticleCard.detailFade.ts's own
@@ -328,7 +328,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   // for the operator-reported "no visible effect" this caused). 2 sits
   // solidly in the range where raising or lowering this value actually
   // changes what's on screen.
-  gaussianSettleSteepness: 2,
+  gaussianSettleSteepness: 4.2,
 } satisfies CoverFlowConfig;
 
 const CARD_DISTANCE_RATIO_MIN = 0.2;
