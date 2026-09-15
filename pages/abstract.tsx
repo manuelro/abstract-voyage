@@ -2278,12 +2278,17 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // renders at opacity 1, and a first pass here that borrowed its plain
   // formula verbatim came out visibly washed once actually painted at 0.42
   // opacity (confirmed live via Playwright pixel sampling).
+  // Operator ask: pass AboutTimeline exactly ONE resolved ink (below, used
+  // for both bodyColorOverride and highlightColorOverride) instead of two
+  // independently-offset hues — matches AbstractMobileArticleListInkConfig's
+  // own original documented intent ("one fixed hue+saturation ink...
+  // active/inactive distinction is carried by OPACITY alone") and lets
+  // AboutTimelineRow's own font-weight/opacity role logic do the active-vs-
+  // inactive differentiation, rather than us supplying a second, separately-
+  // derived color it would otherwise have overridden anyway.
   const shortArticleListBaseColor = colors.breakpointTier !== 'mobile'
     ? narrowColumnTypography.bodyColor
     : shortArticleListLightSurfaceTypography.bodyColor;
-  const shortArticleListHighlightBaseColor = colors.breakpointTier !== 'mobile'
-    ? narrowColumnTypography.highlightColor
-    : shortArticleListLightSurfaceTypography.highlightColor;
   // Bug fix (2nd pass, live-verified via Playwright): the previous fix only
   // corrected the BASE color but left the ink progress computed from raw,
   // monotonically-increasing window.scrollY — so it kept ratcheting toward
@@ -2339,12 +2344,6 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       abstractFooterConfig.adaptiveInkMaxAmount,
     )
     : shortArticleListBaseColor;
-  const shortArticleListHighlightColor = colors.scrollGradientActive
-    ? buildScrollAdaptiveInkColor(
-      shortArticleListHighlightBaseColor,
-      abstractFooterConfig.adaptiveInkMaxAmount,
-    )
-    : shortArticleListHighlightBaseColor;
   // Live-value refs, same pattern PolymorphicScrollGradientBackground.tsx
   // now uses (PLAN-DARKEN-FLASH-FIX.md) — updated directly in the render
   // body so the PERSISTENT rAF loop below always reads today's latest
@@ -5129,7 +5128,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                       />
                     </div>
                   )}
-                  renderList={({ activeIndex, presentation, rows: listRows, onSelect }) => (
+                  renderList={({ activeIndex, rows: listRows, onSelect }) => (
                     <AboutTimeline
                       rows={listRows}
                       activeIndex={activeIndex}
@@ -5137,27 +5136,21 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                       accentColor={carouselAndListItems[activeIndex]?.accent ?? '#ffffff'}
                       columnBackgroundColor={colors.wideColumnColor}
                       bodyColorOverride={shortArticleListBodyColor}
-                      highlightColorOverride={shortArticleListHighlightColor}
-                      // Bug fix (live-verified via Playwright pixel sampling): the
-                      // short list's own row opacity used to fall through to
-                      // wideColumnTypography.bodyOpacity/highlightOpacity — a flat
-                      // GlobalTypographyConfig constant (0.42 here) meant for rows
-                      // resolved against wideColumnColor's DARK reference, where a
-                      // light ink at 42% opacity still clears contrast easily. Once
-                      // the short list's own ink switched to a dark-on-LIGHT
-                      // resolution (shortArticleListBodyColor above, matching the
-                      // footer), that same 42% dilution put AA contrast physically
-                      // out of reach — even pure black, blended at 42% opacity over
-                      // a near-white background, tops out around ~2.8:1
-                      // (resolveContrastAwareTextColor's own opacity-aware search
-                      // confirmed this live: it returned #000000, its best
-                      // candidate, having already hit the ceiling). SiteFooter never
-                      // hits this because its text renders at opacity 1, full stop —
-                      // matching that (for the SHORT presentation only; the
-                      // expanded/glass-panel list keeps its existing, already-legible
-                      // dimming) is what actually closes the gap.
-                      bodyOpacityOverride={presentation === 'short' ? 1 : wideColumnTypography.bodyOpacity}
-                      highlightOpacityOverride={presentation === 'short' ? 1 : wideColumnTypography.highlightOpacity}
+                      highlightColorOverride={shortArticleListBodyColor}
+                      // Operator ask: the short and expanded presentations must
+                      // read the SAME AboutTimeline config — wideColumnTypography's
+                      // opacity roles (the ones the expanded presentation already
+                      // used), not a presentation-dependent override. This is also
+                      // the numerically CORRECT pairing, not just consistent:
+                      // shortArticleListLightSurfaceTypography.bodyColor (this ink's
+                      // own base, above) was itself resolved via resolveTypographyColors
+                      // with targetOpacity: globalTypographyConfig.bodyOpacity — the
+                      // exact value wideColumnTypography.bodyOpacity also is (same
+                      // shared config, same field) — so rendering at any OTHER
+                      // opacity (an earlier fix here forced 1) uses a color that was
+                      // never actually searched for that opacity.
+                      bodyOpacityOverride={wideColumnTypography.bodyOpacity}
+                      highlightOpacityOverride={wideColumnTypography.highlightOpacity}
                       description={abstractTimelineConfig.description || undefined}
                       config={abstractTimelineConfig}
                       prefersReducedMotion={coverFlowPrefersReducedMotion}
@@ -5239,7 +5232,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   accentColor={carouselAndListItems[articleActiveIndex]?.accent ?? '#ffffff'}
                   columnBackgroundColor={colors.narrowColumnColor}
                   bodyColorOverride={shortArticleListBodyColor}
-                  highlightColorOverride={shortArticleListHighlightColor}
+                  highlightColorOverride={shortArticleListBodyColor}
                   bodyOpacityOverride={narrowColumnTypography.bodyOpacity}
                   highlightOpacityOverride={narrowColumnTypography.highlightOpacity}
                   description={abstractTimelineConfig.description || undefined}
