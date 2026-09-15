@@ -219,9 +219,9 @@ export const DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG = {
 export const DEFAULT_ABSTRACT_FOOTER_CONFIG = {
   enabled: true,
   navigationLabel: 'Footer navigation',
-  backgroundMode: 'surface',
+  backgroundMode: 'transparent',
   backgroundColor: '#f8fafc',
-  backgroundOpacity: 0.1,
+  backgroundOpacity: 0,
   textColorMode: 'derived',
   textColor: '#111827',
   descriptionColor: '#475569',

@@ -306,6 +306,7 @@ import {
   useScrollAdaptiveInk,
 } from '../experiences/abstract/components/useScrollAdaptiveInk';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
+import { tailwindSpacingTokenToPx } from '../components/tailwindSpacingScale';
 import {
   normalizePolymorphicLayoutConfig,
   type PolymorphicLayoutConfig,
@@ -4020,6 +4021,20 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   const isCoverFlowDesktopTier = colors.breakpointTier !== 'mobile';
   const { ref: coverFlowSectionAnchorRef, rect: coverFlowSectionAnchorRect } =
     useMeasuredElementRect<HTMLDivElement>([isCoverFlowDesktopTier]);
+  // The mobile carousel's own full-bleed (100vw) plane, measured directly —
+  // NOT the padded wideColumn anchor above, which desktop's own
+  // cardWidthBasisPx intentionally uses. Lets carouselGutterX (Mobile
+  // Pinned Articles config) shrink only the resolved ACTIVE card's width
+  // (via CoverFlow's cardWidthBasisPx override) while the plane CoverFlow
+  // itself measures/clips for its overflow-hidden root and off-screen
+  // neighbour positions stays the true, full viewport width — so a
+  // swipe/transition still slides genuinely edge-to-edge instead of being
+  // clipped at a padding-shrunk boundary (operator-reported regression: an
+  // earlier version applied the gutter as literal padding on this same
+  // measured/clipped element, which cut every in-transit card off before it
+  // reached the true screen edge).
+  const { ref: mobileCoverFlowPlaneRef, rect: mobileCoverFlowPlaneRect } =
+    useMeasuredElementRect<HTMLDivElement>();
   const coverFlowWideColumnStyle = useMemo<CSSProperties>(() => {
     const anchorLeftPx = coverFlowSectionAnchorRect?.left;
     const viewportWidthPx = colors.viewportWidthPx;
@@ -5114,6 +5129,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                 ref={element => {
                   mobileArticleListScrollRef.current = element;
                   shortArticleListMobileInkRef.current = element;
+                  mobileCoverFlowPlaneRef(element);
                 }}
                 style={{ width: '100vw', marginLeft: 'calc(50% - 50vw)' }}
               >
@@ -5133,48 +5149,58 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
                   config={mobilePinnedArticleSectionConfig}
                   onExpandedChange={setIsMobileArticleListExpanded}
                   renderCarousel={(controls: MobilePinnedCarouselControls) => (
-                    // Keep the carousel's visual/gesture plane full-bleed,
-                    // while the card itself follows the mobile Tailwind grid.
-                    // CoverFlow measures this padded parent directly: the
-                    // desktop anchor-width basis would reintroduce a second,
-                    // invisible source of horizontal spacing here.
-                    <div className={`h-full ${coverFlowConfig.mobileCardGutterX}`}>
-                      <CoverFlow
-                        items={carouselAndListItems}
-                        activeIndex={controls.activeIndex}
-                        onActiveIndexChange={controls.onIndexRequest}
-                        // Wrapped (rather than passing renderCoverFlowItem
-                        // directly, as the desktop instance below does) only
-                        // to supply the 7th, mobile-only focusProgress
-                        // argument from this render's own controls closure —
-                        // CoverFlow itself always calls this with exactly the
-                        // six params it receives here.
-                        renderItem={(item, index, isActive, geometry, reveal, position) => (
-                          renderCoverFlowItem(item, index, isActive, geometry, reveal, position, controls.focusProgress)
-                        )}
-                        config={mobileCoverFlowConfig}
-                        prefersReducedMotion={coverFlowPrefersReducedMotion}
-                        suppressEntranceAnimation={!coverFlowEntranceRestored}
-                        hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
-                        hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
-                        hoverMaxTiltDeg={
-                          normalizedCtaButtonConfig.tiltEnabled
-                            ? normalizedCtaButtonConfig.tiltMaxDegrees
-                            : 0
-                        }
-                        hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
-                        externalDriver={{
-                          position: controls.position,
-                          animatePosition: controls.animatePosition,
-                          onPositionRequest: controls.onIndexRequest,
-                          onGeometryChange: controls.onGeometryChange,
-                          onDragStart: controls.onDragScrollStart,
-                          onDrag: controls.onDragScroll,
-                          onDragEnd: controls.onDragScrollEnd,
-                        }}
-                        accessibilityHidden
-                      />
-                    </div>
+                    // Keep the carousel's own measured/clipped plane
+                    // full-bleed (no padding here) so CoverFlow's
+                    // overflow-hidden root — and every off-screen neighbour
+                    // card's position — spans the TRUE viewport width: a
+                    // swipe/transition slides genuinely edge-to-edge.
+                    // carouselGutterX only narrows the settled ACTIVE card
+                    // via cardWidthBasisPx below (computed from
+                    // mobileCoverFlowPlaneRect, the true full-bleed plane's
+                    // own live width, minus the gutter on each side) —
+                    // exactly the same "size the card from a basis
+                    // independent of the clipped container" mechanism
+                    // desktop's own cardWidthBasisPx already uses.
+                    <CoverFlow
+                      items={carouselAndListItems}
+                      activeIndex={controls.activeIndex}
+                      onActiveIndexChange={controls.onIndexRequest}
+                      cardWidthBasisPx={mobileCoverFlowPlaneRect ? Math.max(
+                        0,
+                        mobileCoverFlowPlaneRect.width
+                          - 2 * tailwindSpacingTokenToPx(mobilePinnedArticleSectionConfig.carouselGutterX, 0),
+                      ) : undefined}
+                      // Wrapped (rather than passing renderCoverFlowItem
+                      // directly, as the desktop instance below does) only
+                      // to supply the 7th, mobile-only focusProgress
+                      // argument from this render's own controls closure —
+                      // CoverFlow itself always calls this with exactly the
+                      // six params it receives here.
+                      renderItem={(item, index, isActive, geometry, reveal, position) => (
+                        renderCoverFlowItem(item, index, isActive, geometry, reveal, position, controls.focusProgress)
+                      )}
+                      config={mobileCoverFlowConfig}
+                      prefersReducedMotion={coverFlowPrefersReducedMotion}
+                      suppressEntranceAnimation={!coverFlowEntranceRestored}
+                      hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
+                      hoverMaxLiftPx={normalizedCtaButtonConfig.proximityLiftPx}
+                      hoverMaxTiltDeg={
+                        normalizedCtaButtonConfig.tiltEnabled
+                          ? normalizedCtaButtonConfig.tiltMaxDegrees
+                          : 0
+                      }
+                      hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
+                      externalDriver={{
+                        position: controls.position,
+                        animatePosition: controls.animatePosition,
+                        onPositionRequest: controls.onIndexRequest,
+                        onGeometryChange: controls.onGeometryChange,
+                        onDragStart: controls.onDragScrollStart,
+                        onDrag: controls.onDragScroll,
+                        onDragEnd: controls.onDragScrollEnd,
+                      }}
+                      accessibilityHidden
+                    />
                   )}
                   renderList={({ activeIndex, rows: listRows, onSelect }) => (
                     <AboutTimeline

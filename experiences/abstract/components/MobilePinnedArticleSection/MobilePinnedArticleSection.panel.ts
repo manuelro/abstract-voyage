@@ -4,6 +4,7 @@ import {
   PADDING_RIGHT_OPTIONS,
   PADDING_BOTTOM_OPTIONS,
   PADDING_LEFT_OPTIONS,
+  PADDING_X_OPTIONS,
 } from '../../../../components/tailwindSpacingScale';
 import {
   DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
@@ -41,6 +42,13 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       { kind: 'number', key: 'smallPhoneMaxHeightPx', label: 'Small phone height', min: 480, max: 900, step: 10, unit: 'px', integer: true },
       { kind: 'number', key: 'expandedPanelHeightPercent', label: 'Expanded panel height', min: 50, max: 95, step: 1, unit: '%' },
       { kind: 'number', key: 'carouselHeightPercent', label: 'Carousel height', min: 40, max: 80, step: 1, unit: '%' },
+      {
+        kind: 'select',
+        key: 'carouselGutterX',
+        label: 'Carousel gutter',
+        description: 'Horizontal space between the viewport edge and the active card. Combine with CoverFlow\'s own Card size to set the final card-to-viewport relationship.',
+        options: PADDING_X_OPTIONS,
+      },
       { kind: 'number', key: 'panelOpacity', label: 'Panel opacity', min: 0, max: 1, step: 0.01 },
       { kind: 'number', key: 'peekHeightSvh', label: 'Initial peek height', min: 4, max: 24, step: 1, unit: 'svh' },
       {

@@ -4,10 +4,12 @@ import {
   PADDING_RIGHT_OPTIONS,
   PADDING_BOTTOM_OPTIONS,
   PADDING_LEFT_OPTIONS,
+  PADDING_X_OPTIONS,
   type PaddingTopClass,
   type PaddingRightClass,
   type PaddingBottomClass,
   type PaddingLeftClass,
+  type PaddingXClass,
 } from '../../../../components/tailwindSpacingScale';
 
 export const MOBILE_PINNED_ARTICLE_SECTION_EASINGS = {
@@ -43,10 +45,12 @@ export const EXPANDED_LIST_PADDING_TOP_TOKENS = PADDING_TOP_OPTIONS.map(option =
 export const EXPANDED_LIST_PADDING_RIGHT_TOKENS = PADDING_RIGHT_OPTIONS.map(option => option.value);
 export const EXPANDED_LIST_PADDING_BOTTOM_TOKENS = PADDING_BOTTOM_OPTIONS.map(option => option.value);
 export const EXPANDED_LIST_PADDING_LEFT_TOKENS = PADDING_LEFT_OPTIONS.map(option => option.value);
+export const CAROUSEL_GUTTER_X_TOKENS = PADDING_X_OPTIONS.map(option => option.value);
 export type ExpandedListPaddingTop = PaddingTopClass;
 export type ExpandedListPaddingRight = PaddingRightClass;
 export type ExpandedListPaddingBottom = PaddingBottomClass;
 export type ExpandedListPaddingLeft = PaddingLeftClass;
+export type CarouselGutterX = PaddingXClass;
 export type MobilePinnedArticleListPresentation = 'glassPanel' | 'cardFlip';
 
 export type MobilePinnedArticleSectionConfig = {
@@ -59,6 +63,18 @@ export type MobilePinnedArticleSectionConfig = {
   smallPhoneMaxHeightPx: number;
   expandedPanelHeightPercent: number;
   carouselHeightPercent: number;
+  /** Horizontal distance the settled ACTIVE card keeps from the true
+   * viewport edge, as a Tailwind `px-*` token — was CoverFlow's own
+   * `mobileCardGutterX` (moved here since that field was read nowhere
+   * except this section's own carousel). Applied via CoverFlow's
+   * `cardWidthBasisPx` override (pages/abstract.tsx), NOT as literal
+   * padding on the plane CoverFlow measures/clips — that plane stays the
+   * true full-bleed viewport width regardless of this value, so a
+   * swipe/transition still slides genuinely edge-to-edge; only the
+   * resolved active-card width (itself further scaled by CoverFlow's own
+   * `cardWidthRatio`) shrinks. At `px-0` the card can use the full plane
+   * width (subject to `cardWidthRatio`); higher tokens narrow it further. */
+  carouselGutterX: CarouselGutterX;
   listHeightPercent: number;
   panelOpacity: number;
   peekHeightSvh: number;
@@ -206,11 +222,15 @@ export type MobilePinnedArticleSectionConfig = {
 };
 
 export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
-  visibleRowsLargePhone: 3,
-  visibleRowsSmallPhone: 4,
+  visibleRowsLargePhone: 5,
+  // Was 4 (operator-reported bug: the short list showed 4 article rows plus
+  // "Expand list" instead of the intended 3-row cap on short-viewport
+  // phones). 3 matches visibleRowsLargePhone's own cap.
+  visibleRowsSmallPhone: 3,
   smallPhoneMaxHeightPx: 700,
   expandedPanelHeightPercent: 76,
   carouselHeightPercent: 62,
+  carouselGutterX: 'px-7',
   listHeightPercent: 38,
   panelOpacity: 0.82,
   peekHeightSvh: 15,
@@ -312,6 +332,9 @@ export function normalizeMobilePinnedArticleSectionConfig(
     smallPhoneMaxHeightPx: Math.round(clamp(base.smallPhoneMaxHeightPx, 480, 900)),
     expandedPanelHeightPercent: clamp(base.expandedPanelHeightPercent, 50, 95),
     carouselHeightPercent,
+    carouselGutterX: CAROUSEL_GUTTER_X_TOKENS.includes(base.carouselGutterX)
+      ? base.carouselGutterX
+      : DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG.carouselGutterX,
     listHeightPercent: 100 - carouselHeightPercent,
     panelOpacity: clamp(base.panelOpacity, 0, 1),
     peekHeightSvh: clamp(base.peekHeightSvh, 4, 24),
