@@ -4453,13 +4453,33 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     // can still visibly brighten/saturate on settle even after its scale/
     // tilt ceiling is already zeroed. See CoverFlow.config.ts's own
     // inactiveCardHoverAmplitudeStep doc comment.
-    const cardHologramConfig = hoverAmplitudeMultiplier >= 1 ? dockHologramConfig : {
+    const hoverAmplitudeTaperedHologramConfig = hoverAmplitudeMultiplier >= 1 ? dockHologramConfig : {
       ...dockHologramConfig,
       offsetGain: dockHologramConfig.offsetGain * hoverAmplitudeMultiplier,
       hueShiftAmount: dockHologramConfig.hueShiftAmount * hoverAmplitudeMultiplier,
       saturationBoost: dockHologramConfig.saturationBoost * hoverAmplitudeMultiplier,
       brightnessBoost: dockHologramConfig.brightnessBoost * hoverAmplitudeMultiplier,
     };
+    // AbstractPostDockHologramConfig's touchDragEnabled/ambientSweepEnabled
+    // (AbstractPostDock/config/registered.ts) are a deliberate, separate
+    // feature — a finger SWEEPING PAST several stationary cards gets its own
+    // {proximity, x, y} signal, the touch equivalent of desktop cursor-
+    // proximity (see that config's own touchDragEnabled doc comment). That's
+    // not what CoverFlow's own drag gesture is: the user is dragging the
+    // ACTIVE card itself to navigate, the same "card being actively swiped
+    // by the same touch input driving it" case SplitColumnCardPreview.tsx
+    // already identified and suppressed for its own card stack (see that
+    // file's own "cardstack-mobile-horizontal-swipe" comment) via this exact
+    // `enabled: false` override — CoverFlow's own render call never received
+    // the equivalent. Reuses coverFlowHasHoverPointer (the same device-
+    // capability signal useCardLiftPhysics's own hasHoverPointer prop below
+    // already gates on) rather than a new drag-tracking signal: on a touch/
+    // coarse-pointer device this entire hologram proximity system — not just
+    // its touch-specific fields — should never drive brightness/saturation/
+    // pan, on a tap or a drag alike.
+    const cardHologramConfig = coverFlowHasHoverPointer
+      ? hoverAmplitudeTaperedHologramConfig
+      : { ...hoverAmplitudeTaperedHologramConfig, enabled: false };
     // PLAN-COVERFLOW-ACTIVE-CARD-SETTLE-RAMP.md: the still-unaddressed half
     // of AUDIT-COVERFLOW-PROXIMITY-JUMP.md's diagnosis — hoverAmplitudeMultiplier
     // above is keyed on distanceFromActive, always 0 for the active card
@@ -4566,6 +4586,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     coverFlowColumnBackgroundColor, coverFlowConfig.inactiveCardColumnDarkeningStep,
     coverFlowConfig.inactiveCardHoverAmplitudeStep, coverFlowConfig.activationRampRate,
     cardAppearanceConfig, mobilePinnedArticleSectionConfig.peekOutlineModeEnabled, shortArticleListBodyColor,
+    coverFlowHasHoverPointer,
   ]);
 
   return (
