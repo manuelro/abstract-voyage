@@ -5304,7 +5304,11 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           backgroundColor={configPanelBackgroundColor}
           config={panelShellConfig}
           headerActions={(
-            <PanelStandardHeaderActions bindings={componentConfigBindings} onReset={resetConfig} />
+            <PanelStandardHeaderActions
+              bindings={componentConfigBindings}
+              onReset={resetConfig}
+              panelShellConfig={panelShellConfig}
+            />
           )}
         >
           <ConfigScopeList bindings={componentConfigBindings} />

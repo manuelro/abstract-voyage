@@ -169,6 +169,114 @@ export function ConfigCopyButton({
   );
 }
 
+type ApplyConfigUpdateResultEntry = {
+  targetSymbol: string;
+  targetFile: string;
+  ok: boolean;
+  changedKeys?: string[];
+  unmatchedKeys?: string[];
+  unmentionedExistingKeys?: string[];
+  error?: string;
+};
+
+/**
+ * The in-browser half of the local "apply this diff to disk" loop —
+ * pages/api/dev/apply-config-update.ts is the other half. Deliberately
+ * posts the SAME text ConfigCopyButton would otherwise put on the
+ * clipboard, so this button's result is always exactly what a human
+ * pasting that clipboard text by hand would have produced, never a second,
+ * independently-assembled request shape that could drift from it.
+ *
+ * Local dev tooling only — the endpoint itself 404s outside development and
+ * rejects non-loopback callers, so this button simply surfaces whatever it
+ * reports rather than duplicating those checks client-side.
+ */
+export function UpdateDiffButton({
+  text,
+  disabled = false,
+}: {
+  text: string;
+  disabled?: boolean;
+}) {
+  const [status, setStatus] = useState<'idle' | 'applying' | 'updated' | 'error'>('idle');
+  const [summary, setSummary] = useState<string | undefined>(undefined);
+  const resetTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+  }, []);
+
+  const scheduleReset = (delayMs: number) => {
+    if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = window.setTimeout(() => {
+      setStatus('idle');
+      setSummary(undefined);
+      resetTimerRef.current = null;
+    }, delayMs);
+  };
+
+  const handleApply = async () => {
+    if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+    setStatus('applying');
+    setSummary(undefined);
+    try {
+      const response = await fetch('/api/dev/apply-config-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: text }),
+      });
+      const body = await response.json() as { ok?: boolean; results?: ApplyConfigUpdateResultEntry[]; error?: string };
+      // eslint-disable-next-line no-console -- the one feedback channel detailed
+      // enough to show per-scope changedKeys/error without a bespoke results UI.
+      console.log('[UpdateDiffButton] apply-config-update response', body);
+      if (!response.ok && !body.results) {
+        setStatus('error');
+        setSummary(body.error ?? `Request failed (${response.status}).`);
+        scheduleReset(4000);
+        return;
+      }
+      const results = body.results ?? [];
+      const failed = results.filter(result => !result.ok);
+      if (failed.length > 0) {
+        setStatus('error');
+        setSummary(failed.map(result => `${result.targetSymbol}: ${result.error ?? 'failed'}`).join(' | '));
+        scheduleReset(6000);
+        return;
+      }
+      setStatus('updated');
+      setSummary(results.map(result => `${result.targetSymbol} (${(result.changedKeys ?? []).join(', ')})`).join(', '));
+      scheduleReset(2500);
+    } catch (error) {
+      setStatus('error');
+      setSummary((error as Error).message);
+      scheduleReset(4000);
+    }
+  };
+
+  const visibleLabel = status === 'applying'
+    ? 'UPDATING…'
+    : status === 'updated'
+      ? 'UPDATED'
+      : status === 'error'
+        ? 'ERR'
+        : 'UPDATE DIFF';
+
+  return (
+    <button
+      type="button"
+      className={styles.panelButton}
+      onClick={handleApply}
+      disabled={disabled || status === 'applying'}
+      aria-label={status === 'idle' ? 'Apply this diff to its target files on disk' : visibleLabel}
+      title={summary ?? (status === 'idle' ? 'Apply this diff to its target files on disk' : visibleLabel)}
+      aria-live="polite"
+      data-status={status}
+    >
+      {visibleLabel}
+    </button>
+  );
+}
+
 export function PanelButton({
   children,
   onClick,
@@ -191,12 +299,12 @@ export function PanelButton({
 }
 
 /**
- * The standard COPY ALL / COPY DIFF / RESET trio every page's own top-level
- * PanelShell (`<PageName> SETTINGS`) header action row uses — one shared
- * component, not independently re-composed JSX per page. Before this
- * existed, `pages/abstract.tsx` and `pages/about.tsx` each hand-assembled
- * their own `headerActions` fragment from the same primitives
- * (`ConfigCopyButton`/`PanelButton`/`serializeConfigScopeBindings`/
+ * The standard COPY ALL / COPY DIFF / UPDATE DIFF / RESET row every page's
+ * own top-level PanelShell (`<PageName> SETTINGS`) header action row uses —
+ * one shared component, not independently re-composed JSX per page. Before
+ * this existed, `pages/abstract.tsx` and `pages/about.tsx` each
+ * hand-assembled their own `headerActions` fragment from the same
+ * primitives (`ConfigCopyButton`/`PanelButton`/`serializeConfigScopeBindings`/
  * `serializeConfigScopeBindingsDiff`) independently — abstract.tsx's own
  * copy happened to include a COPY DIFF button, about.tsx's own copy never
  * did, and the two visibly drifted apart even though both pages were
@@ -208,13 +316,27 @@ export function PanelButton({
  * stopped one page's own call site from silently omitting one. Both text
  * strings are computed inside this component, not passed in as props, for
  * the same reason: a caller can't independently forget to memoize/derive
- * one of them differently from the other page's own call site again. */
+ * one of them differently from the other page's own call site again.
+ * UPDATE DIFF (UpdateDiffButton above) posts the exact same allConfigDiffText
+ * COPY DIFF would put on the clipboard to pages/api/dev/apply-config-update
+ * instead, applying it to the target files on disk directly — the
+ * clipboard-and-terminal round trip becomes one click while `next dev` is
+ * running locally. */
 export function PanelStandardHeaderActions({
   bindings,
   onReset,
+  panelShellConfig = DEFAULT_PANEL_SHELL_CONFIG,
 }: {
   bindings: ReadonlyArray<ConfigScopeBinding>;
   onReset: () => void;
+  /** Governs headerCopyAllVisible/headerCopyDiffVisible below — operator
+   * ask: visibility of these two buttons is itself part of "Config panel"'s
+   * own settings (shell.panel.ts's "Header actions" group), not a fixed
+   * layout choice. Defaults to DEFAULT_PANEL_SHELL_CONFIG so call sites that
+   * render PanelShell with its own built-in default (no live panelShellConfig
+   * state of their own, e.g. cube-lab.tsx/carousel-lab.tsx) still resolve
+   * the same visibility PanelShell itself would show. */
+  panelShellConfig?: PanelShellConfig;
 }) {
   const allConfigText = useMemo(
     () => serializeConfigScopeBindings(bindings),
@@ -226,12 +348,17 @@ export function PanelStandardHeaderActions({
   );
   return (
     <>
-      <ConfigCopyButton text={allConfigText} label="COPY ALL" />
-      <ConfigCopyButton
-        text={allConfigDiffText}
-        label="COPY DIFF"
-        disabled={allConfigDiffText.length === 0}
-      />
+      {panelShellConfig.headerCopyAllVisible ? (
+        <ConfigCopyButton text={allConfigText} label="COPY ALL" />
+      ) : null}
+      {panelShellConfig.headerCopyDiffVisible ? (
+        <ConfigCopyButton
+          text={allConfigDiffText}
+          label="COPY DIFF"
+          disabled={allConfigDiffText.length === 0}
+        />
+      ) : null}
+      <UpdateDiffButton text={allConfigDiffText} disabled={allConfigDiffText.length === 0} />
       <PanelButton onClick={onReset}>RESET</PanelButton>
     </>
   );

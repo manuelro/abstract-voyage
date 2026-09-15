@@ -595,6 +595,24 @@ export const PANEL_SHELL_APPEARANCE_PANEL = defineConfigScope<PanelShellConfig>(
         },
       ],
     },
+    {
+      kind: 'group',
+      label: 'Header actions',
+      fields: [
+        {
+          kind: 'boolean',
+          key: 'headerCopyAllVisible',
+          label: 'Show COPY ALL',
+          description: 'The header row\'s full-scope dump button (PanelStandardHeaderActions). Off by default — COPY DIFF/UPDATE DIFF cover the everyday workflow.',
+        },
+        {
+          kind: 'boolean',
+          key: 'headerCopyDiffVisible',
+          label: 'Show COPY DIFF',
+          description: 'The header row\'s changed-fields-only copy button.',
+        },
+      ],
+    },
   ],
   copy: {
     targetFile: 'components/Panel/config/shell.ts',

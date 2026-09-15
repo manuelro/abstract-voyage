@@ -132,6 +132,7 @@ export default function JournalPage({ posts }: JournalProps) {
                   setCardAppearanceConfig(normalizeCardAppearanceConfig(DEFAULT_JOURNAL_CARD_APPEARANCE_CONFIG))
                   setLayoutConfig(normalizePolymorphicLayoutConfig(JOURNAL_POLYMORPHIC_LAYOUT_CONFIG))
                 }}
+                panelShellConfig={panelShellConfig}
               />
             )}
           >

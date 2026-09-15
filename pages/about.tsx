@@ -1757,7 +1757,11 @@ function AboutPageContent() {
             onToggle={togglePanel}
             config={panelShellConfig}
             headerActions={(
-              <PanelStandardHeaderActions bindings={componentConfigBindings} onReset={resetAllConfig} />
+              <PanelStandardHeaderActions
+                bindings={componentConfigBindings}
+                onReset={resetAllConfig}
+                panelShellConfig={panelShellConfig}
+              />
             )}
           >
             <ConfigScopeList bindings={componentConfigBindings} />

@@ -174,6 +174,16 @@ export type PanelShellConfig = {
    * touch-capable devices. Off by default so existing authoring surfaces keep
    * their current mobile behavior unless an operator opts in. */
   hideOnNarrowTouchDevices: boolean;
+  /** Shows/hides the COPY ALL button in PanelStandardHeaderActions' own
+   * header row (components/Panel/index.tsx). Off by default — operator ask:
+   * COPY DIFF/UPDATE DIFF cover the actual day-to-day workflow (only the
+   * fields an operator actually touched), and COPY ALL's own full-scope dump
+   * was cluttering the row without being the thing reached for. */
+  headerCopyAllVisible: boolean;
+  /** Same contract as headerCopyAllVisible above, for the COPY DIFF button.
+   * On by default — this is the button the workflow above is actually built
+   * around. */
+  headerCopyDiffVisible: boolean;
 };
 
 export const DEFAULT_PANEL_SHELL_CONFIG = {
@@ -251,6 +261,8 @@ export const DEFAULT_PANEL_SHELL_CONFIG = {
   hoverIntentExpandEnabled: false,
   hoverIntentDelayMs: 500,
   hideOnNarrowTouchDevices: false,
+  headerCopyAllVisible: false,
+  headerCopyDiffVisible: true,
 } satisfies PanelShellConfig;
 
 const MOTION_EASING_VALUES: readonly CtaButtonMotionEasing[] = [
@@ -520,5 +532,7 @@ export function normalizePanelShellConfig(
       base.hoverIntentDelayMs, 0, 5000, DEFAULT_PANEL_SHELL_CONFIG.hoverIntentDelayMs,
     ),
     hideOnNarrowTouchDevices: base.hideOnNarrowTouchDevices === true,
+    headerCopyAllVisible: base.headerCopyAllVisible === true,
+    headerCopyDiffVisible: base.headerCopyDiffVisible !== false,
   };
 }
