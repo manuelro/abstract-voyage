@@ -217,14 +217,24 @@ export type CoverFlowConfig = {
    * a spring naturally does.
    *
    * 'gaussian': position follows a Gaussian CDF (helpers/gaussianEasing.ts)
-   * — equivalently, VELOCITY traces the Gaussian bell curve itself: slow
-   * start, one smooth peak near the midpoint, slow finish, arriving at
-   * (effectively) zero velocity — a soft landing by construction, not by
-   * damping tuning. This is deliberately the Gaussian's CUMULATIVE
-   * distribution shaping position, not a Gaussian-shaped ACCELERATION
-   * curve: an acceleration curve that stays positive throughout only ever
-   * increases velocity, so it can never land at rest — see helpers/
-   * gaussianEasing.ts's own doc comment for the full reasoning. */
+   * — a real, named, widely-used motion-design easing family, not a
+   * homemade smoothing curve. VELOCITY (the curve's own derivative) traces
+   * the Gaussian bell itself: slow start, one smooth peak at the midpoint,
+   * slow finish, landing at (effectively) zero velocity — the soft landing
+   * is built into the curve's own shape, not tuned via spring damping. An
+   * earlier attempt at this same motion used two named CSS cubic-bezier
+   * curves (ease-in, then ease-out) stitched at the midpoint — velocity
+   * itself didn't jump there, but the curve's higher derivatives (how the
+   * RATE of acceleration changes) still kinked at the exact instant
+   * velocity peaked, since two independently-authored bezier curves being
+   * exact mirrors in velocity does not also make them mirrors in curvature.
+   * A true Gaussian has no such kink at any order — it is smooth through
+   * the peak by construction, which is what a bell-curve-accurate settle
+   * requires. Note every CoverFlow card's position derives from one shared
+   * value (`pos = cardIndex - positionX`), so every card — departing and
+   * arriving alike — sees this identical curve shape at every instant;
+   * they cannot run genuinely independent motions without decoupling their
+   * transforms entirely. */
   settleMotionCurve: 'spring' | 'gaussian';
   /** 'gaussian' only. Duration for a 1-step jump (adjacent index). Longer
    * jumps add gaussianSettlePerStepDurationMs per additional index of
@@ -238,11 +248,15 @@ export type CoverFlowConfig = {
   /** 'gaussian' only — ceiling on the distance-scaled duration above, so a
    * very long jump still reads as prompt rather than sluggish. */
   gaussianSettleMaxDurationMs: number;
-  /** 'gaussian' only. How peaked the velocity bell is (the Gaussian's
-   * effective scale, passed to helpers/gaussianEasing.ts's createGaussianEase)
-   * — higher reads as more time near-stationary at both ends with a sharper
-   * burst of speed through the middle; lower reads closer to a gentle,
-   * almost-linear ramp. */
+  /** 'gaussian' only. How fast the curve FLATTENS at BOTH edges of the bell
+   * (operator ask) — the bell is symmetric by construction, so one knob
+   * governs both the start and the end identically. Internally, the
+   * Gaussian's own scale parameter (helpers/gaussianEasing.ts's
+   * createGaussianEase). Higher: more of the transition reads as
+   * near-stationary at both the start and the end, with a sharper,
+   * more concentrated burst of speed through the center. Lower: less
+   * flattening at the edges — the curve reads closer to a gentle,
+   * almost-constant-speed glide with only a mild peak. */
   gaussianSettleSteepness: number;
 };
 
@@ -277,11 +291,11 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   enableScroll: true,
   scrollThresholdPx: 100,
   clickVsDragThresholdPx: 6,
-  activeSettleDelayMs: 120,
+  activeSettleDelayMs: 160,
   // Echoes inactiveCardHoverAmplitudeStep's own original (later-superseded)
   // default — a familiar starting point to tune live from, giving 400ms
   // under ACTIVATION_RAMP_REFERENCE_DURATION_MS above.
-  activationRampRate: 0,
+  activationRampRate: 0.31,
   staggeredCardRevealEnabled: true,
   staggeredCardRevealStepMs: 90,
   // Matches components/ArticleCard.detailFade.ts's own
@@ -293,10 +307,10 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   cardRevealExitDurationMs: 320,
   cardRevealExitEasingCss: 'ease-out',
   settleMotionCurve: 'gaussian',
-  gaussianSettleBaseDurationMs: 420,
-  gaussianSettlePerStepDurationMs: 90,
-  gaussianSettleMaxDurationMs: 900,
-  gaussianSettleSteepness: 2.2,
+  gaussianSettleBaseDurationMs: 1120,
+  gaussianSettlePerStepDurationMs: 290,
+  gaussianSettleMaxDurationMs: 1290,
+  gaussianSettleSteepness: 5,
 } satisfies CoverFlowConfig;
 
 const CARD_DISTANCE_RATIO_MIN = 0.2;

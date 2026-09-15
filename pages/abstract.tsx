@@ -3,6 +3,7 @@
 import SeoHead from '../components/SeoHead';
 import { buildSiteTitle } from '../helpers/siteMetadata';
 import { getLabSummaries, type LabSummary } from '../helpers/labContent';
+import type { FooterConfigOverrides } from '../helpers/footerContent';
 import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
@@ -1592,22 +1593,26 @@ function useHasHoverPointer(): boolean {
 type AbstractPageProps = {
   dockItems?: AbstractPostDockItem[];
   labs: LabSummary[];
+  footerConfigOverrides: FooterConfigOverrides;
 };
 
 export async function getStaticProps() {
   const { loadAbstractPostDockItems } = await import('../experiences/abstract/helpers/loadAbstractPostDockItems.server');
+  const { loadFooterConfigOverrides } = await import('../helpers/footerContent');
   const dockItems = loadAbstractPostDockItems();
   const labs = getLabSummaries();
+  const footerConfigOverrides = loadFooterConfigOverrides();
 
   return {
     props: {
       dockItems,
       labs,
+      footerConfigOverrides,
     },
   };
 }
 
-export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
+export default function AbstractPage({ dockItems, labs, footerConfigOverrides }: AbstractPageProps) {
   const [abstractTimelineContentConfig, setAbstractTimelineContentConfig] =
     useState<AbstractTimelineContentConfig>(() => (
       normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG)
@@ -1763,7 +1768,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     ));
   const [abstractFooterConfig, setAbstractFooterConfig] =
     useState<AbstractFooterConfig>(() => (
-      normalizeAbstractFooterConfig(DEFAULT_ABSTRACT_FOOTER_CONFIG)
+      normalizeAbstractFooterConfig({
+        ...DEFAULT_ABSTRACT_FOOTER_CONFIG,
+        ...footerConfigOverrides,
+      })
     ));
   // The split-column branch consumes this complete config; the classic
   // fallback deliberately reads its narrow-column alignment triplet too,
@@ -2783,7 +2791,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       definition: abstractConfigPanelRegistry.resolve(ABSTRACT_FOOTER_SCOPE_ID),
       value: abstractFooterConfig,
       onChange: setAbstractFooterConfig,
-      defaultValue: normalizeAbstractFooterConfig(DEFAULT_ABSTRACT_FOOTER_CONFIG),
+      defaultValue: normalizeAbstractFooterConfig({
+        ...DEFAULT_ABSTRACT_FOOTER_CONFIG,
+        ...footerConfigOverrides,
+      }),
     }),
     createConfigScopeBinding({
       definition: ABSTRACT_POLYMORPHIC_LAYOUT_PANEL,
@@ -2870,6 +2881,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     abstractPageLayoutConfig,
     abstractNarrowColumnStackConfig,
     abstractFooterConfig,
+    footerConfigOverrides,
     abstractTimelineContentConfig,
     mobileArticleListInkConfig,
     splitColumnLayoutConfig,
@@ -2999,7 +3011,10 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       normalizeAbstractNarrowColumnStackConfig(DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG),
     );
     setAbstractFooterConfig(
-      normalizeAbstractFooterConfig(DEFAULT_ABSTRACT_FOOTER_CONFIG),
+      normalizeAbstractFooterConfig({
+        ...DEFAULT_ABSTRACT_FOOTER_CONFIG,
+        ...footerConfigOverrides,
+      }),
     );
     setAbstractTimelineContentConfig(
       normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG),
@@ -3015,6 +3030,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
     setPanelShellConfig,
     setSiteHeaderConfig,
     setWordmarkConfig,
+    footerConfigOverrides,
   ]);
 
   const randomizeActiveDesignerSeed = useCallback(() => {
@@ -5450,6 +5466,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
       >
         <SiteFooter
           config={abstractFooterConfig}
+          editorHref={showAuthoringTools ? '/admin/' : undefined}
           accordionItemConfig={heroAccordionItemConfig}
           pageSurfaceConfig={normalizedPageSurfaceConfig}
           wordmarkConfig={effectiveWordmarkConfig}

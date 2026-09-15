@@ -1,0 +1,20 @@
+navigationLabel: Footer navigation
+contactEmailEnabled: false
+contactText: reach@abstract.voyage
+links:
+  abstract:
+    enabled: false
+    title: Abstract
+    description: A living index of work, writing, experiments, and interface systems.
+  about:
+    enabled: true
+    title: About
+    description: Context on the person, practice, and decision-making behind the work.
+  journal:
+    enabled: true
+    title: Journal
+    description: Long-form notes on software, teams, systems, and craft.
+  contact:
+    enabled: true
+    title: Contact
+    description: A focused channel for starting a conversation or carrying a draft forward.

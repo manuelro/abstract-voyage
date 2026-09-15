@@ -408,7 +408,7 @@ export function CoverFlow<T>({
   // itself, see POSITION_SPRING_TRANSITION's own doc comment; a fixed-shape
   // curve has no principled way to absorb an arbitrary input velocity).
   // Rebuilt only when steepness changes, not per transition.
-  const gaussianEase = useMemo(
+  const gaussianSettleEase = useMemo(
     () => createGaussianEase(config.gaussianSettleSteepness),
     [config.gaussianSettleSteepness],
   );
@@ -427,11 +427,11 @@ export function CoverFlow<T>({
     animate(positionX, target, {
       type: 'tween',
       duration: durationMs / 1000,
-      ease: gaussianEase,
+      ease: gaussianSettleEase,
     });
   }, [
     config.gaussianSettleBaseDurationMs, config.gaussianSettlePerStepDurationMs,
-    config.gaussianSettleMaxDurationMs, gaussianEase, positionX,
+    config.gaussianSettleMaxDurationMs, gaussianSettleEase, positionX,
   ]);
 
   useEffect(() => {

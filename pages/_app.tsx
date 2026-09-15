@@ -46,7 +46,18 @@ function CuboidNavigationRoot({ children }: { children: ReactNode }) {
 }
 
 export default function App({ Component, pageProps }: AppProps) {
-  const immersive = useRouter().pathname === '/black-hole'
+  const pathname = useRouter().pathname
+  const immersive = pathname === '/black-hole'
+  const editorialWorkspace = pathname === '/admin'
+
+  if (editorialWorkspace) {
+    return (
+      <div className={`${siteSans.variable} ${siteSerif.variable} font-sans`}>
+        <Component {...pageProps} />
+      </div>
+    )
+  }
+
   return (
     <SharedDesignConfigProvider>
       <AbstractDesignConfigProvider>

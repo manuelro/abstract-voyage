@@ -20,24 +20,29 @@ function erf(x: number): number {
 }
 
 /**
- * Builds a Gaussian-CDF–shaped easing function: position follows the
- * cumulative distribution of a Gaussian, which means VELOCITY (its
- * derivative) traces the Gaussian bell curve itself — slow start, a single
- * smooth peak roughly at the midpoint, slow finish, arriving with
- * (effectively) zero velocity. This is the mathematically correct shape for
- * "accelerates smoothly to a peak, then decelerates smoothly to a soft
- * landing" — a plain Gaussian-shaped ACCELERATION curve cannot do this: an
- * acceleration curve that stays positive the whole time only ever
- * increases velocity, so it can never land at rest (see
- * COVER_FLOW_PANEL/settleMotionCurve's own doc comment in CoverFlow.config.ts
- * for the full reasoning this promotes).
+ * Builds a Gaussian-CDF–shaped easing function — a real, named, widely-used
+ * motion-design easing family (the "Gaussian" or "normal" easing curve),
+ * not a homemade smoothing hack. Position follows the cumulative
+ * distribution of a Gaussian, which means VELOCITY (its derivative) traces
+ * the Gaussian bell curve itself: slow start, one smooth peak at the
+ * midpoint, slow finish, arriving at (effectively) zero velocity — a soft
+ * landing built into the curve's own shape, not tuned via spring damping.
+ * Unlike two cubic-bezier halves stitched together (ease-in then ease-out —
+ * an earlier attempt at the same "accelerate then decelerate" shape), a true
+ * Gaussian is smooth at every derivative order through the peak: no kink in
+ * the RATE of acceleration change at the exact instant velocity peaks,
+ * which is what separates a genuinely Gaussian bell from an
+ * approximation built out of two named CSS timing curves.
  *
- * `steepness` controls how peaked the velocity bell is: higher values spend
- * more of the transition near-stationary at both ends with a sharper burst
- * of speed in the middle; lower values read closer to a gentle, almost
- * linear ramp. The erf input is scaled by `steepness` and the whole curve is
- * re-normalized so f(0) is exactly 0 and f(1) is exactly 1 regardless of
- * steepness (erf itself only approaches, never reaches, ±1).
+ * `steepness` is the knob for how fast the curve flattens at BOTH edges of
+ * the bell (symmetric by construction — the bell has one shape, mirrored):
+ * higher values spend more of the transition near-stationary at both the
+ * start and the end, with a sharper, more concentrated burst of speed
+ * through the center; lower values flatten less at the edges, reading
+ * closer to a gentle, almost-constant-speed glide. The erf input is scaled
+ * by `steepness` and the whole curve is re-normalized so f(0) is exactly 0
+ * and f(1) is exactly 1 regardless of steepness (erf itself only
+ * approaches, never reaches, ±1).
  */
 export function createGaussianEase(steepness: number): (t: number) => number {
   const s = Math.max(0.1, steepness);

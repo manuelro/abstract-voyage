@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, type CSSProperties } from 'react';
+import { FiEdit3 } from 'react-icons/fi';
 
 import { PageContainer } from '../../../../components/PageContainer';
 import type { PageSurfaceConfig } from '../../../../components/PageSurface.config';
@@ -26,6 +27,7 @@ import {
 
 export type SiteFooterProps = {
   config: AbstractFooterConfig;
+  editorHref?: string;
   accordionItemConfig: AboutMobileAccordionConfig;
   pageSurfaceConfig: PageSurfaceConfig;
   wordmarkConfig: WordmarkConfig;
@@ -49,6 +51,7 @@ export type SiteFooterProps = {
 
 export function SiteFooter({
   config,
+  editorHref,
   accordionItemConfig,
   pageSurfaceConfig,
   wordmarkConfig,
@@ -255,6 +258,19 @@ export function SiteFooter({
             ))}
           </div>
         </nav>
+
+        {editorHref ? (
+          <div className="mt-8 flex justify-center">
+            <a
+              href={editorHref}
+              className="inline-flex min-h-[44px] items-center gap-2 px-3 py-2 text-sm underline decoration-current underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+              aria-label="Open the local editorial workspace"
+            >
+              <FiEdit3 aria-hidden="true" className="h-4 w-4" />
+              <span>Editor</span>
+            </a>
+          </div>
+        ) : null}
 
         {config.contactEmailEnabled && contactEmail ? (
           <div

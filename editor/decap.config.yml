@@ -1,0 +1,232 @@
+backend:
+  name: git-gateway
+
+local_backend:
+  url: http://127.0.0.1:8081/api/v1
+
+logo_url: /favicon.ico
+publish_mode: simple
+show_preview_links: true
+search: true
+
+slug:
+  encoding: ascii
+  clean_accents: true
+  sanitize_replacement: "-"
+
+media_folder: public/posts
+public_folder: /posts
+
+collections:
+  - name: posts
+    label: Journal
+    label_singular: Article
+    description: Articles and the welcome entry stored as Markdown in posts/.
+    folder: posts
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    slug: "{{year}}-{{month}}-{{day}}_{{slug}}"
+    preview_path: "posts/{{slug}}"
+    summary: "{{title}} · {{filename}}"
+    sortable_fields:
+      - title
+      - date
+      - author
+    view_filters:
+      - label: Featured
+        field: featured
+        pattern: true
+      - label: External source
+        field: source.platform
+        pattern: ".+"
+    editor:
+      preview: true
+    fields:
+      - label: Title
+        name: title
+        widget: string
+        hint: The public article title. Changing it does not rename an existing file.
+      - label: Publication date
+        name: date
+        widget: datetime
+        required: false
+        format: YYYY-MM-DD
+        date_format: YYYY-MM-DD
+        time_format: false
+        hint: New filenames use this date. Existing imported articles may use Source publication date instead.
+      - label: Excerpt
+        name: excerpt
+        widget: text
+        required: false
+      - label: Author
+        name: author
+        widget: string
+        required: false
+        default: Manu
+      - label: Tags
+        name: tags
+        widget: list
+        required: false
+        allow_add: true
+        collapsed: false
+        field:
+          label: Tag
+          name: tag
+          widget: string
+      - label: Featured on homepage
+        name: featured
+        widget: boolean
+        required: false
+        default: false
+        hint: Adds this article to the homepage hero sequence; it does not affect the journal archive.
+      - label: Hero image
+        name: heroImage
+        widget: image
+        required: false
+        choose_url: true
+      - label: Hero image alternative text
+        name: heroAlt
+        widget: string
+        required: false
+      - label: Legacy original URL
+        name: url
+        widget: string
+        required: false
+      - label: Source
+        name: source
+        widget: object
+        required: false
+        collapsed: true
+        fields:
+          - label: Platform
+            name: platform
+            widget: string
+            required: false
+          - label: URL
+            name: url
+            widget: string
+            required: false
+          - label: Originally published
+            name: originallyPublished
+            widget: datetime
+            required: false
+            format: YYYY-MM-DD
+            date_format: YYYY-MM-DD
+            time_format: false
+      - label: External navigation URL
+        name: externalUrl
+        widget: string
+        required: false
+      - label: Always open external URL
+        name: forceExternalNavigation
+        widget: boolean
+        required: false
+        default: false
+      - label: Table of contents
+        name: toc
+        widget: boolean
+        required: false
+      - label: Include headings in table of contents
+        name: tocHeadings
+        widget: boolean
+        required: false
+      - label: Include figures in table of contents
+        name: tocFigures
+        widget: boolean
+        required: false
+      - label: Minimum headings
+        name: tocMinHeadings
+        widget: number
+        required: false
+        value_type: int
+        min: 0
+      - label: Minimum figures
+        name: tocMinFigures
+        widget: number
+        required: false
+        value_type: int
+        min: 0
+      - label: Table of contents allowlist
+        name: tocInclude
+        widget: list
+        required: false
+        field:
+          label: Heading, figure, or identifier
+          name: item
+          widget: string
+      - label: Table of contents blocklist
+        name: tocExclude
+        widget: list
+        required: false
+        field:
+          label: Heading, figure, or identifier
+          name: item
+          widget: string
+      - label: Body
+        name: body
+        widget: markdown
+        modes:
+          - raw
+          - rich_text
+        buttons:
+          - bold
+          - italic
+          - code
+          - link
+          - heading-two
+          - heading-three
+          - quote
+          - bulleted-list
+          - numbered-list
+        editor_components:
+          - image
+          - code-block
+          - code-include
+          - data-table
+
+  - name: site_content
+    label: Site content
+    files:
+      - name: footer
+        label: Footer
+        file: content/settings/footer.yml
+        fields:
+          - label: Navigation label
+            name: navigationLabel
+            widget: string
+          - label: Contact email visible
+            name: contactEmailEnabled
+            widget: boolean
+          - label: Contact email
+            name: contactText
+            widget: string
+          - label: Page links
+            name: links
+            widget: object
+            fields:
+              - label: Abstract
+                name: abstract
+                widget: object
+                fields: &footer_link_fields
+                  - label: Visible
+                    name: enabled
+                    widget: boolean
+                  - label: Title
+                    name: title
+                    widget: string
+                  - label: Description
+                    name: description
+                    widget: text
+              - label: About
+                name: about
+                widget: object
+                fields: *footer_link_fields
+              - label: Journal
+                name: journal
+                widget: object
+                fields: *footer_link_fields
+              - label: Contact
+                name: contact
+                widget: object
+                fields: *footer_link_fields
