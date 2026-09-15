@@ -256,7 +256,20 @@ export type CoverFlowConfig = {
    * near-stationary at both the start and the end, with a sharper,
    * more concentrated burst of speed through the center. Lower: less
    * flattening at the edges — the curve reads closer to a gentle,
-   * almost-constant-speed glide with only a mild peak. */
+   * almost-constant-speed glide with only a mild peak.
+   *
+   * IMPORTANT ceiling on where this actually keeps doing something
+   * (operator-reported: cranking this to its old max of 5 produced no
+   * further visible change): the underlying error function saturates to
+   * ±1 quickly, so beyond roughly 3.5–4 the curve's first/last ~10% of
+   * travel is already numerically indistinguishable from perfectly flat
+   * (confirmed: position at the 10%-elapsed mark is 0.0095 of the total
+   * distance at steepness 2, but 0.0000 at steepness 4 and above — no
+   * further movement of this value changes what's on screen once that
+   * floor is hit). The perceptually meaningful range for actually tuning
+   * "how gradual vs. how snap-like" the motion feels is roughly 0.5-3.5;
+   * pushing well past that, even up to this field's own max, only extends
+   * an already-flat hold at both ends rather than adding character. */
   gaussianSettleSteepness: number;
 };
 
@@ -310,7 +323,12 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   gaussianSettleBaseDurationMs: 1120,
   gaussianSettlePerStepDurationMs: 290,
   gaussianSettleMaxDurationMs: 1290,
-  gaussianSettleSteepness: 5,
+  // Was 5 — inside the erf-saturated zone where the curve's first/last ~10%
+  // of travel is already numerically flat (see this field's own doc comment
+  // for the operator-reported "no visible effect" this caused). 2 sits
+  // solidly in the range where raising or lowering this value actually
+  // changes what's on screen.
+  gaussianSettleSteepness: 2,
 } satisfies CoverFlowConfig;
 
 const CARD_DISTANCE_RATIO_MIN = 0.2;
@@ -358,7 +376,11 @@ const GAUSSIAN_SETTLE_DURATION_MS_MAX = 3000;
 const GAUSSIAN_SETTLE_PER_STEP_DURATION_MS_MIN = 0;
 const GAUSSIAN_SETTLE_PER_STEP_DURATION_MS_MAX = 1000;
 const GAUSSIAN_SETTLE_STEEPNESS_MIN = 0.5;
-const GAUSSIAN_SETTLE_STEEPNESS_MAX = 5;
+// 100% higher than the original 5 ceiling (operator ask: the effect wasn't
+// reading as strongly as expected even pinned at the old max) — see this
+// field's own doc comment for why headroom this high can matter at typical
+// (sub-second) settle durations.
+const GAUSSIAN_SETTLE_STEEPNESS_MAX = 10;
 
 export function normalizeCoverFlowConfig(
   config: Partial<CoverFlowConfig> | undefined,

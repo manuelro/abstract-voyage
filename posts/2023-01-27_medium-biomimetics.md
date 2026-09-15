@@ -1,19 +1,21 @@
 ---
-title: A biomimetic framework for interfaces that feel human
-excerpt: "Five traits that make human communication work, turned into a way to assess whether an interface feels human or merely functional."
-author: "Manu"
+title: A biomimetic framework for interfaces that feel humans
+excerpt: Five traits that make human communication work, turned into a way to
+  assess whether an interface feels human or merely functional.
+author: Manu
+tags:
+  - Biomimetics
+  - UX Design
+  - Interface Design
+featured: true
+heroImage: /posts/medium-biomimetics/hero.jpeg
+heroAlt: Biomimetics-inspired user interface framework hero illustration
 url: https://abstractvoyage.medium.com/the-implementation-of-biomimetics-in-the-design-and-development-of-highly-efficient-user-interfaces-7a8e3a3d18db
 source:
-    platform: "Medium"
-    url: https://abstractvoyage.medium.com/the-implementation-of-biomimetics-in-the-design-and-development-of-highly-efficient-user-interfaces-7a8e3a3d18db
-    originallyPublished: "2023-01-27"
-heroImage: "/posts/medium-biomimetics/hero.jpeg"
-heroAlt: "Biomimetics-inspired user interface framework hero illustration"
-tags:
-    - Biomimetics
-    - UX Design
-    - Interface Design
-featured: true
+  platform: Medium
+  url: https://abstractvoyage.medium.com/the-implementation-of-biomimetics-in-the-design-and-development-of-highly-efficient-user-interfaces-7a8e3a3d18db
+  originallyPublished: 2023-01-27
+toc: false
 ---
 
 > The use of biomimetics in technology may not be a hot topic, but it can revolutionize the way we construct our user interfaces.
