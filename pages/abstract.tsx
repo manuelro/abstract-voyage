@@ -1553,6 +1553,42 @@ function paintLegacyCompositeFrame({
   return paintedLayers > 0;
 }
 
+/**
+ * True on devices with a precise, hover-capable pointer (mouse/trackpad) —
+ * false for touch/coarse-pointer devices. Local copy of
+ * SplitColumnCardPreview/hooks/useHasHoverPointer.ts's own matchMedia-
+ * listener shape (this repo's convention — see that hook's own doc comment —
+ * is to copy this small pattern into the feature that needs it, not a
+ * cross-feature import). Threaded into <Card>'s own hasHoverPointer prop
+ * (renderCoverFlowItem below) so CoverFlow's card gets the same touch
+ * device-capability gate on its useCardLiftPhysics hover/press physics that
+ * ABSTRACT-08 already gave AbstractJournalLabCollection's stack branch (via
+ * CardStack.tsx) — CoverFlow renders through the OTHER ("flat") branch,
+ * which that fix's own doc comment (AbstractJournalLabCollection.tsx)
+ * explicitly notes was left with no hasHoverPointer source at all, so a tap
+ * or drag on a touch device still drove the same live pointermove-fed
+ * scale-up a real mouse hover would (operator-reported: the card visibly
+ * scales up briefly on tap/drag on touch devices).
+ */
+function useHasHoverPointer(): boolean {
+  const [hasHoverPointer, setHasHoverPointer] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const handleChange = () => setHasHoverPointer(mediaQuery.matches);
+    handleChange();
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
+  return hasHoverPointer;
+}
+
 type AbstractPageProps = {
   dockItems?: AbstractPostDockItem[];
   labs: LabSummary[];
@@ -4018,6 +4054,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
   // presentation's single carousel and synchronized index. The legacy
   // fixed CardStack no longer mounts.
   const coverFlowPrefersReducedMotion = usePrefersReducedMotion();
+  const coverFlowHasHoverPointer = useHasHoverPointer();
   const isCoverFlowDesktopTier = colors.breakpointTier !== 'mobile';
   const { ref: coverFlowSectionAnchorRef, rect: coverFlowSectionAnchorRect } =
     useMeasuredElementRect<HTMLDivElement>([isCoverFlowDesktopTier]);
@@ -4488,6 +4525,7 @@ export default function AbstractPage({ dockItems, labs }: AbstractPageProps) {
           cardRadius={resolvedCollectionDockLayoutConfig.cardRadius}
           layoutConfig={resolvedCollectionDockLayoutConfig}
           ctaConfig={cardCtaConfig}
+          hasHoverPointer={coverFlowHasHoverPointer}
           reveal={COVER_FLOW_DISABLED_REVEAL}
           detailsRevealSettled={cardDetailsRevealSettled}
           staggerRevealDelaysMs={revealDelaysMs}
