@@ -22,6 +22,7 @@ import type { SvgStop } from '../../../../helpers/gradientMath';
 import type { AbstractFooterConfig } from '../../../../pages/abstract.config';
 import {
   buildScrollAdaptiveInkColor,
+  buildScrollAdaptiveInkStops,
   useScrollAdaptiveInk,
 } from '../useScrollAdaptiveInk';
 
@@ -141,10 +142,7 @@ export function SiteFooter({
   // CSS `color-mix()` below updates at paint time without re-rendering a
   // multi-stop SVG gradient on every scroll frame.
   const footerWordmarkStops = config.adaptiveInkEnabled
-    ? wordmarkStops.map(stop => ({
-      ...stop,
-      color: buildScrollAdaptiveInkColor(stop.color, config.adaptiveInkMaxAmount),
-    }))
+    ? buildScrollAdaptiveInkStops(wordmarkStops, config.adaptiveInkMaxAmount)
     : wordmarkStops;
   const footerStyle = {
     '--abstract-footer-bg': backgroundColor ?? 'transparent',

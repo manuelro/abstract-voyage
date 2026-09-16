@@ -304,6 +304,7 @@ import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/ab
 import { SiteFooter } from '../experiences/abstract/components/SiteFooter/SiteFooter';
 import {
   buildScrollAdaptiveInkColor,
+  buildScrollAdaptiveInkStops,
   useScrollAdaptiveInk,
 } from '../experiences/abstract/components/useScrollAdaptiveInk';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
@@ -2303,6 +2304,25 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // implicitly gets for free by only ever mounting once.
   const shortArticleListMobileInkRef = useRef<HTMLDivElement | null>(null);
   const shortArticleListDesktopInkRef = useRef<HTMLDivElement | null>(null);
+  // The top header/logo has no single dedicated DOM wrapper this page
+  // already owns a ref to (unlike the short article list above, or
+  // SiteFooter's own <footer> element) — both <SiteHeader> call sites
+  // below are rendered deep inside PolymorphicLayout's own header slot or
+  // a legacy hero branch, and wrapping either in a new element risks
+  // interfering with PolymorphicLayout's own header-slot measurement
+  // (autoAlignNavSplit). useScrollAdaptiveInk's own computed progress is
+  // purely window.scrollY-driven (never relative to the ref element's own
+  // position — see that hook's computeTarget), so it does not need to be
+  // colocated with the header at all: writing the CSS custom property onto
+  // <html> instead reaches the header's own subtree via ordinary CSS
+  // inheritance, with the exact same live value any other on-page instance
+  // would compute. Populated post-mount only (SSR-safe — `document` does
+  // not exist during the server render that produces this ref's initial
+  // value).
+  const topHeaderInkRootRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    topHeaderInkRootRef.current = document.documentElement;
+  }, []);
   // Bug fix (operator-reported, screenshot evidence): the mobile branch used
   // to seed its base color from mobileArticleListInkAtRest — a color tuned
   // by AbstractMobileArticleListInkConfig to read LIGHT against the dark
@@ -2389,6 +2409,51 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       abstractFooterConfig.adaptiveInkMaxAmount,
     )
     : shortArticleListBaseColor;
+  // Top header/logo — operator ask: match the SAME live scroll-adaptive
+  // treatment the hero's own text, the footer's own text, and the footer's
+  // own logo already share (this page's own precedent for reusing
+  // abstractFooterConfig's adaptiveInk*/backgroundReturnToLight* fields
+  // page-wide, not footer-exclusively — see shortArticleListInkOptions
+  // just above).
+  //
+  // Bug fix (operator-reported, screenshot evidence, two prior wrong
+  // guesses before this one — both disproven by direct Playwright pixel
+  // sampling of the actually-rendered DOM, not by re-reading source):
+  // headerTypography.titleColor and narrowColumnTypography.titleColor
+  // (resolveTypographyColors — a hue-shifting, contrast-driven ink pick)
+  // are BOTH the wrong mechanism. The hero text actually on screen —
+  // AbstractEditorialHero reuses AboutMobileAccordionItem for its own
+  // mobile presentation — gets its color from a completely different
+  // pipeline: accordionItemBaseTextColor (AbstractEditorialHero.tsx),
+  // which is heroAccordionItemConfig.textCustomColor verbatim when
+  // textColorMode is 'custom' (the shipped default, '#0f1724' — confirmed
+  // by live pixel-sampling the real rendered span, not by reading the
+  // config's own default value) or deriveSurfaceColor(colors.
+  // narrowColumnColor, textSurfaceOffset) otherwise — a lightness offset
+  // of the background that PRESERVES its hue, never resolveContrastAware
+  // TextColor's independent ink-palette pick. Replicated verbatim here so
+  // nav/logo track whichever branch is actually active, not a
+  // conveniently-similar-looking approximation.
+  const heroAccordionBaseTextColor = heroAccordionItemConfig.textColorMode === 'custom'
+    ? heroAccordionItemConfig.textCustomColor
+    : deriveSurfaceColor(colors.narrowColumnColor, heroAccordionItemConfig.textSurfaceOffset);
+  const topHeaderInkOptions = {
+    enabled: colors.scrollGradientActive && abstractFooterConfig.adaptiveInkEnabled,
+    baseColor: heroAccordionBaseTextColor,
+    maxAmount: abstractFooterConfig.adaptiveInkMaxAmount,
+    targetContrastRatio: abstractFooterConfig.adaptiveInkTargetContrastRatio,
+    scrollGradientDarkenViewportRangeVh: colors.scrollGradientResolved.viewportRangeVh,
+    scrollGradientDarkenTauMs: colors.scrollGradientResolved.tauMs,
+    scrollGradientOriginColor: colors.scrollGradientOriginColor,
+    scrollGradientMaxDarken: colors.scrollGradientResolved.maxDarken,
+    returnToLightEnabled: abstractFooterConfig.backgroundReturnToLightEnabled,
+    returnToLightRangeVh: abstractFooterConfig.backgroundReturnToLightRangeVh,
+    returnToLightFinalDarken: abstractFooterConfig.backgroundReturnToLightFinalDarken,
+  };
+  useScrollAdaptiveInk({ ref: topHeaderInkRootRef, ...topHeaderInkOptions });
+  const topHeaderTitleColor = topHeaderInkOptions.enabled
+    ? buildScrollAdaptiveInkColor(heroAccordionBaseTextColor, abstractFooterConfig.adaptiveInkMaxAmount)
+    : heroAccordionBaseTextColor;
   // Live-value refs, same pattern PolymorphicScrollGradientBackground.tsx
   // now uses (PLAN-DARKEN-FLASH-FIX.md) — updated directly in the render
   // body so the PERSISTENT rAF loop below always reads today's latest
@@ -2592,6 +2657,16 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
         })()
     ),
   );
+  // Keep the TOP logo in the same live scroll-adaptive state as the hero's
+  // own text, the footer's own text, and (already shipped) the footer's own
+  // logo (footerWordmarkStops, SiteFooter.tsx) — same centralized helper
+  // (buildScrollAdaptiveInkStops, useScrollAdaptiveInk.ts) and the same
+  // topHeaderInkOptions.enabled gate already resolved above for
+  // topHeaderTitleColor, so the logo and the title/nav text can never fall
+  // out of sync with each other.
+  const topHeaderLogoStops = topHeaderInkOptions.enabled
+    ? buildScrollAdaptiveInkStops(heroHeaderLogoStops, abstractFooterConfig.adaptiveInkMaxAmount)
+    : heroHeaderLogoStops;
   const heroHeaderHeight = {
     // The gradient-sampling canvas below (.gradientSourceViewport/
     // .gradientOutputViewport, 'editorial' layout mode only) needs a
@@ -4711,9 +4786,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             cellCanvasRefs={gradientGridCellCanvasRefs}
             colorMode={normalizedSiteHeaderConfig.colorMode}
             headerTone={backgroundAwarenessActive ? headerTone : heroTone}
-            logoStops={heroHeaderLogoStops}
+            logoStops={topHeaderLogoStops}
             navBorderColor={normalizedSiteHeaderConfig.navBorderColor}
-            navTextColor={normalizedSiteHeaderConfig.navTextColor}
+                navTextColor={colors.scrollGradientActive
+                  ? topHeaderTitleColor
+                  : normalizedSiteHeaderConfig.navTextColor}
             totalCellCount={overlayFaceCount}
             hideNavigationOnMobile={mobileNavCubeConfig.enabled}
           />
@@ -4759,9 +4836,10 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
               // rectangles in this header path. Keep nav labels on their
               // resolved contrast color until that rendering path is fixed.
               navTextUsesWordmarkGradient: false,
+              colorMode: colors.scrollGradientActive ? 'custom' : normalizedSiteHeaderConfig.colorMode,
             }}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
-            logoStops={heroHeaderLogoStops}
+            logoStops={topHeaderLogoStops}
             wordmarkConfig={effectiveWordmarkConfig}
             wordmarkGradientStops={colors.wordmarkGradientStops}
             navBandActive={heroNavBandActive}
@@ -5074,6 +5152,16 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                 // wordmark-gradient text treatment paints opaque-looking
                 // rectangles in this split-aligned header path.
                 navTextUsesWordmarkGradient: false,
+                colorMode: colors.scrollGradientActive ? 'custom' : normalizedSiteHeaderConfig.colorMode,
+                // Keep navigation ink in lockstep with the hero's resolved
+                // scroll-gradient origin color at the active breakpoint —
+                // topHeaderTitleColor, not the plain static
+                // headerTypography.titleColor, so nav text also carries the
+                // same live scroll-adaptive lightening as the hero/footer
+                // text and the (now also adaptive) top logo just below.
+                navTextColor: colors.scrollGradientActive
+                  ? topHeaderTitleColor
+                  : normalizedSiteHeaderConfig.navTextColor,
                 navAlignedToSplitEnabled: true,
                 navAlignedToPageContainer: false,
                 navContentGapPx: SPLIT_ALIGNED_NAV_CONTENT_GAP_PX,
@@ -5081,7 +5169,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
               splitColumnLayoutConfig,
             )}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
-            logoStops={heroHeaderLogoStops}
+            logoStops={topHeaderLogoStops}
             wordmarkConfig={effectiveWordmarkConfig}
             wordmarkGradientStops={colors.wordmarkGradientStops}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
@@ -5090,8 +5178,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             // UNIFICATION.md Part C) — suppressed when
             // colors.wordmarkGradientStops is active, or the override would
             // silently mask the gradient with a flat color. See
-            // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
-            titleColorOverride={colors.wordmarkGradientStops ? undefined : headerTypography.titleColor}
+            // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md. Uses
+            // topHeaderTitleColor (the same live scroll-adaptive value
+            // navTextColor above and the logo now both share), not the
+            // static headerTypography.titleColor.
+            titleColorOverride={colors.wordmarkGradientStops ? undefined : topHeaderTitleColor}
             titleOpacityOverride={headerTypography.titleOpacity}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
             // Unlike /about's own conditional Spacefield-visible override,

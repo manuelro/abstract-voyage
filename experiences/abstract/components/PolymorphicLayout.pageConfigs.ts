@@ -79,6 +79,12 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnCustomColor: '#535369',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
+  wideColumnTransparent: true,
+  wideColumnTransparentWide: true,
+  wideColumnTransparentLg: false,
+  narrowColumnTransparent: true,
+  narrowColumnTransparentWide: true,
+  narrowColumnTransparentLg: false,
   // Breakpoint-specific opt-in: the shared scroll-gradient background paints
   // both narrow and wide columns at each enabled tier. Keep the three flags
   // explicit here so desktop can evolve independently from mobile/tablet.
@@ -439,7 +445,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   bodyGutterPaddingRightWide: 'md:pr-0',
   bodyGutterPaddingRightLg: 'lg:pr-0',
   colorSourceWide: 'custom',
-  colorSourceLg: 'custom',
+  colorSourceLg: 'none',
   wideColumnCustomColorWide: '#d7d7e5',
   wideColumnCustomColorLg: '#d7d7e5',
   narrowColumnCustomColorWide: '#535369',

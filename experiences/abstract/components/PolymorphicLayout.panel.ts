@@ -1877,6 +1877,8 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           label: 'Wide column (mobile)',
                           description: 'Reveal the exact mobile scroll-gradient recipe behind the wide column at the base/mobile tier.',
                         },
+                        { kind: 'boolean', key: 'narrowColumnTransparent', label: 'Transparent narrow column' },
+                        { kind: 'boolean', key: 'wideColumnTransparent', label: 'Transparent wide column' },
                         {
                           kind: 'number',
                           key: 'scrollGradientBaseHue',
@@ -2130,6 +2132,8 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           label: 'Wide column (≥ tablet)',
                           description: 'Reveal the exact mobile scroll-gradient recipe behind the wide column from md upward.',
                         },
+                        { kind: 'boolean', key: 'narrowColumnTransparentWide', label: 'Transparent narrow column' },
+                        { kind: 'boolean', key: 'wideColumnTransparentWide', label: 'Transparent wide column' },
                         {
                           kind: 'number',
                           key: 'scrollGradientBaseHueWide',
@@ -2373,6 +2377,8 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           label: 'Wide column (≥ desktop)',
                           description: 'Reveal the exact mobile scroll-gradient recipe behind the wide column from 1024px upward.',
                         },
+                        { kind: 'boolean', key: 'narrowColumnTransparentLg', label: 'Transparent narrow column' },
+                        { kind: 'boolean', key: 'wideColumnTransparentLg', label: 'Transparent wide column' },
                         {
                           kind: 'number',
                           key: 'scrollGradientBaseHueLg',

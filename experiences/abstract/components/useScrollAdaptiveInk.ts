@@ -66,6 +66,21 @@ export function buildScrollAdaptiveInkColor(baseColor: string, maxAmount: number
   return `color-mix(in srgb, ${baseColor} calc(100% - ${whiteMix}), white ${whiteMix})`;
 }
 
+/** Applies buildScrollAdaptiveInkColor to every stop's own `color` in a
+ * multi-stop gradient (e.g. a wordmark's own SvgStop[]) — extracted from
+ * SiteFooter.tsx's own original inline `.map()` (its footerWordmarkStops),
+ * the first place this "keep a gradient-stroked logo in the same live
+ * scroll-adaptive state as the surrounding text" treatment shipped. Reused
+ * verbatim wherever else a wordmark/logo needs the identical treatment
+ * (e.g. the page's own top header logo) instead of a second, independently
+ * hand-rolled copy of the same one-line map. */
+export function buildScrollAdaptiveInkStops<T extends { color: string }>(
+  stops: readonly T[],
+  maxAmount: number,
+): T[] {
+  return stops.map(stop => ({ ...stop, color: buildScrollAdaptiveInkColor(stop.color, maxAmount) }));
+}
+
 export function useScrollAdaptiveInk({
   ref,
   enabled,

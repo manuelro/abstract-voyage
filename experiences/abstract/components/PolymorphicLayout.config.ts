@@ -893,6 +893,12 @@ export type PolymorphicLayoutConfig = {
   wideColumnCustomColorLg: string;
   narrowColumnCustomColorWide: string;
   narrowColumnCustomColorLg: string;
+  wideColumnTransparent?: boolean;
+  wideColumnTransparentWide?: boolean;
+  wideColumnTransparentLg?: boolean;
+  narrowColumnTransparent?: boolean;
+  narrowColumnTransparentWide?: boolean;
+  narrowColumnTransparentLg?: boolean;
   /** Per-breakpoint siblings of wideColumnSurfaceOffset/narrowColumnSurfaceOffset
    * above — used only when this tier's own color source (colorSourceWide/-Lg)
    * is 'surface'. Same tiering shape as wideColumnCustomColorWide/-Lg. */
@@ -1513,6 +1519,12 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   wideColumnCustomColorLg: '#d3d4de',
   narrowColumnCustomColorWide: '#dadbe2',
   narrowColumnCustomColorLg: '#dadbe2',
+  wideColumnTransparent: false,
+  wideColumnTransparentWide: false,
+  wideColumnTransparentLg: false,
+  narrowColumnTransparent: false,
+  narrowColumnTransparentWide: false,
+  narrowColumnTransparentLg: false,
   wideColumnSurfaceOffsetWide: 0,
   wideColumnSurfaceOffsetLg: 0,
   narrowColumnSurfaceOffsetWide: 0,
@@ -2835,6 +2847,12 @@ export function normalizePolymorphicLayoutConfig(
       base.narrowColumnCustomColorLg,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.narrowColumnCustomColorLg,
     ),
+    wideColumnTransparent: Boolean(base.wideColumnTransparent),
+    wideColumnTransparentWide: Boolean(base.wideColumnTransparentWide),
+    wideColumnTransparentLg: Boolean(base.wideColumnTransparentLg),
+    narrowColumnTransparent: Boolean(base.narrowColumnTransparent),
+    narrowColumnTransparentWide: Boolean(base.narrowColumnTransparentWide),
+    narrowColumnTransparentLg: Boolean(base.narrowColumnTransparentLg),
     wideColumnSurfaceOffsetWide: clampRange(
       base.wideColumnSurfaceOffsetWide, -1, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.wideColumnSurfaceOffsetWide,
     ),

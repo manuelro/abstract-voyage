@@ -237,16 +237,16 @@ export function usePolymorphicLayoutColors(
     colorSourceResolved, narrowColumnCustomColor, narrowColumnSurfaceOffset,
     pageSurfaceColor, paletteColorResolver, 'narrow',
   );
-  // Root-level override, independent of colorSource entirely — see
-  // PolymorphicLayoutColorSource/scrollGradientEnabled's own doc comments
-  // (PolymorphicLayout.config.ts). When active, both columns' real
-  // wideColumnColor/narrowColumnColor (the ink/contrast basis every
-  // downstream consumer already reads) switch to scrollGradientInkColor,
-  // and wideColumnPaintColor/narrowColumnPaintColor — everywhere except
-  // this override, identical to wideColumnColor/narrowColumnColor, byte-
-  // identical paint behavior to before scrollGradientEnabled existed —
-  // switch to 'transparent' so the fixed full-viewport
-  // <PolymorphicScrollGradientBackground> shows through instead.
+  const wideColumnTransparent = tier(
+    config.wideColumnTransparent, config.wideColumnTransparentWide, config.wideColumnTransparentLg,
+  ) === true;
+  const narrowColumnTransparent = tier(
+    config.narrowColumnTransparent, config.narrowColumnTransparentWide, config.narrowColumnTransparentLg,
+  ) === true;
+  // Gradient opt-in supplies the column surface only when the configured
+  // source is not custom. Custom column colors are operator-authored values
+  // and must remain the authoritative opaque surfaces (the gradient can still
+  // render behind the layout where it is visible).
   const scrollGradientTierActive = tier(
     config.scrollGradientEnabled, config.scrollGradientEnabledWide, config.scrollGradientEnabledLg,
   );
@@ -264,10 +264,18 @@ export function usePolymorphicLayoutColors(
   const scrollGradientInkColor = tier(
     config.scrollGradientInkColor, config.scrollGradientInkColorWide, config.scrollGradientInkColorLg,
   );
-  const wideColumnColor = scrollGradientWideColumnActive ? scrollGradientInkColor : wideColumnColorFromSource;
-  const narrowColumnColor = scrollGradientNarrowColumnActive ? scrollGradientInkColor : narrowColumnColorFromSource;
-  const wideColumnPaintColor = scrollGradientWideColumnActive ? 'transparent' : wideColumnColor;
-  const narrowColumnPaintColor = scrollGradientNarrowColumnActive ? 'transparent' : narrowColumnColor;
+  const wideColumnUsesTransparentCustomColor =
+    colorSourceResolved === 'custom' && wideColumnCustomColor.trim().toLowerCase() === 'transparent';
+  const narrowColumnUsesTransparentCustomColor =
+    colorSourceResolved === 'custom' && narrowColumnCustomColor.trim().toLowerCase() === 'transparent';
+  const wideColumnGradientVisible =
+    scrollGradientWideColumnActive && (colorSourceResolved !== 'custom' || wideColumnUsesTransparentCustomColor);
+  const narrowColumnGradientVisible =
+    scrollGradientNarrowColumnActive && (colorSourceResolved !== 'custom' || narrowColumnUsesTransparentCustomColor);
+  const wideColumnColor = wideColumnTransparent ? 'transparent' : (wideColumnGradientVisible ? scrollGradientInkColor : wideColumnColorFromSource);
+  const narrowColumnColor = narrowColumnTransparent ? 'transparent' : (narrowColumnGradientVisible ? scrollGradientInkColor : narrowColumnColorFromSource);
+  const wideColumnPaintColor = wideColumnGradientVisible ? 'transparent' : wideColumnColor;
+  const narrowColumnPaintColor = narrowColumnGradientVisible ? 'transparent' : narrowColumnColor;
   const scrollGradientResolved: PolymorphicScrollGradientBackgroundProps = {
     baseHue: tier(config.scrollGradientBaseHue, config.scrollGradientBaseHueWide, config.scrollGradientBaseHueLg),
     hueScheme: tier(

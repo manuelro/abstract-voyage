@@ -278,6 +278,7 @@ export type SiteHeaderProps = {
    * meaning "the same color," actually computed by two different paths)
    * this whole plan exists to close. Omit for every page not opting in. */
   titleColorOverride?: string;
+  navTextColorOverride?: string;
   /** Same contract as titleColorOverride above — applied as the logo link's
    * own CSS `opacity` (the wordmark has no existing opacity mechanism of its
    * own to bypass, so it previously always rendered fully opaque regardless
@@ -470,6 +471,7 @@ export function SiteHeader({
   wordmarkConfig,
   physicalLeftColumnColor,
   titleColorOverride,
+  navTextColorOverride,
   titleOpacityOverride,
   wordmarkGradientStops,
   dataInkTone,
@@ -927,9 +929,12 @@ export function SiteHeader({
             normalized.navBorderSurfaceOffset,
           ),
         } as CSSProperties
-        : undefined;
+      : undefined;
+  const effectiveHeroHeaderColorStyle = navTextColorOverride
+    ? { ...(heroHeaderColorStyle ?? {}), '--hero-header-nav-text': navTextColorOverride } as CSSProperties
+    : heroHeaderColorStyle;
   const heroHeaderStyle = {
-    ...heroHeaderColorStyle,
+    ...effectiveHeroHeaderColorStyle,
     // var(--hero-sans) preserves /abstract's exact existing font stack;
     // its own fallback to --site-font-sans covers pages/about.tsx, which
     // renders this same header but never defines --hero-sans itself.
