@@ -209,7 +209,20 @@ export const ABSTRACT_FOOTER_PANEL = defineConfigScope<AbstractFooterConfig>({
     {
       kind: 'boolean',
       key: 'enabled',
-      label: 'Show footer',
+      label: 'Show footer (mobile)',
+      description: 'Footer visibility below the tablet breakpoint.',
+    },
+    {
+      kind: 'boolean',
+      key: 'enabledWide',
+      label: 'Show footer (tablet)',
+      description: 'Footer visibility from the tablet breakpoint upward until desktop.',
+    },
+    {
+      kind: 'boolean',
+      key: 'enabledLg',
+      label: 'Show footer (desktop)',
+      description: 'Footer visibility from the desktop breakpoint upward.',
     },
     {
       kind: 'group',

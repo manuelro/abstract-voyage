@@ -239,6 +239,15 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
         },
         {
           kind: 'number',
+          key: 'wheelOverscrollLimit',
+          label: 'Wheel overscroll limit',
+          description: 'Hard ceiling, in card-widths, on how far a wheel/trackpad gesture can push the first or last card past its resting position before springy resistance stops it — guarantees the edge card never fully leaves the viewport. 0 disables overscroll entirely (a hard stop at the first/last card). Wheel-only; dragging keeps its own existing feel.',
+          min: 0,
+          max: 1,
+          step: 0.05,
+        },
+        {
+          kind: 'number',
           key: 'clickVsDragThresholdPx',
           label: 'Click vs. drag threshold',
           description: 'Pointer travel beyond which a gesture is treated as a drag rather than a tap.',

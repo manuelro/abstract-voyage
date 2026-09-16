@@ -121,6 +121,9 @@ export type AbstractMobileArticleListInkConfig = {
 
 export type AbstractFooterConfig = {
   enabled: boolean;
+  /** Breakpoint-specific visibility: base/mobile, md/tablet, and lg/desktop. */
+  enabledWide: boolean;
+  enabledLg: boolean;
   navigationLabel: string;
   /** 'gradientDarkest' (opt-in): backgroundColor is ignored — the footer's
    * background instead tracks scrollGradientDarkestColor (SiteFooter.tsx's
@@ -218,6 +221,8 @@ export const DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG = {
 
 export const DEFAULT_ABSTRACT_FOOTER_CONFIG = {
   enabled: true,
+  enabledWide: true,
+  enabledLg: true,
   navigationLabel: 'Footer navigation',
   backgroundMode: 'transparent',
   backgroundColor: '#f8fafc',
@@ -423,6 +428,8 @@ export function normalizeAbstractFooterConfig(
 
   return {
     enabled: base.enabled !== false,
+    enabledWide: base.enabledWide !== false,
+    enabledLg: base.enabledLg !== false,
     navigationLabel: nonEmptyText(base.navigationLabel, D.navigationLabel),
     backgroundMode: token(base.backgroundMode, FOOTER_BACKGROUND_MODES, D.backgroundMode),
     backgroundColor: nonEmptyText(base.backgroundColor, D.backgroundColor),

@@ -4752,7 +4752,14 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
               </div>
             ) : null}
           <SiteHeader
-            config={normalizedSiteHeaderConfig}
+            config={{
+              ...normalizedSiteHeaderConfig,
+              // The wordmark gradient is valid for the logo, but the
+              // desktop nav's clipped text background renders as solid
+              // rectangles in this header path. Keep nav labels on their
+              // resolved contrast color until that rendering path is fixed.
+              navTextUsesWordmarkGradient: false,
+            }}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
             logoStops={heroHeaderLogoStops}
             wordmarkConfig={effectiveWordmarkConfig}
@@ -5063,6 +5070,10 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             config={buildEffectiveSiteHeaderConfig(
               {
                 ...normalizedSiteHeaderConfig,
+                // Keep the desktop nav as real glyphs. The inherited
+                // wordmark-gradient text treatment paints opaque-looking
+                // rectangles in this split-aligned header path.
+                navTextUsesWordmarkGradient: false,
                 navAlignedToSplitEnabled: true,
                 navAlignedToPageContainer: false,
                 navContentGapPx: SPLIT_ALIGNED_NAV_CONTENT_GAP_PX,
@@ -5464,7 +5475,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           pointerEvents: isMobileArticleListExpanded ? 'none' : 'auto',
         }}
       >
-        <SiteFooter
+        {(colors.breakpointTier === 'lg'
+          ? abstractFooterConfig.enabledLg
+          : colors.breakpointTier === 'md'
+            ? abstractFooterConfig.enabledWide
+            : abstractFooterConfig.enabled) ? <SiteFooter
           config={abstractFooterConfig}
           editorHref={showAuthoringTools ? '/admin/' : undefined}
           accordionItemConfig={heroAccordionItemConfig}
@@ -5484,7 +5499,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           // the identical color every other gradient-anchored surface on
           // this page settles to.
           scrollGradientDarkestColor={colors.scrollGradientActive ? mobileArticleListBackgroundDarkened : undefined}
-        />
+        /> : null}
       </div>
 
       {/* The app-level CuboidNavigationRoot deliberately leaves authoring

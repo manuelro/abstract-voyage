@@ -129,6 +129,23 @@ export type CoverFlowConfig = {
    * drag's own feel) and settles exactly once per gesture, so there is no
    * longer a threshold to cross more than once. */
   wheelReleaseGapMs: number;
+  /** Hard ceiling, in index units, on how far continuous wheel/trackpad
+   * tracking can push `positionX` past the first or last card
+   * (operator-reported: an unbounded overscroll let a long trackpad swipe
+   * push the edge card fully off-screen before it slid back once
+   * released, confusing since the card genuinely disappeared rather than
+   * just easing past its resting point — PLAN-COVERFLOW-WHEEL-TRACKPAD-
+   * DRAG-PARITY.md). The excursion still has a springy, diminishing-
+   * returns "give" as it approaches this ceiling (the same rubber-band
+   * curve native edge-bounce scrolling uses), preserving the elastic feel
+   * that already reads correctly on drag — only the maximum excursion is
+   * now bounded, not the character of the resistance itself. `0` disables
+   * all overscroll (a hard clamp at the first/last card, no give at all).
+   * Deliberately wheel-only: dragging is bounded by a human hand's own
+   * limited reach and was not reported as having this problem, and the
+   * operator specifically endorsed drag's existing spring feel as
+   * correct — this field does not apply to `onDrag`. */
+  wheelOverscrollLimit: number;
   /** Pointer travel (px) beyond which a click-vs-drag disambiguation
    * treats the gesture as a drag, not a tap. */
   clickVsDragThresholdPx: number;
@@ -318,6 +335,10 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   // Matches the prior accumulator model's own gap-reset constant exactly —
   // zero behavior change for a gesture ending in a genuine pause.
   wheelReleaseGapMs: 200,
+  // Comfortably keeps a fully-centered edge card inside the viewport across
+  // realistic card-width/spacing configs, while still giving a clearly
+  // felt springy resistance rather than a dead hard stop.
+  wheelOverscrollLimit: 0.3,
   clickVsDragThresholdPx: 6,
   activeSettleDelayMs: 160,
   // Echoes inactiveCardHoverAmplitudeStep's own original (later-superseded)
@@ -368,6 +389,8 @@ const MIN_CARD_WIDTH_PX_MIN = 50;
 const MIN_CARD_WIDTH_PX_MAX = 500;
 const WHEEL_RELEASE_GAP_MS_MIN = 50;
 const WHEEL_RELEASE_GAP_MS_MAX = 1000;
+const WHEEL_OVERSCROLL_LIMIT_MIN = 0;
+const WHEEL_OVERSCROLL_LIMIT_MAX = 1;
 const CLICK_VS_DRAG_THRESHOLD_PX_MIN = 1;
 const CLICK_VS_DRAG_THRESHOLD_PX_MAX = 50;
 const STACK_SPACING_RATIO_MIN = 0;
@@ -437,6 +460,9 @@ export function normalizeCoverFlowConfig(
     enableScroll: base.enableScroll,
     wheelReleaseGapMs: Math.round(
       clamp(base.wheelReleaseGapMs, WHEEL_RELEASE_GAP_MS_MIN, WHEEL_RELEASE_GAP_MS_MAX),
+    ),
+    wheelOverscrollLimit: clamp(
+      base.wheelOverscrollLimit, WHEEL_OVERSCROLL_LIMIT_MIN, WHEEL_OVERSCROLL_LIMIT_MAX,
     ),
     clickVsDragThresholdPx: clamp(
       base.clickVsDragThresholdPx, CLICK_VS_DRAG_THRESHOLD_PX_MIN, CLICK_VS_DRAG_THRESHOLD_PX_MAX,

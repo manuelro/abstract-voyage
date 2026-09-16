@@ -196,6 +196,35 @@ function clampIndex(index: number, length: number) {
   return Math.min(Math.max(index, 0), Math.max(length - 1, 0));
 }
 
+/** Rubber-band overscroll — the same diminishing-returns curve native
+ * edge-bounce scrolling uses (iOS/Android): position can still be pushed
+ * past `[0, maxIndex]` for a springy "give" (matching how dragging already
+ * feels past the first/last card), but the excursion asymptotically
+ * approaches `maxOverscroll` and can never exceed it, no matter how much
+ * raw input keeps arriving. Exists specifically for continuous wheel/
+ * trackpad tracking (PLAN-COVERFLOW-WHEEL-TRACKPAD-DRAG-PARITY.md): unlike
+ * a pointer drag (bounded by a human hand's own limited reach), a
+ * mechanical trackpad swipe's many small delta events can accumulate
+ * unboundedly over a longer gesture, previously pushing `positionX` far
+ * enough past the first/last card that it rendered fully off-screen before
+ * sliding back once released — confusing, since the edge card genuinely
+ * disappeared rather than just easing past its resting point. Capping the
+ * excursion keeps the edge card's own resting geometry inside the
+ * "visibly still on screen" range at every point during the gesture, not
+ * just at rest. */
+function applyRubberBandOverscroll(rawPosition: number, maxIndex: number, maxOverscroll: number) {
+  if (maxOverscroll <= 0) return clampIndex(rawPosition, maxIndex + 1);
+  if (rawPosition < 0) {
+    const overscroll = -rawPosition;
+    return -maxOverscroll * (1 - Math.exp(-overscroll / maxOverscroll));
+  }
+  if (rawPosition > maxIndex) {
+    const overscroll = rawPosition - maxIndex;
+    return maxIndex + maxOverscroll * (1 - Math.exp(-overscroll / maxOverscroll));
+  }
+  return rawPosition;
+}
+
 /** Same stiffness/damping/mass every settle-to-index motion on `positionX`
  * shares (drag release, click-to-snap, wheel jump, and an externally-driven
  * caller's own animated position request) — one physical feel across every
@@ -355,12 +384,14 @@ export function CoverFlow<T>({
   const activeIndexRef = useRef(safeInitial);
   const enableScrollRef = useRef(config.enableScroll);
   const wheelReleaseGapRef = useRef(config.wheelReleaseGapMs);
+  const wheelOverscrollLimitRef = useRef(config.wheelOverscrollLimit);
   const onItemClickRef = useRef(onItemClick);
   const enableClickToSnapRef = useRef(config.enableClickToSnap);
   const onActiveIndexChangeRef = useRef(onActiveIndexChange);
 
   enableScrollRef.current = config.enableScroll;
   wheelReleaseGapRef.current = config.wheelReleaseGapMs;
+  wheelOverscrollLimitRef.current = config.wheelOverscrollLimit;
   onItemClickRef.current = onItemClick;
   enableClickToSnapRef.current = config.enableClickToSnap;
   onActiveIndexChangeRef.current = onActiveIndexChange;
@@ -708,7 +739,15 @@ export function CoverFlow<T>({
       // `-`: wheel deltaX's own established sign convention (this
       // component's prior accumulator model already treated positive
       // deltaX as "advance") is the inverse of a pointer's delta.x.
-      positionX.set(positionX.get() + e.deltaX / (centerGap * 0.8));
+      // Rubber-banded past the first/last card (operator-reported: an
+      // unbounded value here let a long trackpad swipe push the edge card
+      // fully off-screen before it slid back once released) — see
+      // applyRubberBandOverscroll's own doc comment for why this is
+      // wheel-only, not applied to onDrag.
+      const rawPosition = positionX.get() + e.deltaX / (centerGap * 0.8);
+      positionX.set(
+        applyRubberBandOverscroll(rawPosition, items.length - 1, wheelOverscrollLimitRef.current),
+      );
 
       const now = Date.now();
       samples.push({ t: now, deltaX: e.deltaX });
