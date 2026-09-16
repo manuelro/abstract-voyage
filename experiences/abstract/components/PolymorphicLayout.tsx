@@ -134,6 +134,8 @@ export type PolymorphicLayoutResolvedColors = {
    * <PolymorphicScrollGradientBackground>; scrollGradientResolved below is
    * only meaningful while this is true. */
   scrollGradientActive: boolean;
+  scrollGradientNarrowColumnActive: boolean;
+  scrollGradientWideColumnActive: boolean;
   scrollGradientResolved: PolymorphicScrollGradientBackgroundProps;
   physicalLeftColumnColor: string;
   physicalRightColumnColor: string;
@@ -245,16 +247,27 @@ export function usePolymorphicLayoutColors(
   // identical paint behavior to before scrollGradientEnabled existed —
   // switch to 'transparent' so the fixed full-viewport
   // <PolymorphicScrollGradientBackground> shows through instead.
-  const scrollGradientActive = tier(
+  const scrollGradientTierActive = tier(
     config.scrollGradientEnabled, config.scrollGradientEnabledWide, config.scrollGradientEnabledLg,
   );
+  const scrollGradientNarrowColumnActive = scrollGradientTierActive === true && tier(
+    config.scrollGradientNarrowColumnEnabled,
+    config.scrollGradientNarrowColumnEnabledWide,
+    config.scrollGradientNarrowColumnEnabledLg,
+  ) === true;
+  const scrollGradientWideColumnActive = scrollGradientTierActive === true && tier(
+    config.scrollGradientWideColumnEnabled,
+    config.scrollGradientWideColumnEnabledWide,
+    config.scrollGradientWideColumnEnabledLg,
+  ) === true;
+  const scrollGradientActive = scrollGradientNarrowColumnActive || scrollGradientWideColumnActive;
   const scrollGradientInkColor = tier(
     config.scrollGradientInkColor, config.scrollGradientInkColorWide, config.scrollGradientInkColorLg,
   );
-  const wideColumnColor = scrollGradientActive ? scrollGradientInkColor : wideColumnColorFromSource;
-  const narrowColumnColor = scrollGradientActive ? scrollGradientInkColor : narrowColumnColorFromSource;
-  const wideColumnPaintColor = scrollGradientActive ? 'transparent' : wideColumnColor;
-  const narrowColumnPaintColor = scrollGradientActive ? 'transparent' : narrowColumnColor;
+  const wideColumnColor = scrollGradientWideColumnActive ? scrollGradientInkColor : wideColumnColorFromSource;
+  const narrowColumnColor = scrollGradientNarrowColumnActive ? scrollGradientInkColor : narrowColumnColorFromSource;
+  const wideColumnPaintColor = scrollGradientWideColumnActive ? 'transparent' : wideColumnColor;
+  const narrowColumnPaintColor = scrollGradientNarrowColumnActive ? 'transparent' : narrowColumnColor;
   const scrollGradientResolved: PolymorphicScrollGradientBackgroundProps = {
     baseHue: tier(config.scrollGradientBaseHue, config.scrollGradientBaseHueWide, config.scrollGradientBaseHueLg),
     hueScheme: tier(
@@ -442,6 +455,8 @@ export function usePolymorphicLayoutColors(
     wideColumnPaintColor,
     narrowColumnPaintColor,
     scrollGradientActive,
+    scrollGradientNarrowColumnActive,
+    scrollGradientWideColumnActive,
     scrollGradientResolved,
     physicalLeftColumnColor,
     physicalRightColumnColor,
@@ -1277,13 +1292,41 @@ export function PolymorphicLayout({
     && normalizedConfig.contentContainer === 'bounded'
   );
 
+  const gradientClipStyle = (column: 'narrow' | 'wide'): CSSProperties | undefined => {
+    if (!colors.scrollGradientActive
+      || (colors.scrollGradientNarrowColumnActive && colors.scrollGradientWideColumnActive)
+      || colors.splitBandStacked
+      || colors.splitBandBoundaryPx === undefined) return undefined;
+    const narrowOnLeft = normalizedConfig.wideColumnSide === 'right';
+    const columnOnLeft = column === 'narrow' ? narrowOnLeft : !narrowOnLeft;
+    return columnOnLeft
+      ? { clipPath: `inset(0 calc(100% - ${colors.splitBandBoundaryPx}px) 0 0)` }
+      : { clipPath: `inset(0 0 0 ${colors.splitBandBoundaryPx}px)` };
+  };
+
   return (
     <>
-      {colors.scrollGradientActive ? (
+      {colors.scrollGradientNarrowColumnActive && colors.scrollGradientWideColumnActive ? (
         <PolymorphicScrollGradientBackground
           {...colors.scrollGradientResolved}
           {...scrollGradientReturnToLight}
           forceMaxDarken={scrollGradientForceMaxDarken}
+        />
+      ) : null}
+      {colors.scrollGradientNarrowColumnActive && !colors.scrollGradientWideColumnActive ? (
+        <PolymorphicScrollGradientBackground
+          {...colors.scrollGradientResolved}
+          {...scrollGradientReturnToLight}
+          forceMaxDarken={scrollGradientForceMaxDarken}
+          style={gradientClipStyle('narrow')}
+        />
+      ) : null}
+      {colors.scrollGradientWideColumnActive && !colors.scrollGradientNarrowColumnActive ? (
+        <PolymorphicScrollGradientBackground
+          {...colors.scrollGradientResolved}
+          {...scrollGradientReturnToLight}
+          forceMaxDarken={scrollGradientForceMaxDarken}
+          style={gradientClipStyle('wide')}
         />
       ) : null}
       <SplitColumnPageShell
@@ -1373,7 +1416,7 @@ export function PolymorphicLayout({
         // for every other colorSource — no longer true for
         // 'scrollGradient', where a page's stale override would otherwise
         // hide the fixed background behind an opaque ink-colored column).
-        ...(colors.scrollGradientActive ? { backgroundColor: colors.wideColumnPaintColor } : {}),
+        ...(colors.scrollGradientWideColumnActive ? { backgroundColor: colors.wideColumnPaintColor } : {}),
       }}
       // mobileAlignPaddingLeftPx spread last so it always wins over
       // backgroundColor's own object literal — never the reverse — matching
@@ -1389,7 +1432,7 @@ export function PolymorphicLayout({
         ...(mobileAlignPaddingLeftPx !== undefined ? { paddingLeft: mobileAlignPaddingLeftPx } : {}),
         ...(narrowColumnClearsFloatingHeaderStyle ?? {}),
         // See the matching override on wideColumnStyle above — same reason.
-        ...(colors.scrollGradientActive ? { backgroundColor: colors.narrowColumnPaintColor } : {}),
+        ...(colors.scrollGradientNarrowColumnActive ? { backgroundColor: colors.narrowColumnPaintColor } : {}),
       }}
       contentContainer={normalizedConfig.contentContainer}
       bodyGutterClassName={bodyGutterClassName}

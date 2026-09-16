@@ -79,15 +79,20 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   narrowColumnCustomColor: '#535369',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
-  // scrollGradientEnabled — root-level override, independent of colorSource
-  // above — this page opts in on the base/mobile tier only (Wide/Lg stay
-  // off below, so desktop/tablet keep the flat colorSource: 'custom' paint
-  // unchanged). Same DEFAULT_POLYMORPHIC_LAYOUT_CONFIG values every other
-  // page below also starts from for the palette/ink/darken fields — see
-  // PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md.
+  // Breakpoint-specific opt-in: the shared scroll-gradient background paints
+  // both narrow and wide columns at each enabled tier. Keep the three flags
+  // explicit here so desktop can evolve independently from mobile/tablet.
+  // Palette/ink/darken fields below remain independently tunable per tier —
+  // see PLAN-POLYMORPHIC-COLUMN-SCROLL-GRADIENT.md.
   scrollGradientEnabled: true,
-  scrollGradientEnabledWide: false,
-  scrollGradientEnabledLg: false,
+  scrollGradientEnabledWide: true,
+  scrollGradientEnabledLg: true,
+  scrollGradientNarrowColumnEnabled: true,
+  scrollGradientNarrowColumnEnabledWide: true,
+  scrollGradientNarrowColumnEnabledLg: true,
+  scrollGradientWideColumnEnabled: true,
+  scrollGradientWideColumnEnabledWide: true,
+  scrollGradientWideColumnEnabledLg: false,
   scrollGradientBaseHue: 190,
   scrollGradientHueScheme: 'dual-complementary',
   scrollGradientLightnessMin: 50,
@@ -97,33 +102,37 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientVariance: 1,
   scrollGradientCenterStretch: 1,
   scrollGradientSeed: 59452,
-  scrollGradientBaseHueWide: 215,
+  scrollGradientBaseHueWide: 190,
   scrollGradientHueSchemeWide: 'dual-complementary',
-  scrollGradientLightnessMinWide: 10,
-  scrollGradientChromaMinWide: 45,
+  scrollGradientLightnessMinWide: 50,
+  scrollGradientChromaMinWide: 100,
   scrollGradientModeWide: 'side-bright',
-  scrollGradientStopsWide: 22,
+  scrollGradientStopsWide: 11,
   scrollGradientVarianceWide: 1,
-  scrollGradientCenterStretchWide: 0.3,
-  scrollGradientSeedWide: 50,
-  scrollGradientBaseHueLg: 215,
+  scrollGradientCenterStretchWide: 1,
+  scrollGradientSeedWide: 59452,
+  scrollGradientBaseHueLg: 190,
   scrollGradientHueSchemeLg: 'dual-complementary',
-  scrollGradientLightnessMinLg: 10,
-  scrollGradientChromaMinLg: 45,
+  scrollGradientLightnessMinLg: 50,
+  scrollGradientChromaMinLg: 100,
   scrollGradientModeLg: 'side-bright',
-  scrollGradientStopsLg: 22,
+  scrollGradientStopsLg: 11,
   scrollGradientVarianceLg: 1,
-  scrollGradientCenterStretchLg: 0.3,
-  scrollGradientSeedLg: 50,
+  scrollGradientCenterStretchLg: 1,
+  scrollGradientSeedLg: 59452,
   scrollGradientInkColor: '#1b67ff',
-  scrollGradientInkColorWide: '#f8fafc',
-  scrollGradientInkColorLg: '#f8fafc',
+  // Ink is a contrast/physical-column basis, not a generated gradient stop.
+  // Keep desktop's established light header/segment basis so the synced top
+  // bands do not become solid blue while the background recipe remains
+  // byte-for-byte identical to the mobile gradient.
+  scrollGradientInkColorWide: '#1b67ff',
+  scrollGradientInkColorLg: '#c68080',
   scrollGradientViewportRangeVh: 0.25,
-  scrollGradientViewportRangeVhWide: 1.25,
-  scrollGradientViewportRangeVhLg: 1.25,
+  scrollGradientViewportRangeVhWide: 0.25,
+  scrollGradientViewportRangeVhLg: 0.25,
   scrollGradientMaxDarken: 0.82,
-  scrollGradientMaxDarkenWide: 0.65,
-  scrollGradientMaxDarkenLg: 0.65,
+  scrollGradientMaxDarkenWide: 0.82,
+  scrollGradientMaxDarkenLg: 0.82,
   // Reverted to inert (2026-09-13, operator ask): this floor pushed the
   // darken overlay dark from the very first frame at rest, visibly
   // altering this page's own background at scroll=0 compared to /about's
@@ -202,7 +211,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // column's real color at this one tier, contributing to the wordmark/hero
   // text-color mismatch reported live. Synced now, matching base/Lg.
   splitBandLeftModeWide: 'syncWithColumnBelow',
-  splitBandLeftModeLg: 'syncWithColumnBelow',
+  splitBandLeftModeLg: 'transparent',
   splitBandRightMode: 'transparent',
   splitBandRightCustomColor: '#cbcbe1',
   // Regression history (nav text rendering as washed-out gray/near-
@@ -227,7 +236,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // splitBandRightCustomColorLg) for the /abstract-Journal color-parity
   // pass — 'transparent' remains the supported default at every other tier.
   splitBandRightModeWide: 'transparent',
-  splitBandRightModeLg: 'syncWithColumnBelow',
+  splitBandRightModeLg: 'transparent',
   contentContainer: 'bounded',
   wideColumnContentContainer: 'bounded',
   wideColumnContentHeight: 'full',
@@ -487,9 +496,8 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // '#0e1230' placeholder this scope's colorSource: 'surface' had made
   // permanently inert.
   colorSource: 'custom',
-  // Mobile/base tier only — see ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own
-  // identical opt-in above (same reasoning: Wide/Lg stay off, keeping the
-  // desktop /about experience untouched). scrollGradientBaseHue/-LightnessMin/
+  // Mobile/base tier only — /about intentionally remains on its own
+  // breakpoint policy below. scrollGradientBaseHue/-LightnessMin/
   // -ChromaMin/-Stops/-CenterStretch/-Seed/-InkColor/-ViewportRangeVh/
   // -MaxDarken below are copied verbatim from that same base-tier block
   // (not re-tuned) — this page reuses /abstract's own already-configured

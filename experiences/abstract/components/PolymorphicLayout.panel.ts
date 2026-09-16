@@ -1863,7 +1863,19 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'boolean',
                           key: 'scrollGradientEnabled',
                           label: 'Scroll gradient background',
-                          description: 'A fixed, full-viewport, scroll-darkening procedural gradient — renders behind the header and both columns, which paint transparent while this is on. Independent of Color source above.',
+                          description: 'Master switch for the scroll-darkening gradient at the mobile tier. The column switches below decide which column reveals it.',
+                        },
+                        {
+                          kind: 'boolean',
+                          key: 'scrollGradientNarrowColumnEnabled',
+                          label: 'Narrow column (mobile)',
+                          description: 'Reveal the exact mobile scroll-gradient recipe behind the narrow column at the base/mobile tier.',
+                        },
+                        {
+                          kind: 'boolean',
+                          key: 'scrollGradientWideColumnEnabled',
+                          label: 'Wide column (mobile)',
+                          description: 'Reveal the exact mobile scroll-gradient recipe behind the wide column at the base/mobile tier.',
                         },
                         {
                           kind: 'number',
@@ -2104,7 +2116,19 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'boolean',
                           key: 'scrollGradientEnabledWide',
                           label: 'Scroll gradient background (≥ tablet)',
-                          description: 'Overrides the Mobile tab\'s own "Scroll gradient background" starting at md.',
+                          description: 'Master switch for the scroll-darkening gradient at the tablet tier.',
+                        },
+                        {
+                          kind: 'boolean',
+                          key: 'scrollGradientNarrowColumnEnabledWide',
+                          label: 'Narrow column (≥ tablet)',
+                          description: 'Reveal the exact mobile scroll-gradient recipe behind the narrow column from md upward.',
+                        },
+                        {
+                          kind: 'boolean',
+                          key: 'scrollGradientWideColumnEnabledWide',
+                          label: 'Wide column (≥ tablet)',
+                          description: 'Reveal the exact mobile scroll-gradient recipe behind the wide column from md upward.',
                         },
                         {
                           kind: 'number',
@@ -2335,7 +2359,19 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'boolean',
                           key: 'scrollGradientEnabledLg',
                           label: 'Scroll gradient background (≥ desktop)',
-                          description: 'Overrides the Tablet tab\'s own "Scroll gradient background (≥ tablet)" starting at 1024px.',
+                          description: 'Master switch for the scroll-darkening gradient at the desktop tier.',
+                        },
+                        {
+                          kind: 'boolean',
+                          key: 'scrollGradientNarrowColumnEnabledLg',
+                          label: 'Narrow column (≥ desktop)',
+                          description: 'Reveal the exact mobile scroll-gradient recipe behind the narrow column from 1024px upward.',
+                        },
+                        {
+                          kind: 'boolean',
+                          key: 'scrollGradientWideColumnEnabledLg',
+                          label: 'Wide column (≥ desktop)',
+                          description: 'Reveal the exact mobile scroll-gradient recipe behind the wide column from 1024px upward.',
                         },
                         {
                           kind: 'number',

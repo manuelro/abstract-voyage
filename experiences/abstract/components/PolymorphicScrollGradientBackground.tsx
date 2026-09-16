@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { colord, extend } from 'colord';
 import a11yPlugin from 'colord/plugins/a11y';
 import { generateHarmonicGradient } from '../../../helpers/harmonicGradient';
@@ -61,6 +61,7 @@ export type PolymorphicScrollGradientBackgroundProps = {
    * legibility floor that's ≤ maxDarken, which every sane config value
    * is). See PLAN-MOBILE-ARTICLE-LIST-EXPAND-DARKEN.md. */
   forceMaxDarken?: boolean;
+  style?: CSSProperties;
 };
 
 /**
@@ -89,6 +90,7 @@ export function PolymorphicScrollGradientBackground({
   returnToLightRangeVh = 1,
   returnToLightFinalDarken = 0,
   forceMaxDarken = false,
+  style,
 }: PolymorphicScrollGradientBackgroundProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
 
@@ -322,13 +324,13 @@ export function PolymorphicScrollGradientBackground({
       <div
         aria-hidden="true"
         className="fixed inset-0 z-0 pointer-events-none"
-        style={{ backgroundImage: backgroundGradient, backgroundColor: '#020617' }}
+        style={{ ...style, backgroundImage: backgroundGradient, backgroundColor: '#020617' }}
       />
       <div
         ref={overlayRef}
         aria-hidden="true"
         className="fixed inset-0 z-0 pointer-events-none"
-        style={{ backgroundColor: '#000000', opacity: 'var(--polymorphic-scroll-gradient-darken, 0)' }}
+        style={{ ...style, backgroundColor: '#000000', opacity: 'var(--polymorphic-scroll-gradient-darken, 0)' }}
       />
     </>
   );

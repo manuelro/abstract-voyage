@@ -911,6 +911,13 @@ export type PolymorphicLayoutConfig = {
   scrollGradientEnabled: boolean;
   scrollGradientEnabledWide: boolean;
   scrollGradientEnabledLg: boolean;
+  /** Independent column opt-ins, resolved at the same base/Wide/Lg tiers. */
+  scrollGradientNarrowColumnEnabled?: boolean;
+  scrollGradientNarrowColumnEnabledWide?: boolean;
+  scrollGradientNarrowColumnEnabledLg?: boolean;
+  scrollGradientWideColumnEnabled?: boolean;
+  scrollGradientWideColumnEnabledWide?: boolean;
+  scrollGradientWideColumnEnabledLg?: boolean;
   /** Used only while scrollGradientEnabled(-Wide/-Lg) above is true. The 9
    * palette knobs `BASE_SYNTH_GRADIENT_CONFIG` (the legacy /posts/<slug>
    * scroll-gradient, since removed) actually set on helpers/harmonicGradient.ts's
@@ -1231,6 +1238,12 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientEnabled: false,
   scrollGradientEnabledWide: false,
   scrollGradientEnabledLg: false,
+    scrollGradientNarrowColumnEnabled: true,
+    scrollGradientNarrowColumnEnabledWide: true,
+    scrollGradientNarrowColumnEnabledLg: true,
+    scrollGradientWideColumnEnabled: true,
+    scrollGradientWideColumnEnabledWide: true,
+    scrollGradientWideColumnEnabledLg: true,
   scrollGradientBaseHue: 215,
   scrollGradientHueScheme: 'dual-complementary',
   scrollGradientLightnessMin: 10,
@@ -1771,6 +1784,12 @@ export function normalizePolymorphicLayoutConfig(
     scrollGradientEnabled: base.scrollGradientEnabled === true,
     scrollGradientEnabledWide: base.scrollGradientEnabledWide === true,
     scrollGradientEnabledLg: base.scrollGradientEnabledLg === true,
+    scrollGradientNarrowColumnEnabled: base.scrollGradientNarrowColumnEnabled === true,
+    scrollGradientNarrowColumnEnabledWide: base.scrollGradientNarrowColumnEnabledWide === true,
+    scrollGradientNarrowColumnEnabledLg: base.scrollGradientNarrowColumnEnabledLg === true,
+    scrollGradientWideColumnEnabled: base.scrollGradientWideColumnEnabled === true,
+    scrollGradientWideColumnEnabledWide: base.scrollGradientWideColumnEnabledWide === true,
+    scrollGradientWideColumnEnabledLg: base.scrollGradientWideColumnEnabledLg === true,
     scrollGradientBaseHue: clampRange(
       base.scrollGradientBaseHue, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientBaseHue,
     ),

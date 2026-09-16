@@ -128,11 +128,11 @@ export type ConfigFieldAction<TConfig extends object> = {
 
 export type ConfigFieldDefinition<TConfig extends object> = {
   [TKey in StringKeyOf<TConfig>]:
-    TConfig[TKey] extends boolean
+    NonNullable<TConfig[TKey]> extends boolean
       ? BooleanConfigField<TConfig, TKey>
-      : TConfig[TKey] extends number
+      : NonNullable<TConfig[TKey]> extends number
         ? NumberConfigField<TConfig, TKey>
-        : TConfig[TKey] extends string
+        : NonNullable<TConfig[TKey]> extends string
           ? EnumConfigField<TConfig, TKey, Extract<TConfig[TKey], string>>
             | SelectConfigField<TConfig, TKey, Extract<TConfig[TKey], string>>
             | StringInputConfigField<TConfig, TKey>

@@ -59,7 +59,7 @@ The CMS owns editorial content. TypeScript and the existing configuration-panel 
 
 - Layout and responsive behavior
 - Animation and interaction settings
-- Gradient and color calculations
+- Color calculations
 - Typography presentation
 - Component configuration
 - Accessibility behavior

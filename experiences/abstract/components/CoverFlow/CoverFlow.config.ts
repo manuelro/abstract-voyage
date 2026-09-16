@@ -115,7 +115,20 @@ export type CoverFlowConfig = {
   minCardWidthPx: number;
   enableClickToSnap: boolean;
   enableScroll: boolean;
-  scrollThresholdPx: number;
+  /** How long, in ms, wheel/trackpad input must stop arriving before a
+   * scroll gesture is treated as released and settles to the nearest
+   * index (PLAN-COVERFLOW-WHEEL-TRACKPAD-DRAG-PARITY.md) — the wheel-input
+   * equivalent of a pointer's own `pointerup`, which wheel events have no
+   * direct equivalent of. Replaces the earlier `scrollThresholdPx`
+   * (accumulate-then-jump-once-a-pixel-threshold-is-crossed) model: that
+   * model let one continuous trackpad swipe cross its own threshold twice
+   * before its 200ms gap ever got a chance to end the gesture, since the
+   * old cooldown (150ms) and gap (200ms) were both shorter than a typical
+   * swipe's own duration — the operator-reported "moves two cards per
+   * swipe" bug. Wheel input now tracks `positionX` continuously (matching
+   * drag's own feel) and settles exactly once per gesture, so there is no
+   * longer a threshold to cross more than once. */
+  wheelReleaseGapMs: number;
   /** Pointer travel (px) beyond which a click-vs-drag disambiguation
    * treats the gesture as a drag, not a tap. */
   clickVsDragThresholdPx: number;
@@ -302,7 +315,9 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   minCardWidthPx: 400,
   enableClickToSnap: true,
   enableScroll: true,
-  scrollThresholdPx: 100,
+  // Matches the prior accumulator model's own gap-reset constant exactly —
+  // zero behavior change for a gesture ending in a genuine pause.
+  wheelReleaseGapMs: 200,
   clickVsDragThresholdPx: 6,
   activeSettleDelayMs: 160,
   // Echoes inactiveCardHoverAmplitudeStep's own original (later-superseded)
@@ -351,8 +366,8 @@ const REFERENCE_WIDTH_PX_MIN = 50;
 const REFERENCE_WIDTH_PX_MAX = 1000;
 const MIN_CARD_WIDTH_PX_MIN = 50;
 const MIN_CARD_WIDTH_PX_MAX = 500;
-const SCROLL_THRESHOLD_PX_MIN = 10;
-const SCROLL_THRESHOLD_PX_MAX = 1000;
+const WHEEL_RELEASE_GAP_MS_MIN = 50;
+const WHEEL_RELEASE_GAP_MS_MAX = 1000;
 const CLICK_VS_DRAG_THRESHOLD_PX_MIN = 1;
 const CLICK_VS_DRAG_THRESHOLD_PX_MAX = 50;
 const STACK_SPACING_RATIO_MIN = 0;
@@ -420,7 +435,9 @@ export function normalizeCoverFlowConfig(
     minCardWidthPx: clamp(base.minCardWidthPx, MIN_CARD_WIDTH_PX_MIN, MIN_CARD_WIDTH_PX_MAX),
     enableClickToSnap: base.enableClickToSnap,
     enableScroll: base.enableScroll,
-    scrollThresholdPx: clamp(base.scrollThresholdPx, SCROLL_THRESHOLD_PX_MIN, SCROLL_THRESHOLD_PX_MAX),
+    wheelReleaseGapMs: Math.round(
+      clamp(base.wheelReleaseGapMs, WHEEL_RELEASE_GAP_MS_MIN, WHEEL_RELEASE_GAP_MS_MAX),
+    ),
     clickVsDragThresholdPx: clamp(
       base.clickVsDragThresholdPx, CLICK_VS_DRAG_THRESHOLD_PX_MIN, CLICK_VS_DRAG_THRESHOLD_PX_MAX,
     ),

@@ -354,13 +354,13 @@ export function CoverFlow<T>({
 
   const activeIndexRef = useRef(safeInitial);
   const enableScrollRef = useRef(config.enableScroll);
-  const scrollThresholdRef = useRef(config.scrollThresholdPx);
+  const wheelReleaseGapRef = useRef(config.wheelReleaseGapMs);
   const onItemClickRef = useRef(onItemClick);
   const enableClickToSnapRef = useRef(config.enableClickToSnap);
   const onActiveIndexChangeRef = useRef(onActiveIndexChange);
 
   enableScrollRef.current = config.enableScroll;
-  scrollThresholdRef.current = config.scrollThresholdPx;
+  wheelReleaseGapRef.current = config.wheelReleaseGapMs;
   onItemClickRef.current = onItemClick;
   enableClickToSnapRef.current = config.enableClickToSnap;
   onActiveIndexChangeRef.current = onActiveIndexChange;
@@ -621,39 +621,111 @@ export function CoverFlow<T>({
     [items.length, positionX, prefersReducedMotion, config.settleMotionCurve, animateGaussianToIndex],
   );
 
+  // PLAN-COVERFLOW-WHEEL-TRACKPAD-DRAG-PARITY.md: wheel/trackpad input now
+  // tracks positionX continuously, the same way onDrag does, instead of
+  // accumulating deltaX toward a fixed pixel threshold and jumping exactly
+  // one index the instant it's crossed. The old accumulator model let a
+  // single continuous trackpad swipe cross its own threshold TWICE before
+  // its own 200ms gap-reset ever got a chance to end the gesture (the
+  // 150ms re-jump cooldown and 200ms gap were both shorter than a typical
+  // swipe's real duration) — the operator-reported "moves two cards per
+  // swipe" bug. Tracking continuously removes the threshold entirely, so
+  // there's nothing left to cross more than once per gesture.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    let accumulator = 0;
-    let lastTime = Date.now();
-    let lastJump = 0;
+    // px/s, the same units PanInfo.velocity.x already uses — lets this
+    // reuse onDragEnd's own tuned overshoot-projection constant (0.002)
+    // and its own spring-velocity divisor (centerGap * 0.8) verbatim,
+    // rather than inventing a second, separately-tuned pair of constants
+    // for what is conceptually the same "how hard did the gesture end"
+    // question drag already answers.
+    const VELOCITY_WINDOW_MS = 100;
+    const VELOCITY_PROJECTION = 0.002;
+
+    let samples: Array<{ t: number; deltaX: number }> = [];
+    let releaseTimer: number | null = null;
+
+    const settleWheelGesture = () => {
+      releaseTimer = null;
+      const now = Date.now();
+      samples = samples.filter(sample => now - sample.t <= VELOCITY_WINDOW_MS);
+      const windowStart = samples.length > 0 ? samples[0].t : now;
+      const windowDurationMs = Math.max(1, now - windowStart);
+      const totalDeltaX = samples.reduce((sum, sample) => sum + sample.deltaX, 0);
+      const velocityPxPerSec = (totalDeltaX / windowDurationMs) * 1000;
+      samples = [];
+
+      // Same overshoot-projection shape onDragEnd uses (positionX.get() +/-
+      // velocity * a small tuned constant) — `+`, not `-`, because wheel's
+      // own deltaX sign convention (positive = advance) is the OPPOSITE of
+      // a pointer's own delta.x (positive = finger moved right, which
+      // DECREASES positionX) — see the `+` in the continuous-tracking
+      // .set() call below for the same reasoning.
+      const projected = positionX.get() + velocityPxPerSec * VELOCITY_PROJECTION;
+      const clamped = clampIndex(Math.round(projected), items.length);
+      if (clamped !== activeIndexRef.current) {
+        activeIndexRef.current = clamped;
+        onActiveIndexChangeRef.current(clamped);
+      }
+      if (prefersReducedMotion) {
+        positionX.jump(clamped);
+      } else if (config.settleMotionCurve === 'gaussian') {
+        animateGaussianToIndex(clamped);
+      } else {
+        // Glides from wherever the gesture actually left positionX (no
+        // jump, no swap), seeded with the gesture's own estimated release
+        // velocity — the wheel-input equivalent of onDragEnd's identical
+        // branch below.
+        animate(positionX, clamped, {
+          ...POSITION_SPRING_TRANSITION,
+          velocity: velocityPxPerSec / (centerGap * 0.8),
+        });
+      }
+    };
 
     const handleWheel = (e: WheelEvent) => {
       if (!enableScrollRef.current) return;
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) return;
       e.preventDefault();
 
-      const now = Date.now();
-      if (now - lastTime > 200) accumulator = 0;
-      lastTime = now;
-      accumulator += e.deltaX;
-
-      const threshold = scrollThresholdRef.current;
-      const shouldJump =
-        (accumulator > threshold || accumulator < -threshold) &&
-        now - lastJump > 150;
-
-      if (shouldJump) {
-        jumpToIndex(Math.round(positionX.get()) + (accumulator > 0 ? 1 : -1));
-        accumulator = 0;
-        lastJump = now;
+      if (releaseTimer === null) {
+        // A new gesture starting — cancel any still-running settle
+        // animation from a previous gesture (a quick re-scroll before the
+        // last one finished easing in) before continuous tracking below
+        // starts writing to positionX, the same guard onDragStart applies
+        // for pointer drags and for the identical reason: .set() alone
+        // does not stop an active animate() call.
+        positionX.stop();
+      } else {
+        window.clearTimeout(releaseTimer);
       }
+
+      // Continuous 1:1 tracking, matching onDrag's own shape — the card
+      // now visually follows the scroll gesture in real time instead of
+      // sitting frozen until a full step accumulates. `+`, not onDrag's
+      // `-`: wheel deltaX's own established sign convention (this
+      // component's prior accumulator model already treated positive
+      // deltaX as "advance") is the inverse of a pointer's delta.x.
+      positionX.set(positionX.get() + e.deltaX / (centerGap * 0.8));
+
+      const now = Date.now();
+      samples.push({ t: now, deltaX: e.deltaX });
+      samples = samples.filter(sample => now - sample.t <= VELOCITY_WINDOW_MS);
+
+      releaseTimer = window.setTimeout(settleWheelGesture, wheelReleaseGapRef.current);
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [jumpToIndex, positionX]);
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (releaseTimer !== null) window.clearTimeout(releaseTimer);
+    };
+  }, [
+    items.length, positionX, centerGap, prefersReducedMotion,
+    config.settleMotionCurve, animateGaussianToIndex,
+  ]);
 
   const handleCardClick = useCallback(
     (item: T, index: number) => {
