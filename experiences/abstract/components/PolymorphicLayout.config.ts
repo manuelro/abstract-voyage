@@ -151,6 +151,25 @@ export type PolymorphicLayoutScrollGradientHueScheme = 'mono' | 'dual-complement
  * bright center, darker edges. 'side-bright': dark center, bright edges —
  * the legacy scroll-gradient's own default. */
 export type PolymorphicLayoutScrollGradientMode = 'center-bright' | 'side-bright';
+export type PolymorphicLayoutScrollGradientCompositor = 'legacy' | 'enhanced';
+export type PolymorphicLayoutScrollGradientFocalHorizontal = 'left' | 'center' | 'right';
+export type PolymorphicLayoutScrollGradientInterpolation = 'srgb' | 'oklab';
+export const POLYMORPHIC_LAYOUT_ENHANCED_GRADIENT_COMPAT_DEFAULTS = {
+  scrollGradientCompositor: 'legacy', scrollGradientCompositorWide: 'legacy', scrollGradientCompositorLg: 'legacy',
+  scrollGradientFocalHorizontal: 'left', scrollGradientFocalHorizontalWide: 'left', scrollGradientFocalHorizontalLg: 'left',
+  scrollGradientLightHiddenPercent: 50, scrollGradientLightHiddenPercentWide: 50, scrollGradientLightHiddenPercentLg: 50,
+  scrollGradientLightRadiusPercent: 100, scrollGradientLightRadiusPercentWide: 100, scrollGradientLightRadiusPercentLg: 100,
+  scrollGradientLightAspectRatio: 1, scrollGradientLightAspectRatioWide: 1, scrollGradientLightAspectRatioLg: 1,
+  scrollGradientLightFalloff: 1, scrollGradientLightFalloffWide: 1, scrollGradientLightFalloffLg: 1,
+  scrollGradientMixSamples: 64, scrollGradientMixSamplesWide: 64, scrollGradientMixSamplesLg: 64,
+  scrollGradientInterpolation: 'oklab', scrollGradientInterpolationWide: 'oklab', scrollGradientInterpolationLg: 'oklab',
+  scrollGradientExtentPercent: 100, scrollGradientExtentPercentWide: 100, scrollGradientExtentPercentLg: 100,
+  scrollGradientSmoothness: 1, scrollGradientSmoothnessWide: 1, scrollGradientSmoothnessLg: 1,
+  scrollGradientDitherEnabled: true, scrollGradientDitherEnabledWide: true, scrollGradientDitherEnabledLg: true,
+  scrollGradientDitherAmount: 0.025, scrollGradientDitherAmountWide: 0.025, scrollGradientDitherAmountLg: 0.025,
+  scrollGradientDitherScale: 1, scrollGradientDitherScaleWide: 1, scrollGradientDitherScaleLg: 1,
+  scrollGradientDitherSeed: 50, scrollGradientDitherSeedWide: 50, scrollGradientDitherSeedLg: 50,
+} as const;
 /** 'auto' (default): the wordmark gradient's own lightness direction is
  * read from the active tier's own scrollGradientInkColor(-Wide/-Lg) — the
  * same color the scroll-gradient feature already uses to decide whether a
@@ -962,6 +981,48 @@ export type PolymorphicLayoutConfig = {
   scrollGradientVarianceLg: number;
   scrollGradientCenterStretchLg: number;
   scrollGradientSeedLg: number;
+  scrollGradientCompositor: PolymorphicLayoutScrollGradientCompositor;
+  scrollGradientCompositorWide: PolymorphicLayoutScrollGradientCompositor;
+  scrollGradientCompositorLg: PolymorphicLayoutScrollGradientCompositor;
+  scrollGradientFocalHorizontal: PolymorphicLayoutScrollGradientFocalHorizontal;
+  scrollGradientFocalHorizontalWide: PolymorphicLayoutScrollGradientFocalHorizontal;
+  scrollGradientFocalHorizontalLg: PolymorphicLayoutScrollGradientFocalHorizontal;
+  scrollGradientLightHiddenPercent: number;
+  scrollGradientLightHiddenPercentWide: number;
+  scrollGradientLightHiddenPercentLg: number;
+  scrollGradientLightRadiusPercent: number;
+  scrollGradientLightRadiusPercentWide: number;
+  scrollGradientLightRadiusPercentLg: number;
+  scrollGradientLightAspectRatio: number;
+  scrollGradientLightAspectRatioWide: number;
+  scrollGradientLightAspectRatioLg: number;
+  scrollGradientLightFalloff: number;
+  scrollGradientLightFalloffWide: number;
+  scrollGradientLightFalloffLg: number;
+  scrollGradientMixSamples: number;
+  scrollGradientMixSamplesWide: number;
+  scrollGradientMixSamplesLg: number;
+  scrollGradientInterpolation: PolymorphicLayoutScrollGradientInterpolation;
+  scrollGradientInterpolationWide: PolymorphicLayoutScrollGradientInterpolation;
+  scrollGradientInterpolationLg: PolymorphicLayoutScrollGradientInterpolation;
+  scrollGradientExtentPercent: number;
+  scrollGradientExtentPercentWide: number;
+  scrollGradientExtentPercentLg: number;
+  scrollGradientSmoothness: number;
+  scrollGradientSmoothnessWide: number;
+  scrollGradientSmoothnessLg: number;
+  scrollGradientDitherEnabled: boolean;
+  scrollGradientDitherEnabledWide: boolean;
+  scrollGradientDitherEnabledLg: boolean;
+  scrollGradientDitherAmount: number;
+  scrollGradientDitherAmountWide: number;
+  scrollGradientDitherAmountLg: number;
+  scrollGradientDitherScale: number;
+  scrollGradientDitherScaleWide: number;
+  scrollGradientDitherScaleLg: number;
+  scrollGradientDitherSeed: number;
+  scrollGradientDitherSeedWide: number;
+  scrollGradientDitherSeedLg: number;
   /** Ink/contrast basis while scrollGradientEnabled(-Wide/-Lg) is true —
    * read by every downstream consumer of colors.wideColumnColor/
    * narrowColumnColor for text-color derivation (PolymorphicLayout.tsx's
@@ -1277,6 +1338,48 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientVarianceLg: 1,
   scrollGradientCenterStretchLg: 0.3,
   scrollGradientSeedLg: 50,
+  scrollGradientCompositor: 'legacy',
+  scrollGradientCompositorWide: 'legacy',
+  scrollGradientCompositorLg: 'legacy',
+  scrollGradientFocalHorizontal: 'left',
+  scrollGradientFocalHorizontalWide: 'left',
+  scrollGradientFocalHorizontalLg: 'left',
+  scrollGradientLightHiddenPercent: 50,
+  scrollGradientLightHiddenPercentWide: 50,
+  scrollGradientLightHiddenPercentLg: 50,
+  scrollGradientLightRadiusPercent: 100,
+  scrollGradientLightRadiusPercentWide: 100,
+  scrollGradientLightRadiusPercentLg: 100,
+  scrollGradientLightAspectRatio: 1,
+  scrollGradientLightAspectRatioWide: 1,
+  scrollGradientLightAspectRatioLg: 1,
+  scrollGradientLightFalloff: 1,
+  scrollGradientLightFalloffWide: 1,
+  scrollGradientLightFalloffLg: 1,
+  scrollGradientMixSamples: 64,
+  scrollGradientMixSamplesWide: 64,
+  scrollGradientMixSamplesLg: 64,
+  scrollGradientInterpolation: 'oklab',
+  scrollGradientInterpolationWide: 'oklab',
+  scrollGradientInterpolationLg: 'oklab',
+  scrollGradientExtentPercent: 100,
+  scrollGradientExtentPercentWide: 100,
+  scrollGradientExtentPercentLg: 100,
+  scrollGradientSmoothness: 1,
+  scrollGradientSmoothnessWide: 1,
+  scrollGradientSmoothnessLg: 1,
+  scrollGradientDitherEnabled: true,
+  scrollGradientDitherEnabledWide: true,
+  scrollGradientDitherEnabledLg: true,
+  scrollGradientDitherAmount: 0.025,
+  scrollGradientDitherAmountWide: 0.025,
+  scrollGradientDitherAmountLg: 0.025,
+  scrollGradientDitherScale: 1,
+  scrollGradientDitherScaleWide: 1,
+  scrollGradientDitherScaleLg: 1,
+  scrollGradientDitherSeed: 50,
+  scrollGradientDitherSeedWide: 50,
+  scrollGradientDitherSeedLg: 50,
   // Matches the legacy Header.tsx's own light-on-gradient text classes
   // (text-slate-200/55, text-slate-50).
   scrollGradientInkColor: '#f8fafc',
@@ -1695,6 +1798,15 @@ const SCROLL_GRADIENT_HUE_SCHEMES: ReadonlyArray<PolymorphicLayoutScrollGradient
 const SCROLL_GRADIENT_MODES: ReadonlyArray<PolymorphicLayoutScrollGradientMode> = [
   'center-bright', 'side-bright',
 ];
+const SCROLL_GRADIENT_COMPOSITORS: ReadonlyArray<PolymorphicLayoutScrollGradientCompositor> = [
+  'legacy', 'enhanced',
+];
+const SCROLL_GRADIENT_FOCAL_HORIZONTAL: ReadonlyArray<PolymorphicLayoutScrollGradientFocalHorizontal> = [
+  'left', 'center', 'right',
+];
+const SCROLL_GRADIENT_INTERPOLATIONS: ReadonlyArray<PolymorphicLayoutScrollGradientInterpolation> = [
+  'srgb', 'oklab',
+];
 const WORDMARK_GRADIENT_CLARITY_VALUES: ReadonlyArray<PolymorphicLayoutWordmarkGradientClarity> = [
   'auto', 'light', 'dark',
 ];
@@ -1886,6 +1998,48 @@ export function normalizePolymorphicLayoutConfig(
     scrollGradientSeedLg: clampRange(
       base.scrollGradientSeedLg, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientSeedLg,
     ),
+    scrollGradientCompositor: token(base.scrollGradientCompositor, SCROLL_GRADIENT_COMPOSITORS, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientCompositor),
+    scrollGradientCompositorWide: token(base.scrollGradientCompositorWide, SCROLL_GRADIENT_COMPOSITORS, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientCompositorWide),
+    scrollGradientCompositorLg: token(base.scrollGradientCompositorLg, SCROLL_GRADIENT_COMPOSITORS, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientCompositorLg),
+    scrollGradientFocalHorizontal: token(base.scrollGradientFocalHorizontal, SCROLL_GRADIENT_FOCAL_HORIZONTAL, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientFocalHorizontal),
+    scrollGradientFocalHorizontalWide: token(base.scrollGradientFocalHorizontalWide, SCROLL_GRADIENT_FOCAL_HORIZONTAL, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientFocalHorizontalWide),
+    scrollGradientFocalHorizontalLg: token(base.scrollGradientFocalHorizontalLg, SCROLL_GRADIENT_FOCAL_HORIZONTAL, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientFocalHorizontalLg),
+    scrollGradientLightHiddenPercent: clampRange(base.scrollGradientLightHiddenPercent, 0, 95, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightHiddenPercent),
+    scrollGradientLightHiddenPercentWide: clampRange(base.scrollGradientLightHiddenPercentWide, 0, 95, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightHiddenPercentWide),
+    scrollGradientLightHiddenPercentLg: clampRange(base.scrollGradientLightHiddenPercentLg, 0, 95, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightHiddenPercentLg),
+    scrollGradientLightRadiusPercent: clampRange(base.scrollGradientLightRadiusPercent, 10, 300, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightRadiusPercent),
+    scrollGradientLightRadiusPercentWide: clampRange(base.scrollGradientLightRadiusPercentWide, 10, 300, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightRadiusPercentWide),
+    scrollGradientLightRadiusPercentLg: clampRange(base.scrollGradientLightRadiusPercentLg, 10, 300, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightRadiusPercentLg),
+    scrollGradientLightAspectRatio: clampRange(base.scrollGradientLightAspectRatio, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightAspectRatio),
+    scrollGradientLightAspectRatioWide: clampRange(base.scrollGradientLightAspectRatioWide, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightAspectRatioWide),
+    scrollGradientLightAspectRatioLg: clampRange(base.scrollGradientLightAspectRatioLg, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightAspectRatioLg),
+    scrollGradientLightFalloff: clampRange(base.scrollGradientLightFalloff, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightFalloff),
+    scrollGradientLightFalloffWide: clampRange(base.scrollGradientLightFalloffWide, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightFalloffWide),
+    scrollGradientLightFalloffLg: clampRange(base.scrollGradientLightFalloffLg, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightFalloffLg),
+    scrollGradientMixSamples: Math.round(clampRange(base.scrollGradientMixSamples, 16, 128, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMixSamples)),
+    scrollGradientMixSamplesWide: Math.round(clampRange(base.scrollGradientMixSamplesWide, 16, 128, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMixSamplesWide)),
+    scrollGradientMixSamplesLg: Math.round(clampRange(base.scrollGradientMixSamplesLg, 16, 128, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMixSamplesLg)),
+    scrollGradientInterpolation: token(base.scrollGradientInterpolation, SCROLL_GRADIENT_INTERPOLATIONS, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientInterpolation),
+    scrollGradientInterpolationWide: token(base.scrollGradientInterpolationWide, SCROLL_GRADIENT_INTERPOLATIONS, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientInterpolationWide),
+    scrollGradientInterpolationLg: token(base.scrollGradientInterpolationLg, SCROLL_GRADIENT_INTERPOLATIONS, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientInterpolationLg),
+    scrollGradientExtentPercent: clampRange(base.scrollGradientExtentPercent, 25, 400, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientExtentPercent),
+    scrollGradientExtentPercentWide: clampRange(base.scrollGradientExtentPercentWide, 25, 400, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientExtentPercentWide),
+    scrollGradientExtentPercentLg: clampRange(base.scrollGradientExtentPercentLg, 25, 400, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientExtentPercentLg),
+    scrollGradientSmoothness: clampRange(base.scrollGradientSmoothness, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientSmoothness),
+    scrollGradientSmoothnessWide: clampRange(base.scrollGradientSmoothnessWide, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientSmoothnessWide),
+    scrollGradientSmoothnessLg: clampRange(base.scrollGradientSmoothnessLg, 0.25, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientSmoothnessLg),
+    scrollGradientDitherEnabled: base.scrollGradientDitherEnabled === true,
+    scrollGradientDitherEnabledWide: base.scrollGradientDitherEnabledWide === true,
+    scrollGradientDitherEnabledLg: base.scrollGradientDitherEnabledLg === true,
+    scrollGradientDitherAmount: clampRange(base.scrollGradientDitherAmount, 0, 0.08, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherAmount),
+    scrollGradientDitherAmountWide: clampRange(base.scrollGradientDitherAmountWide, 0, 0.08, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherAmountWide),
+    scrollGradientDitherAmountLg: clampRange(base.scrollGradientDitherAmountLg, 0, 0.08, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherAmountLg),
+    scrollGradientDitherScale: clampRange(base.scrollGradientDitherScale, 0.5, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherScale),
+    scrollGradientDitherScaleWide: clampRange(base.scrollGradientDitherScaleWide, 0.5, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherScaleWide),
+    scrollGradientDitherScaleLg: clampRange(base.scrollGradientDitherScaleLg, 0.5, 4, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherScaleLg),
+    scrollGradientDitherSeed: Math.round(clampRange(base.scrollGradientDitherSeed, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherSeed)),
+    scrollGradientDitherSeedWide: Math.round(clampRange(base.scrollGradientDitherSeedWide, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherSeedWide)),
+    scrollGradientDitherSeedLg: Math.round(clampRange(base.scrollGradientDitherSeedLg, 0, 100000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDitherSeedLg)),
     scrollGradientInkColor: normalizeColor(
       base.scrollGradientInkColor, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientInkColor,
     ),

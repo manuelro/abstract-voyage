@@ -1,5 +1,6 @@
 import {
   DEFAULT_POLYMORPHIC_LAYOUT_CONFIG,
+  POLYMORPHIC_LAYOUT_ENHANCED_GRADIENT_COMPAT_DEFAULTS,
   type PolymorphicLayoutConfig,
 } from './PolymorphicLayout.config';
 
@@ -58,6 +59,7 @@ import {
 // specific to /abstract's own render call site, not this constant's own
 // definition.
 export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
+  ...POLYMORPHIC_LAYOUT_ENHANCED_GRADIENT_COMPAT_DEFAULTS,
   layoutMode: 'split',
   centeredContentMaxWidth: 'max-w-2xl',
   centeredContentPaddingX: 'px-6',
@@ -476,6 +478,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
 // per-field reasoning (contentContainer: 'full-bleed' provenance, the
 // 'bounded' narrow-column revert history, etc.).
 export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
+  ...POLYMORPHIC_LAYOUT_ENHANCED_GRADIENT_COMPAT_DEFAULTS,
   layoutMode: 'split',
   centeredContentMaxWidth: 'max-w-2xl',
   centeredContentPaddingX: 'px-6',

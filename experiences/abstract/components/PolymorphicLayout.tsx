@@ -277,6 +277,7 @@ export function usePolymorphicLayoutColors(
   const wideColumnPaintColor = wideColumnGradientVisible ? 'transparent' : wideColumnColor;
   const narrowColumnPaintColor = narrowColumnGradientVisible ? 'transparent' : narrowColumnColor;
   const scrollGradientResolved: PolymorphicScrollGradientBackgroundProps = {
+    compositor: tier(config.scrollGradientCompositor, config.scrollGradientCompositorWide, config.scrollGradientCompositorLg),
     baseHue: tier(config.scrollGradientBaseHue, config.scrollGradientBaseHueWide, config.scrollGradientBaseHueLg),
     hueScheme: tier(
       config.scrollGradientHueScheme, config.scrollGradientHueSchemeWide, config.scrollGradientHueSchemeLg,
@@ -310,6 +311,19 @@ export function usePolymorphicLayoutColors(
       config.scrollGradientLegibilityTargetRatioLg,
     ),
     tauMs: config.scrollGradientTauMs,
+    focalHorizontal: tier(config.scrollGradientFocalHorizontal, config.scrollGradientFocalHorizontalWide, config.scrollGradientFocalHorizontalLg),
+    lightHiddenPercent: tier(config.scrollGradientLightHiddenPercent, config.scrollGradientLightHiddenPercentWide, config.scrollGradientLightHiddenPercentLg),
+    lightRadiusPercent: tier(config.scrollGradientLightRadiusPercent, config.scrollGradientLightRadiusPercentWide, config.scrollGradientLightRadiusPercentLg),
+    lightAspectRatio: tier(config.scrollGradientLightAspectRatio, config.scrollGradientLightAspectRatioWide, config.scrollGradientLightAspectRatioLg),
+    lightFalloff: tier(config.scrollGradientLightFalloff, config.scrollGradientLightFalloffWide, config.scrollGradientLightFalloffLg),
+    mixSamples: tier(config.scrollGradientMixSamples, config.scrollGradientMixSamplesWide, config.scrollGradientMixSamplesLg),
+    interpolation: tier(config.scrollGradientInterpolation, config.scrollGradientInterpolationWide, config.scrollGradientInterpolationLg),
+    extentPercent: tier(config.scrollGradientExtentPercent, config.scrollGradientExtentPercentWide, config.scrollGradientExtentPercentLg),
+    smoothness: tier(config.scrollGradientSmoothness, config.scrollGradientSmoothnessWide, config.scrollGradientSmoothnessLg),
+    ditherEnabled: tier(config.scrollGradientDitherEnabled, config.scrollGradientDitherEnabledWide, config.scrollGradientDitherEnabledLg),
+    ditherAmount: tier(config.scrollGradientDitherAmount, config.scrollGradientDitherAmountWide, config.scrollGradientDitherAmountLg),
+    ditherScale: tier(config.scrollGradientDitherScale, config.scrollGradientDitherScaleWide, config.scrollGradientDitherScaleLg),
+    ditherSeed: tier(config.scrollGradientDitherSeed, config.scrollGradientDitherSeedWide, config.scrollGradientDitherSeedLg),
   };
   // Full parity with scrollGradientResolved above — same 9 knobs, same
   // tiering — but a fully independent recipe (its own tier() resolution,

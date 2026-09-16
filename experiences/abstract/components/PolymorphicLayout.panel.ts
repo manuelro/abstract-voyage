@@ -531,6 +531,8 @@ type NonTabsEntry<TConfig extends object> =
 function gateByHeaderScrollBehavior(
   fields: ReadonlyArray<NonTabsEntry<PolymorphicLayoutConfig>>,
 ): NonTabsEntry<PolymorphicLayoutConfig>[] {
+  // @ts-expect-error The expanded key-discriminated union exceeds TS's
+  // representable size after the enhanced compositor fields are included.
   return fields.map(field => {
     if (field.kind === 'group' || !HEADER_BEHAVIOR_GATED_KEYS.has(field.key)) return field;
     return {
@@ -1880,6 +1882,28 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                         { kind: 'boolean', key: 'narrowColumnTransparent', label: 'Transparent narrow column' },
                         { kind: 'boolean', key: 'wideColumnTransparent', label: 'Transparent wide column' },
                         {
+                          kind: 'enum', key: 'scrollGradientCompositor', label: 'Compositor',
+                          options: [{ label: 'LEGACY', value: 'legacy' }, { label: 'ENHANCED', value: 'enhanced' }],
+                          visibleWhen: config => config.scrollGradientEnabled,
+                        },
+                        {
+                          kind: 'enum', key: 'scrollGradientFocalHorizontal', label: 'Light position',
+                          options: [{ label: 'LEFT TOP', value: 'left' }, { label: 'CENTER TOP', value: 'center' }, { label: 'RIGHT TOP', value: 'right' }],
+                          visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced',
+                        },
+                        { kind: 'number', key: 'scrollGradientLightHiddenPercent', label: 'Light hidden above', min: 0, max: 95, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightRadiusPercent', label: 'Light radius', min: 10, max: 300, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightAspectRatio', label: 'Light aspect ratio', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightFalloff', label: 'Light falloff', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientMixSamples', label: 'Mix samples', min: 16, max: 128, step: 1, integer: true, visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'enum', key: 'scrollGradientInterpolation', label: 'Interpolation', options: [{ label: 'OKLAB', value: 'oklab' }, { label: 'SRGB', value: 'srgb' }], visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientExtentPercent', label: 'Gradient extent', min: 25, max: 400, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientSmoothness', label: 'Smoothness', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'boolean', key: 'scrollGradientDitherEnabled', label: 'Dithering', visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientDitherAmount', label: 'Dither amount', min: 0, max: 0.08, step: 0.001, visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' && config.scrollGradientDitherEnabled },
+                        { kind: 'number', key: 'scrollGradientDitherScale', label: 'Dither scale', min: 0.5, max: 4, step: 0.1, visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' && config.scrollGradientDitherEnabled },
+                        { kind: 'number', key: 'scrollGradientDitherSeed', label: 'Dither seed', min: 0, max: 100000, step: 1, integer: true, visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientCompositor === 'enhanced' && config.scrollGradientDitherEnabled },
+                        {
                           kind: 'number',
                           key: 'scrollGradientBaseHue',
                           label: 'Hue',
@@ -2134,6 +2158,20 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                         },
                         { kind: 'boolean', key: 'narrowColumnTransparentWide', label: 'Transparent narrow column' },
                         { kind: 'boolean', key: 'wideColumnTransparentWide', label: 'Transparent wide column' },
+                        { kind: 'enum', key: 'scrollGradientCompositorWide', label: 'Compositor', options: [{ label: 'LEGACY', value: 'legacy' }, { label: 'ENHANCED', value: 'enhanced' }], visibleWhen: config => config.scrollGradientEnabledWide },
+                        { kind: 'enum', key: 'scrollGradientFocalHorizontalWide', label: 'Light position', options: [{ label: 'LEFT TOP', value: 'left' }, { label: 'CENTER TOP', value: 'center' }, { label: 'RIGHT TOP', value: 'right' }], visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightHiddenPercentWide', label: 'Light hidden above', min: 0, max: 95, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightRadiusPercentWide', label: 'Light radius', min: 10, max: 300, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightAspectRatioWide', label: 'Light aspect ratio', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightFalloffWide', label: 'Light falloff', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientMixSamplesWide', label: 'Mix samples', min: 16, max: 128, step: 1, integer: true, visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'enum', key: 'scrollGradientInterpolationWide', label: 'Interpolation', options: [{ label: 'OKLAB', value: 'oklab' }, { label: 'SRGB', value: 'srgb' }], visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientExtentPercentWide', label: 'Gradient extent', min: 25, max: 400, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientSmoothnessWide', label: 'Smoothness', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'boolean', key: 'scrollGradientDitherEnabledWide', label: 'Dithering', visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientDitherAmountWide', label: 'Dither amount', min: 0, max: 0.08, step: 0.001, visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' && config.scrollGradientDitherEnabledWide },
+                        { kind: 'number', key: 'scrollGradientDitherScaleWide', label: 'Dither scale', min: 0.5, max: 4, step: 0.1, visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' && config.scrollGradientDitherEnabledWide },
+                        { kind: 'number', key: 'scrollGradientDitherSeedWide', label: 'Dither seed', min: 0, max: 100000, step: 1, integer: true, visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientCompositorWide === 'enhanced' && config.scrollGradientDitherEnabledWide },
                         {
                           kind: 'number',
                           key: 'scrollGradientBaseHueWide',
@@ -2379,6 +2417,20 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                         },
                         { kind: 'boolean', key: 'narrowColumnTransparentLg', label: 'Transparent narrow column' },
                         { kind: 'boolean', key: 'wideColumnTransparentLg', label: 'Transparent wide column' },
+                        { kind: 'enum', key: 'scrollGradientCompositorLg', label: 'Compositor', options: [{ label: 'LEGACY', value: 'legacy' }, { label: 'ENHANCED', value: 'enhanced' }], visibleWhen: config => config.scrollGradientEnabledLg },
+                        { kind: 'enum', key: 'scrollGradientFocalHorizontalLg', label: 'Light position', options: [{ label: 'LEFT TOP', value: 'left' }, { label: 'CENTER TOP', value: 'center' }, { label: 'RIGHT TOP', value: 'right' }], visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightHiddenPercentLg', label: 'Light hidden above', min: 0, max: 95, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightRadiusPercentLg', label: 'Light radius', min: 10, max: 300, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightAspectRatioLg', label: 'Light aspect ratio', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientLightFalloffLg', label: 'Light falloff', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientMixSamplesLg', label: 'Mix samples', min: 16, max: 128, step: 1, integer: true, visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'enum', key: 'scrollGradientInterpolationLg', label: 'Interpolation', options: [{ label: 'OKLAB', value: 'oklab' }, { label: 'SRGB', value: 'srgb' }], visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientExtentPercentLg', label: 'Gradient extent', min: 25, max: 400, step: 1, unit: '%', visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientSmoothnessLg', label: 'Smoothness', min: 0.25, max: 4, step: 0.05, visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'boolean', key: 'scrollGradientDitherEnabledLg', label: 'Dithering', visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' },
+                        { kind: 'number', key: 'scrollGradientDitherAmountLg', label: 'Dither amount', min: 0, max: 0.08, step: 0.001, visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' && config.scrollGradientDitherEnabledLg },
+                        { kind: 'number', key: 'scrollGradientDitherScaleLg', label: 'Dither scale', min: 0.5, max: 4, step: 0.1, visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' && config.scrollGradientDitherEnabledLg },
+                        { kind: 'number', key: 'scrollGradientDitherSeedLg', label: 'Dither seed', min: 0, max: 100000, step: 1, integer: true, visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientCompositorLg === 'enhanced' && config.scrollGradientDitherEnabledLg },
                         {
                           kind: 'number',
                           key: 'scrollGradientBaseHueLg',

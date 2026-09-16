@@ -3,13 +3,125 @@ import { colord, extend } from 'colord';
 import a11yPlugin from 'colord/plugins/a11y';
 import { generateHarmonicGradient } from '../../../helpers/harmonicGradient';
 import type {
+  PolymorphicLayoutScrollGradientCompositor,
+  PolymorphicLayoutScrollGradientFocalHorizontal,
   PolymorphicLayoutScrollGradientHueScheme,
+  PolymorphicLayoutScrollGradientInterpolation,
   PolymorphicLayoutScrollGradientMode,
 } from './PolymorphicLayout.config';
+
+type Rgb = { r: number; g: number; b: number };
+type Oklab = { l: number; a: number; b: number };
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const srgbToLinear = (value: number) => {
+  const channel = value / 255;
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+};
+const linearToSrgb = (value: number) => {
+  const channel = value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055;
+  return Math.round(clamp(channel, 0, 1) * 255);
+};
+const rgbToOklab = ({ r, g, b }: Rgb): Oklab => {
+  const lr = srgbToLinear(r);
+  const lg = srgbToLinear(g);
+  const lb = srgbToLinear(b);
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+  return {
+    l: 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    a: 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    b: 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  };
+};
+const oklabToRgb = ({ l, a, b }: Oklab): Rgb => {
+  const ll = (l + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const mm = (l - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const ss = (l - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  return {
+    r: linearToSrgb(4.0767416621 * ll - 3.3077115913 * mm + 0.2309699292 * ss),
+    g: linearToSrgb(-1.2684380046 * ll + 2.6097574011 * mm - 0.3413193965 * ss),
+    b: linearToSrgb(-0.0041960863 * ll - 0.7034186147 * mm + 1.707614701 * ss),
+  };
+};
+const rgbCss = ({ r, g, b }: Rgb) => `rgb(${Math.round(r)} ${Math.round(g)} ${Math.round(b)})`;
+const mixRgb = (from: Rgb, to: Rgb, amount: number): Rgb => ({
+  r: from.r + (to.r - from.r) * amount,
+  g: from.g + (to.g - from.g) * amount,
+  b: from.b + (to.b - from.b) * amount,
+});
+const mixOklab = (from: Rgb, to: Rgb, amount: number): Rgb => {
+  const a = rgbToOklab(from);
+  const b = rgbToOklab(to);
+  return oklabToRgb({
+    l: a.l + (b.l - a.l) * amount,
+    a: a.a + (b.a - a.a) * amount,
+    b: a.b + (b.b - a.b) * amount,
+  });
+};
+
+export function buildLegacyScrollGradient(stops: Array<{ color: string; at: number }>): string {
+  return `radial-gradient(circle at 0% 0%, ${stops
+    .map(stop => `${stop.color} ${Math.round(stop.at * 1000)}%`)
+    .join(', ')})`;
+}
+
+export function buildEnhancedScrollGradient(
+  stops: Array<{ color: string; at: number }>,
+  samples: number,
+  interpolation: PolymorphicLayoutScrollGradientInterpolation,
+  focalHorizontal: PolymorphicLayoutScrollGradientFocalHorizontal,
+  radiusPercent: number,
+  aspectRatio: number,
+  falloff: number,
+  extentPercent: number,
+): string {
+  const anchorColors = stops.map(stop => colord(stop.color).toRgb());
+  const sampleCount = Math.max(16, Math.round(samples));
+  const focalX = focalHorizontal === 'left' ? 0 : focalHorizontal === 'center' ? 50 : 100;
+  const segmentWeights = anchorColors.slice(0, -1).map((color, index) => {
+    if (interpolation === 'srgb') return 1;
+    const from = rgbToOklab(color);
+    const to = rgbToOklab(anchorColors[index + 1]);
+    return Math.max(0.001, Math.hypot(to.l - from.l, to.a - from.a, to.b - from.b));
+  });
+  const cumulativeWeights = segmentWeights.reduce<number[]>((weights, weight) => (
+    [...weights, weights[weights.length - 1] + weight]
+  ), [0]);
+  const totalWeight = cumulativeWeights[cumulativeWeights.length - 1] || 1;
+  const renderedStops = Array.from({ length: sampleCount }, (_, index) => {
+    const progress = index / (sampleCount - 1);
+    const targetWeight = progress * totalWeight;
+    const lower = Math.min(
+      anchorColors.length - 2,
+      Math.max(0, cumulativeWeights.findIndex((weight, weightIndex) => (
+        weightIndex > 0 && weight >= targetWeight
+      )) - 1),
+    );
+    const upper = Math.min(anchorColors.length - 1, lower + 1);
+    const segmentStart = cumulativeWeights[lower];
+    const segmentWeight = segmentWeights[lower] || 1;
+    const local = clamp((targetWeight - segmentStart) / segmentWeight, 0, 1);
+    const color = interpolation === 'oklab'
+      ? mixOklab(anchorColors[lower], anchorColors[upper], local)
+      : mixRgb(anchorColors[lower], anchorColors[upper], local);
+    const shapedPosition = progress ** Math.max(0.25, falloff);
+    return `${rgbCss(color)} ${(shapedPosition * extentPercent).toFixed(3)}%`;
+  });
+  const horizontalRadius = radiusPercent * aspectRatio;
+  return `radial-gradient(ellipse ${horizontalRadius}% ${radiusPercent}% at ${focalX}% 50%, ${renderedStops.join(', ')})`;
+}
+
+function buildDitherTexture(seed: number): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.78" numOctaves="3" seed="${Math.round(seed)}" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%" height="100%" filter="url(#n)" opacity="0.9"/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
 
 extend([a11yPlugin]);
 
 export type PolymorphicScrollGradientBackgroundProps = {
+  compositor: PolymorphicLayoutScrollGradientCompositor;
   baseHue: number;
   hueScheme: PolymorphicLayoutScrollGradientHueScheme;
   lightnessMin: number;
@@ -22,6 +134,19 @@ export type PolymorphicScrollGradientBackgroundProps = {
   viewportRangeVh: number;
   maxDarken: number;
   tauMs: number;
+  focalHorizontal: PolymorphicLayoutScrollGradientFocalHorizontal;
+  lightHiddenPercent: number;
+  lightRadiusPercent: number;
+  lightAspectRatio: number;
+  lightFalloff: number;
+  mixSamples: number;
+  interpolation: PolymorphicLayoutScrollGradientInterpolation;
+  extentPercent: number;
+  smoothness: number;
+  ditherEnabled: boolean;
+  ditherAmount: number;
+  ditherScale: number;
+  ditherSeed: number;
   /** Opt-in (default 0 — inert). When above 0, the darken schedule below
    * stops being purely scroll-driven: each frame, it also computes the
    * minimum darken needed so that even PURE WHITE text could reach this
@@ -73,6 +198,7 @@ export type PolymorphicScrollGradientBackgroundProps = {
  * overflow/stacking context. See PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md.
  */
 export function PolymorphicScrollGradientBackground({
+  compositor,
   baseHue,
   hueScheme,
   lightnessMin,
@@ -85,6 +211,19 @@ export function PolymorphicScrollGradientBackground({
   viewportRangeVh,
   maxDarken,
   tauMs,
+  focalHorizontal,
+  lightHiddenPercent,
+  lightRadiusPercent,
+  lightAspectRatio,
+  lightFalloff,
+  mixSamples,
+  interpolation,
+  extentPercent,
+  smoothness,
+  ditherEnabled,
+  ditherAmount,
+  ditherScale,
+  ditherSeed,
   legibilityTargetRatio = 0,
   returnToLightEnabled = false,
   returnToLightRangeVh = 1,
@@ -111,9 +250,32 @@ export function PolymorphicScrollGradientBackground({
     seed,
   }), [baseHue, hueScheme, lightnessMin, chromaMin, mode, stops, variance, centerStretch, seed]);
 
-  const backgroundGradient = useMemo(() => `radial-gradient(circle at 0% 0%, ${gradientStops
-    .map(stop => `${stop.color} ${Math.round(stop.at * 1000)}%`)
-    .join(', ')})`, [gradientStops]);
+  const backgroundGradient = useMemo(() => compositor === 'legacy'
+    ? buildLegacyScrollGradient(gradientStops)
+    : buildEnhancedScrollGradient(
+      gradientStops,
+      clamp(Math.round(mixSamples * Math.max(0.25, smoothness)), 16, 128),
+      interpolation,
+      focalHorizontal,
+      lightRadiusPercent,
+      lightAspectRatio,
+      lightFalloff,
+      extentPercent,
+    ), [
+    compositor, gradientStops, mixSamples, smoothness, interpolation, focalHorizontal,
+    lightRadiusPercent, lightAspectRatio, lightFalloff, extentPercent,
+  ]);
+  const enhancedLayerStyle = useMemo<CSSProperties>(() => {
+    if (compositor === 'legacy') return {};
+    const hidden = clamp(lightHiddenPercent, 0, 95) / 100;
+    const visible = 1 - hidden;
+    return {
+      height: `${100 / visible}%`,
+      top: `${-(hidden / visible) * 100}%`,
+      bottom: 'auto',
+    };
+  }, [compositor, lightHiddenPercent]);
+  const ditherTexture = useMemo(() => buildDitherTexture(ditherSeed), [ditherSeed]);
 
   // Origin (circle-center) stop's own color — the same proxy
   // usePolymorphicLayoutColors()'s own scrollGradientOriginColor uses for
@@ -324,7 +486,7 @@ export function PolymorphicScrollGradientBackground({
       <div
         aria-hidden="true"
         className="fixed inset-0 z-0 pointer-events-none"
-        style={{ ...style, backgroundImage: backgroundGradient, backgroundColor: '#020617' }}
+        style={{ ...style, ...enhancedLayerStyle, backgroundImage: backgroundGradient, backgroundColor: '#020617' }}
       />
       <div
         ref={overlayRef}
@@ -332,6 +494,19 @@ export function PolymorphicScrollGradientBackground({
         className="fixed inset-0 z-0 pointer-events-none"
         style={{ ...style, backgroundColor: '#000000', opacity: 'var(--polymorphic-scroll-gradient-darken, 0)' }}
       />
+      {compositor === 'enhanced' && ditherEnabled && ditherAmount > 0 ? (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{
+            ...style,
+            backgroundImage: ditherTexture,
+            backgroundSize: `${96 * ditherScale}px ${96 * ditherScale}px`,
+            mixBlendMode: 'soft-light',
+            opacity: ditherAmount,
+          }}
+        />
+      ) : null}
     </>
   );
 }
