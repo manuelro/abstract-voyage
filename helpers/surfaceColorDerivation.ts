@@ -165,17 +165,20 @@ const STABLE_DECISION_EPSILON = 0.005;
  * reach minContrastRatio (even at full opacity, at the L=0/100 endpoint), a
  * shortfall of up to toleranceRatio is accepted before falling back to that
  * endpoint outright — e.g. toleranceRatio: 0.3 against a 4.5 target accepts
- * as low as 4.2:1. This never crosses to the other side to chase a better
- * number; doing so would reintroduce the exact instability this function
- * exists to remove. Every config that actually lands in this shortfall band
- * is worth surfacing explicitly at the call site (not silently accepted) so
- * the deviation stays auditable.
+ * as low as 4.2:1. The explicit light-ink mode additionally keeps a 1.5:1
+ * floor so a large tolerance cannot produce text indistinguishable from the
+ * gradient. This never crosses to the other side to chase a better number;
+ * doing so would reintroduce the exact instability this function exists to
+ * remove. Every config that actually lands in this shortfall band is worth
+ * surfacing explicitly at the call site (not silently accepted) so the
+ * deviation stays auditable.
  */
 function resolveStableContrastAwareTextColor(
   backgroundColor: string,
   minContrastRatio: number,
   toleranceRatio: number = 0,
   targetOpacity: number = 1,
+  preferredSide: 'light' | 'dark' | undefined = undefined,
 ): string {
   const surface = colord(backgroundColor);
   const { h, s, l } = surface.toHsl();
@@ -218,8 +221,8 @@ function resolveStableContrastAwareTextColor(
   const contrastAt = (lightness: number) => colord(blendedAt(lightness)).contrast(backgroundColor);
 
   const preferLight = surface.luminance() < STABLE_DECISION_THRESHOLD_LUMINANCE - STABLE_DECISION_EPSILON;
-  const searchOnSide = (target: number): number | null => {
-    const endpoint = preferLight ? 100 : 0;
+  const searchSide = (lightSide: boolean, target: number): number | null => {
+    const endpoint = lightSide ? 100 : 0;
     if (contrastAt(endpoint) < target) return null;
     let passing = endpoint;
     let failing = l;
@@ -230,8 +233,21 @@ function resolveStableContrastAwareTextColor(
     }
     return passing;
   };
+  const searchOnSide = (target: number): number | null => searchSide(preferLight, target);
+  // An explicit light-ink tolerance is intentionally opt-in. It only relaxes
+  // the normal side decision for genuinely light surfaces; if white ink still
+  // cannot meet the relaxed floor, the strict dark fallback remains in place.
+  const preferredLightCandidate = preferredSide === 'light'
+    && surface.luminance() >= STABLE_DECISION_THRESHOLD_LUMINANCE - STABLE_DECISION_EPSILON
+    && clampedTolerance > 0
+    // Keep a minimal 1.5:1 floor even when an operator supplies a very large
+    // tolerance; the control permits a deliberate shortfall, not invisible
+    // text that is effectively the same color as the gradient.
+    ? searchSide(true, Math.max(1.5, targetRatio - clampedTolerance))
+    : null;
 
-  const resolvedL = searchOnSide(targetRatio)
+  const resolvedL = preferredLightCandidate
+    ?? searchOnSide(targetRatio)
     ?? (clampedTolerance > 0 ? searchOnSide(targetRatio - clampedTolerance) : null)
     ?? (preferLight ? 100 : 0);
   return colorAt(resolvedL);
@@ -241,7 +257,12 @@ export function resolveContrastAwareTextColor(
   backgroundColor: string,
   minContrastRatio: number,
   offset: number = 0,
-  options?: { stable?: boolean; toleranceRatio?: number; targetOpacity?: number },
+  options?: {
+    stable?: boolean;
+    toleranceRatio?: number;
+    targetOpacity?: number;
+    preferredSide?: 'light' | 'dark';
+  },
 ): string {
   if (options?.stable) {
     return resolveStableContrastAwareTextColor(
@@ -249,6 +270,7 @@ export function resolveContrastAwareTextColor(
       minContrastRatio,
       options.toleranceRatio,
       options.targetOpacity,
+      options.preferredSide,
     );
   }
   const surface = colord(backgroundColor);

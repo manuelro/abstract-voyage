@@ -144,6 +144,7 @@ export type PolymorphicLayoutResolvedColors = {
   scrollGradientNarrowColumnVariantActive: boolean;
   scrollGradientNarrowColumnSaturation: number;
   scrollGradientNarrowColumnDarkness: number;
+  scrollGradientLightInkOnLightBackgroundContrastTolerance: number;
   scrollGradientResolved: PolymorphicScrollGradientBackgroundProps;
   physicalLeftColumnColor: string;
   physicalRightColumnColor: string;
@@ -274,6 +275,11 @@ export function usePolymorphicLayoutColors(
     && config.scrollGradientNarrowColumnVariantEnabledLg;
   const scrollGradientNarrowColumnSaturation = config.scrollGradientNarrowColumnSaturationLg;
   const scrollGradientNarrowColumnDarkness = config.scrollGradientNarrowColumnDarknessLg;
+  const scrollGradientLightInkOnLightBackgroundContrastTolerance = tier(
+    config.scrollGradientLightInkOnLightBackgroundContrastTolerance ?? 0,
+    config.scrollGradientLightInkOnLightBackgroundContrastToleranceWide ?? 0,
+    config.scrollGradientLightInkOnLightBackgroundContrastToleranceLg ?? 0,
+  );
   const scrollGradientInkColor = tier(
     config.scrollGradientInkColor, config.scrollGradientInkColorWide, config.scrollGradientInkColorLg,
   );
@@ -520,6 +526,7 @@ export function usePolymorphicLayoutColors(
     scrollGradientNarrowColumnVariantActive,
     scrollGradientNarrowColumnSaturation,
     scrollGradientNarrowColumnDarkness,
+    scrollGradientLightInkOnLightBackgroundContrastTolerance,
     scrollGradientResolved,
     physicalLeftColumnColor,
     physicalRightColumnColor,

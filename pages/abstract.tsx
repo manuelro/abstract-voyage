@@ -2242,9 +2242,26 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     narrowColumnContrastBackground,
     narrowColumnTypographyConfig,
   );
+  const narrowColumnLightInkCandidate = colors.narrowColumnGradientReferenceColor
+    && colors.scrollGradientLightInkOnLightBackgroundContrastTolerance > 0
+    ? resolveContrastAwareTextColor(
+      narrowColumnContrastBackground,
+      globalTypographyConfig.minContrastRatio,
+      0,
+      {
+        stable: true,
+        toleranceRatio: colors.scrollGradientLightInkOnLightBackgroundContrastTolerance,
+        targetOpacity: globalTypographyConfig.bodyOpacity,
+        preferredSide: 'light',
+      },
+    )
+    : undefined;
   const narrowColumnUnifiedInkColor = colors.narrowColumnGradientReferenceColor
     ? (() => {
-      const neutralInk = colord(narrowColumnTypographyResolved.titleColor).grayscale();
+      const neutralInk = colord(
+        narrowColumnLightInkCandidate ?? narrowColumnTypographyResolved.titleColor,
+      ).grayscale();
+      if (narrowColumnLightInkCandidate) return neutralInk.toHex();
       // Mobile/tablet retain the neutral candidate that was visually verified
       // against their light gradient. Desktop gets only a bounded amount of
       // the sampled gradient's hue back; contrast-side selection still comes

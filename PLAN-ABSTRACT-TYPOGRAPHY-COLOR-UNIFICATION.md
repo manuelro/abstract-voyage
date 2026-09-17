@@ -658,8 +658,21 @@ config/wordmark.ts` and its panel) for the hybrid default-from-global wiring
   immediately re-resolves the shared ink and repaints the hero paragraph).
   `npx tsc --noEmit` clean throughout.
 
-All three parts of PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md are now
-implemented and live-verified.
+### Controlled light-ink tolerance (implemented 2026-09-17)
+
+The requested light-text-on-light-gradient treatment is now an explicit,
+tiered control rather than an automatic override. The panel exposes one
+shared policy for both columns at each breakpoint:
+`scrollGradientLightInkOnLightBackgroundContrastTolerance`, with `Wide` and
+`Lg` variants. `0` preserves the strict stable contrast heuristic. A positive
+value permits a light candidate only when the light gradient cannot meet the
+normal target but remains within that configured contrast shortfall; if the
+relaxed floor still cannot be met, the resolver safely falls back to dark ink.
+The candidate remains a real derived gradient color and the existing unified
+narrow-column ink contract is preserved.
+
+All three parts of PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md and this
+controlled tolerance extension are now implemented and tested.
 
 ## Decisions log
 

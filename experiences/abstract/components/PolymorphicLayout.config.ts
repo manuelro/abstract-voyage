@@ -956,6 +956,12 @@ export type PolymorphicLayoutConfig = {
   /** Perceptual-lightness reduction for the desktop narrow-column variant.
    * 0 = unchanged, 1 = black. */
   scrollGradientNarrowColumnDarknessLg: number;
+  /** Maximum contrast shortfall allowed when an operator explicitly wants
+   * light ink over a light gradient. Tiered so mobile/tablet/desktop can be
+   * tuned independently; 0 keeps the normal dark/light heuristic. */
+  scrollGradientLightInkOnLightBackgroundContrastTolerance?: number;
+  scrollGradientLightInkOnLightBackgroundContrastToleranceWide?: number;
+  scrollGradientLightInkOnLightBackgroundContrastToleranceLg?: number;
   /** Used only while scrollGradientEnabled(-Wide/-Lg) above is true. The 9
    * palette knobs `BASE_SYNTH_GRADIENT_CONFIG` (the legacy /posts/<slug>
    * scroll-gradient, since removed) actually set on helpers/harmonicGradient.ts's
@@ -1327,6 +1333,9 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientNarrowColumnVariantEnabledLg: false,
   scrollGradientNarrowColumnSaturationLg: 1,
   scrollGradientNarrowColumnDarknessLg: 0,
+  scrollGradientLightInkOnLightBackgroundContrastTolerance: 0,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 0,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 0,
   scrollGradientBaseHue: 215,
   scrollGradientHueScheme: 'dual-complementary',
   scrollGradientLightnessMin: 10,
@@ -1943,6 +1952,18 @@ export function normalizePolymorphicLayoutConfig(
       0,
       1,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnDarknessLg,
+    ),
+    scrollGradientLightInkOnLightBackgroundContrastTolerance: clampRange(
+      base.scrollGradientLightInkOnLightBackgroundContrastTolerance,
+      0, 20, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightInkOnLightBackgroundContrastTolerance,
+    ),
+    scrollGradientLightInkOnLightBackgroundContrastToleranceWide: clampRange(
+      base.scrollGradientLightInkOnLightBackgroundContrastToleranceWide,
+      0, 20, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightInkOnLightBackgroundContrastToleranceWide,
+    ),
+    scrollGradientLightInkOnLightBackgroundContrastToleranceLg: clampRange(
+      base.scrollGradientLightInkOnLightBackgroundContrastToleranceLg,
+      0, 20, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLightInkOnLightBackgroundContrastToleranceLg,
     ),
     scrollGradientBaseHue: clampRange(
       base.scrollGradientBaseHue, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientBaseHue,
