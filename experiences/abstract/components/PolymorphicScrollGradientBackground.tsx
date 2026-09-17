@@ -86,6 +86,66 @@ export function transformScrollGradientStops(
   });
 }
 
+/**
+ * Returns the color at a normalized point in the same radial recipe used by
+ * the painted background. This is intentionally kept beside the painter so
+ * contrast consumers cannot accidentally re-create an approximation (or use
+ * the literal `transparent` paint sentinel as a background color).
+ */
+export function sampleScrollGradientColor(
+  stops: GradientStop[],
+  options: {
+    x?: number;
+    y?: number;
+    compositor?: PolymorphicLayoutScrollGradientCompositor;
+    focalHorizontal: PolymorphicLayoutScrollGradientFocalHorizontal;
+    lightRadiusPercent: number;
+    lightAspectRatio: number;
+    lightFalloff: number;
+    extentPercent: number;
+    interpolation: PolymorphicLayoutScrollGradientInterpolation;
+    saturation?: number;
+    darkness?: number;
+  },
+): string {
+  const sourceStops = options.saturation !== undefined && options.darkness !== undefined
+    ? transformScrollGradientStops(stops, options.saturation, options.darkness)
+    : stops;
+  if (sourceStops.length === 0) return '#000000';
+  if (sourceStops.length === 1) return sourceStops[0].color;
+
+  const legacy = options.compositor === 'legacy';
+  const focalX = legacy ? 0 : options.focalHorizontal === 'left' ? 0 : options.focalHorizontal === 'center' ? 0.5 : 1;
+  const focalY = legacy ? 0 : 0.5;
+  const x = options.x ?? focalX;
+  const y = options.y ?? focalY;
+  if (legacy) {
+    const radialDistance = Math.min(1, Math.hypot(x, y) / Math.SQRT2);
+    if (radialDistance === 0) return sourceStops[0].color;
+    const progress = Math.min(1, radialDistance);
+    const segment = Math.min(sourceStops.length - 2, Math.floor(progress * (sourceStops.length - 1)));
+    const local = progress * (sourceStops.length - 1) - segment;
+    const from = colord(sourceStops[segment].color).toRgb();
+    const to = colord(sourceStops[segment + 1].color).toRgb();
+    return rgbCss(options.interpolation === 'oklab'
+      ? mixOklab(from, to, local)
+      : mixRgb(from, to, local));
+  }
+  const radiusX = Math.max(0.001, (options.lightRadiusPercent / 100) * options.lightAspectRatio);
+  const radiusY = Math.max(0.001, options.lightRadiusPercent / 100);
+  const radialDistance = Math.min(1, Math.hypot((x - focalX) / radiusX, (y - focalY) / radiusY));
+  if (radialDistance === 0) return sourceStops[0].color;
+  const shaped = radialDistance ** Math.max(0.25, options.lightFalloff);
+  const gradientProgress = Math.min(1, (shaped * 100) / Math.max(0.001, options.extentPercent));
+  const segment = Math.min(sourceStops.length - 2, Math.floor(gradientProgress * (sourceStops.length - 1)));
+  const local = gradientProgress * (sourceStops.length - 1) - segment;
+  const from = colord(sourceStops[segment].color).toRgb();
+  const to = colord(sourceStops[segment + 1].color).toRgb();
+  return rgbCss(options.interpolation === 'oklab'
+    ? mixOklab(from, to, local)
+    : mixRgb(from, to, local));
+}
+
 export function buildLegacyScrollGradient(stops: Array<{ color: string; at: number }>): string {
   return `radial-gradient(circle at 0% 0%, ${stops
     .map(stop => `${stop.color} ${Math.round(stop.at * 1000)}%`)

@@ -2217,8 +2217,58 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // color again) degrades to "two correctly-resolved regions that happen to
   // differ," never "one region resolved against the wrong background."
   const headerTypography = resolveTypographyColors(colors.actualLeftSegmentColor, globalTypographyConfig);
-  const narrowColumnTypography = resolveTypographyColors(colors.narrowColumnColor, globalTypographyConfig);
+  // `narrowColumnColor` is intentionally allowed to be the CSS paint
+  // sentinel `transparent`. For desktop gradient-backed layouts, resolve
+  // typography against the real shared/variant gradient sample instead.
+  const narrowColumnGradientReference = colors.narrowColumnGradientReferenceColor
+    ?? colors.narrowColumnColor;
+  // A saturated background is useful as a surface, but preserving its hue
+  // in the ink produces chromatic blue/teal text that is neither the footer's
+  // neutral contrast treatment nor a stable candidate across the gradient.
+  // Use the actual sampled gradient only to choose the correct light/dark
+  // contrast side; resolve the candidate against its achromatic equivalent.
+  // This keeps the text neutral while still reacting to narrow-variant
+  // darkness and saturation through the sampled surface luminance.
+  const narrowColumnContrastBackground = colors.narrowColumnGradientReferenceColor
+    ? colord(narrowColumnGradientReference).grayscale().toHex()
+    : narrowColumnGradientReference;
+  // One shared ink must survive the least-opaque narrow-column role. The
+  // previous title-calibrated candidate was then reused by the body/timeline
+  // at bodyOpacity, which made the visible result wash toward the gradient.
+  const narrowColumnTypographyConfig = colors.narrowColumnGradientReferenceColor
+    ? { ...globalTypographyConfig, titleOpacity: globalTypographyConfig.bodyOpacity }
+    : globalTypographyConfig;
+  const narrowColumnTypographyResolved = resolveTypographyColors(
+    narrowColumnContrastBackground,
+    narrowColumnTypographyConfig,
+  );
+  const narrowColumnUnifiedInkColor = colors.narrowColumnGradientReferenceColor
+    ? (() => {
+      const neutralInk = colord(narrowColumnTypographyResolved.titleColor).grayscale();
+      // Mobile/tablet retain the neutral candidate that was visually verified
+      // against their light gradient. Desktop gets only a bounded amount of
+      // the sampled gradient's hue back; contrast-side selection still comes
+      // from the achromatic surface and the retained candidate is never a
+      // second independently-resolved role color.
+      if (colors.breakpointTier !== 'lg') return neutralInk.toHex();
+      const chromaticInk = resolveTypographyColors(
+        narrowColumnGradientReference,
+        narrowColumnTypographyConfig,
+      ).titleColor;
+      return neutralInk.mix(chromaticInk, 0.35).toHex();
+    })()
+    : narrowColumnTypographyResolved.titleColor;
+  // In the gradient-backed narrow column, visual hierarchy is carried by
+  // opacity, not by independently hue-shifted role colors. This keeps every
+  // glyph (including timeline/body/emphasis text) on the same derived ink.
+  const narrowColumnTypography = {
+    ...narrowColumnTypographyResolved,
+    titleColor: narrowColumnUnifiedInkColor,
+    bodyColor: narrowColumnUnifiedInkColor,
+    highlightColor: narrowColumnUnifiedInkColor,
+  };
   const wideColumnTypography = resolveTypographyColors(colors.wideColumnColor, globalTypographyConfig);
+  const gradientBackedNarrowColumn = colors.narrowColumnGradientReferenceColor !== undefined;
   // Light-surface anchor for the mobile short list's own scroll-adaptive
   // ink (below) — resolveTypographyColors' own resolveRole bakes each
   // role's real render opacity (bodyOpacity/highlightOpacity, both < 1 for
@@ -2257,7 +2307,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // article-list's own <AboutTimeline> call site (renderList prop) below
   // for where these two anchors get live-mixed via CSS color-mix(), not
   // applied directly.
-  const mobileArticleListBackgroundAtRest = colors.scrollGradientOriginColor ?? colors.wideColumnColor;
+  const mobileArticleListBackgroundAtRest = colors.breakpointTier === 'mobile'
+    ? (colors.scrollGradientOriginColor ?? colors.wideColumnColor)
+    : (colors.narrowColumnGradientReferenceColor
+      ?? colors.scrollGradientOriginColor
+      ?? colors.narrowColumnColor);
   const mobileArticleListBackgroundDarkened = scaleColorTowardBlack(
     mobileArticleListBackgroundAtRest, colors.scrollGradientResolved.maxDarken,
   );
@@ -2351,7 +2405,9 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // AboutTimelineRow's own font-weight/opacity role logic do the active-vs-
   // inactive differentiation, rather than us supplying a second, separately-
   // derived color it would otherwise have overridden anyway.
-  const shortArticleListBaseColor = colors.breakpointTier !== 'mobile'
+  const shortArticleListBaseColor = gradientBackedNarrowColumn
+    ? narrowColumnTypography.titleColor
+    : colors.breakpointTier !== 'mobile'
     ? narrowColumnTypography.bodyColor
     : shortArticleListLightSurfaceTypography.bodyColor;
   // Bug fix (2nd pass, live-verified via Playwright): the previous fix only
@@ -2369,6 +2425,10 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // own color, not just share its formula. Called twice (mobile/desktop
   // refs above) since each DOM subtree needs its own live-updated instance.
   const shortArticleListInkOptions = {
+    // The timeline sits at a different vertical point than the footer. It
+    // must follow the same live gradient-darkening progress so its ink stays
+    // valid against the background underneath it, rather than freezing at
+    // the at-rest narrow-column sample.
     enabled: colors.scrollGradientActive,
     baseColor: shortArticleListBaseColor,
     maxAmount: abstractFooterConfig.adaptiveInkMaxAmount,
@@ -2434,7 +2494,12 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // TextColor's independent ink-palette pick. Replicated verbatim here so
   // nav/logo track whichever branch is actually active, not a
   // conveniently-similar-looking approximation.
-  const heroAccordionBaseTextColor = heroAccordionItemConfig.textColorMode === 'custom'
+  const narrowColumnGradientTextOrigin = colors.breakpointTier === 'mobile'
+    ? colors.scrollGradientOriginColor
+    : (colors.narrowColumnGradientReferenceColor ?? colors.scrollGradientOriginColor);
+  const heroAccordionBaseTextColor = gradientBackedNarrowColumn
+    ? narrowColumnTypography.titleColor
+    : heroAccordionItemConfig.textColorMode === 'custom'
     ? heroAccordionItemConfig.textCustomColor
     : deriveSurfaceColor(colors.narrowColumnColor, heroAccordionItemConfig.textSurfaceOffset);
   const topHeaderInkOptions = {
@@ -2444,7 +2509,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     targetContrastRatio: abstractFooterConfig.adaptiveInkTargetContrastRatio,
     scrollGradientDarkenViewportRangeVh: colors.scrollGradientResolved.viewportRangeVh,
     scrollGradientDarkenTauMs: colors.scrollGradientResolved.tauMs,
-    scrollGradientOriginColor: colors.scrollGradientOriginColor,
+    scrollGradientOriginColor: narrowColumnGradientTextOrigin,
     scrollGradientMaxDarken: colors.scrollGradientResolved.maxDarken,
     returnToLightEnabled: abstractFooterConfig.backgroundReturnToLightEnabled,
     returnToLightRangeVh: abstractFooterConfig.backgroundReturnToLightRangeVh,
@@ -2454,6 +2519,17 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   const topHeaderTitleColor = topHeaderInkOptions.enabled
     ? buildScrollAdaptiveInkColor(heroAccordionBaseTextColor, abstractFooterConfig.adaptiveInkMaxAmount)
     : heroAccordionBaseTextColor;
+  // All narrow-column consumers use this same live color expression. The
+  // shared root-level adaptive-ink hook above supplies the progress for the
+  // hero/wordmark, while the timeline's own hook uses the identical schedule
+  // in its subtree. This prevents dark text from remaining static when the
+  // fixed gradient darkens underneath it.
+  const narrowColumnAdaptiveInkColor = gradientBackedNarrowColumn
+    ? buildScrollAdaptiveInkColor(
+      narrowColumnTypography.titleColor,
+      abstractFooterConfig.adaptiveInkMaxAmount,
+    )
+    : narrowColumnTypography.titleColor;
   // Live-value refs, same pattern PolymorphicScrollGradientBackground.tsx
   // now uses (PLAN-DARKEN-FLASH-FIX.md) — updated directly in the render
   // body so the PERSISTENT rAF loop below always reads today's latest
@@ -2640,11 +2716,13 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   const effectiveWordmarkConfig = colors.wordmarkGradientStops
     ? { ...wordmarkConfig, colorMode: 'adaptive' as const }
     : wordmarkConfig;
-  const heroHeaderLogoStops = resolveSiteHeaderLogoStops(
-    effectiveWordmarkConfig,
-    normalizedPageSurfaceConfig.color,
-    colors.actualLeftSegmentColor,
-    colors.wordmarkGradientStops ?? (
+  const heroHeaderLogoStops = gradientBackedNarrowColumn
+    ? [{ color: heroAccordionBaseTextColor, at: 0 }, { color: heroAccordionBaseTextColor, at: 100 }]
+    : resolveSiteHeaderLogoStops(
+      effectiveWordmarkConfig,
+      normalizedPageSurfaceConfig.color,
+      colors.actualLeftSegmentColor,
+      colors.wordmarkGradientStops ?? (
       backgroundAwarenessActive
         ? (headerTone === 'light' ? ABSTRACT_SYNTH_LOGO_STOPS : ABSTRACT_SYNTH_LOGO_DARK_STOPS)
         : (() => {
@@ -2655,8 +2733,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           );
           return [{ color: derivedLogoColor, at: 0 }, { color: derivedLogoColor, at: 100 }];
         })()
-    ),
-  );
+      ),
+    );
   // Keep the TOP logo in the same live scroll-adaptive state as the hero's
   // own text, the footer's own text, and (already shipped) the footer's own
   // logo (footerWordmarkStops, SiteFooter.tsx) — same centralized helper
@@ -2667,6 +2745,9 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   const topHeaderLogoStops = topHeaderInkOptions.enabled
     ? buildScrollAdaptiveInkStops(heroHeaderLogoStops, abstractFooterConfig.adaptiveInkMaxAmount)
     : heroHeaderLogoStops;
+  const narrowColumnWordmarkGradientStops = gradientBackedNarrowColumn
+    ? undefined
+    : colors.wordmarkGradientStops;
   const heroHeaderHeight = {
     // The gradient-sampling canvas below (.gradientSourceViewport/
     // .gradientOutputViewport, 'editorial' layout mode only) needs a
@@ -4841,7 +4922,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
             logoStops={topHeaderLogoStops}
             wordmarkConfig={effectiveWordmarkConfig}
-            wordmarkGradientStops={colors.wordmarkGradientStops}
+            wordmarkGradientStops={narrowColumnWordmarkGradientStops}
             navBandActive={heroNavBandActive}
             navBandCanvasRef={heroNavBandCanvasRef}
             navBandColorFilter={heroNavBandColorFilter}
@@ -4882,10 +4963,10 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           headlineRef={heroHeadlineRef}
           layoutMode={heroLayoutMode}
           surfaceColor={normalizedPageSurfaceConfig.color}
-          wordmarkGradientStops={colors.wordmarkGradientStops}
+          wordmarkGradientStops={narrowColumnWordmarkGradientStops}
           scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
           scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
-          scrollGradientOriginColor={colors.scrollGradientOriginColor}
+          scrollGradientOriginColor={narrowColumnGradientTextOrigin}
           scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
         />
       ) : null}
@@ -5171,7 +5252,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
             logoStops={topHeaderLogoStops}
             wordmarkConfig={effectiveWordmarkConfig}
-            wordmarkGradientStops={colors.wordmarkGradientStops}
+            wordmarkGradientStops={narrowColumnWordmarkGradientStops}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
             // titleColorOverride bypasses resolveSiteHeaderLogoStops
             // entirely (every colorMode, PLAN-ABSTRACT-TYPOGRAPHY-COLOR-
@@ -5182,7 +5263,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             // topHeaderTitleColor (the same live scroll-adaptive value
             // navTextColor above and the logo now both share), not the
             // static headerTypography.titleColor.
-            titleColorOverride={colors.wordmarkGradientStops ? undefined : topHeaderTitleColor}
+            titleColorOverride={narrowColumnWordmarkGradientStops ? undefined : topHeaderTitleColor}
             titleOpacityOverride={headerTypography.titleOpacity}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
             // Unlike /about's own conditional Spacefield-visible override,
@@ -5457,14 +5538,16 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                 layoutMode={gridLayoutActive ? 'editorial' : heroLayoutMode}
                 surfaceColor={normalizedPageSurfaceConfig.color}
                 columnBackgroundColor={colors.narrowColumnColor}
-                wordmarkGradientStops={colors.wordmarkGradientStops}
+                wordmarkGradientStops={narrowColumnWordmarkGradientStops}
                 scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
                 scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
-                scrollGradientOriginColor={colors.scrollGradientOriginColor}
+                scrollGradientOriginColor={narrowColumnGradientTextOrigin}
                 scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
-                titleColorOverride={narrowColumnTypography.titleColor}
-                bodyColorOverride={narrowColumnTypography.bodyColor}
-                highlightColorOverride={narrowColumnTypography.highlightColor}
+                titleColorOverride={narrowColumnAdaptiveInkColor}
+                eyebrowColorOverride={narrowColumnAdaptiveInkColor}
+                accordionItemTextColorOverride={narrowColumnAdaptiveInkColor}
+                bodyColorOverride={narrowColumnAdaptiveInkColor}
+                highlightColorOverride={narrowColumnAdaptiveInkColor}
                 titleOpacityOverride={narrowColumnTypography.titleOpacity}
                 bodyOpacityOverride={narrowColumnTypography.bodyOpacity}
                 highlightOpacityOverride={narrowColumnTypography.highlightOpacity}
@@ -5581,7 +5664,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           wordmarkDesktopWidthClassName={normalizedSiteHeaderConfig.desktopLogoWidth}
           scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
           scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
-          scrollGradientOriginColor={colors.scrollGradientOriginColor}
+          scrollGradientOriginColor={narrowColumnGradientTextOrigin}
           scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
           // Same darkest-endpoint value the mobile article list's own ink
           // already resolves against (mobileArticleListBackgroundDarkened

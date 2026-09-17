@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEnhancedScrollGradient,
   buildLegacyScrollGradient,
+  sampleScrollGradientColor,
   transformScrollGradientStops,
 } from './PolymorphicScrollGradientBackground';
 
@@ -51,5 +52,21 @@ describe('PolymorphicScrollGradientBackground builders', () => {
     expect(desaturated[0].color).toMatch(/^rgb\((\d+) \1 \1\)$/);
     expect(desaturated[1].color).toMatch(/^rgb\((\d+) \1 \1\)$/);
     expect(darkened.map(stop => stop.color)).not.toEqual(colorfulStops.map(stop => stop.color));
+  });
+
+  it('samples the same neutral gradient color at its focal point and applies the narrow variant', () => {
+    const options = {
+      focalHorizontal: 'left' as const,
+      lightRadiusPercent: 128,
+      lightAspectRatio: 1.05,
+      lightFalloff: 0.95,
+      extentPercent: 180,
+      interpolation: 'oklab' as const,
+    };
+    expect(sampleScrollGradientColor(stops, options)).toBe(stops[0].color);
+    expect(sampleScrollGradientColor(stops, { ...options, saturation: 1, darkness: 0 }))
+      .toBe(stops[0].color);
+    expect(sampleScrollGradientColor(stops, { ...options, saturation: 0, darkness: 0.5 }))
+      .not.toBe(stops[0].color);
   });
 });

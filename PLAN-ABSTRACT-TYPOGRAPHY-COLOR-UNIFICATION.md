@@ -29,6 +29,273 @@ components are the test bed: `experiences/abstract/components/SiteHeader.tsx`
 (headline/paragraph/emphasis/links), `experiences/about/components/
 AboutTimeline.tsx` (reused verbatim by `/abstract` via `AbstractTimeline.panel.ts`).
 
+## Revision — gradient-backed narrow-column ink (2026-09-17)
+
+The current color-role work is not sufficient when the narrow column is
+transparent over a scroll gradient or when the desktop narrow-column gradient
+variant is enabled. The painter now renders a real narrow variant using the
+page gradient's stops transformed by:
+
+```ts
+scrollGradientNarrowColumnSaturationLg
+scrollGradientNarrowColumnDarknessLg
+```
+
+but the text pipeline still receives `colors.narrowColumnColor`, which may be
+the literal paint sentinel `'transparent'`, and
+`colors.scrollGradientOriginColor`, which describes the untransformed source
+gradient's first stop. Neither is the color underneath the glyphs.
+
+### New invariant
+
+For every narrow-column text consumer, the contrast reference must be the
+active gradient rendered at that consumer's actual viewport position, with the
+narrow variant's saturation/darkness transform and the current shared scroll
+darkening applied. A transparent CSS declaration is a paint instruction only;
+it must never be passed to a contrast resolver.
+
+Neutral narrow-variant settings (`saturation: 1`, `darkness: 0`) must resolve to
+the same reference as the page gradient at the same position. Non-neutral
+settings must resolve against the transformed narrow gradient, not against a
+flat ink proxy or the original page-gradient origin.
+
+This is a new follow-up to Part B/Part C below. The previously completed stable
+resolver and role-opacity work remain valid, but their background input must be
+corrected for gradient-backed regions before further color tuning.
+
+### Design and implementation plan
+
+1. **Make the renderer's gradient recipe reusable.** Extract a pure shared
+   evaluator beside the existing legacy/enhanced builders. It must accept the
+   active tier's source stops, compositor geometry, enhanced light translation,
+   and optional narrow saturation/darkness transform, then return the color at
+   a normalized viewport coordinate. It must use the same stop interpolation,
+   focal geometry, extent, and gamut handling as the painted CSS gradient.
+   There must be one source-stop generation and one transform path for paint
+   and contrast; no second approximation in `pages/abstract.tsx`.
+
+2. **Expose a gradient-backed reference contract from PolymorphicLayout.**
+   Extend the resolved color result with a narrow-gradient reference/evaluator
+   (or an equivalent sampled-reference API) that distinguishes:
+
+   - flat opaque column paint;
+   - shared scroll-gradient paint;
+   - transformed narrow-column scroll-gradient paint.
+
+   The contract must include the active narrow variant's saturation and
+   darkness, the shared scroll-darken progress/ceiling, and the physical
+   narrow-column bounds. It must not expose `'transparent'` as a contrast color.
+
+3. **Use position-aware samples in `/abstract`.** The wordmark, hero, and
+   timeline do not occupy the same point in the gradient, so one origin stop is
+   not a sufficient reference. In `pages/abstract.tsx`, resolve each region's
+   reference from the actual rendered anchor/element position:
+
+   - wordmark: the center of the physical header-left/narrow segment;
+   - hero: the center of the headline/paragraph text block;
+   - timeline: the center of the visible timeline panel/list region.
+
+   Use a resize/scroll-aware measurement hook with rAF-coalesced updates. It
+   should sample the mathematical gradient evaluator, not read a page-surface
+   color or infer a color from a CSS string. If an element is temporarily
+   unavailable during SSR or first render, use the same region's deterministic
+   gradient fallback and update after measurement.
+
+4. **Apply the active scroll darkening to the reference.** The sampled color
+   must represent what the user sees at the current scroll position. Share the
+   existing scroll-darken progress with the text resolver instead of creating
+   independent timers for wordmark, hero, and timeline. The reference should
+   be equivalent to applying the shared black overlay to the sampled gradient
+   color, including the configured max-darken and return-to-light behavior.
+
+5. **Unify the three consumers by region, not by a single guessed hex.** Feed
+   the sampled narrow reference through the existing stable contrast resolver
+   and role-opacity system:
+
+   - wordmark uses the narrow header sample as its contrast basis while its
+     intentional gradient-ink presentation remains enabled;
+   - hero title/body/emphasis use the hero sample;
+   - timeline active/inactive rows use the timeline sample and preserve their
+     opacity hierarchy.
+
+   The three regions should share the same resolver and live darkening state,
+   while remaining allowed to resolve different colors when their actual
+   gradient coordinates differ. “Consistent” means the same rule against the
+   real surface, not forcing three distant gradient locations to share one
+   literal color.
+
+6. **Handle the wordmark's own gradient deliberately.**
+   `wordmarkGradient*` is an independent ink gradient, not the background
+   gradient. Keep that artistic treatment, but derive its light/dark clarity
+   against the sampled narrow background instead of `actualLeftSegmentColor`
+   or the untransformed origin. If the current gradient-ink mode cannot expose
+   a stable contrast result at a sample, fall back to a flat stable title ink
+   for that region rather than allowing an unreadable independent gradient.
+
+### Configuration responsibility
+
+The page-owned desktop values remain in
+`experiences/abstract/components/PolymorphicLayout.pageConfigs.ts`:
+
+```ts
+scrollGradientNarrowColumnVariantEnabledLg
+scrollGradientNarrowColumnSaturationLg
+scrollGradientNarrowColumnDarknessLg
+```
+
+No new darkness/saturation knobs are needed for typography. The existing
+narrow-gradient controls describe the visible surface; text derives from that
+surface automatically. `pages/abstract.config.ts` should only own the
+Abstract-specific typography role and adaptive-ink defaults, not a second copy
+of the gradient recipe. `pages/abstract.tsx` is the wiring point that passes
+the sampled references into the existing components.
+
+### Acceptance criteria for this revision
+
+- With a transparent narrow column and shared scroll gradient enabled, no
+  contrast function receives `'transparent'`, `scrollGradientInkColor`, or a
+  flat page-surface color as the narrow gradient's background reference.
+- With the narrow variant disabled, sampled narrow text references equal the
+  shared page-gradient samples at matching positions.
+- With saturation `1` and darkness `0`, enabling the narrow variant changes no
+  text color or background reference.
+- With non-neutral narrow values, the text reference reflects those transformed
+  colors and the same scroll-darkening progress as the painted narrow gradient.
+- Wordmark, hero, and timeline use the same deterministic resolver and shared
+  progress, while preserving their intentional role opacity differences.
+- A viewport resize, scroll, breakpoint transition, or panel edit cannot leave
+  one region using a stale reference or a separately eased ink state.
+- Automated tests compare evaluator output against the painted gradient's
+  source/variant stops and cover both `wideColumnSide` orientations.
+
+Implementation remains pending; this section is the persisted design contract
+for the next change.
+
+## Assessment — desktop narrow-ink chroma retention (2026-09-17)
+
+### Finding
+
+The washed-out larger-device appearance is a regression from the recent
+mobile contrast correction, not evidence that the active desktop gradient is
+intrinsically too gray. The current `/abstract` desktop painter produces
+blue/cyan stops (for example, approximately `rgb(116, 181, 210)` in the shared
+layer and `rgb(108, 182, 215)` in the narrow variant), while the narrow text
+pipeline now deliberately converts its contrast candidate to achromatic gray
+(`~#4d4d4d`). The earlier pre-neutralization candidate retained chroma
+(`~#1c456f`) and was visibly closer to the gradient's visual language.
+
+The mobile result is different: its light cyan/blue surface needs a dark
+neutral candidate for reliable contrast, and the current mobile candidate
+(`~#080808`) is visually appropriate. A single global saturation-retention
+value would therefore recreate the mobile failure while repairing desktop.
+
+### Proposed path forward — plan only
+
+1. Keep the shared gradient-backed contrast reference and the one-color-per-
+   narrow-column invariant. Do not return to independently colored title/body/
+   timeline roles.
+2. Add an opt-in, large-breakpoint-only narrow ink chroma-retention control to
+   `PolymorphicLayoutConfig`, colocated with the existing desktop narrow
+   gradient variant controls in `PolymorphicLayout.pageConfigs.ts`. Suggested
+   field: `scrollGradientNarrowColumnInkSaturationLg`, normalized as `0..1`,
+   default `0` so existing behavior remains safe and mobile is unaffected.
+3. Expose that field in `PolymorphicLayout.panel.ts` beside
+   `scrollGradientNarrowColumnSaturationLg`/`DarknessLg`; it belongs to the
+   shared `SplitColumnLayout`/`PolymorphicLayout` panel, not
+   `pages/abstract.config.ts`, because it describes the layout's narrow
+   gradient-backed ink treatment. The option list is numeric, so no enum/select
+   field is needed.
+4. Apply retention after contrast-side selection: interpolate the neutral
+   contrast candidate toward a controlled-color candidate derived from the
+   same transformed narrow-gradient sample. Re-check contrast after
+   interpolation at each role's real opacity and clamp the result toward the
+   neutral endpoint whenever the configured target would fail.
+5. Enable a modest value only for `/abstract`'s `Lg` config after visual
+   review. Leave base/mobile and `Wide` at zero unless separate evidence shows
+   they need their own treatment; mobile must continue using neutral dark/light
+   candidates.
+6. Verify at rest, during maximum gradient darkening, and during return-to-light
+   behavior. Compare wordmark, accordion hero, paragraph/emphasis, timeline,
+   and footer at 390px, tablet, and 1440px. Acceptance requires desktop color
+   harmony without light-on-light/dark-on-dark failures, while mobile remains
+   neutral and legible.
+
+Implementation is intentionally pending; this section records the finding and
+the breakpoint-scoped remediation path.
+
+## Assessment — gradient seam and automatic ink tolerance (2026-09-17)
+
+### Gradient seam finding
+
+The visible seam is currently expected by the configuration, not caused by
+CSS antialiasing. `/abstract` enables the desktop narrow variant and sets
+`scrollGradientNarrowColumnSaturationLg: 1.12`, while the page-level layer
+keeps the original stops. `PolymorphicScrollGradientBackground` then paints a
+second clipped layer whose stops are deliberately transformed, so the two
+pixels on either side of the column boundary cannot match. The shared
+geometry, focal point, and enhanced-layer offset are aligned, but the colors
+are not. The existing comment calling the values “neutral” is stale because
+`1.12` is non-neutral.
+
+The no-seam contract should be explicit:
+
+- when narrow-variant customization is off, or saturation is `1` and darkness
+  is `0`, paint one shared stop recipe and assert pixel continuity at the seam;
+- when customization is on, do not present the result as one continuous
+  gradient. Either make the transformed recipe the authoritative full-page
+  recipe for that breakpoint, or provide an explicitly named seam treatment;
+- for the immediate `/abstract` correction, restore neutral desktop values
+  (`saturation: 1`, `darkness: 0`) or disable the variant until a full-page
+  transformed recipe is designed. The panel label and description must make
+  the seam trade-off clear.
+
+The implementation should add a renderer-level seam test that compares pixels
+or evaluator samples immediately inside/outside the physical boundary for
+both `wideColumnSide` orientations, legacy/enhanced compositors, and neutral
+values. It must also verify the variant's transformed layer is not mounted in
+the neutral case.
+
+### Ink heuristic finding
+
+The recent gray appearance was introduced by our post-resolution grayscale
+step. A new saturation knob is not imperative yet. The safer automatic path
+is to derive the light/dark side from the actual sampled gradient after shared
+scroll darkening, then retain only bounded chroma from that same sample while
+re-checking the requested contrast at the role's real opacity. If the
+chroma-retained candidate fails, fall back progressively toward neutral rather
+than forcing a fixed gray or saturated hue. This preserves mobile behavior
+without adding operator burden.
+
+If this heuristic still needs authorial control, any control must be complete
+across breakpoints, not `Lg`-only. Proposed terminology is
+`scrollGradientNarrowColumnInkChromaRetention` and
+`scrollGradientWideColumnInkChromaRetention`, each with base, `Wide`, and
+`Lg` values normalized to `0..1`. These belong beside the layout's gradient
+fields in the PolymorphicLayout panel; they do not belong in
+`pages/abstract.config.ts`. Do not add them until the heuristic is measured
+against the visual cases.
+
+### Light-ink-on-light-surface tolerance
+
+Add a separate contrast tolerance for the exceptional case where the chosen
+ink is light but the sampled gradient is also light. Use the technical field
+name `scrollGradientNarrowColumnLightInkOnLightBackgroundContrastTolerance`
+and its wide-column counterpart
+`scrollGradientWideColumnLightInkOnLightBackgroundContrastTolerance`, each
+with base, `Wide`, and `Lg` variants. Values should be normalized as a ratio
+shortfall (for example, `0` requires the normal target; a positive value is the
+maximum permitted shortfall), validated and bounded centrally. The resolver
+must apply this tolerance only after detecting a light-ink/light-background
+pair; it must never make dark text on a dark background or a normal contrast
+failure acceptable. Add the six fields to the shared PolymorphicLayout config
+and panel together, using numeric controls, with mobile/tablet/desktop defaults
+explicitly present.
+
+Acceptance requires visual and computed-style checks at every breakpoint,
+including the light-gradient/light-ink edge case, dark-gradient/light-ink
+case, neutral seam case, non-neutral variant case, scroll darkening, and
+return-to-light. The plan remains implementation-pending.
+
 ## Already shipped this session (do not redo)
 
 - `PolymorphicLayout.pageConfigs.ts`: `narrowColumnClearsFloatingHeaderLg` set

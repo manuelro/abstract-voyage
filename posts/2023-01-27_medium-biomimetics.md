@@ -14,7 +14,7 @@ url: https://abstractvoyage.medium.com/the-implementation-of-biomimetics-in-the-
 source:
   platform: Medium
   url: https://abstractvoyage.medium.com/the-implementation-of-biomimetics-in-the-design-and-development-of-highly-efficient-user-interfaces-7a8e3a3d18db
-  originallyPublished: 2023-01-27
+  originallyPublished: "2023-01-27"
 toc: false
 ---
 

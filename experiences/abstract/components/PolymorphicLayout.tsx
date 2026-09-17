@@ -25,6 +25,7 @@ import {
 } from './PolymorphicLayout.config';
 import {
   PolymorphicScrollGradientBackground,
+  sampleScrollGradientColor,
   type PolymorphicScrollGradientBackgroundProps,
 } from './PolymorphicScrollGradientBackground';
 import { deriveWordmarkScrollGradientStops } from './PolymorphicScrollGradientWordmarkStops';
@@ -121,6 +122,10 @@ export type PolymorphicLayoutResolvedColors = {
   viewportWidthPx: number | undefined;
   wideColumnColor: string;
   narrowColumnColor: string;
+  /** Real gradient color used for contrast whenever the narrow column is
+   * transparent over the fixed scroll-gradient layers. Never a CSS paint
+   * sentinel; consumers may safely pass this to typography resolvers. */
+  narrowColumnGradientReferenceColor: string | undefined;
   /** What actually gets painted as each column's own backgroundColor —
    * identical to wideColumnColor/narrowColumnColor for every colorSource
    * except 'scrollGradient', where the column paints 'transparent' instead
@@ -449,21 +454,10 @@ export function usePolymorphicLayoutColors(
   // logo/nav derive a contrast color against a background nobody actually
   // sees once the band goes transparent over a colored column (operator-
   // reported, 2026-08-24).
-  const actualLeftSegmentColor = !config.headerSplitBandEnabled
-    ? pageSurfaceColor
-    : resolvedSplitBandLeftColor !== 'transparent'
-      ? resolvedSplitBandLeftColor
-      : physicalLeftColumnColor;
-  const actualRightSegmentColor = !config.headerSplitBandEnabled
-    ? pageSurfaceColor
-    : resolvedSplitBandRightColor !== 'transparent'
-      ? resolvedSplitBandRightColor
-      : physicalRightColumnColor;
-
   // Same generateHarmonicGradient call PolymorphicScrollGradientBackground
   // itself makes from this exact recipe — only the first (origin) stop is
   // needed here, see scrollGradientOriginColor's own doc comment above.
-  const scrollGradientOriginColor = scrollGradientActive
+  const scrollGradientStops = scrollGradientActive
     ? generateHarmonicGradient({
       baseHue: scrollGradientResolved.baseHue,
       hueScheme: scrollGradientResolved.hueScheme,
@@ -474,14 +468,50 @@ export function usePolymorphicLayoutColors(
       variance: scrollGradientResolved.variance,
       centerStretch: scrollGradientResolved.centerStretch,
       seed: scrollGradientResolved.seed,
-    })[0]?.color
+    })
+    : [];
+  const scrollGradientOriginColor = scrollGradientStops[0]?.color;
+  const narrowColumnGradientReferenceColor = (narrowColumnTransparent || narrowColumnGradientVisible)
+    && scrollGradientNarrowColumnActive
+    ? sampleScrollGradientColor(scrollGradientStops, {
+      compositor: scrollGradientResolved.compositor,
+      x: splitBandNarrowFraction === undefined
+        ? 0.5
+        : config.wideColumnSide === 'right'
+          ? splitBandNarrowFraction / 2
+          : 1 - splitBandNarrowFraction / 2,
+      y: 0.5,
+      focalHorizontal: scrollGradientResolved.focalHorizontal,
+      lightRadiusPercent: scrollGradientResolved.lightRadiusPercent,
+      lightAspectRatio: scrollGradientResolved.lightAspectRatio,
+      lightFalloff: scrollGradientResolved.lightFalloff,
+      extentPercent: scrollGradientResolved.extentPercent,
+      interpolation: scrollGradientResolved.interpolation,
+      saturation: scrollGradientNarrowColumnVariantActive
+        ? scrollGradientNarrowColumnSaturation : undefined,
+      darkness: scrollGradientNarrowColumnVariantActive
+        ? scrollGradientNarrowColumnDarkness : undefined,
+    })
     : undefined;
+  const actualNarrowColumnColor = narrowColumnGradientReferenceColor
+    ?? (config.wideColumnSide === 'left' ? physicalRightColumnColor : physicalLeftColumnColor);
+  const actualLeftSegmentColor = !config.headerSplitBandEnabled
+    ? pageSurfaceColor
+    : resolvedSplitBandLeftColor !== 'transparent'
+      ? resolvedSplitBandLeftColor
+      : config.wideColumnSide === 'left' ? physicalLeftColumnColor : actualNarrowColumnColor;
+  const actualRightSegmentColor = !config.headerSplitBandEnabled
+    ? pageSurfaceColor
+    : resolvedSplitBandRightColor !== 'transparent'
+      ? resolvedSplitBandRightColor
+      : config.wideColumnSide === 'left' ? actualNarrowColumnColor : physicalRightColumnColor;
 
   return {
     breakpointTier,
     viewportWidthPx,
     wideColumnColor,
     narrowColumnColor,
+    narrowColumnGradientReferenceColor,
     wideColumnPaintColor,
     narrowColumnPaintColor,
     scrollGradientActive,

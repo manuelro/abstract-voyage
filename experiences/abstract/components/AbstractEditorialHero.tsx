@@ -113,6 +113,13 @@ type AbstractEditorialHeroProps = {
    * existing copyColorMode/emphasisFontWeight fields stay fully independent
    * and untouched for every caller that doesn't supply this. */
   titleColorOverride?: string;
+  /** Flat ink override for the separate accordion-item presentation. The
+   * accordion owns its own config color mode, so titleColorOverride alone
+   * cannot reach that branch. */
+  accordionItemTextColorOverride?: string;
+  /** Same narrow-column ink contract as the title/body overrides, for the
+   * eyebrow label which otherwise follows its own independent config color. */
+  eyebrowColorOverride?: string;
   /** Same contract as titleColorOverride above, for the paragraph's own
    * color (bypasses paragraphTextColorMode). */
   bodyColorOverride?: string;
@@ -212,6 +219,8 @@ export function AbstractEditorialHero({
   surfaceColor = DEFAULT_PAGE_SURFACE_CONFIG.color,
   columnBackgroundColor,
   titleColorOverride,
+  accordionItemTextColorOverride,
+  eyebrowColorOverride,
   bodyColorOverride,
   highlightColorOverride,
   bodyOpacityOverride,
@@ -385,13 +394,13 @@ export function AbstractEditorialHero({
         normalized.paragraphSurfaceOffset,
       )
       : normalized.paragraphTextColor);
-  const resolvedEyebrowColor = normalized.eyebrowColorMode === 'surface'
+  const resolvedEyebrowColor = eyebrowColorOverride ?? (normalized.eyebrowColorMode === 'surface'
     ? deriveSurfaceColor(surfaceColor, normalized.eyebrowSurfaceOffset)
     : normalized.eyebrowColorMode === 'column'
       ? resolveContrastAwareTextColor(
         resolvedColumnBackgroundColor, normalized.eyebrowMinContrast, normalized.eyebrowSurfaceOffset,
       )
-      : normalized.eyebrowColor;
+      : normalized.eyebrowColor);
 
   // accordionItemPresentationEnabled (AbstractEditorialHero.config.ts's own
   // doc comment) — always called (Rules of Hooks), inert whenever the
@@ -455,9 +464,10 @@ export function AbstractEditorialHero({
   // textCustomColor verbatim; 'derived' (the shared default) darkens
   // resolvedColumnBackgroundColor by textSurfaceOffset via the same
   // deriveSurfaceColor primitive this component already imports.
-  const accordionItemBaseTextColor = resolvedAccordionItemConfig.textColorMode === 'custom'
+  const accordionItemBaseTextColor = accordionItemTextColorOverride
+    ?? (resolvedAccordionItemConfig.textColorMode === 'custom'
     ? resolvedAccordionItemConfig.textCustomColor
-    : deriveSurfaceColor(resolvedColumnBackgroundColor, resolvedAccordionItemConfig.textSurfaceOffset);
+    : deriveSurfaceColor(resolvedColumnBackgroundColor, resolvedAccordionItemConfig.textSurfaceOffset));
   useScrollAdaptiveInk({
     ref: heroCopyContentRef,
     enabled: scrollLightenActive || accordionItemScrollLightenActive,
@@ -481,12 +491,13 @@ export function AbstractEditorialHero({
   // the exact same custom property, so the color updates live at paint time
   // with no React re-render, identical mechanism to the paragraph branch's
   // own.
-  const accordionItemTextColor = accordionItemScrollLightenActive
+  const accordionItemTextColor = accordionItemTextColorOverride
+    ?? (accordionItemScrollLightenActive
     ? buildScrollAdaptiveInkColor(
       accordionItemBaseTextColor,
       normalized.paragraphGradientScrollLightenMaxAmount,
     )
-    : accordionItemBaseTextColor;
+    : accordionItemBaseTextColor);
 
   // Reuses the CTA button's own elevation-shadow engine and tuning verbatim
   // (see the headlineFillMode/headlineShadowEnabled/
