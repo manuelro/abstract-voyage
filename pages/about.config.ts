@@ -165,7 +165,7 @@ export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
   markerColorMode: 'text',
   markerCustomColor: '#6c6b94',
   hoverMarkerOpacity: 0.4,
-  markerIdleOpacity: 0.31,
+  markerIdleOpacity: 0,
   markerActiveOpacity: 0.55,
   markerGradientEnabled: false,
   rowTitleFontSizeClassName: 'text-xs',

@@ -1684,6 +1684,71 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                       ),
                     },
                     {
+                      // PLAN-POLYMORPHIC-ADAPTIVE-INK-EXTRACTION.md —
+                      // relocated verbatim from pages/abstract.panel.ts's own
+                      // adaptiveInk*/backgroundReturnToLight* fields (same
+                      // labels/ranges/descriptions), now driving the shared
+                      // usePolymorphicColumnAdaptiveInk hook instead of a
+                      // page-local AbstractFooterConfig copy. Not tiered —
+                      // same shape as Scroll gradient smoothing above.
+                      kind: 'group',
+                      label: 'Adaptive ink',
+                      fields: [
+                        {
+                          kind: 'boolean',
+                          key: 'scrollGradientAdaptiveInkEnabled',
+                          label: 'Adaptive scroll ink',
+                          description: 'Text sitting on the scroll gradient (header wordmark, hero copy, column text) live-mixes toward white as the background darkens, with an optional contrast-ratio guarantee below.',
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientAdaptiveInkMaxAmount',
+                          label: 'Adaptive max mix',
+                          min: 0,
+                          max: 1,
+                          step: 0.01,
+                          visibleWhen: config => config.scrollGradientAdaptiveInkEnabled,
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientAdaptiveInkTargetContrastRatio',
+                          label: 'Adaptive contrast target',
+                          min: 0,
+                          max: 21,
+                          step: 0.1,
+                          visibleWhen: config => config.scrollGradientAdaptiveInkEnabled,
+                        },
+                        {
+                          kind: 'boolean',
+                          key: 'scrollGradientAdaptiveInkReturnToLightEnabled',
+                          label: 'Return ink to light',
+                          description: 'Opt-in phase that eases the adaptive ink back toward its resting color as a page-provided anchor element (e.g. the footer) approaches the viewport.',
+                          visibleWhen: config => config.scrollGradientAdaptiveInkEnabled,
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientAdaptiveInkReturnToLightRangeVh',
+                          label: 'Return range',
+                          min: 0.1,
+                          max: 4,
+                          step: 0.1,
+                          unit: 'vh',
+                          visibleWhen: config => config.scrollGradientAdaptiveInkEnabled
+                            && config.scrollGradientAdaptiveInkReturnToLightEnabled,
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientAdaptiveInkReturnToLightFinalDarken',
+                          label: 'Final darken',
+                          min: 0,
+                          max: 1,
+                          step: 0.01,
+                          visibleWhen: config => config.scrollGradientAdaptiveInkEnabled
+                            && config.scrollGradientAdaptiveInkReturnToLightEnabled,
+                        },
+                      ],
+                    },
+                    {
                       kind: 'group',
                       label: 'Wordmark',
                       fields: [

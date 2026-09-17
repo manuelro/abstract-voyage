@@ -65,6 +65,10 @@ import {
   PolymorphicLayout,
   usePolymorphicLayoutColors,
 } from '../experiences/abstract/components/PolymorphicLayout';
+import { usePolymorphicColumnAdaptiveInk } from '../experiences/abstract/components/usePolymorphicColumnAdaptiveInk';
+import { DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG, resolveTypographyColors } from '../components/GlobalTypography.config';
+import { resolveContrastAwareTextColor } from '../helpers/surfaceColorDerivation';
+import { colord } from 'colord';
 import {
   normalizePolymorphicLayoutConfig,
   type PolymorphicLayoutConfig,
@@ -893,6 +897,146 @@ function AboutPageContent() {
     splitColumnLayoutConfig, normalizedPageSurfaceConfig.color, paletteColorResolver,
   );
 
+  // Bug fix, /abstract used as the role model (PLAN-POLYMORPHIC-ADAPTIVE-
+  // INK-EXTRACTION.md's "bring the gradient config to /about" follow-up
+  // exposed this): AboutTimeline's own inkColorOverride was never wired
+  // here, so it fell back to resolveContrastAwareTextColor(columnBackground
+  // Color, ...) with columnBackgroundColor={colors.narrowColumnColor} — a
+  // literal 'transparent' string now that narrowColumnTransparent is true
+  // at every tier (the scroll gradient shows through instead of a flat
+  // paint). Feeding 'transparent' to a contrast resolver produces a
+  // meaningless decision, exactly the washed-out/near-invisible text
+  // reported live.
+  //
+  // This whole block is ported verbatim from pages/abstract.tsx's own
+  // narrowColumnGradientReference/-ContrastBackground/darkInkSaturation/
+  // darkInkOpacityScale/narrowColumnTypography chain (not just a simpler
+  // resolveTypographyColors(...) call, which a first pass here used and
+  // which produced a visibly different, more-saturated color than
+  // /abstract's own wordmark/timeline ink — screenshot-reported). The
+  // saturated background is useful as a surface but preserving its hue in
+  // the ink produces chromatic text that doesn't match /abstract's
+  // deliberately-neutralized treatment: resolve the contrast SIDE (light
+  // vs dark) from the real sampled gradient, then desaturate to that
+  // color's own grayscale equivalent, only reintroducing a bounded amount
+  // of the gradient's own hue/saturation via darkInkSaturation (this page's
+  // own scrollGradientDarkInkSaturation* tier value — see
+  // ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own copied values,
+  // PolymorphicLayout.pageConfigs.ts). One shared ink for title/body/
+  // highlight, opacity-only role hierarchy — same "reusing bodyOpacity for
+  // the title was the regression that washed out the wordmark" precedent
+  // abstract.tsx's own comment documents.
+  const narrowColumnGradientReference = colors.narrowColumnGradientReferenceColor
+    ?? colors.narrowColumnColor;
+  const narrowColumnContrastBackground = colors.narrowColumnGradientReferenceColor
+    ? colord(narrowColumnGradientReference).grayscale().toHex()
+    : narrowColumnGradientReference;
+  const darkInkSaturation = colors.narrowColumnGradientReferenceColor
+    ? colors.scrollGradientDarkInkSaturation
+    : 0;
+  const darkInkOpacityScale = colors.narrowColumnGradientReferenceColor
+    ? colors.scrollGradientDarkInkOpacityMultiplier
+    : 1;
+  const narrowColumnTypographyConfig = colors.narrowColumnGradientReferenceColor
+    ? {
+      ...DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
+      titleOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity * darkInkOpacityScale,
+      bodyOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity * darkInkOpacityScale,
+      highlightOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.highlightOpacity * darkInkOpacityScale,
+    }
+    : DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG;
+  const narrowColumnTypographyResolved = resolveTypographyColors(
+    narrowColumnContrastBackground,
+    narrowColumnTypographyConfig,
+  );
+  const narrowColumnLightInkCandidate = colors.narrowColumnGradientReferenceColor
+    && colors.scrollGradientLightInkOnLightBackgroundContrastTolerance > 0
+    ? resolveContrastAwareTextColor(
+      narrowColumnContrastBackground,
+      DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.minContrastRatio,
+      0,
+      {
+        stable: true,
+        toleranceRatio: colors.scrollGradientLightInkOnLightBackgroundContrastTolerance,
+        targetOpacity: narrowColumnTypographyConfig.bodyOpacity,
+        preferredSide: 'light',
+      },
+    )
+    : undefined;
+  const narrowColumnUnifiedInkColor = colors.narrowColumnGradientReferenceColor
+    ? (() => {
+      const neutralInk = colord(
+        narrowColumnLightInkCandidate ?? narrowColumnTypographyResolved.titleColor,
+      ).grayscale();
+      if (narrowColumnLightInkCandidate) return neutralInk.toHex();
+      const neutralInkHsl = neutralInk.toHsl();
+      const gradientHsl = colord(narrowColumnGradientReference).toHsl();
+      const chromaticInk = colord({
+        h: gradientHsl.h,
+        s: Math.min(100, gradientHsl.s * (1 + darkInkSaturation * 4)),
+        l: Math.max(6, neutralInkHsl.l),
+      }).toHex();
+      return darkInkSaturation === 0
+        ? neutralInk.toHex()
+        : neutralInk.mix(chromaticInk, Math.min(1, darkInkSaturation)).toHex();
+    })()
+    : narrowColumnTypographyResolved.titleColor;
+  const narrowColumnTypography = {
+    ...narrowColumnTypographyResolved,
+    titleColor: narrowColumnUnifiedInkColor,
+    bodyColor: narrowColumnUnifiedInkColor,
+    highlightColor: narrowColumnUnifiedInkColor,
+    titleOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.titleOpacity * darkInkOpacityScale,
+    bodyOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity * darkInkOpacityScale,
+    highlightOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.highlightOpacity * darkInkOpacityScale,
+  };
+  const aboutTimelineInkRef = useRef<HTMLDivElement>(null);
+  const aboutTimelineInkColorResolved = usePolymorphicColumnAdaptiveInk({
+    ref: aboutTimelineInkRef,
+    baseColor: narrowColumnTypography.titleColor,
+    config: splitColumnLayoutConfig,
+    colors,
+  });
+  const aboutTimelineInkColor = aboutTimelineInkColorResolved ?? narrowColumnTypography.titleColor;
+  // Bug fix, /abstract used as the role model (its own <SiteHeader> render
+  // call forces this same override — pages/abstract.tsx: `colorMode:
+  // colors.scrollGradientActive ? 'custom' : ...`, `navTextColor: colors.
+  // scrollGradientActive ? topHeaderTitleColor : ...`). Without it, nav
+  // text here fell back to SiteHeader's own default 'column'-mode
+  // derivation — rightSegmentActualColor, which (this page never passes
+  // physicalRightColumnColor, and splitBandRightMode is 'transparent' at
+  // the base/mobile tier) resolves to the flat, static pageSurfaceConfig
+  // .color, not the real narrow-column background now that the scroll
+  // gradient is active there — exactly the washed-out/mismatched mobile
+  // nav text reported live. aboutTimelineInkColor (the same live scroll-
+  // adaptive ink AboutTimeline's own fix above now uses) is the correct
+  // real reference here too — the header sits directly above that same
+  // narrow-column surface, with no separate hero component of its own to
+  // derive from (removed per CMP-06/INT-06).
+  const scrollGradientAdaptiveHeaderConfig = useMemo(() => ({
+    ...normalizedSiteHeaderConfig,
+    colorMode: 'custom' as const,
+    navTextColor: aboutTimelineInkColor,
+  }), [normalizedSiteHeaderConfig, aboutTimelineInkColor]);
+  // Bug fix, /abstract used as the role model (pages/abstract.tsx's own
+  // gradientBackedNarrowColumn gate): whenever the narrow column is
+  // genuinely gradient-backed (colors.narrowColumnGradientReferenceColor
+  // defined — true here now that the scroll gradient is active at every
+  // tier), /abstract does NOT render its wordmark with the raw, independently-
+  // tuned wordmarkGradient* palette — it forces a flat two-stop "gradient"
+  // using the SAME unified narrow-column ink the hero/timeline text use
+  // (heroAccordionBaseTextColor there, aboutTimelineInkColor's own
+  // equivalent here), so the wordmark reads as one continuous ink with
+  // everything else on the page rather than its own independently-colored
+  // accent. This page's own <SiteHeader> call was still passing the raw
+  // colors.wordmarkGradientStops straight through, which is why the two
+  // pages' wordmarks visibly diverged (screenshot-reported) even after
+  // sharing the identical wordmarkGradient* config values.
+  const aboutGradientBackedNarrowColumn = colors.narrowColumnGradientReferenceColor !== undefined;
+  const aboutLogoStops = aboutGradientBackedNarrowColumn
+    ? [{ color: aboutTimelineInkColor, at: 0 }, { color: aboutTimelineInkColor, at: 100 }]
+    : colors.wordmarkGradientStops;
+
   // Measures the logo link's own rendered left edge so the left column's
   // content can start at the exact same x — PageContainer's padding/max-width
   // config (read secondhand here) would only approximate this on viewports
@@ -1470,7 +1614,26 @@ function AboutPageContent() {
             // SPLIT_ALIGNED_NAV_CONTENT_GAP_PX's own doc comment).
             config={buildEffectiveSiteHeaderConfig(
               buildSplitAlignedSiteHeaderConfig(
-                spacefieldVisible ? spacefieldHeaderConfig : normalizedSiteHeaderConfig,
+                spacefieldVisible
+                  ? spacefieldHeaderConfig
+                  // Bug fix (regression, fix-forward): the flat unified-ink
+                  // override below is correct for the mobile/base tier,
+                  // where the header's left and right segments are stacked
+                  // over the same real narrow-column-ish background (see
+                  // scrollGradientAdaptiveHeaderConfig's own doc comment —
+                  // ported from /abstract, whose own header sits in a
+                  // comparatively uniform part of the gradient). At md/lg
+                  // the right segment sits directly over the wide column's
+                  // own highly saturated, multi-hue gradient card — the
+                  // SAME narrow-column ink read there instead washed the
+                  // nav text into near-invisibility against a background
+                  // it was never resolved against (operator-reported,
+                  // screenshot evidence). Scoped to 'mobile' only restores
+                  // this page's own pre-existing (working) colorMode/
+                  // navTextColor resolution at md/lg, unchanged.
+                  : colors.scrollGradientActive && colors.breakpointTier === 'mobile'
+                    ? scrollGradientAdaptiveHeaderConfig
+                    : normalizedSiteHeaderConfig,
               ),
               splitColumnLayoutConfig,
             )}
@@ -1495,7 +1658,7 @@ function AboutPageContent() {
             wordmarkConfig={colors.wordmarkGradientStops
               ? { ...wordmarkConfig, colorMode: 'adaptive' }
               : wordmarkConfig}
-            logoStops={colors.wordmarkGradientStops}
+            logoStops={aboutLogoStops}
             // physicalLeftColumnColor: SiteHeader itself resolves the
             // logo's own colorMode-driven stops internally from this value
             // now (see SiteHeaderProps.logoStops's own doc comment for
@@ -1651,21 +1814,25 @@ function AboutPageContent() {
                   CNT-06) as its only "timeline," never this synchronized
                   tablist. */}
               {!isNarrowViewport ? (
-                <AboutTimeline
-                  rows={ABOUT_TIMELINE_ROWS}
-                  activeIndex={activeSlideIndex}
-                  onSelect={setActiveSlideIndex}
-                  accentColor={aboutSlides[activeSlideIndex]?.accent ?? '#ffffff'}
-                  columnBackgroundColor={colors.narrowColumnColor}
-                  description={aboutTimelineConfig.description || undefined}
-                  config={aboutTimelineConfig}
-                  prefersReducedMotion={prefersReducedMotion}
-                  panelId={ABOUT_TIMELINE_PANEL_ID}
-                  gradientSlides={aboutSlides}
-                  gradientPaletteStates={timelineMarkerPaletteStates}
-                  gradientMotion={timelineMarkerMotion}
-                  gradientConfig={dockSliderConfig}
-                />
+                <div ref={aboutTimelineInkRef}>
+                  <AboutTimeline
+                    rows={ABOUT_TIMELINE_ROWS}
+                    activeIndex={activeSlideIndex}
+                    onSelect={setActiveSlideIndex}
+                    accentColor={aboutSlides[activeSlideIndex]?.accent ?? '#ffffff'}
+                    columnBackgroundColor={colors.narrowColumnColor}
+                    inkColorOverride={aboutTimelineInkColor}
+                    inkOpacityMultiplier={colors.scrollGradientDarkInkOpacityMultiplier}
+                    description={aboutTimelineConfig.description || undefined}
+                    config={aboutTimelineConfig}
+                    prefersReducedMotion={prefersReducedMotion}
+                    panelId={ABOUT_TIMELINE_PANEL_ID}
+                    gradientSlides={aboutSlides}
+                    gradientPaletteStates={timelineMarkerPaletteStates}
+                    gradientMotion={timelineMarkerMotion}
+                    gradientConfig={dockSliderConfig}
+                  />
+                </div>
               ) : null}
             </NarrowColumnContent>
 

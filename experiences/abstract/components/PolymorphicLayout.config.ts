@@ -169,6 +169,15 @@ export const POLYMORPHIC_LAYOUT_ENHANCED_GRADIENT_COMPAT_DEFAULTS = {
   scrollGradientDitherAmount: 0.025, scrollGradientDitherAmountWide: 0.025, scrollGradientDitherAmountLg: 0.025,
   scrollGradientDitherScale: 1, scrollGradientDitherScaleWide: 1, scrollGradientDitherScaleLg: 1,
   scrollGradientDitherSeed: 50, scrollGradientDitherSeedWide: 50, scrollGradientDitherSeedLg: 50,
+  // Not tiered — see scrollGradientAdaptiveInkEnabled's own doc comment
+  // (PLAN-POLYMORPHIC-ADAPTIVE-INK-EXTRACTION.md). Inert by default so every
+  // existing page spreading this object is unaffected until it opts in.
+  scrollGradientAdaptiveInkEnabled: false,
+  scrollGradientAdaptiveInkMaxAmount: 0,
+  scrollGradientAdaptiveInkTargetContrastRatio: 0,
+  scrollGradientAdaptiveInkReturnToLightEnabled: false,
+  scrollGradientAdaptiveInkReturnToLightRangeVh: 0.9,
+  scrollGradientAdaptiveInkReturnToLightFinalDarken: 0,
 } as const;
 /** 'auto' (default): the wordmark gradient's own lightness direction is
  * read from the active tier's own scrollGradientInkColor(-Wide/-Lg) — the
@@ -1091,6 +1100,51 @@ export type PolymorphicLayoutConfig = {
    * — legacy SCROLL_BG_CONFIG.tauMs. NOT tiered: a "feel" constant, not a
    * per-viewport concern, unlike every other scrollGradient* field above. */
   scrollGradientTauMs: number;
+  /** Text-ink counterpart to the background-painting fields above —
+   * PLAN-POLYMORPHIC-ADAPTIVE-INK-EXTRACTION.md. These are the tuning
+   * knobs `usePolymorphicColumnAdaptiveInk` (the shared hook any page
+   * component calls, one instance per real DOM subtree — never shared
+   * across a mobile/desktop dual mount) reads to compute a LIVE,
+   * scroll-reactive ink color for text sitting on top of the scroll
+   * gradient. Relocated verbatim from `/abstract`'s own page-local
+   * `AbstractFooterConfig` (`adaptiveInkEnabled`/-MaxAmount/
+   * -TargetContrastRatio), where they were trapped as a page-owned type a
+   * shared component (`SiteFooter.tsx`) had to import directly to use.
+   * NOT tiered — same "one flat value, revisit only if a real screen
+   * needs it" precedent as scrollGradientTauMs above and Part C of
+   * PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md ("one flat value per
+   * role, no per-breakpoint tiering"). Default-off/inert-equivalent
+   * values below preserve every existing page's current (lack of)
+   * behavior — this is additive, not a behavior change for pages that
+   * don't opt in. */
+  scrollGradientAdaptiveInkEnabled: boolean;
+  /** 0-1. How far the resolved ink is allowed to drift from its own base
+   * color toward the darken-compensating extreme as the background
+   * darkens — 0 leaves the ink static (today's default-off behavior via
+   * scrollGradientAdaptiveInkEnabled above), 1 allows the full mix. */
+  scrollGradientAdaptiveInkMaxAmount: number;
+  /** WCAG contrast ratio (0-21) the adaptive mix targets against the
+   * live-darkened background. 0 disables the contrast-driven search
+   * entirely (the mix then follows scrollGradientAdaptiveInkMaxAmount's
+   * own schedule only). */
+  scrollGradientAdaptiveInkTargetContrastRatio: number;
+  /** Opt-in: whether the adaptive-ink progress resets back toward its
+   * resting value as a page-provided anchor element (the caller's own
+   * `returnToLightAnchorRef`, not owned by this config) approaches the
+   * viewport — e.g. a footer that sits on a light surface again after a
+   * dark mid-page section. Without this, ink monotonically follows raw
+   * scroll position and never comes back once darkened. Relocated
+   * verbatim from `AbstractFooterConfig.backgroundReturnToLightEnabled`. */
+  scrollGradientAdaptiveInkReturnToLightEnabled: boolean;
+  /** Viewport-height distance over which the return-to-light reset above
+   * ramps, once the anchor element enters range. Relocated verbatim from
+   * `AbstractFooterConfig.backgroundReturnToLightRangeVh`. */
+  scrollGradientAdaptiveInkReturnToLightRangeVh: number;
+  /** 0-1 floor the return-to-light reset above settles at — 0 returns
+   * fully to the resting/undarkened ink, above 0 keeps a residual mix.
+   * Relocated verbatim from
+   * `AbstractFooterConfig.backgroundReturnToLightFinalDarken`. */
+  scrollGradientAdaptiveInkReturnToLightFinalDarken: number;
   /** Opt-in (default off): when true AND the currently-active tier's own
    * scrollGradientEnabled(-Wide/-Lg) is also true, the wordmark's own
    * gradient (SiteHeader/config/wordmark.ts's WordmarkConfig, rendered by
@@ -1436,6 +1490,15 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientLegibilityTargetRatioWide: 0,
   scrollGradientLegibilityTargetRatioLg: 0,
   scrollGradientTauMs: 550,
+  // Inert by default (enabled: false, both amounts 0) — additive, not a
+  // behavior change, for every page that doesn't opt in. See this field's
+  // own doc comment above.
+  scrollGradientAdaptiveInkEnabled: false,
+  scrollGradientAdaptiveInkMaxAmount: 0,
+  scrollGradientAdaptiveInkTargetContrastRatio: 0,
+  scrollGradientAdaptiveInkReturnToLightEnabled: false,
+  scrollGradientAdaptiveInkReturnToLightRangeVh: 0.9,
+  scrollGradientAdaptiveInkReturnToLightFinalDarken: 0,
   wordmarkUsesScrollGradient: false,
   wordmarkGradientClarity: 'auto',
   // baseHue/hueScheme/chromaMin/mode/stops/variance/centerStretch/seed below
@@ -2174,6 +2237,25 @@ export function normalizePolymorphicLayoutConfig(
     ),
     scrollGradientTauMs: clampRange(
       base.scrollGradientTauMs, 0, 5000, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientTauMs,
+    ),
+    scrollGradientAdaptiveInkEnabled: base.scrollGradientAdaptiveInkEnabled === true,
+    scrollGradientAdaptiveInkMaxAmount: clampRange(
+      base.scrollGradientAdaptiveInkMaxAmount, 0, 1,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientAdaptiveInkMaxAmount,
+    ),
+    scrollGradientAdaptiveInkTargetContrastRatio: clampRange(
+      base.scrollGradientAdaptiveInkTargetContrastRatio, 0, 21,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientAdaptiveInkTargetContrastRatio,
+    ),
+    scrollGradientAdaptiveInkReturnToLightEnabled:
+      base.scrollGradientAdaptiveInkReturnToLightEnabled === true,
+    scrollGradientAdaptiveInkReturnToLightRangeVh: clampRange(
+      base.scrollGradientAdaptiveInkReturnToLightRangeVh, 0.1, 4,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientAdaptiveInkReturnToLightRangeVh,
+    ),
+    scrollGradientAdaptiveInkReturnToLightFinalDarken: clampRange(
+      base.scrollGradientAdaptiveInkReturnToLightFinalDarken, 0, 1,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientAdaptiveInkReturnToLightFinalDarken,
     ),
     wordmarkUsesScrollGradient: base.wordmarkUsesScrollGradient === true,
     wordmarkGradientClarity: token(

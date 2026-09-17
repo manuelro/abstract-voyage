@@ -305,8 +305,8 @@ import { SiteFooter } from '../experiences/abstract/components/SiteFooter/SiteFo
 import {
   buildScrollAdaptiveInkColor,
   buildScrollAdaptiveInkStops,
-  useScrollAdaptiveInk,
 } from '../experiences/abstract/components/useScrollAdaptiveInk';
+import { usePolymorphicColumnAdaptiveInk } from '../experiences/abstract/components/usePolymorphicColumnAdaptiveInk';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
 import { tailwindSpacingTokenToPx } from '../components/tailwindSpacingScale';
 import {
@@ -2479,23 +2479,15 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // fields here is what actually makes the short list track the footer's
   // own color, not just share its formula. Called twice (mobile/desktop
   // refs above) since each DOM subtree needs its own live-updated instance.
-  const shortArticleListInkOptions = {
-    // The timeline sits at a different vertical point than the footer. It
-    // must follow the same live gradient-darkening progress so its ink stays
-    // valid against the background underneath it, rather than freezing at
-    // the at-rest narrow-column sample.
-    enabled: colors.scrollGradientActive,
-    baseColor: shortArticleListBaseColor,
-    maxAmount: abstractFooterConfig.adaptiveInkMaxAmount,
-    targetContrastRatio: abstractFooterConfig.adaptiveInkTargetContrastRatio,
-    scrollGradientDarkenViewportRangeVh: colors.scrollGradientResolved.viewportRangeVh,
-    scrollGradientDarkenTauMs: colors.scrollGradientResolved.tauMs,
-    scrollGradientOriginColor: colors.scrollGradientOriginColor,
-    scrollGradientMaxDarken: colors.scrollGradientResolved.maxDarken,
-    returnToLightEnabled: abstractFooterConfig.backgroundReturnToLightEnabled,
-    returnToLightRangeVh: abstractFooterConfig.backgroundReturnToLightRangeVh,
-    returnToLightFinalDarken: abstractFooterConfig.backgroundReturnToLightFinalDarken,
-  };
+  // PLAN-POLYMORPHIC-ADAPTIVE-INK-EXTRACTION.md — usePolymorphicColumnAdaptiveInk
+  // reads its schedule (maxAmount/targetContrastRatio/returnToLight*) from
+  // splitColumnLayoutConfig's own scrollGradientAdaptiveInk* fields now
+  // (global, panel-editable via the same live config), not a page-local
+  // abstractFooterConfig copy. Two calls, one per real DOM subtree (mobile
+  // + desktop refs) — never a shared instance, see the hook's own doc
+  // comment for why (a shared ref previously starved whichever subtree lost
+  // the ref-assignment race, operator-reported regression).
+  //
   // Bug fix (operator-reported: the short list's text visibly snapped to a
   // different color the instant the panel expanded) — 'short' and 'expanded'
   // used to read from two INDEPENDENT ink pipelines (this one vs.
@@ -2510,26 +2502,31 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // shortArticleListBodyColor/-HighlightColor instead of a second color, so
   // there is only ever one live value — nothing to snap between. Desktop
   // never expands this way, so its own ink call is untouched.
-  useScrollAdaptiveInk({
+  const shortArticleListBodyColorMobile = usePolymorphicColumnAdaptiveInk({
     ref: shortArticleListMobileInkRef,
-    ...shortArticleListInkOptions,
+    baseColor: shortArticleListBaseColor,
+    config: splitColumnLayoutConfig,
+    colors,
     forceProgress: isMobileArticleListExpanded && mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken
       ? 1
       : undefined,
   });
-  useScrollAdaptiveInk({ ref: shortArticleListDesktopInkRef, ...shortArticleListInkOptions });
-  const shortArticleListBodyColor = colors.scrollGradientActive
-    ? buildScrollAdaptiveInkColor(
-      shortArticleListBaseColor,
-      abstractFooterConfig.adaptiveInkMaxAmount,
-    )
-    : shortArticleListBaseColor;
+  usePolymorphicColumnAdaptiveInk({
+    ref: shortArticleListDesktopInkRef,
+    baseColor: shortArticleListBaseColor,
+    config: splitColumnLayoutConfig,
+    colors,
+  });
+  // Both calls resolve the identical color-mix() STRING (same formula, same
+  // config) — only the live CSS custom property each writes differs per DOM
+  // subtree at paint time. Either return value is equally correct to render.
+  const shortArticleListBodyColor = shortArticleListBodyColorMobile ?? shortArticleListBaseColor;
   // Top header/logo — operator ask: match the SAME live scroll-adaptive
   // treatment the hero's own text, the footer's own text, and the footer's
   // own logo already share (this page's own precedent for reusing
-  // abstractFooterConfig's adaptiveInk*/backgroundReturnToLight* fields
-  // page-wide, not footer-exclusively — see shortArticleListInkOptions
-  // just above).
+  // splitColumnLayoutConfig's own scrollGradientAdaptiveInk*/-ReturnToLight*
+  // fields page-wide, not footer-exclusively — see the short article list's
+  // own calls just above).
   //
   // Bug fix (operator-reported, screenshot evidence, two prior wrong
   // guesses before this one — both disproven by direct Playwright pixel
@@ -2557,23 +2554,19 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     : heroAccordionItemConfig.textColorMode === 'custom'
     ? heroAccordionItemConfig.textCustomColor
     : deriveSurfaceColor(colors.narrowColumnColor, heroAccordionItemConfig.textSurfaceOffset);
-  const topHeaderInkOptions = {
-    enabled: colors.scrollGradientActive && abstractFooterConfig.adaptiveInkEnabled,
+  // Same gate usePolymorphicColumnAdaptiveInk computes internally — mirrored
+  // here since topHeaderLogoStops below needs the boolean itself, not just
+  // the resolved title color.
+  const topHeaderInkEnabled = colors.scrollGradientActive
+    && splitColumnLayoutConfig.scrollGradientAdaptiveInkEnabled === true;
+  const topHeaderTitleColorResolved = usePolymorphicColumnAdaptiveInk({
+    ref: topHeaderInkRootRef,
     baseColor: heroAccordionBaseTextColor,
-    maxAmount: abstractFooterConfig.adaptiveInkMaxAmount,
-    targetContrastRatio: abstractFooterConfig.adaptiveInkTargetContrastRatio,
-    scrollGradientDarkenViewportRangeVh: colors.scrollGradientResolved.viewportRangeVh,
-    scrollGradientDarkenTauMs: colors.scrollGradientResolved.tauMs,
-    scrollGradientOriginColor: narrowColumnGradientTextOrigin,
-    scrollGradientMaxDarken: colors.scrollGradientResolved.maxDarken,
-    returnToLightEnabled: abstractFooterConfig.backgroundReturnToLightEnabled,
-    returnToLightRangeVh: abstractFooterConfig.backgroundReturnToLightRangeVh,
-    returnToLightFinalDarken: abstractFooterConfig.backgroundReturnToLightFinalDarken,
-  };
-  useScrollAdaptiveInk({ ref: topHeaderInkRootRef, ...topHeaderInkOptions });
-  const topHeaderTitleColor = topHeaderInkOptions.enabled
-    ? buildScrollAdaptiveInkColor(heroAccordionBaseTextColor, abstractFooterConfig.adaptiveInkMaxAmount)
-    : heroAccordionBaseTextColor;
+    config: splitColumnLayoutConfig,
+    colors,
+    originColorOverride: narrowColumnGradientTextOrigin,
+  });
+  const topHeaderTitleColor = topHeaderTitleColorResolved ?? heroAccordionBaseTextColor;
   // All narrow-column consumers use this same live color expression. The
   // shared root-level adaptive-ink hook above supplies the progress for the
   // hero/wordmark, while the timeline's own hook uses the identical schedule
@@ -2582,7 +2575,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   const narrowColumnAdaptiveInkColor = gradientBackedNarrowColumn
     ? buildScrollAdaptiveInkColor(
       narrowColumnTypography.titleColor,
-      abstractFooterConfig.adaptiveInkMaxAmount,
+      splitColumnLayoutConfig.scrollGradientAdaptiveInkMaxAmount,
     )
     : narrowColumnTypography.titleColor;
   // Live-value refs, same pattern PolymorphicScrollGradientBackground.tsx
@@ -2794,11 +2787,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // own text, the footer's own text, and (already shipped) the footer's own
   // logo (footerWordmarkStops, SiteFooter.tsx) — same centralized helper
   // (buildScrollAdaptiveInkStops, useScrollAdaptiveInk.ts) and the same
-  // topHeaderInkOptions.enabled gate already resolved above for
-  // topHeaderTitleColor, so the logo and the title/nav text can never fall
-  // out of sync with each other.
-  const topHeaderLogoStops = topHeaderInkOptions.enabled
-    ? buildScrollAdaptiveInkStops(heroHeaderLogoStops, abstractFooterConfig.adaptiveInkMaxAmount)
+  // topHeaderInkEnabled gate already resolved above for topHeaderTitleColor,
+  // so the logo and the title/nav text can never fall out of sync with each
+  // other.
+  const topHeaderLogoStops = topHeaderInkEnabled
+    ? buildScrollAdaptiveInkStops(heroHeaderLogoStops, splitColumnLayoutConfig.scrollGradientAdaptiveInkMaxAmount)
     : heroHeaderLogoStops;
   const narrowColumnWordmarkGradientStops = gradientBackedNarrowColumn
     ? undefined
