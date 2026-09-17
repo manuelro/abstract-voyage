@@ -144,6 +144,8 @@ export type PolymorphicLayoutResolvedColors = {
   scrollGradientNarrowColumnVariantActive: boolean;
   scrollGradientNarrowColumnSaturation: number;
   scrollGradientNarrowColumnDarkness: number;
+  scrollGradientDarkInkSaturation: number;
+  scrollGradientDarkInkOpacityMultiplier: number;
   scrollGradientLightInkOnLightBackgroundContrastTolerance: number;
   scrollGradientResolved: PolymorphicScrollGradientBackgroundProps;
   physicalLeftColumnColor: string;
@@ -275,10 +277,20 @@ export function usePolymorphicLayoutColors(
     && config.scrollGradientNarrowColumnVariantEnabledLg;
   const scrollGradientNarrowColumnSaturation = config.scrollGradientNarrowColumnSaturationLg;
   const scrollGradientNarrowColumnDarkness = config.scrollGradientNarrowColumnDarknessLg;
+  const scrollGradientDarkInkSaturation = tier(
+    config.scrollGradientDarkInkSaturation ?? 0,
+    config.scrollGradientDarkInkSaturationWide ?? 0,
+    config.scrollGradientDarkInkSaturationLg ?? 0,
+  );
   const scrollGradientLightInkOnLightBackgroundContrastTolerance = tier(
     config.scrollGradientLightInkOnLightBackgroundContrastTolerance ?? 0,
     config.scrollGradientLightInkOnLightBackgroundContrastToleranceWide ?? 0,
     config.scrollGradientLightInkOnLightBackgroundContrastToleranceLg ?? 0,
+  );
+  const scrollGradientDarkInkOpacityMultiplier = tier(
+    config.scrollGradientDarkInkOpacityMultiplier ?? 1,
+    config.scrollGradientDarkInkOpacityMultiplierWide ?? 1,
+    config.scrollGradientDarkInkOpacityMultiplierLg ?? 1,
   );
   const scrollGradientInkColor = tier(
     config.scrollGradientInkColor, config.scrollGradientInkColorWide, config.scrollGradientInkColorLg,
@@ -526,6 +538,8 @@ export function usePolymorphicLayoutColors(
     scrollGradientNarrowColumnVariantActive,
     scrollGradientNarrowColumnSaturation,
     scrollGradientNarrowColumnDarkness,
+    scrollGradientDarkInkSaturation,
+    scrollGradientDarkInkOpacityMultiplier,
     scrollGradientLightInkOnLightBackgroundContrastTolerance,
     scrollGradientResolved,
     physicalLeftColumnColor,

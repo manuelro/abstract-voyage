@@ -2235,8 +2235,23 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // One shared ink must survive the least-opaque narrow-column role. The
   // previous title-calibrated candidate was then reused by the body/timeline
   // at bodyOpacity, which made the visible result wash toward the gradient.
+  const darkInkSaturation = colors.narrowColumnGradientReferenceColor
+    ? colors.scrollGradientDarkInkSaturation
+    : 0;
+  // Opacity is deliberately an independent control from chroma. The resolver
+  // receives the resulting body opacity below, ensuring the returned dark
+  // candidate is calibrated for its real render opacity instead of becoming
+  // illegibly faint after compositing.
+  const darkInkOpacityScale = colors.narrowColumnGradientReferenceColor
+    ? colors.scrollGradientDarkInkOpacityMultiplier
+    : 1;
   const narrowColumnTypographyConfig = colors.narrowColumnGradientReferenceColor
-    ? { ...globalTypographyConfig, titleOpacity: globalTypographyConfig.bodyOpacity }
+    ? {
+      ...globalTypographyConfig,
+      titleOpacity: globalTypographyConfig.bodyOpacity * darkInkOpacityScale,
+      bodyOpacity: globalTypographyConfig.bodyOpacity * darkInkOpacityScale,
+      highlightOpacity: globalTypographyConfig.highlightOpacity * darkInkOpacityScale,
+    }
     : globalTypographyConfig;
   const narrowColumnTypographyResolved = resolveTypographyColors(
     narrowColumnContrastBackground,
@@ -2251,7 +2266,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       {
         stable: true,
         toleranceRatio: colors.scrollGradientLightInkOnLightBackgroundContrastTolerance,
-        targetOpacity: globalTypographyConfig.bodyOpacity,
+        targetOpacity: narrowColumnTypographyConfig.bodyOpacity,
         preferredSide: 'light',
       },
     )
@@ -2262,17 +2277,33 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
         narrowColumnLightInkCandidate ?? narrowColumnTypographyResolved.titleColor,
       ).grayscale();
       if (narrowColumnLightInkCandidate) return neutralInk.toHex();
-      // Mobile/tablet retain the neutral candidate that was visually verified
-      // against their light gradient. Desktop gets only a bounded amount of
-      // the sampled gradient's hue back; contrast-side selection still comes
-      // from the achromatic surface and the retained candidate is never a
-      // second independently-resolved role color.
-      if (colors.breakpointTier !== 'lg') return neutralInk.toHex();
-      const chromaticInk = resolveTypographyColors(
-        narrowColumnGradientReference,
-        narrowColumnTypographyConfig,
-      ).titleColor;
-      return neutralInk.mix(chromaticInk, 0.35).toHex();
+      // Contrast-side selection still comes from the achromatic surface. The
+      // tiered retention control restores only a bounded amount of the sampled
+      // gradient's chroma, so the dark ink can fuse with the surface without
+      // becoming a second independently-resolved role color.
+      const neutralInkHsl = neutralInk.toHsl();
+      const gradientHsl = colord(narrowColumnGradientReference).toHsl();
+      // Do not resolve this second candidate through the contrast search: at
+      // the dark endpoint HSL lightness approaches 0 and its saturation
+      // collapses, making a supposedly chromatic candidate indistinguishable
+      // from the neutral one. Retain the contrast-derived lightness, but take
+      // hue/saturation directly from the sampled gradient so the control has
+      // a visible and bounded effect.
+      const chromaticInk = colord({
+        h: gradientHsl.h,
+        // The gradient sample can be a pastel whose raw HSL saturation is
+        // numerically small. Treat the control as saturation intensity, not
+        // a weak blend amount: progressively boost the source saturation so
+        // the authored value produces a perceptible tint in the ink.
+        s: Math.min(100, gradientHsl.s * (1 + darkInkSaturation * 4)),
+        l: Math.max(6, neutralInkHsl.l),
+      }).toHex();
+      return darkInkSaturation === 0
+        ? neutralInk.toHex()
+        : neutralInk.mix(
+          chromaticInk,
+          Math.min(1, darkInkSaturation),
+        ).toHex();
     })()
     : narrowColumnTypographyResolved.titleColor;
   // In the gradient-backed narrow column, visual hierarchy is carried by
@@ -2283,6 +2314,13 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     titleColor: narrowColumnUnifiedInkColor,
     bodyColor: narrowColumnUnifiedInkColor,
     highlightColor: narrowColumnUnifiedInkColor,
+    // The shared ink is calibrated against the least-opaque body role above,
+    // but each role must retain its own rendered opacity. Reusing bodyOpacity
+    // for the title was the regression that washed out the wordmark and made
+    // the hero appear to use a different color treatment.
+    titleOpacity: globalTypographyConfig.titleOpacity * darkInkOpacityScale,
+    bodyOpacity: globalTypographyConfig.bodyOpacity * darkInkOpacityScale,
+    highlightOpacity: globalTypographyConfig.highlightOpacity * darkInkOpacityScale,
   };
   const wideColumnTypography = resolveTypographyColors(colors.wideColumnColor, globalTypographyConfig);
   const gradientBackedNarrowColumn = colors.narrowColumnGradientReferenceColor !== undefined;
@@ -4985,6 +5023,18 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
           scrollGradientOriginColor={narrowColumnGradientTextOrigin}
           scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
+          // The classic/fallback hero is a separate render call from the
+          // split-column hero below. It must receive the same resolved narrow
+          // ink contract or its accordion item falls back to its own custom
+          // color and ignores the gradient-derived color controls.
+          titleColorOverride={narrowColumnAdaptiveInkColor}
+          eyebrowColorOverride={narrowColumnAdaptiveInkColor}
+          accordionItemTextColorOverride={narrowColumnTypography.titleColor}
+          bodyColorOverride={narrowColumnAdaptiveInkColor}
+          highlightColorOverride={narrowColumnAdaptiveInkColor}
+          titleOpacityOverride={narrowColumnTypography.titleOpacity}
+          bodyOpacityOverride={narrowColumnTypography.bodyOpacity}
+          highlightOpacityOverride={narrowColumnTypography.highlightOpacity}
         />
       ) : null}
       </section>
@@ -5281,7 +5331,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             // navTextColor above and the logo now both share), not the
             // static headerTypography.titleColor.
             titleColorOverride={narrowColumnWordmarkGradientStops ? undefined : topHeaderTitleColor}
-            titleOpacityOverride={headerTypography.titleOpacity}
+            titleOpacityOverride={narrowColumnTypography.titleOpacity}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
             // Unlike /about's own conditional Spacefield-visible override,
             // this page has no runtime need to force the band regardless of
@@ -5484,8 +5534,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                       onSelect={onSelect}
                       accentColor={carouselAndListItems[activeIndex]?.accent ?? '#ffffff'}
                       columnBackgroundColor={colors.wideColumnColor}
-                      bodyColorOverride={shortArticleListBodyColor}
-                      highlightColorOverride={shortArticleListBodyColor}
+                      inkColorOverride={shortArticleListBodyColor}
+                      inkOpacityMultiplier={colors.scrollGradientDarkInkOpacityMultiplier}
                       // Operator ask: the short and expanded presentations must
                       // read the SAME AboutTimeline config — wideColumnTypography's
                       // opacity roles (the ones the expanded presentation already
@@ -5498,8 +5548,6 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                       // shared config, same field) — so rendering at any OTHER
                       // opacity (an earlier fix here forced 1) uses a color that was
                       // never actually searched for that opacity.
-                      bodyOpacityOverride={wideColumnTypography.bodyOpacity}
-                      highlightOpacityOverride={wideColumnTypography.highlightOpacity}
                       description={abstractTimelineConfig.description || undefined}
                       config={abstractTimelineConfig}
                       prefersReducedMotion={coverFlowPrefersReducedMotion}
@@ -5562,7 +5610,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                 scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
                 titleColorOverride={narrowColumnAdaptiveInkColor}
                 eyebrowColorOverride={narrowColumnAdaptiveInkColor}
-                accordionItemTextColorOverride={narrowColumnAdaptiveInkColor}
+                // The accordion owns its dim/emphasis opacity states. Pass
+                // the configured narrow-column ink directly so the global
+                // scroll-adaptive white mix cannot wash out its chroma or
+                // replace the item's own opacity treatment.
+                accordionItemTextColorOverride={narrowColumnTypography.titleColor}
                 bodyColorOverride={narrowColumnAdaptiveInkColor}
                 highlightColorOverride={narrowColumnAdaptiveInkColor}
                 titleOpacityOverride={narrowColumnTypography.titleOpacity}
@@ -5582,10 +5634,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                   onSelect={handleTimelineActiveIndexChange}
                   accentColor={carouselAndListItems[articleActiveIndex]?.accent ?? '#ffffff'}
                   columnBackgroundColor={colors.narrowColumnColor}
-                  bodyColorOverride={shortArticleListBodyColor}
-                  highlightColorOverride={shortArticleListBodyColor}
-                  bodyOpacityOverride={narrowColumnTypography.bodyOpacity}
-                  highlightOpacityOverride={narrowColumnTypography.highlightOpacity}
+                  inkColorOverride={shortArticleListBodyColor}
+                  inkOpacityMultiplier={colors.scrollGradientDarkInkOpacityMultiplier}
                   description={abstractTimelineConfig.description || undefined}
                   config={abstractTimelineConfig}
                   prefersReducedMotion={coverFlowPrefersReducedMotion}

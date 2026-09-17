@@ -768,8 +768,21 @@ export function AbstractEditorialHero({
               // here).
               expanded
               onToggle={() => {}}
-              dimOpacity={normalized.emphasisDimOpacity}
-              emphasisOpacity={normalized.emphasisWordOpacity}
+              // bodyOpacityOverride/highlightOpacityOverride (same page-
+              // resolved typography-role opacities the non-accordion branch
+              // below already threads through bodyOpacityOverride ??
+              // normalized.emphasisDimOpacity / highlightOpacityOverride ??
+              // normalized.emphasisWordOpacity) — this branch was reading
+              // only the component's own hardcoded defaults, silently
+              // dropping both overrides. Since AboutMobileAccordionItem's
+              // own previewTextOpacity is `expanded ? emphasisOpacity :
+              // dimOpacity` and this item is always `expanded` above, the
+              // header/excerpt (this hero's own headline) renders at
+              // emphasisOpacity too, not a separate title opacity — there is
+              // no third opacity knob this reused component exposes, so
+              // titleOpacityOverride has no applicable slot on this branch.
+              dimOpacity={bodyOpacityOverride ?? normalized.emphasisDimOpacity}
+              emphasisOpacity={highlightOpacityOverride ?? normalized.emphasisWordOpacity}
               prefersReducedMotion={accordionItemPrefersReducedMotion}
               // AboutMobileAccordionItem's own header button hardcodes
               // `justify-between`/`text-left` (tuned for /about's own

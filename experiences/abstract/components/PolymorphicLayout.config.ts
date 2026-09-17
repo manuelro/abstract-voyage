@@ -956,6 +956,16 @@ export type PolymorphicLayoutConfig = {
   /** Perceptual-lightness reduction for the desktop narrow-column variant.
    * 0 = unchanged, 1 = black. */
   scrollGradientNarrowColumnDarknessLg: number;
+  /** Saturation intensity for dark derived ink. 0 is neutral, 1 preserves
+   * the sampled gradient saturation, and 2 doubles it. */
+  scrollGradientDarkInkSaturation?: number;
+  scrollGradientDarkInkSaturationWide?: number;
+  scrollGradientDarkInkSaturationLg?: number;
+  /** Multiplies the normal narrow-column typography opacities for dark ink.
+   * 1 preserves the configured opacity; lower values create a softer fusion. */
+  scrollGradientDarkInkOpacityMultiplier?: number;
+  scrollGradientDarkInkOpacityMultiplierWide?: number;
+  scrollGradientDarkInkOpacityMultiplierLg?: number;
   /** Maximum contrast shortfall allowed when an operator explicitly wants
    * light ink over a light gradient. Tiered so mobile/tablet/desktop can be
    * tuned independently; 0 keeps the normal dark/light heuristic. */
@@ -1333,6 +1343,12 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientNarrowColumnVariantEnabledLg: false,
   scrollGradientNarrowColumnSaturationLg: 1,
   scrollGradientNarrowColumnDarknessLg: 0,
+  scrollGradientDarkInkSaturation: 0,
+  scrollGradientDarkInkSaturationWide: 0,
+  scrollGradientDarkInkSaturationLg: 1,
+  scrollGradientDarkInkOpacityMultiplier: 1,
+  scrollGradientDarkInkOpacityMultiplierWide: 1,
+  scrollGradientDarkInkOpacityMultiplierLg: 1,
   scrollGradientLightInkOnLightBackgroundContrastTolerance: 0,
   scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 0,
   scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 0,
@@ -1952,6 +1968,30 @@ export function normalizePolymorphicLayoutConfig(
       0,
       1,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnDarknessLg,
+    ),
+    scrollGradientDarkInkSaturation: clampRange(
+      base.scrollGradientDarkInkSaturation,
+      0, 2, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDarkInkSaturation,
+    ),
+    scrollGradientDarkInkSaturationWide: clampRange(
+      base.scrollGradientDarkInkSaturationWide,
+      0, 2, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDarkInkSaturationWide,
+    ),
+    scrollGradientDarkInkSaturationLg: clampRange(
+      base.scrollGradientDarkInkSaturationLg,
+      0, 2, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDarkInkSaturationLg,
+    ),
+    scrollGradientDarkInkOpacityMultiplier: clampRange(
+      base.scrollGradientDarkInkOpacityMultiplier,
+      0.2, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDarkInkOpacityMultiplier,
+    ),
+    scrollGradientDarkInkOpacityMultiplierWide: clampRange(
+      base.scrollGradientDarkInkOpacityMultiplierWide,
+      0.2, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDarkInkOpacityMultiplierWide,
+    ),
+    scrollGradientDarkInkOpacityMultiplierLg: clampRange(
+      base.scrollGradientDarkInkOpacityMultiplierLg,
+      0.2, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientDarkInkOpacityMultiplierLg,
     ),
     scrollGradientLightInkOnLightBackgroundContrastTolerance: clampRange(
       base.scrollGradientLightInkOnLightBackgroundContrastTolerance,
