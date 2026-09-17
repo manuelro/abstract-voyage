@@ -2411,6 +2411,38 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                         },
                         {
                           kind: 'boolean',
+                          key: 'scrollGradientNarrowColumnVariantEnabledLg',
+                          label: 'Customize narrow gradient',
+                          description: 'Uses the same coordinate-aligned desktop page gradient and changes only the narrow column\'s saturation and darkness.',
+                          visibleWhen: config => config.scrollGradientEnabledLg
+                            && config.scrollGradientNarrowColumnEnabledLg === true,
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientNarrowColumnSaturationLg',
+                          label: 'Narrow gradient saturation',
+                          description: '0 is grayscale, 1 preserves the page gradient, and values above 1 increase color intensity.',
+                          min: 0,
+                          max: 2,
+                          step: 0.01,
+                          visibleWhen: config => config.scrollGradientEnabledLg
+                            && config.scrollGradientNarrowColumnEnabledLg === true
+                            && config.scrollGradientNarrowColumnVariantEnabledLg,
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientNarrowColumnDarknessLg',
+                          label: 'Narrow gradient darkness',
+                          description: '0 preserves the page gradient\'s lightness; values toward 1 progressively darken its real gradient colors.',
+                          min: 0,
+                          max: 1,
+                          step: 0.01,
+                          visibleWhen: config => config.scrollGradientEnabledLg
+                            && config.scrollGradientNarrowColumnEnabledLg === true
+                            && config.scrollGradientNarrowColumnVariantEnabledLg,
+                        },
+                        {
+                          kind: 'boolean',
                           key: 'scrollGradientWideColumnEnabledLg',
                           label: 'Wide column (≥ desktop)',
                           description: 'Reveal the exact mobile scroll-gradient recipe behind the wide column from 1024px upward.',

@@ -50,6 +50,93 @@ export const NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG: Record<
   'items-center': 'lg:justify-center',
   'items-end': 'lg:justify-end',
 };
+
+// accordionItemPresentationEnabled's own reused component
+// (AboutMobileAccordionItem, experiences/about/components/
+// AboutMobileAccordionItem.tsx) hardcodes `justify-between`/`text-left` on
+// its header button — tuned for /about's own always-left-aligned mobile
+// accordion, not for this hero's own horizontalPlacement*. AbstractEditorialHero
+// .tsx overrides those hardcoded classes via that component's own
+// headerClassName/headerTextClassName props, using these three lookup
+// tables (one per breakpoint tier, matching horizontalPlacement/-Wide/-Lg's
+// own already-registered vocabulary) rather than deriving the `!justify-*`/
+// `!text-*` strings at runtime (e.g. `horizontalPlacement.replace(...)`) —
+// Tailwind's JIT scanner statically greps EVERY file matched by
+// tailwind.config.js's own `content` globs for literal class-name-shaped
+// substrings; it does not execute this file's JS, so a computed string that
+// never appears verbatim anywhere in source compiles to no CSS rule at all
+// (the override class still shows up in the rendered DOM's className
+// attribute — React doesn't care whether Tailwind recognizes it — so this
+// failure mode is invisible without inspecting the actual generated
+// stylesheet). Every literal table value below appears as-is in this file,
+// so Tailwind's scanner finds it regardless of which entry is selected at
+// runtime — same reason NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT*
+// above are literal lookup tables rather than string-transformed values.
+export const HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY: Record<
+  AbstractEditorialHeroHorizontalPlacement, string
+> = {
+  'justify-start': '!justify-start',
+  'justify-center': '!justify-center',
+  'justify-end': '!justify-end',
+};
+export const HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_WIDE: Record<
+  AbstractEditorialHeroHorizontalPlacementWide, string
+> = {
+  'md:justify-start': 'md:!justify-start',
+  'md:justify-center': 'md:!justify-center',
+  'md:justify-end': 'md:!justify-end',
+};
+export const HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_LG: Record<
+  AbstractEditorialHeroHorizontalPlacementLg, string
+> = {
+  'lg:justify-start': 'lg:!justify-start',
+  'lg:justify-center': 'lg:!justify-center',
+  'lg:justify-end': 'lg:!justify-end',
+};
+export const HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN: Record<
+  AbstractEditorialHeroHorizontalPlacement, string
+> = {
+  'justify-start': '!text-left',
+  'justify-center': '!text-center',
+  'justify-end': '!text-right',
+};
+export const HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN_WIDE: Record<
+  AbstractEditorialHeroHorizontalPlacementWide, string
+> = {
+  'md:justify-start': 'md:!text-left',
+  'md:justify-center': 'md:!text-center',
+  'md:justify-end': 'md:!text-right',
+};
+export const HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN_LG: Record<
+  AbstractEditorialHeroHorizontalPlacementLg, string
+> = {
+  'lg:justify-start': 'lg:!text-left',
+  'lg:justify-center': 'lg:!text-center',
+  'lg:justify-end': 'lg:!text-right',
+};
+
+// AboutMobileAccordionItem's own header button also hardcodes `gap-3`
+// between its two flex children (the excerpt text and a trailing
+// `affordanceDimensionPx`-square wrapper that centers the open-indicator
+// bullet/chevron) — real, layout-consuming space reserved on whichever edge
+// horizontal placement clusters both children against, even while
+// accordionItemOpenIndicatorEnabled is off and neither the bullet nor the
+// (opacity-0-while-expanded) chevron is visibly painted there. Against a
+// right-aligned headline sitting directly above a paragraph that carries no
+// such reservation, that dead ~22px (gap-3's 12px + the wrapper's own 10px
+// floor — AFFORDANCE_DIMENSION_OPTIONS' own smallest catalog entry,
+// tailwindSpacingScale.ts — there is no narrower/zero option on that scale)
+// reads as unexplained right-edge padding the headline text can't actually
+// reach past. Collapsed here via `headerClassName`'s own arbitrary-variant
+// support (`[&>span:last-child]:...` targets that exact trailing wrapper by
+// DOM position — the header button always renders exactly two direct
+// children, text then wrapper, per that component's own doc comment) rather
+// than in AboutMobileAccordionItem.tsx itself, and gated on
+// accordionItemOpenIndicatorEnabled being OFF specifically: an instance that
+// turns the indicator on wants that reserved space back for its own bullet/
+// chevron, same as /about's own real accordion always has.
+export const ACCORDION_HEADER_AFFORDANCE_COLLAPSED_CLASSNAME =
+  '!gap-0 [&>span:last-child]:!w-0 [&>span:last-child]:!h-0';
 /** Full Tailwind default font-size scale (theme.fontSize is unmodified in
  * tailwind.config.js) — the single source every heading/body size field
  * below derives its per-breakpoint options from, so all three breakpoints

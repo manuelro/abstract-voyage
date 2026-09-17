@@ -943,6 +943,19 @@ export type PolymorphicLayoutConfig = {
   scrollGradientWideColumnEnabled?: boolean;
   scrollGradientWideColumnEnabledWide?: boolean;
   scrollGradientWideColumnEnabledLg?: boolean;
+  /** Desktop-only opt-in for a real, coordinate-aligned narrow-column
+   * variant of the active page gradient. The variant reuses the page
+   * gradient's source stops and geometry and changes only stop saturation
+   * and darkness. Neutral values (1 and 0) are visually identical to the
+   * shared page gradient. See
+   * PLAN-POLYMORPHIC-NARROW-COLUMN-GRADIENT-DARKEN.md. */
+  scrollGradientNarrowColumnVariantEnabledLg: boolean;
+  /** OKLab chroma multiplier for the desktop narrow-column variant.
+   * 0 = grayscale, 1 = unchanged, 2 = doubled chroma. */
+  scrollGradientNarrowColumnSaturationLg: number;
+  /** Perceptual-lightness reduction for the desktop narrow-column variant.
+   * 0 = unchanged, 1 = black. */
+  scrollGradientNarrowColumnDarknessLg: number;
   /** Used only while scrollGradientEnabled(-Wide/-Lg) above is true. The 9
    * palette knobs `BASE_SYNTH_GRADIENT_CONFIG` (the legacy /posts/<slug>
    * scroll-gradient, since removed) actually set on helpers/harmonicGradient.ts's
@@ -1305,12 +1318,15 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientEnabled: false,
   scrollGradientEnabledWide: false,
   scrollGradientEnabledLg: false,
-    scrollGradientNarrowColumnEnabled: true,
-    scrollGradientNarrowColumnEnabledWide: true,
-    scrollGradientNarrowColumnEnabledLg: true,
-    scrollGradientWideColumnEnabled: true,
-    scrollGradientWideColumnEnabledWide: true,
-    scrollGradientWideColumnEnabledLg: true,
+  scrollGradientNarrowColumnEnabled: true,
+  scrollGradientNarrowColumnEnabledWide: true,
+  scrollGradientNarrowColumnEnabledLg: true,
+  scrollGradientWideColumnEnabled: true,
+  scrollGradientWideColumnEnabledWide: true,
+  scrollGradientWideColumnEnabledLg: true,
+  scrollGradientNarrowColumnVariantEnabledLg: false,
+  scrollGradientNarrowColumnSaturationLg: 1,
+  scrollGradientNarrowColumnDarknessLg: 0,
   scrollGradientBaseHue: 215,
   scrollGradientHueScheme: 'dual-complementary',
   scrollGradientLightnessMin: 10,
@@ -1914,6 +1930,20 @@ export function normalizePolymorphicLayoutConfig(
     scrollGradientWideColumnEnabled: base.scrollGradientWideColumnEnabled === true,
     scrollGradientWideColumnEnabledWide: base.scrollGradientWideColumnEnabledWide === true,
     scrollGradientWideColumnEnabledLg: base.scrollGradientWideColumnEnabledLg === true,
+    scrollGradientNarrowColumnVariantEnabledLg:
+      base.scrollGradientNarrowColumnVariantEnabledLg === true,
+    scrollGradientNarrowColumnSaturationLg: clampRange(
+      base.scrollGradientNarrowColumnSaturationLg,
+      0,
+      2,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnSaturationLg,
+    ),
+    scrollGradientNarrowColumnDarknessLg: clampRange(
+      base.scrollGradientNarrowColumnDarknessLg,
+      0,
+      1,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnDarknessLg,
+    ),
     scrollGradientBaseHue: clampRange(
       base.scrollGradientBaseHue, 0, 360, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientBaseHue,
     ),

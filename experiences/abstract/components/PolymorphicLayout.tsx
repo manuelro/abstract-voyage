@@ -136,6 +136,9 @@ export type PolymorphicLayoutResolvedColors = {
   scrollGradientActive: boolean;
   scrollGradientNarrowColumnActive: boolean;
   scrollGradientWideColumnActive: boolean;
+  scrollGradientNarrowColumnVariantActive: boolean;
+  scrollGradientNarrowColumnSaturation: number;
+  scrollGradientNarrowColumnDarkness: number;
   scrollGradientResolved: PolymorphicScrollGradientBackgroundProps;
   physicalLeftColumnColor: string;
   physicalRightColumnColor: string;
@@ -261,6 +264,11 @@ export function usePolymorphicLayoutColors(
     config.scrollGradientWideColumnEnabledLg,
   ) === true;
   const scrollGradientActive = scrollGradientNarrowColumnActive || scrollGradientWideColumnActive;
+  const scrollGradientNarrowColumnVariantActive = breakpointTier === 'lg'
+    && scrollGradientNarrowColumnActive
+    && config.scrollGradientNarrowColumnVariantEnabledLg;
+  const scrollGradientNarrowColumnSaturation = config.scrollGradientNarrowColumnSaturationLg;
+  const scrollGradientNarrowColumnDarkness = config.scrollGradientNarrowColumnDarknessLg;
   const scrollGradientInkColor = tier(
     config.scrollGradientInkColor, config.scrollGradientInkColorWide, config.scrollGradientInkColorLg,
   );
@@ -479,6 +487,9 @@ export function usePolymorphicLayoutColors(
     scrollGradientActive,
     scrollGradientNarrowColumnActive,
     scrollGradientWideColumnActive,
+    scrollGradientNarrowColumnVariantActive,
+    scrollGradientNarrowColumnSaturation,
+    scrollGradientNarrowColumnDarkness,
     scrollGradientResolved,
     physicalLeftColumnColor,
     physicalRightColumnColor,
@@ -1314,9 +1325,14 @@ export function PolymorphicLayout({
     && normalizedConfig.contentContainer === 'bounded'
   );
 
-  const gradientClipStyle = (column: 'narrow' | 'wide'): CSSProperties | undefined => {
+  const gradientClipStyle = (
+    column: 'narrow' | 'wide',
+    clipWhenBothColumnsActive = false,
+  ): CSSProperties | undefined => {
     if (!colors.scrollGradientActive
-      || (colors.scrollGradientNarrowColumnActive && colors.scrollGradientWideColumnActive)
+      || (!clipWhenBothColumnsActive
+        && colors.scrollGradientNarrowColumnActive
+        && colors.scrollGradientWideColumnActive)
       || colors.splitBandStacked
       || colors.splitBandBoundaryPx === undefined) return undefined;
     const narrowOnLeft = normalizedConfig.wideColumnSide === 'right';
@@ -1325,6 +1341,16 @@ export function PolymorphicLayout({
       ? { clipPath: `inset(0 calc(100% - ${colors.splitBandBoundaryPx}px) 0 0)` }
       : { clipPath: `inset(0 0 0 ${colors.splitBandBoundaryPx}px)` };
   };
+  const narrowColumnVariantClipStyle = colors.scrollGradientNarrowColumnVariantActive
+    ? gradientClipStyle('narrow', true)
+    : undefined;
+  const narrowColumnVariant = narrowColumnVariantClipStyle
+    ? {
+      saturation: colors.scrollGradientNarrowColumnSaturation,
+      darkness: colors.scrollGradientNarrowColumnDarkness,
+      style: narrowColumnVariantClipStyle,
+    }
+    : undefined;
 
   return (
     <>
@@ -1333,6 +1359,7 @@ export function PolymorphicLayout({
           {...colors.scrollGradientResolved}
           {...scrollGradientReturnToLight}
           forceMaxDarken={scrollGradientForceMaxDarken}
+          narrowColumnVariant={narrowColumnVariant}
         />
       ) : null}
       {colors.scrollGradientNarrowColumnActive && !colors.scrollGradientWideColumnActive ? (
@@ -1341,6 +1368,7 @@ export function PolymorphicLayout({
           {...scrollGradientReturnToLight}
           forceMaxDarken={scrollGradientForceMaxDarken}
           style={gradientClipStyle('narrow')}
+          narrowColumnVariant={narrowColumnVariant}
         />
       ) : null}
       {colors.scrollGradientWideColumnActive && !colors.scrollGradientNarrowColumnActive ? (

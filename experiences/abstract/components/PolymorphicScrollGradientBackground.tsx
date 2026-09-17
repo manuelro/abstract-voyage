@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { colord, extend } from 'colord';
 import a11yPlugin from 'colord/plugins/a11y';
-import { generateHarmonicGradient } from '../../../helpers/harmonicGradient';
+import { generateHarmonicGradient, type GradientStop } from '../../../helpers/harmonicGradient';
 import type {
   PolymorphicLayoutScrollGradientCompositor,
   PolymorphicLayoutScrollGradientFocalHorizontal,
@@ -60,6 +60,31 @@ const mixOklab = (from: Rgb, to: Rgb, amount: number): Rgb => {
     b: a.b + (b.b - a.b) * amount,
   });
 };
+
+/** Derives the desktop narrow-column palette from the exact source stops.
+ * Neutral values deliberately return the original array reference so merely
+ * enabling the feature cannot introduce color parsing or rounding drift. */
+export function transformScrollGradientStops(
+  stops: GradientStop[],
+  saturation: number,
+  darkness: number,
+): GradientStop[] {
+  const resolvedSaturation = clamp(saturation, 0, 2);
+  const resolvedDarkness = clamp(darkness, 0, 1);
+  if (resolvedSaturation === 1 && resolvedDarkness === 0) return stops;
+
+  return stops.map((stop) => {
+    const source = rgbToOklab(colord(stop.color).toRgb());
+    return {
+      ...stop,
+      color: rgbCss(oklabToRgb({
+        l: source.l * (1 - resolvedDarkness),
+        a: source.a * resolvedSaturation,
+        b: source.b * resolvedSaturation,
+      })),
+    };
+  });
+}
 
 export function buildLegacyScrollGradient(stops: Array<{ color: string; at: number }>): string {
   return `radial-gradient(circle at 0% 0%, ${stops
@@ -187,6 +212,15 @@ export type PolymorphicScrollGradientBackgroundProps = {
    * is). See PLAN-MOBILE-ARTICLE-LIST-EXPAND-DARKEN.md. */
   forceMaxDarken?: boolean;
   style?: CSSProperties;
+  /** Optional real-gradient variant for the desktop narrow column. Its
+   * palette is derived from this component's exact source stops while its
+   * fixed viewport geometry remains identical. `style` supplies the
+   * narrow-column clip calculated by PolymorphicLayout. */
+  narrowColumnVariant?: {
+    saturation: number;
+    darkness: number;
+    style: CSSProperties;
+  };
 };
 
 /**
@@ -230,6 +264,7 @@ export function PolymorphicScrollGradientBackground({
   returnToLightFinalDarken = 0,
   forceMaxDarken = false,
   style,
+  narrowColumnVariant,
 }: PolymorphicScrollGradientBackgroundProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
 
@@ -264,6 +299,38 @@ export function PolymorphicScrollGradientBackground({
     ), [
     compositor, gradientStops, mixSamples, smoothness, interpolation, focalHorizontal,
     lightRadiusPercent, lightAspectRatio, lightFalloff, extentPercent,
+  ]);
+  const narrowColumnVariantSaturation = narrowColumnVariant?.saturation;
+  const narrowColumnVariantDarkness = narrowColumnVariant?.darkness;
+  const narrowColumnVariantGradient = useMemo(() => {
+    if (narrowColumnVariantSaturation === undefined || narrowColumnVariantDarkness === undefined) {
+      return undefined;
+    }
+    const variantStops = transformScrollGradientStops(
+      gradientStops,
+      narrowColumnVariantSaturation,
+      narrowColumnVariantDarkness,
+    );
+    // Neutral values are a strict identity fast path: the shared base layer
+    // already paints the exact desired pixels, so no duplicate layer mounts.
+    if (variantStops === gradientStops) return undefined;
+    return compositor === 'legacy'
+      ? buildLegacyScrollGradient(variantStops)
+      : buildEnhancedScrollGradient(
+        variantStops,
+        clamp(Math.round(mixSamples * Math.max(0.25, smoothness)), 16, 128),
+        interpolation,
+        focalHorizontal,
+        lightRadiusPercent,
+        lightAspectRatio,
+        lightFalloff,
+        extentPercent,
+      );
+  }, [
+    compositor, gradientStops, narrowColumnVariantSaturation,
+    narrowColumnVariantDarkness, mixSamples, smoothness, interpolation,
+    focalHorizontal, lightRadiusPercent, lightAspectRatio, lightFalloff,
+    extentPercent,
   ]);
   const enhancedLayerStyle = useMemo<CSSProperties>(() => {
     if (compositor === 'legacy') return {};
@@ -488,6 +555,17 @@ export function PolymorphicScrollGradientBackground({
         className="fixed inset-0 z-0 pointer-events-none"
         style={{ ...style, ...enhancedLayerStyle, backgroundImage: backgroundGradient, backgroundColor: '#020617' }}
       />
+      {narrowColumnVariantGradient && narrowColumnVariant ? (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{
+            ...narrowColumnVariant.style,
+            ...enhancedLayerStyle,
+            backgroundImage: narrowColumnVariantGradient,
+          }}
+        />
+      ) : null}
       <div
         ref={overlayRef}
         aria-hidden="true"

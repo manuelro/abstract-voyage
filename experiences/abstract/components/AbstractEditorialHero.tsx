@@ -14,6 +14,13 @@ import { usePrefersReducedMotion } from '../../../helpers/usePrefersReducedMotio
 import type { SvgStop } from '../../../helpers/gradientMath';
 import type { SliderContentSlide } from '../../../helpers/postContent';
 import {
+  ACCORDION_HEADER_AFFORDANCE_COLLAPSED_CLASSNAME,
+  HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY,
+  HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_LG,
+  HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_WIDE,
+  HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN,
+  HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN_LG,
+  HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN_WIDE,
   normalizeAbstractEditorialHeroConfig,
   type AbstractEditorialHeroConfig,
   type AbstractEditorialHeroHorizontalPlacement,
@@ -614,6 +621,49 @@ export function AbstractEditorialHero({
       : 'var(--site-font-sans)',
   } as CSSProperties;
 
+  // AboutMobileAccordionItem's own header button hardcodes `justify-between`
+  // (positions its text at the row's start regardless of container) and
+  // `text-left` — both tuned for /about's own always-left-aligned mobile
+  // accordion, neither aware of this hero's own horizontalPlacement props.
+  // Resolved via the literal lookup tables in AbstractEditorialHero.config.ts
+  // (NOT a runtime string transform of horizontalPlacement — Tailwind's own
+  // JIT scanner only generates CSS for class names that appear verbatim
+  // somewhere in a file its content globs cover; a computed string that
+  // exists only at runtime compiles to no rule at all, even though it still
+  // shows up harmlessly in the rendered DOM's className — see those
+  // tables' own doc comment for the full explanation) so both the
+  // `justify-between` and `text-left` hardcodes are reliably overridden by
+  // whatever this hero's own horizontalPlacement/-Wide/-Lg props resolve to.
+  // The same header button also hardcodes `gap-3` between its two flex
+  // children (excerpt text, and a trailing wrapper reserved for the open-
+  // indicator bullet/chevron) — real layout space that stays reserved even
+  // while accordionItemOpenIndicatorEnabled is off and nothing paints
+  // there, pushing the headline text away from the true column edge that
+  // the paragraph below (no such reservation) actually reaches. Collapsed
+  // via the same headerClassName override channel, only while the operator
+  // has that indicator turned off (an instance that turns it on wants the
+  // space back for its own bullet/chevron) — see that constant's own doc
+  // comment (AbstractEditorialHero.config.ts) for the full mechanism.
+  const accordionHeaderJustifyClassName = [
+    HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY[horizontalPlacement],
+    horizontalPlacementWide
+      ? HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_WIDE[horizontalPlacementWide]
+      : '',
+    horizontalPlacementLg
+      ? HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_LG[horizontalPlacementLg]
+      : '',
+    normalized.accordionItemOpenIndicatorEnabled ? '' : ACCORDION_HEADER_AFFORDANCE_COLLAPSED_CLASSNAME,
+  ].filter(Boolean).join(' ');
+  const accordionHeaderTextAlignClassName = [
+    HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN[horizontalPlacement],
+    horizontalPlacementWide
+      ? HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN_WIDE[horizontalPlacementWide]
+      : '',
+    horizontalPlacementLg
+      ? HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN_LG[horizontalPlacementLg]
+      : '',
+  ].filter(Boolean).join(' ');
+
   // Shared between the standalone-<h1> layout (default) and the inline-with-
   // first-paragraph layout below — same size/weight classes and same
   // gradient-vs-plain content, just a different wrapping element/position.
@@ -710,6 +760,19 @@ export function AbstractEditorialHero({
               dimOpacity={normalized.emphasisDimOpacity}
               emphasisOpacity={normalized.emphasisWordOpacity}
               prefersReducedMotion={accordionItemPrefersReducedMotion}
+              // AboutMobileAccordionItem's own header button hardcodes
+              // `justify-between`/`text-left` (tuned for /about's own
+              // always-left mobile accordion) — neither responds to this
+              // hero's own horizontalPlacement props, so the headline
+              // silently stayed flush-left/flush-start even when
+              // PolymorphicLayout's narrowColumnTextAlign/-ContentAlign put
+              // every other row (paragraph, eyebrow) on the right. `!`
+              // forces these to win regardless of Tailwind's own generated
+              // source-order tie-break against the hardcoded classes; the
+              // responsive prefixes still only take effect at their own
+              // breakpoint like any Tailwind variant.
+              headerClassName={accordionHeaderJustifyClassName}
+              headerTextClassName={accordionHeaderTextAlignClassName}
             />
           ) : (
             <>
