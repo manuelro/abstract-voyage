@@ -107,8 +107,8 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientNarrowColumnVariantEnabledLg: true,
   // Keep the narrow and page-level recipes pixel-continuous by default.
   // Non-neutral variant values intentionally create a visible seam.
-  scrollGradientNarrowColumnSaturationLg: 1.16,
-  scrollGradientNarrowColumnDarknessLg: 0.03,
+  scrollGradientNarrowColumnSaturationLg: 1,
+  scrollGradientNarrowColumnDarknessLg: 0,
   scrollGradientDarkInkSaturation: 0,
   scrollGradientDarkInkSaturationWide: 0,
   scrollGradientDarkInkSaturationLg: 0,

@@ -5029,7 +5029,14 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           // color and ignores the gradient-derived color controls.
           titleColorOverride={narrowColumnAdaptiveInkColor}
           eyebrowColorOverride={narrowColumnAdaptiveInkColor}
-          accordionItemTextColorOverride={narrowColumnTypography.titleColor}
+          // narrowColumnAdaptiveInkColor (not the raw narrowColumnTypography.
+          // titleColor) — the accordion's title was pinned to the resting-
+          // state ink, never brightening as the page scrolled into the dark
+          // zone the way AboutTimeline's own ink does, so the hero title and
+          // the timeline's active item visibly diverged (black vs white,
+          // screenshot-confirmed) despite sharing the same base resolved ink.
+          // See PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md.
+          accordionItemTextColorOverride={narrowColumnAdaptiveInkColor}
           bodyColorOverride={narrowColumnAdaptiveInkColor}
           highlightColorOverride={narrowColumnAdaptiveInkColor}
           titleOpacityOverride={narrowColumnTypography.titleOpacity}
@@ -5610,11 +5617,17 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                 scrollGradientMaxDarken={colors.scrollGradientResolved.maxDarken}
                 titleColorOverride={narrowColumnAdaptiveInkColor}
                 eyebrowColorOverride={narrowColumnAdaptiveInkColor}
-                // The accordion owns its dim/emphasis opacity states. Pass
-                // the configured narrow-column ink directly so the global
-                // scroll-adaptive white mix cannot wash out its chroma or
-                // replace the item's own opacity treatment.
-                accordionItemTextColorOverride={narrowColumnTypography.titleColor}
+                // narrowColumnAdaptiveInkColor (not the raw narrowColumnTypography.
+                // titleColor) — the accordion's title was pinned to the resting-
+                // state ink, never brightening as the page scrolled into the dark
+                // zone the way AboutTimeline's own ink does, so the hero title and
+                // the timeline's active item visibly diverged (black vs white,
+                // screenshot-confirmed) despite sharing the same base resolved ink.
+                // dimOpacity/emphasisOpacity (AbstractEditorialHero.tsx's own
+                // accordion branch) remain the item's own separate opacity
+                // treatment — unaffected by this color swap. See
+                // PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md.
+                accordionItemTextColorOverride={narrowColumnAdaptiveInkColor}
                 bodyColorOverride={narrowColumnAdaptiveInkColor}
                 highlightColorOverride={narrowColumnAdaptiveInkColor}
                 titleOpacityOverride={narrowColumnTypography.titleOpacity}
