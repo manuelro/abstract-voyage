@@ -20,8 +20,13 @@ import {
   wideColumnContentBoxProps,
   WideColumnContent,
 } from '../../experiences/abstract/components/PolymorphicLayout'
-import { resolvePolymorphicNarrowColumnTypography } from '../../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography'
+import {
+  resolvePolymorphicColumnBackgroundReference,
+  resolvePolymorphicNarrowColumnTypography,
+  resolvePolymorphicWideColumnTypography,
+} from '../../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography'
 import { usePolymorphicColumnAdaptiveInk } from '../../experiences/abstract/components/usePolymorphicColumnAdaptiveInk'
+import { withScrollAdaptiveInkAlpha as withLiveAlpha } from '../../experiences/abstract/components/useScrollAdaptiveInk'
 import { DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG } from '../../components/GlobalTypography.config'
 import {
   DEFAULT_PAGE_SURFACE_CONFIG,
@@ -245,14 +250,64 @@ export default function PostLab({
   const narrowColumnTypography = resolvePolymorphicNarrowColumnTypography(
     colors, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
   )
-  const headerInkRef = useRef<HTMLDivElement>(null)
+  // Bug fix (operator-reported, screenshot evidence — header nav/wordmark
+  // washed out/stuck at a stale color, and the article body never lightened
+  // as the background darkened on scroll, both live). Root cause, confirmed
+  // by direct DOM inspection (getComputedStyle on the real <header>): the
+  // ref this hook's rAF loop writes the live `--scroll-adaptive-ink-progress`
+  // CSS custom property onto was a `<div>` deep inside the narrow column's
+  // own sticky ToC wrapper — a SIBLING subtree of <header>, not an ancestor
+  // of it. CSS custom properties only inherit to DESCENDANTS of the element
+  // they're set on, so <header> never received the live value at all and
+  // silently fell back to its own literal `, 0` default forever — not
+  // "washed out from scrolling," genuinely stuck, which is exactly why a
+  // toggled panel/whatever scroll position produced inconsistent-looking
+  // results depending on incidental render timing.
+  //
+  // pages/abstract.tsx's own topHeaderInkRootRef is the correct, already-
+  // proven pattern for exactly this: useScrollAdaptiveInk's own progress
+  // computation is purely `window.scrollY`-driven (never relative to the
+  // ref element's own position — see that hook's own computeTarget), so the
+  // ref does not need to be colocated with anything it's meant to affect at
+  // all. Writing the CSS custom property onto <html> instead reaches EVERY
+  // subtree on the page via ordinary inheritance — header, article body, and
+  // ToC alike — with the exact same live value. Populated post-mount only
+  // (SSR-safe — `document` does not exist during the server render that
+  // produces this ref's initial value).
+  const pageInkRootRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    pageInkRootRef.current = document.documentElement
+  }, [])
   const headerInkColorResolved = usePolymorphicColumnAdaptiveInk({
-    ref: headerInkRef,
+    ref: pageInkRootRef,
     baseColor: narrowColumnTypography.titleColor,
     config: postLabLayoutConfig,
     colors,
   })
   const headerInkColor = headerInkColorResolved ?? narrowColumnTypography.titleColor
+  // Same root-level pipeline as headerInkColor above, only the base color
+  // differs (this page's own wide-column/article reference instead of the
+  // narrow-column one) — shares the SAME <html>-rooted ref deliberately:
+  // both calls resolve their own independent color-mix() string off the
+  // identical live progress value, matching pages/abstract.tsx's own
+  // shortArticleListBodyColorMobile/-Desktop precedent of multiple
+  // same-page calls sharing one progress pipeline. See
+  // resolvePolymorphicWideColumnTypography's own doc comment
+  // (PolymorphicLayout.narrowColumnTypography.ts) for what `wideColumnTypography`
+  // itself resolves — this only adds the live scroll-reactive layer on top,
+  // the same layer the header/nav already gets, so the article body now
+  // lightens as the background darkens on scroll instead of staying pinned
+  // at its at-rest color for the entire reading length of the page.
+  const wideColumnTypography = resolvePolymorphicWideColumnTypography(
+    colors, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
+  )
+  const articleInkColorResolved = usePolymorphicColumnAdaptiveInk({
+    ref: pageInkRootRef,
+    baseColor: wideColumnTypography.titleColor,
+    config: postLabLayoutConfig,
+    colors,
+  })
+  const articleInkColor = articleInkColorResolved ?? wideColumnTypography.titleColor
   // Same gate pages/abstract.tsx's own gradientBackedNarrowColumn uses —
   // see the wordmark logoStops override below (SiteHeader render call) for
   // why this exists.
@@ -344,31 +399,106 @@ export default function PostLab({
   // literal string 'transparent'. Feeding a literal 'transparent' into
   // deriveReadableInk's own contrast search (readingPresentation.ts) makes
   // every derived ink resolve against colord('transparent')'s effective
-  // black, not the real light gradient behind the text — the exact
-  // washed-out/near-invisible text this page's own article body and ToC
-  // showed live (screenshot-reported). Root cause and fix are the same
-  // class already resolved for /about's own AboutTimeline (that page's own
-  // narrowColumnContrastBackground doc comment) and worked around by
-  // /abstract's own mobileArticleListBackgroundAtRest for its wide column
-  // (pages/abstract.tsx:2394-2398) — same fallback chain reused here rather
-  // than re-deriving a new one: prefer the real sampled narrow-column
-  // gradient reference when one exists, else the shared gradient's own
-  // origin (first) stop, else the raw column color as a last resort for
-  // when the gradient is genuinely off.
-  const articleColumnColor = colors.scrollGradientOriginColor ?? colors.wideColumnColor
-  const tocColumnColor = colors.narrowColumnGradientReferenceColor
-    ?? colors.scrollGradientOriginColor
-    ?? colors.narrowColumnColor
-  const articlePresentation = useMemo(() => resolvePostLabArticlePresentation({
-    config: articleConfig,
-    columnColor: articleColumnColor,
-    surfaceColor: pageSurfaceConfig.color,
-  }), [articleConfig, pageSurfaceConfig.color, articleColumnColor])
-  const tocPresentation = useMemo(() => resolvePostLabTocPresentation({
-    config: articleTocConfig,
-    columnColor: tocColumnColor,
-    surfaceColor: pageSurfaceConfig.color,
-  }), [articleTocConfig, pageSurfaceConfig.color, tocColumnColor])
+  // black — resolvePolymorphicColumnBackgroundReference (PolymorphicLayout.
+  // narrowColumnTypography.ts) is the now-shared fix for that half of the
+  // bug, still used below as columnColor/surfaceColor's own background
+  // reference for code/strong/link accent derivation.
+  //
+  // Bug fix #2 (operator-reported, screenshot evidence: the article's own
+  // body/heading text reading in a vivid, clashing green/teal on mobile —
+  // "the correct resolution was implemented in /abstract, must be
+  // globalized"). Root cause was NOT just the background-reference bug
+  // above — even with the right background, readingPresentation.ts's own
+  // deriveReadableInk carries the FULL hue/saturation of that background
+  // straight into the ink (only lightness is adjusted for contrast,
+  // saturation merely scaled by bodyTextPigmentIntensity). At the base/
+  // mobile tier, POST_LAB_POLYMORPHIC_LAYOUT_CONFIG's own
+  // scrollGradientChromaMin: 100 at scrollGradientBaseHue: 190 (a
+  // cyan-leaning hue) produces a background reference whose full saturation,
+  // carried into a high-contrast/low-lightness ink, reads as a saturated,
+  // unmistakably colored green/teal — not the neutral blue-gray /abstract
+  // actually uses. /abstract's own narrowColumnTypography chain never has
+  // this problem because it grayscales the background reference FIRST, then
+  // reintroduces only a bounded fraction of the original hue via
+  // darkInkSaturation — now extracted as resolveGradientColumnTypography
+  // (PolymorphicLayout.narrowColumnTypography.ts), shared by both columns
+  // via resolvePolymorphicNarrowColumnTypography (used above, for nav/ToC)
+  // and resolvePolymorphicWideColumnTypography (below, for the article body)
+  // — the same one algorithm /abstract/ /about's own text already uses,
+  // not a fourth independently-tuned color system. code/strong/link accent
+  // colors are left on readingPresentation.ts's own derivation below —
+  // those are deliberately distinct accent roles, not part of the "entire
+  // article text" reported here.
+  const articleColumnColor = resolvePolymorphicColumnBackgroundReference(colors, 'wide')
+  const tocColumnColor = resolvePolymorphicColumnBackgroundReference(colors, 'narrow')
+  // Bug fix #3 (operator-reported, screenshot evidence — heading and body
+  // text rendering at the SAME full-opacity color, no visual hierarchy,
+  // where /abstract's own text clearly reads heading = most opaque, body =
+  // noticeably lighter/muted via opacity, not a second hue). The first pass
+  // here flattened every role to `wideColumnTypography.ink` at full opacity
+  // — that value IS the correct at-rest ink, but /abstract never renders it
+  // at flat 100% opacity for every role; DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG's
+  // own titleOpacity (0.8) / bodyOpacity (0.57) / highlightOpacity (0.9) are
+  // what carry the role hierarchy — the same three opacities
+  // narrowColumnTypography/wideColumnTypography already resolve and return
+  // (titleOpacity/bodyOpacity/highlightOpacity), just never read here.
+  // Heading maps to the title role, body/muted to the body role — muted
+  // intentionally shares bodyOpacity rather than inventing a fourth opacity
+  // level this page's own config has no field for. metadata/divider/figure-
+  // border keep their own existing per-field opacities from articleConfig,
+  // unchanged — those were already correct.
+  //
+  // Also now sourced from articleInkColor/headerInkColor (LIVE, scroll-
+  // adaptive — see those refs' own doc comment above) instead of the static
+  // wideColumnTypography.ink/narrowColumnTypography.ink — this is bug fix #4
+  // (operator-reported: article text never lightened as the background
+  // darkened on scroll, unlike /abstract). The static ink was always
+  // correct for scroll position 0; it just never moved after that.
+  //
+  // Bug fix #5 (caught before reporting, confirmed via direct DOM inspection
+  // — every role above rendered pure black regardless of the real live ink):
+  // readingPresentation.ts's own `withAlpha` is `colord(color).alpha(...)`,
+  // which can only parse a real static color. articleInkColor/headerInkColor
+  // are LIVE `color-mix(in srgb, <base> <mix%>, white <mix%>)` STRINGS
+  // (buildScrollAdaptiveInkColor, useScrollAdaptiveInk.ts) whenever adaptive
+  // ink is active — colord cannot parse `color-mix()` syntax at all, silently
+  // fails, and returns black. `withLiveAlpha` below composes opacity onto
+  // EITHER shape correctly: a real static color gets colord's own
+  // `.alpha()`; a live `color-mix()` string gets wrapped in a second,
+  // nested `color-mix()` against `transparent` — valid, standard CSS
+  // (color-mix() accepts any <color> operand, including the output of
+  // another color-mix()) that never needs to parse the live value at all,
+  // so it keeps reading the real-time `--scroll-adaptive-ink-progress` var
+  // instead of baking in whatever it happened to resolve to at render time.
+  const articlePresentation = useMemo(() => {
+    const base = resolvePostLabArticlePresentation({
+      config: articleConfig,
+      columnColor: articleColumnColor,
+      surfaceColor: pageSurfaceConfig.color,
+    })
+    return {
+      ...base,
+      headingInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.titleOpacity),
+      bodyInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
+      mutedInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
+      metadataInk: withLiveAlpha(articleInkColor, articleConfig.metadataOpacity),
+      dividerInk: withLiveAlpha(articleInkColor, articleConfig.tableDividerOpacity),
+      figureBorderInk: withLiveAlpha(articleInkColor, articleConfig.figureBorderOpacity),
+    }
+  }, [articleConfig, pageSurfaceConfig.color, articleColumnColor, articleInkColor])
+  const tocPresentation = useMemo(() => {
+    const base = resolvePostLabTocPresentation({
+      config: articleTocConfig,
+      columnColor: tocColumnColor,
+      surfaceColor: pageSurfaceConfig.color,
+    })
+    return {
+      ...base,
+      textInk: withLiveAlpha(headerInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.titleOpacity),
+      labelInk: withLiveAlpha(headerInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
+      mutedInk: withLiveAlpha(headerInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
+    }
+  }, [articleTocConfig, pageSurfaceConfig.color, tocColumnColor, headerInkColor])
   const articleStyle = useMemo(() => ({
     '--article-metadata-tracking': `${articleConfig.metadataLetterSpacingEm}em`,
     '--article-body-ink': articlePresentation.bodyInk,
@@ -802,7 +932,6 @@ export default function PostLab({
               top: narrowColumnStickyTopPx,
               '--narrow-col-sticky-min-h': `calc(100dvh - ${narrowColumnStickyTopPx}px)`,
             } as CSSProperties}
-            ref={headerInkRef}
           >
             {/* NarrowColumnContent (components/PolymorphicLayout.tsx) is the
                 real, shared content-container primitive. Spreads

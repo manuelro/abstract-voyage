@@ -81,6 +81,50 @@ export function buildScrollAdaptiveInkStops<T extends { color: string }>(
   return stops.map(stop => ({ ...stop, color: buildScrollAdaptiveInkColor(stop.color, maxAmount) }));
 }
 
+/**
+ * Applies an opacity to a color that may be either a real static color OR a
+ * live `buildScrollAdaptiveInkColor` output — a `color-mix(in srgb, <base>
+ * <mix%>, white <mix%>)` string driven by the live `--scroll-adaptive-ink-
+ * progress` CSS custom property, never a fixed value at call time.
+ *
+ * A plain `colord(color).alpha(opacity)` (this codebase's usual "apply
+ * opacity to a color" primitive — see readingPresentation.ts's own
+ * `withAlpha`) can only parse a REAL color. `color-mix()` is not valid CSS
+ * color syntax as far as any JS color-parsing library is concerned — colord
+ * silently fails on it and falls back to black, which then gets the
+ * requested alpha applied on top: `rgba(0, 0, 0, <opacity>)`, a color that
+ * looks plausible in isolation (a real hex, a real alpha) but is
+ * disconnected from the actual live ink entirely, and stays pinned at
+ * black regardless of scroll position. Confirmed exactly this failure
+ * live (pages/posts/[slug].tsx, operator-reported: article/ToC text
+ * rendering uniformly near-black instead of tracking the real resolved
+ * ink or reacting to scroll).
+ *
+ * Fix: never parse the live string. `color-mix()` accepts any valid
+ * `<color>` operand, including the output of another `color-mix()` — so
+ * nesting `color-mix(in srgb, <liveColor> <opacity%>, transparent)` composes
+ * correctly and keeps reading the real-time CSS variable, the same way
+ * stacking two CSS `opacity` values on nested elements would. Detected by a
+ * simple substring check (`color-mix(` only ever appears in this codebase's
+ * own generated adaptive-ink strings, never in a hand-authored hex/rgb
+ * value) rather than a full CSS-syntax check — cheap and sufficient for the
+ * one shape this function needs to distinguish.
+ *
+ * Any page combining `usePolymorphicColumnAdaptiveInk`'s live output with a
+ * role-based opacity (heading vs. body vs. muted, etc.) needs this — kept
+ * here, beside `buildScrollAdaptiveInkColor` itself, so every future
+ * PolymorphicLayout-integrated page reaches for the same one function
+ * instead of rediscovering the colord-can't-parse-color-mix bug from
+ * scratch a second time.
+ */
+export function withScrollAdaptiveInkAlpha(color: string, opacity: number): string {
+  const clampedOpacity = Math.min(1, Math.max(0, opacity));
+  if (color.includes('color-mix(')) {
+    return `color-mix(in srgb, ${color} ${clampedOpacity * 100}%, transparent)`;
+  }
+  return colord(color).alpha(clampedOpacity).toRgbString();
+}
+
 export function useScrollAdaptiveInk({
   ref,
   enabled,
