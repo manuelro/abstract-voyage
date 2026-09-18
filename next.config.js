@@ -30,9 +30,56 @@ const nextConfig = {
     if (!dev) {
       const path = require('path')
       const fs = require('fs')
-      const alias = {
-        [path.resolve(__dirname, 'components/Panel')]: path.resolve(__dirname, 'components/Panel.stub'),
+      // Bug fix (Netlify build failure, confirmed reproducible locally with
+      // `next build`): this used to be one blanket directory alias —
+      // `components/Panel` -> `components/Panel.stub` — on the theory that
+      // "everything under components/Panel/ is panel UI, strip all of it."
+      // That's false: components/Panel/config/componentConfigUpdateParser.ts
+      // and .../applyComponentConfigUpdate.ts (server-side logic
+      // pages/api/dev/apply-config-update.tsx needs) live under that same
+      // directory but aren't panel UI and have no counterpart in
+      // components/Panel.stub/ — webpack's directory-prefix alias redirected
+      // them there anyway, producing "Module not found" for a file that
+      // genuinely exists and that `tsc`/`vitest` both resolve without
+      // complaint (neither applies this production-only webpack alias).
+      // Fixed by aliasing exact files instead of the whole directory —
+      // walking components/Panel.stub/ itself recursively so every file
+      // that's ACTUALLY meant to be stubbed (today: ConfigPanel.tsx,
+      // config.ts, config/shell.ts, index.ts, useAuthoringToolsVisibility.ts)
+      // gets its own precise alias entry, the exact same "one entry per
+      // real file, generated, not hand-maintained" shape the *.panel.ts
+      // manifest below already uses — anything else under components/Panel/
+      // (componentConfigUpdateParser.ts included) is left completely
+      // unaliased and resolves normally, in production exactly like in dev.
+      const alias = {}
+      const stubRoot = path.resolve(__dirname, 'components/Panel.stub')
+      const realRoot = path.resolve(__dirname, 'components/Panel')
+      const walkStubFiles = (dir) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const stubPath = path.join(dir, entry.name)
+          if (entry.isDirectory()) {
+            walkStubFiles(stubPath)
+            continue
+          }
+          if (!/\.tsx?$/.test(entry.name)) continue
+          const relativePath = path.relative(stubRoot, stubPath)
+          const extensionlessRelative = relativePath.replace(/\.tsx?$/, '')
+          // `$` forces an EXACT match, not webpack's default prefix match —
+          // required here specifically because components/Panel/config.ts
+          // (a file) and components/Panel/config/ (a directory containing
+          // componentConfigUpdateParser.ts and friends) share the same
+          // extensionless string. Without `$`, aliasing the FILE
+          // `components/Panel/config` also silently matches every deeper
+          // path under the DIRECTORY `components/Panel/config/*` — the
+          // exact bug this whole per-file rewrite exists to fix, just
+          // recreated one level down. Confirmed empirically: omitting `$`
+          // here reproduced the identical "Module not found" Netlify build
+          // failure this rewrite was meant to close.
+          alias[`${path.join(realRoot, extensionlessRelative)}$`] =
+            path.join(stubRoot, extensionlessRelative)
+        }
       }
+      if (fs.existsSync(stubRoot)) walkStubFiles(stubRoot)
       // Every *.panel.ts scope-definition file gets its own alias entry,
       // read from the manifest scripts/generate-panel-stubs.js produces —
       // adding a new panel file and re-running that script is the only
