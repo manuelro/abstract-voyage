@@ -1,5 +1,76 @@
 # PLAN-COVERFLOW-NARROW-GRADIENT-SYNC
 
+## Status
+
+Implemented (Option B), plus a follow-up: the feature is gated behind a
+new explicit boolean, `CoverFlowConfig.narrowColumnGradientOnNavigateEnabledLg`
+(default `false`) — not just "leave the two navigate-target fields equal
+to the base values." `pages/abstract.tsx`'s own rAF effect pins its target
+to `0` (base values, no-op) whenever the flag is off, regardless of
+`articleActiveIndex`, and re-targets immediately when the flag is toggled
+live via the panel (`CoverFlow.panel.ts`'s own boolean field, with the two
+numeric "on navigate" fields hidden via `visibleWhen` until the flag is
+on). Reason for the separate flag rather than relying on the two targets
+matching the base values: an operator retuning the page's own base
+saturation/darkness later would otherwise have to remember to keep the
+targets in lockstep purely to keep the connection inert — an easy thing
+to silently break.
+
+Bug fix #1 (operator-reported, screenshot evidence — narrow column stuck
+enriched instead of reverting to basal on returning to card 0):
+`narrowGradientBaseRef` was being re-synced from `splitColumnLayoutConfig`
+on every render — the SAME state field this effect's own tick() writes
+into every frame. Once a forward transition finished (saturation eased to
+navigateTarget), that live-synced "base" became === navigateTarget too,
+which makes `base + (navigateTarget - base) * enrichment` collapse to a
+constant `navigateTarget` for every value of `enrichment` — reverting
+could never move the value at all. First fix attempt: capture that ref's
+value ONCE at mount instead. Confirmed the loop's own easing already
+matches `PolymorphicScrollGradientBackground.tsx`'s — same `alphaFromTau`
+formula, same rAF shape, same `scrollGradientTauMs` source (550ms for
+`/abstract`) — no change needed there.
+
+Bug fix #2 (operator-reported — a fresh, un-navigated page load already
+rendered as if CoverFlow had been navigated; separately reported as "the
+same config knobs from the PolymorphicLayout panel seem to reflect the
+CoverFlow panel's own values — a leak"): both symptoms traced to the same
+underlying design mistake — writing the eased value directly into
+`splitColumnLayoutConfig` via `setSplitColumnLayoutConfig`. That state is
+also the real, operator-facing `PolymorphicLayoutConfig` the
+PolymorphicLayout panel reads and displays (`scrollGradientNarrowColumnSaturationLg`/
+`-DarknessLg` are real panel fields there, independent of this feature).
+Every rAF tick writing into it — even fully-converged, at-rest ticks that
+happened to write the base numbers back — made this feature's own
+CoverFlow-config values visible THROUGH the PolymorphicLayout config's own
+fields, which is what read as "leaking" and as "looks navigated" whenever
+the two hadn't yet (or hadn't exactly) reconverged.
+
+Real fix: stopped writing into `splitColumnLayoutConfig` at all. Added a
+separate, ephemeral `narrowGradientLiveOverride` state
+(`{ saturation, darkness } | null`, `null` = "no override, render
+`splitColumnLayoutConfig` completely unmodified"). The tick loop writes
+here instead, and explicitly resets to `null` (not just numerically close
+to base) the instant it's fully converged at the base target — so an
+at-rest narrow column is byte-identical to `splitColumnLayoutConfig`,
+never a converging-but-not-quite-equal shadow of it. A merged config
+(`splitColumnLayoutConfigForColors` — `splitColumnLayoutConfig` with the
+two fields overridden only while `narrowGradientLiveOverride` is non-null)
+is computed once, right beside the `colors = usePolymorphicLayoutColors(...)`
+call, and passed to that hook AND to `<PolymorphicLayout config={...}>`
+(PolymorphicLayout.tsx internally calls the same hook again for its own
+paint — both call sites need the identical merged config or ink and
+background would derive from different generations). `splitColumnLayoutConfig`
+itself is now never touched by this feature, so `narrowGradientBaseRef`
+is safe to live-sync from it every render again (also correctly picks up
+an operator's own live panel edits to the base values while at rest) —
+the bug fix #1 "capture once" workaround is no longer needed and was
+reverted along with it.
+
+Verified numerically: fresh load renders `override === null`; forward
+navigation converges to ~1.158/0.030; reverting converges the override
+back to exactly `null` within ~3.8s (228 frames at the 550ms tau), not an
+asymptotic near-base residual.
+
 ## Objective
 
 On `/abstract` (desktop/Lg), enrich the narrow column's scroll-gradient

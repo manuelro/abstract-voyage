@@ -66,9 +66,9 @@ import {
   usePolymorphicLayoutColors,
 } from '../experiences/abstract/components/PolymorphicLayout';
 import { usePolymorphicColumnAdaptiveInk } from '../experiences/abstract/components/usePolymorphicColumnAdaptiveInk';
-import { DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG, resolveTypographyColors } from '../components/GlobalTypography.config';
+import { resolvePolymorphicNarrowColumnTypography } from '../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography';
+import { DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG } from '../components/GlobalTypography.config';
 import { resolveContrastAwareTextColor } from '../helpers/surfaceColorDerivation';
-import { colord } from 'colord';
 import {
   normalizePolymorphicLayoutConfig,
   type PolymorphicLayoutConfig,
@@ -908,92 +908,18 @@ function AboutPageContent() {
   // meaningless decision, exactly the washed-out/near-invisible text
   // reported live.
   //
-  // This whole block is ported verbatim from pages/abstract.tsx's own
-  // narrowColumnGradientReference/-ContrastBackground/darkInkSaturation/
-  // darkInkOpacityScale/narrowColumnTypography chain (not just a simpler
-  // resolveTypographyColors(...) call, which a first pass here used and
-  // which produced a visibly different, more-saturated color than
-  // /abstract's own wordmark/timeline ink — screenshot-reported). The
-  // saturated background is useful as a surface but preserving its hue in
-  // the ink produces chromatic text that doesn't match /abstract's
-  // deliberately-neutralized treatment: resolve the contrast SIDE (light
-  // vs dark) from the real sampled gradient, then desaturate to that
-  // color's own grayscale equivalent, only reintroducing a bounded amount
-  // of the gradient's own hue/saturation via darkInkSaturation (this page's
-  // own scrollGradientDarkInkSaturation* tier value — see
-  // ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own copied values,
-  // PolymorphicLayout.pageConfigs.ts). One shared ink for title/body/
-  // highlight, opacity-only role hierarchy — same "reusing bodyOpacity for
-  // the title was the regression that washed out the wordmark" precedent
-  // abstract.tsx's own comment documents.
-  const narrowColumnGradientReference = colors.narrowColumnGradientReferenceColor
-    ?? colors.narrowColumnColor;
-  const narrowColumnContrastBackground = colors.narrowColumnGradientReferenceColor
-    ? colord(narrowColumnGradientReference).grayscale().toHex()
-    : narrowColumnGradientReference;
-  const darkInkSaturation = colors.narrowColumnGradientReferenceColor
-    ? colors.scrollGradientDarkInkSaturation
-    : 0;
-  const darkInkOpacityScale = colors.narrowColumnGradientReferenceColor
-    ? colors.scrollGradientDarkInkOpacityMultiplier
-    : 1;
-  const narrowColumnTypographyConfig = colors.narrowColumnGradientReferenceColor
-    ? {
-      ...DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
-      titleOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity * darkInkOpacityScale,
-      bodyOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity * darkInkOpacityScale,
-      highlightOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.highlightOpacity * darkInkOpacityScale,
-    }
-    : DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG;
-  const narrowColumnTypographyResolved = resolveTypographyColors(
-    narrowColumnContrastBackground,
-    narrowColumnTypographyConfig,
+  // Now shared with abstract.tsx (and any future PolymorphicLayout page)
+  // via resolvePolymorphicNarrowColumnTypography — this used to be its own
+  // ported-verbatim copy of that chain, which is the exact class of drift
+  // AUDIT-POLYMORPHIC-GRADIENT-ABSTRACTION.md flagged and
+  // PolymorphicLayout.narrowColumnTypography.ts's own doc comment explains
+  // closing. DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG (not a live/panel-editable
+  // config) is still this page's own choice of typography-config input,
+  // unchanged from before — only the chain that turns it plus `colors` into
+  // a resolved ink moved, not which config this page passes into it.
+  const narrowColumnTypography = resolvePolymorphicNarrowColumnTypography(
+    colors, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
   );
-  const narrowColumnLightInkCandidate = colors.narrowColumnGradientReferenceColor
-    && colors.scrollGradientLightInkOnLightBackgroundContrastTolerance > 0
-    ? resolveContrastAwareTextColor(
-      narrowColumnContrastBackground,
-      DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.minContrastRatio,
-      0,
-      {
-        stable: true,
-        toleranceRatio: colors.scrollGradientLightInkOnLightBackgroundContrastTolerance,
-        targetOpacity: narrowColumnTypographyConfig.bodyOpacity,
-        preferredSide: 'light',
-      },
-    )
-    : undefined;
-  const narrowColumnUnifiedInkColor = colors.narrowColumnGradientReferenceColor
-    ? (() => {
-      const neutralInk = colord(
-        narrowColumnLightInkCandidate ?? narrowColumnTypographyResolved.titleColor,
-      ).grayscale();
-      if (darkInkSaturation === 0) return neutralInk.toHex();
-      // Contrast-side (and, when the light-ink candidate is active,
-      // lightness) selection still comes from the achromatic surface above —
-      // this only reintroduces a bounded amount of the sampled gradient's
-      // chroma on top of it, so the tolerance-driven light-ink path doesn't
-      // permanently discard darkInkSaturation the way an unconditional
-      // grayscale return used to.
-      const neutralInkHsl = neutralInk.toHsl();
-      const gradientHsl = colord(narrowColumnGradientReference).toHsl();
-      const chromaticInk = colord({
-        h: gradientHsl.h,
-        s: Math.min(100, gradientHsl.s * (1 + darkInkSaturation * 4)),
-        l: Math.max(6, neutralInkHsl.l),
-      }).toHex();
-      return neutralInk.mix(chromaticInk, Math.min(1, darkInkSaturation)).toHex();
-    })()
-    : narrowColumnTypographyResolved.titleColor;
-  const narrowColumnTypography = {
-    ...narrowColumnTypographyResolved,
-    titleColor: narrowColumnUnifiedInkColor,
-    bodyColor: narrowColumnUnifiedInkColor,
-    highlightColor: narrowColumnUnifiedInkColor,
-    titleOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.titleOpacity * darkInkOpacityScale,
-    bodyOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity * darkInkOpacityScale,
-    highlightOpacity: DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.highlightOpacity * darkInkOpacityScale,
-  };
   const aboutTimelineInkRef = useRef<HTMLDivElement>(null);
   const aboutTimelineInkColorResolved = usePolymorphicColumnAdaptiveInk({
     ref: aboutTimelineInkRef,

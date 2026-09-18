@@ -114,10 +114,10 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientDarkInkSaturationLg: 2,
   scrollGradientDarkInkOpacityMultiplier: 1,
   scrollGradientDarkInkOpacityMultiplierWide: 1,
-  scrollGradientDarkInkOpacityMultiplierLg: 1,
+  scrollGradientDarkInkOpacityMultiplierLg: 0.99,
   scrollGradientLightInkOnLightBackgroundContrastTolerance: 0,
   scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 0,
-  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 1.8,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 1.6,
   scrollGradientBaseHue: 190,
   scrollGradientHueScheme: 'dual-complementary',
   scrollGradientLightnessMin: 50,
@@ -138,12 +138,12 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientSeedWide: 59452,
   scrollGradientBaseHueLg: 200,
   scrollGradientHueSchemeLg: 'dual-complementary',
-  scrollGradientLightnessMinLg: 60,
-  scrollGradientChromaMinLg: 20,
+  scrollGradientLightnessMinLg: 72,
+  scrollGradientChromaMinLg: 22,
   scrollGradientModeLg: 'center-bright',
   scrollGradientStopsLg: 11,
   scrollGradientVarianceLg: 1,
-  scrollGradientCenterStretchLg: 1,
+  scrollGradientCenterStretchLg: 0.8,
   scrollGradientInterpolationLg: 'srgb',
   scrollGradientSeedLg: 59452,
   // Keep base/Wide on the legacy compositor while desktop Lg continues to
@@ -151,11 +151,11 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientCompositor: 'legacy',
   scrollGradientCompositorWide: 'legacy',
   scrollGradientCompositorLg: 'enhanced',
-  scrollGradientLightHiddenPercentLg: 55,
-  scrollGradientLightRadiusPercentLg: 160,
-  scrollGradientLightAspectRatioLg: 2.8,
-  scrollGradientLightFalloffLg: 0.95,
-  scrollGradientExtentPercentLg: 270,
+  scrollGradientLightHiddenPercentLg: 50,
+  scrollGradientLightRadiusPercentLg: 80,
+  scrollGradientLightAspectRatioLg: 3,
+  scrollGradientLightFalloffLg: 1,
+  scrollGradientExtentPercentLg: 366,
   scrollGradientSmoothnessLg: 4,
   scrollGradientDitherAmountLg: 0.069,
   scrollGradientDitherScaleLg: 2.5,
@@ -968,12 +968,162 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
  */
 export const POST_LAB_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   ...DEFAULT_POLYMORPHIC_LAYOUT_CONFIG,
-  scrollGradientNarrowColumnVariantEnabledLg: false,
-  scrollGradientNarrowColumnSaturationLg: 1,
-  scrollGradientNarrowColumnDarknessLg: 0,
-  splitBandLeftModeLg: 'custom',
+  // scrollGradient*/wordmarkGradient*/wordmarkUsesScrollGradient below are
+  // copied verbatim from ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG (operator ask:
+  // bring the same gradient background/wordmark treatment from /abstract to
+  // /posts) — same "whole block copied verbatim" precedent
+  // ABOUT_POLYMORPHIC_LAYOUT_CONFIG's own matching comment already
+  // documents for its own copy of the same values. Everything else in this
+  // object (layoutMode, splitBand*/colors, content padding/alignment) stays
+  // this page's own independent values, untouched by this copy.
+  //
+  // wideColumnTransparent(-Wide/-Lg)/narrowColumnTransparent(-Wide/-Lg)
+  // below are included in this copy even though they aren't literally
+  // named scrollGradient*/wordmarkGradient* — DEFAULT_POLYMORPHIC_LAYOUT_CONFIG
+  // leaves both false (opaque columns), and colorSourceResolved === 'custom'
+  // with a non-'transparent' customColor means PolymorphicLayout.tsx's own
+  // wideColumnGradientVisible/narrowColumnGradientVisible never resolve
+  // true regardless of the scrollGradient*ColumnEnabled flags below — the
+  // gradient would be "enabled" but never actually paint. Same fix
+  // ABOUT_POLYMORPHIC_LAYOUT_CONFIG's own doc comment already made for
+  // the identical reason. wideColumnCustomColorLg/narrowColumnCustomColorLg
+  // below are left as this page's own existing values (not touched) —
+  // they're now only a fallback for whenever the gradient itself is
+  // inactive, not "the gradient part" this task is duplicating.
+  //
+  // Known limitation, not fixed by this config copy: the narrow column's
+  // dark-ink-saturation/light-ink-tolerance TEXT color
+  // (scrollGradientDarkInkSaturation*/-DarkInkOpacityMultiplier*/
+  // -LightInkOnLightBackgroundContrastTolerance* below) is resolved here
+  // but not automatically APPLIED anywhere — /abstract and /about each
+  // hand-implement that blend as their own narrowColumnUnifiedInkColor
+  // chain (see AUDIT-POLYMORPHIC-GRADIENT-ABSTRACTION.md's "config-only"
+  // finding), and pages/posts/[slug].tsx does not have that chain. The
+  // background mesh/darken/wordmark below will render correctly out of the
+  // box; the narrow column's own text ink will not pick up the dark-ink
+  // treatment until that chain is ported here too (or extracted into a
+  // shared hook, per that audit's recommendation).
+  scrollGradientEnabled: true,
+  scrollGradientEnabledWide: true,
+  scrollGradientEnabledLg: true,
+  scrollGradientNarrowColumnEnabled: true,
+  scrollGradientNarrowColumnEnabledWide: true,
+  scrollGradientNarrowColumnEnabledLg: true,
+  scrollGradientWideColumnEnabled: true,
+  scrollGradientWideColumnEnabledWide: true,
+  scrollGradientWideColumnEnabledLg: true,
+  scrollGradientNarrowColumnVariantEnabledLg: true,
+  scrollGradientNarrowColumnSaturationLg: 1.3,
+  scrollGradientNarrowColumnDarknessLg: 0.04,
+  scrollGradientDarkInkSaturation: 0,
+  scrollGradientDarkInkSaturationWide: 0,
+  scrollGradientDarkInkSaturationLg: 2,
+  scrollGradientDarkInkOpacityMultiplier: 1,
+  scrollGradientDarkInkOpacityMultiplierWide: 1,
+  scrollGradientDarkInkOpacityMultiplierLg: 0.99,
+  scrollGradientLightInkOnLightBackgroundContrastTolerance: 0,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 0,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 1.6,
+  scrollGradientBaseHue: 190,
+  scrollGradientHueScheme: 'dual-complementary',
+  scrollGradientLightnessMin: 50,
+  scrollGradientChromaMin: 100,
+  scrollGradientMode: 'side-bright',
+  scrollGradientStops: 11,
+  scrollGradientVariance: 1,
+  scrollGradientCenterStretch: 1,
+  scrollGradientSeed: 59452,
+  scrollGradientBaseHueWide: 190,
+  scrollGradientHueSchemeWide: 'dual-complementary',
+  scrollGradientLightnessMinWide: 50,
+  scrollGradientChromaMinWide: 100,
+  scrollGradientModeWide: 'side-bright',
+  scrollGradientStopsWide: 11,
+  scrollGradientVarianceWide: 1,
+  scrollGradientCenterStretchWide: 1,
+  scrollGradientSeedWide: 59452,
+  scrollGradientBaseHueLg: 200,
+  scrollGradientHueSchemeLg: 'dual-complementary',
+  scrollGradientLightnessMinLg: 72,
+  scrollGradientChromaMinLg: 22,
+  scrollGradientModeLg: 'center-bright',
+  scrollGradientStopsLg: 11,
+  scrollGradientVarianceLg: 1,
+  scrollGradientCenterStretchLg: 0.8,
+  scrollGradientInterpolationLg: 'srgb',
+  scrollGradientSeedLg: 59452,
+  scrollGradientCompositor: 'legacy',
+  scrollGradientCompositorWide: 'legacy',
+  scrollGradientCompositorLg: 'enhanced',
+  scrollGradientLightHiddenPercentLg: 50,
+  scrollGradientLightRadiusPercentLg: 80,
+  scrollGradientLightAspectRatioLg: 3,
+  scrollGradientLightFalloffLg: 1,
+  scrollGradientExtentPercentLg: 366,
+  scrollGradientSmoothnessLg: 4,
+  scrollGradientDitherAmountLg: 0.069,
+  scrollGradientDitherScaleLg: 2.5,
+  scrollGradientInkColor: '#1b67ff',
+  scrollGradientInkColorWide: '#1b67ff',
+  scrollGradientInkColorLg: '#c68080',
+  scrollGradientViewportRangeVh: 0.25,
+  scrollGradientViewportRangeVhWide: 0.25,
+  scrollGradientViewportRangeVhLg: 10,
+  scrollGradientMaxDarken: 0.82,
+  scrollGradientMaxDarkenWide: 0.82,
+  scrollGradientMaxDarkenLg: 0,
+  scrollGradientLegibilityTargetRatio: 0,
+  scrollGradientLegibilityTargetRatioWide: 0,
+  scrollGradientLegibilityTargetRatioLg: 5,
+  scrollGradientTauMs: 550,
+  scrollGradientAdaptiveInkEnabled: true,
+  scrollGradientAdaptiveInkMaxAmount: 0.75,
+  scrollGradientAdaptiveInkTargetContrastRatio: 3,
+  scrollGradientAdaptiveInkReturnToLightEnabled: true,
+  scrollGradientAdaptiveInkReturnToLightRangeVh: 0.9,
+  scrollGradientAdaptiveInkReturnToLightFinalDarken: 0,
+  wordmarkUsesScrollGradient: true,
+  wordmarkGradientClarity: 'dark',
+  wordmarkGradientBaseHue: 202,
+  wordmarkGradientBaseHueWide: 215,
+  wordmarkGradientBaseHueLg: 215,
+  wordmarkGradientHueScheme: 'dual-complementary',
+  wordmarkGradientHueSchemeWide: 'dual-complementary',
+  wordmarkGradientHueSchemeLg: 'dual-complementary',
+  wordmarkGradientLightnessMin: 10,
+  wordmarkGradientLightnessMinWide: 18,
+  wordmarkGradientLightnessMinLg: 26,
+  wordmarkGradientChromaMin: 72,
+  wordmarkGradientChromaMinWide: 45,
+  wordmarkGradientChromaMinLg: 33,
+  wordmarkGradientMode: 'center-bright',
+  wordmarkGradientModeWide: 'side-bright',
+  wordmarkGradientModeLg: 'side-bright',
+  wordmarkGradientStops: 10,
+  wordmarkGradientStopsWide: 22,
+  wordmarkGradientStopsLg: 22,
+  wordmarkGradientVariance: 0,
+  wordmarkGradientVarianceWide: 1,
+  wordmarkGradientVarianceLg: 1,
+  wordmarkGradientCenterStretch: 0.03,
+  wordmarkGradientCenterStretchWide: 0.3,
+  wordmarkGradientCenterStretchLg: 0.3,
+  wordmarkGradientSeed: 83382,
+  wordmarkGradientSeedWide: 50,
+  wordmarkGradientSeedLg: 50,
+  wordmarkGradientHueSpread: 0,
+  wordmarkGradientLightnessMax: 60,
+  wordmarkGradientZoom: 1,
+  wordmarkGradientDarken: 0.75,
+  wideColumnTransparent: true,
+  wideColumnTransparentWide: false,
+  wideColumnTransparentLg: true,
+  narrowColumnTransparent: true,
+  narrowColumnTransparentWide: true,
+  narrowColumnTransparentLg: true,
+  splitBandLeftModeLg: 'transparent',
   splitBandLeftCustomColorLg: '#d8d9ea',
-  splitBandRightModeLg: 'custom',
+  splitBandRightModeLg: 'transparent',
   splitBandRightCustomColorLg: '#dedfed',
   wideColumnCustomColorLg: '#d7d9ea',
   narrowColumnCustomColorLg: '#dedfed',

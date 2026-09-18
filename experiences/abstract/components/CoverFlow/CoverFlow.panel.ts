@@ -17,6 +17,10 @@ const whenGaussianSettleMotion = (config: Readonly<CoverFlowConfig>) => (
   config.settleMotionCurve === 'gaussian'
 );
 
+const whenNarrowColumnGradientOnNavigateEnabled = (config: Readonly<CoverFlowConfig>) => (
+  config.narrowColumnGradientOnNavigateEnabledLg
+);
+
 const SETTLE_MOTION_CURVE_OPTIONS = [
   { label: 'Spring (default)', value: 'spring' },
   { label: 'Gaussian', value: 'gaussian' },
@@ -163,6 +167,32 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           min: 0,
           max: 1,
           step: 0.01,
+        },
+        {
+          kind: 'boolean',
+          key: 'narrowColumnGradientOnNavigateEnabledLg',
+          label: 'Narrow gradient reacts to navigation',
+          description: 'Desktop only, off by default. Turn this on to connect CoverFlow\'s own navigation to the narrow column\'s background: once you turn ON this toggle, the two "on navigate" fields below become visible — set those to the saturation/darkness you want the narrow column to ease toward the moment the first card (index 0) stops being active, easing back to today\'s flat narrow-column look the moment card 0 becomes active again. Leave this off and the narrow column never reacts to CoverFlow at all, regardless of what the two fields below are set to.',
+        },
+        {
+          kind: 'number',
+          key: 'narrowColumnGradientSaturationOnNavigateLg',
+          label: 'Narrow gradient saturation — on navigate',
+          description: 'Only takes effect while "Narrow gradient reacts to navigation" above is ON. Target for the narrow column\'s own scroll-gradient saturation (PolymorphicLayoutConfig\'s scrollGradientNarrowColumnSaturationLg) once the first card (index 0) stops being active — eases in as the page navigates away from card 0, and eases back to the page\'s own base value once card 0 is active again. 1 matches the page\'s own current base value (no visible change even with the toggle on) — raise this above 1 for a richer, more saturated tint once navigated.',
+          min: 0,
+          max: 2,
+          step: 0.01,
+          visibleWhen: whenNarrowColumnGradientOnNavigateEnabled,
+        },
+        {
+          kind: 'number',
+          key: 'narrowColumnGradientDarknessOnNavigateLg',
+          label: 'Narrow gradient darkness — on navigate',
+          description: 'Only takes effect while "Narrow gradient reacts to navigation" above is ON. Companion to the saturation target above — target for scrollGradientNarrowColumnDarknessLg. 0 matches the page\'s own current base value (no visible change even with the toggle on).',
+          min: 0,
+          max: 1,
+          step: 0.01,
+          visibleWhen: whenNarrowColumnGradientOnNavigateEnabled,
         },
       ],
     },

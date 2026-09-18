@@ -20,6 +20,9 @@ import {
   wideColumnContentBoxProps,
   WideColumnContent,
 } from '../../experiences/abstract/components/PolymorphicLayout'
+import { resolvePolymorphicNarrowColumnTypography } from '../../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography'
+import { usePolymorphicColumnAdaptiveInk } from '../../experiences/abstract/components/usePolymorphicColumnAdaptiveInk'
+import { DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG } from '../../components/GlobalTypography.config'
 import {
   DEFAULT_PAGE_SURFACE_CONFIG,
   normalizePageSurfaceConfig,
@@ -215,6 +218,51 @@ export default function PostLab({
     normalizedSiteHeaderConfig, { navAlignedToPageContainer: false },
   )
 
+  // Bug fix (operator-reported, screenshot evidence: nav text reading in a
+  // flat, mismatched tan/beige — the exact same class of bug
+  // /abstract's own topHeaderTitleColor and /about's own
+  // aboutTimelineInkColor were already built to fix). Without this
+  // override, nav text falls back to SiteHeader's own default 'column'-mode
+  // derivation, which never reads this page's own real, physically-painted
+  // narrow-column background now that the scroll gradient is active there
+  // (POST_LAB_POLYMORPHIC_LAYOUT_CONFIG). Same two-part chain /abstract and
+  // /about both already use, reused verbatim rather than a third
+  // independent copy:
+  // (1) resolvePolymorphicNarrowColumnTypography (PolymorphicLayout.
+  // narrowColumnTypography.ts) — the shared, centralized narrow-column ink
+  // derivation extracted this session specifically so this class of gap
+  // (AUDIT-POLYMORPHIC-GRADIENT-ABSTRACTION.md) can't recur per-page again.
+  // (2) usePolymorphicColumnAdaptiveInk — the same shared scroll-reactive
+  // smoothing layer /about's own aboutTimelineInkColor already applies on
+  // top, so nav ink also eases with scroll instead of staying static while
+  // the darken overlay itself animates.
+  //
+  // Spreads pageSiteHeaderConfig (not normalizedSiteHeaderConfig) —
+  // pageSiteHeaderConfig already carries the split-alignment fields
+  // buildSplitAlignedSiteHeaderConfig added above; spreading the
+  // pre-split-alignment config here would have silently dropped those
+  // again.
+  const narrowColumnTypography = resolvePolymorphicNarrowColumnTypography(
+    colors, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
+  )
+  const headerInkRef = useRef<HTMLDivElement>(null)
+  const headerInkColorResolved = usePolymorphicColumnAdaptiveInk({
+    ref: headerInkRef,
+    baseColor: narrowColumnTypography.titleColor,
+    config: postLabLayoutConfig,
+    colors,
+  })
+  const headerInkColor = headerInkColorResolved ?? narrowColumnTypography.titleColor
+  // Same gate pages/abstract.tsx's own gradientBackedNarrowColumn uses —
+  // see the wordmark logoStops override below (SiteHeader render call) for
+  // why this exists.
+  const narrowColumnGradientBackedPostLab = colors.narrowColumnGradientReferenceColor !== undefined
+  const scrollGradientAdaptiveHeaderConfig = useMemo(() => ({
+    ...pageSiteHeaderConfig,
+    colorMode: 'custom' as const,
+    navTextColor: headerInkColor,
+  }), [pageSiteHeaderConfig, headerInkColor])
+
   // Sticky offset for narrowColumn's TOC wrapper below. While the header is
   // fixed/sticky (headerScrollBehavior !== 'static'), this is the real
   // measured header height (0 until the first measurement lands, same
@@ -286,16 +334,41 @@ export default function PostLab({
     }[tocSplitBreakpointPrefix]
     : ''
 
+  // colors.wideColumnColor/narrowColumnColor are NOT the real, physically-
+  // painted background the moment the scroll gradient is active on this
+  // column (PolymorphicLayout.tsx's own wideColumnColor/narrowColumnColor:
+  // `transparent ? 'transparent' : (gradientVisible ? scrollGradientInkColor
+  // : columnColorFromSource)`) — with wideColumnTransparent/
+  // narrowColumnTransparent both true (POST_LAB_POLYMORPHIC_LAYOUT_CONFIG,
+  // required for the gradient to paint at all), that resolves to the
+  // literal string 'transparent'. Feeding a literal 'transparent' into
+  // deriveReadableInk's own contrast search (readingPresentation.ts) makes
+  // every derived ink resolve against colord('transparent')'s effective
+  // black, not the real light gradient behind the text — the exact
+  // washed-out/near-invisible text this page's own article body and ToC
+  // showed live (screenshot-reported). Root cause and fix are the same
+  // class already resolved for /about's own AboutTimeline (that page's own
+  // narrowColumnContrastBackground doc comment) and worked around by
+  // /abstract's own mobileArticleListBackgroundAtRest for its wide column
+  // (pages/abstract.tsx:2394-2398) — same fallback chain reused here rather
+  // than re-deriving a new one: prefer the real sampled narrow-column
+  // gradient reference when one exists, else the shared gradient's own
+  // origin (first) stop, else the raw column color as a last resort for
+  // when the gradient is genuinely off.
+  const articleColumnColor = colors.scrollGradientOriginColor ?? colors.wideColumnColor
+  const tocColumnColor = colors.narrowColumnGradientReferenceColor
+    ?? colors.scrollGradientOriginColor
+    ?? colors.narrowColumnColor
   const articlePresentation = useMemo(() => resolvePostLabArticlePresentation({
     config: articleConfig,
-    columnColor: colors.wideColumnColor,
+    columnColor: articleColumnColor,
     surfaceColor: pageSurfaceConfig.color,
-  }), [articleConfig, pageSurfaceConfig.color, colors.wideColumnColor])
+  }), [articleConfig, pageSurfaceConfig.color, articleColumnColor])
   const tocPresentation = useMemo(() => resolvePostLabTocPresentation({
     config: articleTocConfig,
-    columnColor: colors.narrowColumnColor,
+    columnColor: tocColumnColor,
     surfaceColor: pageSurfaceConfig.color,
-  }), [articleTocConfig, pageSurfaceConfig.color, colors.narrowColumnColor])
+  }), [articleTocConfig, pageSurfaceConfig.color, tocColumnColor])
   const articleStyle = useMemo(() => ({
     '--article-metadata-tracking': `${articleConfig.metadataLetterSpacingEm}em`,
     '--article-body-ink': articlePresentation.bodyInk,
@@ -425,7 +498,7 @@ export default function PostLab({
         header={(slotProps) => (
           <SiteHeader
             {...slotProps}
-            config={buildEffectiveSiteHeaderConfig(pageSiteHeaderConfig, postLabLayoutConfig)}
+            config={buildEffectiveSiteHeaderConfig(scrollGradientAdaptiveHeaderConfig, postLabLayoutConfig)}
             // The same shared, cross-page Wordmark config /about, /abstract,
             // and /contact already bind (AbstractDesignConfigProvider) —
             // this page previously rendered its logo via SiteHeader.tsx's
@@ -437,10 +510,31 @@ export default function PostLab({
             // resting values.
             // colors.wordmarkGradientStops takes priority when present —
             // see PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+            //
+            // Bug fix (operator-reported, screenshot evidence: wordmark
+            // reading in a flatly different, darker tone than the nav text
+            // right next to it, even after the nav-text fix above — "the
+            // whole point of the task," not actually complete until this
+            // matched too). Missing piece: /abstract's own
+            // gradientBackedNarrowColumn gate (pages/abstract.tsx's own
+            // heroHeaderLogoStops/narrowColumnWordmarkGradientStops) — while
+            // the narrow column is genuinely gradient-backed, /abstract does
+            // NOT render the wordmark with the raw, independently-tuned
+            // wordmarkGradient* palette at all. It forces a flat two-stop
+            // "gradient" using the SAME unified ink the nav text uses, so
+            // the wordmark reads as one continuous ink with the nav instead
+            // of its own separately-resolved hue/lightness. My earlier fix
+            // here only handled the nav text side of that; logoStops below
+            // was still always colors.wordmarkGradientStops — the
+            // independently-tuned palette, never suppressed — which is
+            // exactly why the wordmark still looked like a different,
+            // darker color than the nav even with matching nav ink.
             wordmarkConfig={colors.wordmarkGradientStops
               ? { ...wordmarkConfig, colorMode: 'adaptive' }
               : wordmarkConfig}
-            logoStops={colors.wordmarkGradientStops}
+            logoStops={narrowColumnGradientBackedPostLab
+              ? [{ color: headerInkColor, at: 0 }, { color: headerInkColor, at: 100 }]
+              : colors.wordmarkGradientStops}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
             pageSurfaceConfig={pageSurfaceConfig}
             splitBandActive={postLabLayoutConfig.headerSplitBandEnabled}
@@ -708,6 +802,7 @@ export default function PostLab({
               top: narrowColumnStickyTopPx,
               '--narrow-col-sticky-min-h': `calc(100dvh - ${narrowColumnStickyTopPx}px)`,
             } as CSSProperties}
+            ref={headerInkRef}
           >
             {/* NarrowColumnContent (components/PolymorphicLayout.tsx) is the
                 real, shared content-container primitive. Spreads

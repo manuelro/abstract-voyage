@@ -1,5 +1,5 @@
 ---
-title: A biomimetic framework for interfaces that feel humans
+title: A biomimetic framework for interfaces that feel human
 excerpt: Five traits that make human communication work, turned into a way to
   assess whether an interface feels human or merely functional.
 author: Manu

@@ -301,6 +301,7 @@ import {
   ABSTRACT_MOBILE_ARTICLE_LIST_INK_SCOPE_ID,
 } from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
+import { resolvePolymorphicNarrowColumnTypography } from '../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography';
 import { SiteFooter } from '../experiences/abstract/components/SiteFooter/SiteFooter';
 import {
   buildScrollAdaptiveInkColor,
@@ -2200,8 +2201,37 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     ),
     [dockPaletteConfig],
   );
+  // Live, ephemeral override for the narrow column's own
+  // scrollGradientNarrowColumnSaturationLg/-DarknessLg — written every rAF
+  // tick by the CoverFlow-navigation-synced effect further down this file
+  // (PLAN-COVERFLOW-NARROW-GRADIENT-SYNC.md), null whenever that easing is
+  // fully at rest at the base values. Deliberately NOT applied by writing
+  // into splitColumnLayoutConfig itself (an earlier version of this
+  // feature did exactly that, and it was wrong two different ways:
+  // (1) a self-reference bug — the effect's own "ease back toward base"
+  // math read its base endpoint from the same field it was writing,
+  // corrupting it once the value moved; (2) operator-reported: /abstract's
+  // PolymorphicLayout config panel treats splitColumnLayoutConfig as the
+  // real, persisted, operator-authored configuration — every animation
+  // frame writing into it looked, to that panel (and to whatever persists
+  // its values across reloads), like the operator had manually retuned
+  // Narrow gradient saturation/darkness to the "on navigate" values, so a
+  // completely fresh page load — card 0 active, nothing navigated —
+  // rendered as if already navigated). Kept as a separate value merged in
+  // only for rendering below: splitColumnLayoutConfig itself is never
+  // written to by this feature, so the panel and any persistence layer
+  // built on top of it only ever reflect the operator's own real edits.
+  const [narrowGradientLiveOverride, setNarrowGradientLiveOverride] =
+    useState<{ saturation: number; darkness: number } | null>(null);
+  const splitColumnLayoutConfigForColors = narrowGradientLiveOverride
+    ? {
+      ...splitColumnLayoutConfig,
+      scrollGradientNarrowColumnSaturationLg: narrowGradientLiveOverride.saturation,
+      scrollGradientNarrowColumnDarknessLg: narrowGradientLiveOverride.darkness,
+    }
+    : splitColumnLayoutConfig;
   const colors = usePolymorphicLayoutColors(
-    splitColumnLayoutConfig, normalizedPageSurfaceConfig.color, paletteColorResolver,
+    splitColumnLayoutConfigForColors, normalizedPageSurfaceConfig.color, paletteColorResolver,
   );
   // PLAN-ABSTRACT-TYPOGRAPHY-COLOR-UNIFICATION.md Part C — one resolved
   // "ink" + title/body/highlight role set per real background region,
@@ -2219,109 +2249,16 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   const headerTypography = resolveTypographyColors(colors.actualLeftSegmentColor, globalTypographyConfig);
   // `narrowColumnColor` is intentionally allowed to be the CSS paint
   // sentinel `transparent`. For desktop gradient-backed layouts, resolve
-  // typography against the real shared/variant gradient sample instead.
-  const narrowColumnGradientReference = colors.narrowColumnGradientReferenceColor
-    ?? colors.narrowColumnColor;
-  // A saturated background is useful as a surface, but preserving its hue
-  // in the ink produces chromatic blue/teal text that is neither the footer's
-  // neutral contrast treatment nor a stable candidate across the gradient.
-  // Use the actual sampled gradient only to choose the correct light/dark
-  // contrast side; resolve the candidate against its achromatic equivalent.
-  // This keeps the text neutral while still reacting to narrow-variant
-  // darkness and saturation through the sampled surface luminance.
-  const narrowColumnContrastBackground = colors.narrowColumnGradientReferenceColor
-    ? colord(narrowColumnGradientReference).grayscale().toHex()
-    : narrowColumnGradientReference;
-  // One shared ink must survive the least-opaque narrow-column role. The
-  // previous title-calibrated candidate was then reused by the body/timeline
-  // at bodyOpacity, which made the visible result wash toward the gradient.
-  const darkInkSaturation = colors.narrowColumnGradientReferenceColor
-    ? colors.scrollGradientDarkInkSaturation
-    : 0;
-  // Opacity is deliberately an independent control from chroma. The resolver
-  // receives the resulting body opacity below, ensuring the returned dark
-  // candidate is calibrated for its real render opacity instead of becoming
-  // illegibly faint after compositing.
-  const darkInkOpacityScale = colors.narrowColumnGradientReferenceColor
-    ? colors.scrollGradientDarkInkOpacityMultiplier
-    : 1;
-  const narrowColumnTypographyConfig = colors.narrowColumnGradientReferenceColor
-    ? {
-      ...globalTypographyConfig,
-      titleOpacity: globalTypographyConfig.bodyOpacity * darkInkOpacityScale,
-      bodyOpacity: globalTypographyConfig.bodyOpacity * darkInkOpacityScale,
-      highlightOpacity: globalTypographyConfig.highlightOpacity * darkInkOpacityScale,
-    }
-    : globalTypographyConfig;
-  const narrowColumnTypographyResolved = resolveTypographyColors(
-    narrowColumnContrastBackground,
-    narrowColumnTypographyConfig,
+  // typography against the real shared/variant gradient sample instead —
+  // shared with about.tsx (and any future PolymorphicLayout page) via
+  // resolvePolymorphicNarrowColumnTypography, not hand-duplicated per page
+  // anymore. See that function's own doc comment
+  // (PolymorphicLayout.narrowColumnTypography.ts) for the full chain this
+  // used to be inline here, and AUDIT-POLYMORPHIC-GRADIENT-ABSTRACTION.md
+  // for the drift this extraction closes.
+  const narrowColumnTypography = resolvePolymorphicNarrowColumnTypography(
+    colors, globalTypographyConfig,
   );
-  const narrowColumnLightInkCandidate = colors.narrowColumnGradientReferenceColor
-    && colors.scrollGradientLightInkOnLightBackgroundContrastTolerance > 0
-    ? resolveContrastAwareTextColor(
-      narrowColumnContrastBackground,
-      globalTypographyConfig.minContrastRatio,
-      0,
-      {
-        stable: true,
-        toleranceRatio: colors.scrollGradientLightInkOnLightBackgroundContrastTolerance,
-        targetOpacity: narrowColumnTypographyConfig.bodyOpacity,
-        preferredSide: 'light',
-      },
-    )
-    : undefined;
-  const narrowColumnUnifiedInkColor = colors.narrowColumnGradientReferenceColor
-    ? (() => {
-      const neutralInk = colord(
-        narrowColumnLightInkCandidate ?? narrowColumnTypographyResolved.titleColor,
-      ).grayscale();
-      if (darkInkSaturation === 0) return neutralInk.toHex();
-      // Contrast-side (and, when the light-ink candidate is active,
-      // lightness) selection still comes from the achromatic surface above —
-      // this only reintroduces a bounded amount of the sampled gradient's
-      // chroma on top of it, so the tolerance-driven light-ink path doesn't
-      // permanently discard darkInkSaturation the way an unconditional
-      // grayscale return used to.
-      const neutralInkHsl = neutralInk.toHsl();
-      const gradientHsl = colord(narrowColumnGradientReference).toHsl();
-      // Do not resolve this second candidate through the contrast search: at
-      // the dark endpoint HSL lightness approaches 0 and its saturation
-      // collapses, making a supposedly chromatic candidate indistinguishable
-      // from the neutral one. Retain the contrast-derived lightness, but take
-      // hue/saturation directly from the sampled gradient so the control has
-      // a visible and bounded effect.
-      const chromaticInk = colord({
-        h: gradientHsl.h,
-        // The gradient sample can be a pastel whose raw HSL saturation is
-        // numerically small. Treat the control as saturation intensity, not
-        // a weak blend amount: progressively boost the source saturation so
-        // the authored value produces a perceptible tint in the ink.
-        s: Math.min(100, gradientHsl.s * (1 + darkInkSaturation * 4)),
-        l: Math.max(6, neutralInkHsl.l),
-      }).toHex();
-      return neutralInk.mix(
-        chromaticInk,
-        Math.min(1, darkInkSaturation),
-      ).toHex();
-    })()
-    : narrowColumnTypographyResolved.titleColor;
-  // In the gradient-backed narrow column, visual hierarchy is carried by
-  // opacity, not by independently hue-shifted role colors. This keeps every
-  // glyph (including timeline/body/emphasis text) on the same derived ink.
-  const narrowColumnTypography = {
-    ...narrowColumnTypographyResolved,
-    titleColor: narrowColumnUnifiedInkColor,
-    bodyColor: narrowColumnUnifiedInkColor,
-    highlightColor: narrowColumnUnifiedInkColor,
-    // The shared ink is calibrated against the least-opaque body role above,
-    // but each role must retain its own rendered opacity. Reusing bodyOpacity
-    // for the title was the regression that washed out the wordmark and made
-    // the hero appear to use a different color treatment.
-    titleOpacity: globalTypographyConfig.titleOpacity * darkInkOpacityScale,
-    bodyOpacity: globalTypographyConfig.bodyOpacity * darkInkOpacityScale,
-    highlightOpacity: globalTypographyConfig.highlightOpacity * darkInkOpacityScale,
-  };
   const wideColumnTypography = resolveTypographyColors(colors.wideColumnColor, globalTypographyConfig);
   const gradientBackedNarrowColumn = colors.narrowColumnGradientReferenceColor !== undefined;
   // Light-surface anchor for the mobile short list's own scroll-adaptive
@@ -4543,6 +4480,145 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     return () => { timers.forEach(clearTimeout); };
   }, []);
 
+  // Narrow column scroll-gradient enrichment, synced to CoverFlow's own
+  // navigation — PLAN-COVERFLOW-NARROW-GRADIENT-SYNC.md. Opt-in via
+  // coverFlowConfig.narrowColumnGradientOnNavigateEnabledLg (off by
+  // default, panel-editable — CoverFlow.panel.ts's own doc comment on that
+  // field): while off, the target below is pinned to 0 regardless of
+  // articleActiveIndex, so the narrow column never leaves its base values
+  // and this whole effect is a no-op once converged, byte-identical to
+  // before this feature existed. While on, the narrow column (AboutTimeline's
+  // own background, colors.narrowColumnGradientReferenceColor) starts at
+  // the page's own base scrollGradientNarrowColumnSaturationLg/-DarknessLg
+  // (splitColumnLayoutConfig's own current values) while card 0 is active,
+  // eases toward coverFlowConfig's own
+  // narrowColumnGradientSaturationOnNavigateLg/-DarknessOnNavigateLg once
+  // articleActiveIndex leaves 0, and eases back to the base values once
+  // articleActiveIndex returns to 0 — symmetric, not a one-way latch.
+  // Toggling the flag itself live also re-targets immediately (it's in
+  // this effect's own dependency array below), the same as a real
+  // navigation would.
+  //
+  // Same rAF + exponential-tau smoothing shape as the list-darken effect
+  // further up this file (and PolymorphicScrollGradientBackground.tsx's own
+  // identical loop) — targetRef/smoothRef/rafRef/lastTsRef, alphaFromTau,
+  // a schedule() that only starts a frame if one isn't already pending, and
+  // the same "reset lastTsRef on schedule, not on convergence" fix that
+  // loop's own doc comment documents (this codebase's own rAF loops have
+  // hit that exact bug twice already). Kept as its own independent inlined
+  // copy rather than a shared helper, matching how the other three loops
+  // in this codebase are already independent copies of the same shape, not
+  // a shared abstraction.
+  //
+  // Unlike that CSS-var loop, this one's output has to travel through
+  // React state: scrollGradientNarrowColumnSaturationLg/-DarknessLg are
+  // plain numbers consumed deep inside usePolymorphicLayoutColors
+  // (PolymorphicLayout.tsx), not a single CSS custom property a style rule
+  // could read directly — there is no CSS-var shortcut available for a
+  // value that feeds gradient-STOP generation. Rather than writing into
+  // splitColumnLayoutConfig itself, the tick below writes into the
+  // separate narrowGradientLiveOverride state declared next to the colors
+  // hook call above — see that state's own doc comment for why: writing
+  // into splitColumnLayoutConfig directly was both a self-reference bug
+  // (this loop's own "ease back to base" math read its base endpoint from
+  // the same field it was writing) and a config leak (the PolymorphicLayout
+  // panel treats that state as the real, persisted operator configuration
+  // — every animation frame writing into it made a fresh, un-navigated
+  // page load look already-navigated). Because splitColumnLayoutConfig is
+  // now never written to by this effect, narrowGradientBaseRef below is
+  // safe to live-sync from it every render again (also correctly picks up
+  // an operator's own live panel edits to the base values while at rest).
+  const narrowGradientEnrichTargetRef = useRef(
+    coverFlowConfig.narrowColumnGradientOnNavigateEnabledLg && articleActiveIndex !== 0 ? 1 : 0,
+  );
+  const narrowGradientEnrichSmoothRef = useRef(narrowGradientEnrichTargetRef.current);
+  const narrowGradientRafRef = useRef<number | null>(null);
+  const narrowGradientLastTsRef = useRef(0);
+  const narrowGradientTauMsRef = useRef(colors.scrollGradientResolved.tauMs);
+  narrowGradientTauMsRef.current = colors.scrollGradientResolved.tauMs;
+  const narrowGradientBaseRef = useRef({
+    saturation: splitColumnLayoutConfig.scrollGradientNarrowColumnSaturationLg,
+    darkness: splitColumnLayoutConfig.scrollGradientNarrowColumnDarknessLg,
+  });
+  narrowGradientBaseRef.current = {
+    saturation: splitColumnLayoutConfig.scrollGradientNarrowColumnSaturationLg,
+    darkness: splitColumnLayoutConfig.scrollGradientNarrowColumnDarknessLg,
+  };
+  const narrowGradientNavigateTargetRef = useRef({
+    saturation: coverFlowConfig.narrowColumnGradientSaturationOnNavigateLg,
+    darkness: coverFlowConfig.narrowColumnGradientDarknessOnNavigateLg,
+  });
+  narrowGradientNavigateTargetRef.current = {
+    saturation: coverFlowConfig.narrowColumnGradientSaturationOnNavigateLg,
+    darkness: coverFlowConfig.narrowColumnGradientDarknessOnNavigateLg,
+  };
+
+  useEffect(() => {
+    const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+    const alphaFromTau = (dtMs: number, tau: number) => 1 - Math.exp(-dtMs / Math.max(1, tau));
+
+    const tick = (ts: number) => {
+      const lastTs = narrowGradientLastTsRef.current || ts;
+      narrowGradientLastTsRef.current = ts;
+      narrowGradientRafRef.current = null;
+
+      const dt = Math.max(0, ts - lastTs);
+      const alpha = alphaFromTau(dt, narrowGradientTauMsRef.current);
+      const target = narrowGradientEnrichTargetRef.current;
+      const current = narrowGradientEnrichSmoothRef.current
+        + (target - narrowGradientEnrichSmoothRef.current) * alpha;
+      narrowGradientEnrichSmoothRef.current = current;
+
+      const enrichment = clamp01(current);
+      const converged = Math.abs(target - current) < 0.001;
+
+      // Fully at rest at the base values: clear the override entirely
+      // (null) rather than leave it set to a copy of the base numbers —
+      // keeps splitColumnLayoutConfigForColors byte-identical to
+      // splitColumnLayoutConfig itself whenever this feature isn't
+      // actively easing, not just numerically equal.
+      if (converged && target === 0) {
+        setNarrowGradientLiveOverride((prev) => (prev === null ? prev : null));
+      } else {
+        const base = narrowGradientBaseRef.current;
+        const navigateTarget = narrowGradientNavigateTargetRef.current;
+        const saturation = base.saturation + (navigateTarget.saturation - base.saturation) * enrichment;
+        const darkness = base.darkness + (navigateTarget.darkness - base.darkness) * enrichment;
+
+        setNarrowGradientLiveOverride((prev) => (
+          prev !== null && prev.saturation === saturation && prev.darkness === darkness
+            ? prev
+            : { saturation, darkness }
+        ));
+      }
+
+      if (!converged) {
+        narrowGradientRafRef.current = window.requestAnimationFrame(tick);
+      }
+    };
+
+    const schedule = () => {
+      if (narrowGradientRafRef.current !== null) return;
+      // Same fix as the list-darken loop's own schedule(): reset
+      // lastTsRef here, not on convergence, or a resumed transition after
+      // any pause would otherwise inherit a stale timestamp and produce an
+      // artificially huge dt/alpha≈1 one-frame snap.
+      narrowGradientLastTsRef.current = 0;
+      narrowGradientRafRef.current = window.requestAnimationFrame(tick);
+    };
+
+    narrowGradientEnrichTargetRef.current =
+      coverFlowConfig.narrowColumnGradientOnNavigateEnabledLg && articleActiveIndex !== 0 ? 1 : 0;
+    schedule();
+
+    return () => {
+      if (narrowGradientRafRef.current !== null) {
+        window.cancelAnimationFrame(narrowGradientRafRef.current);
+        narrowGradientRafRef.current = null;
+      }
+    };
+  }, [articleActiveIndex, coverFlowConfig.narrowColumnGradientOnNavigateEnabledLg]);
+
   // Drag-vs-tap disambiguation — identical technique to the carousel-lab
   // spike (each card is the real article <Link>; a mousedown+move
   // originating on it would otherwise trigger the browser's own native
@@ -5218,7 +5294,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       // globals.css's body{bg-slate-950} — by hiding it behind a different,
       // now-inconsistent margin instead of containing it).
       <PolymorphicLayout
-        config={splitColumnLayoutConfig}
+        config={splitColumnLayoutConfigForColors}
         className={styles.splitColumnViewport}
         pageSurfaceConfig={normalizedPageSurfaceConfig}
         paletteColorResolver={paletteColorResolver}

@@ -99,6 +99,43 @@ export type CoverFlowConfig = {
    * configured regardless of distance (opt-out, byte-identical to every
    * caller before this field existed). */
   inactiveCardHoverAmplitudeStep: number;
+  /** Opt-in (default off): lets CoverFlow's own navigation drive the narrow
+   * column's scroll-gradient saturation/darkness toward
+   * narrowColumnGradientSaturationOnNavigateLg/-DarknessOnNavigateLg below
+   * once the first card (index 0) stops being active, reverting to the
+   * page's own base values once card 0 is active again — see
+   * PLAN-COVERFLOW-NARROW-GRADIENT-SYNC.md. False is byte-identical to
+   * before this whole field group existed: pages/abstract.tsx's own rAF
+   * loop holds the narrow column at its base values every frame regardless
+   * of articleActiveIndex, never touching them at all. A separate flag
+   * rather than "leave both targets equal to the base values" as the
+   * off-switch, because that reading is fragile — an operator later
+   * retuning the page's own base saturation/darkness would otherwise need
+   * to also remember to keep these two targets in lockstep purely to keep
+   * the connection inert, an easy thing to silently break. */
+  narrowColumnGradientOnNavigateEnabledLg: boolean;
+  /** Only applied while narrowColumnGradientOnNavigateEnabledLg above is
+   * true. Narrow-column scroll-gradient target once CoverFlow has
+   * navigated away from the first card (index 0). CoverFlow.tsx never
+   * reads this itself (same precedent as inactiveCardColumnDarkeningStep
+   * above): pages/abstract.tsx reads it directly off its own
+   * coverFlowConfig state and eases PolymorphicLayoutConfig's own
+   * scrollGradientNarrowColumnSaturationLg toward it as the page's
+   * articleActiveIndex leaves/returns to 0, reverting to the page's own
+   * base value once card 0 is active again. Same 0-2 range
+   * PolymorphicLayout.config.ts's own scrollGradientNarrowColumnSaturationLg
+   * clamps to — this is a target for that exact field, not an independent
+   * scale. Defaults to the pristine base value (1) even though the enable
+   * flag above is the real off-switch — an operator turning the flag on
+   * without also touching this field should still land on a harmless
+   * no-op value, not an unrelated surprise number. */
+  narrowColumnGradientSaturationOnNavigateLg: number;
+  /** Companion to narrowColumnGradientSaturationOnNavigateLg above — target
+   * for scrollGradientNarrowColumnDarknessLg, also gated by
+   * narrowColumnGradientOnNavigateEnabledLg. Same 0-1 range that field
+   * clamps to. Defaults to 0 (the base value) for the same
+   * harmless-if-enabled-bare reason. */
+  narrowColumnGradientDarknessOnNavigateLg: number;
   /** CSS `perspective`, px — one flat value across every tier. */
   perspectivePx: number;
   /** CSS `perspective-origin`, percent of the coverflow's own container box. */
@@ -324,6 +361,9 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   rotationDeg: 40,
   inactiveCardColumnDarkeningStep: 1,
   inactiveCardHoverAmplitudeStep: 1,
+  narrowColumnGradientOnNavigateEnabledLg: true,
+  narrowColumnGradientSaturationOnNavigateLg: 1.3,
+  narrowColumnGradientDarknessOnNavigateLg: 0.04,
   perspectivePx: 2440,
   perspectiveOriginXPercent: 50,
   perspectiveOriginYPercent: 50,
@@ -381,6 +421,15 @@ const INACTIVE_CARD_COLUMN_DARKENING_STEP_MIN = 0;
 const INACTIVE_CARD_COLUMN_DARKENING_STEP_MAX = 1;
 const INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MIN = 0;
 const INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MAX = 1;
+// Same range PolymorphicLayout.config.ts's own
+// scrollGradientNarrowColumnSaturationLg clamps to — this is a target for
+// that exact field, not an independent scale.
+const NARROW_COLUMN_GRADIENT_SATURATION_ON_NAVIGATE_MIN = 0;
+const NARROW_COLUMN_GRADIENT_SATURATION_ON_NAVIGATE_MAX = 2;
+// Same range PolymorphicLayout.config.ts's own
+// scrollGradientNarrowColumnDarknessLg clamps to.
+const NARROW_COLUMN_GRADIENT_DARKNESS_ON_NAVIGATE_MIN = 0;
+const NARROW_COLUMN_GRADIENT_DARKNESS_ON_NAVIGATE_MAX = 1;
 const DEPTH_PX_MIN = 0;
 const DEPTH_PX_MAX = 2000;
 const REFERENCE_WIDTH_PX_MIN = 50;
@@ -445,6 +494,17 @@ export function normalizeCoverFlowConfig(
       base.inactiveCardHoverAmplitudeStep,
       INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MIN,
       INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MAX,
+    ),
+    narrowColumnGradientOnNavigateEnabledLg: base.narrowColumnGradientOnNavigateEnabledLg === true,
+    narrowColumnGradientSaturationOnNavigateLg: clamp(
+      base.narrowColumnGradientSaturationOnNavigateLg,
+      NARROW_COLUMN_GRADIENT_SATURATION_ON_NAVIGATE_MIN,
+      NARROW_COLUMN_GRADIENT_SATURATION_ON_NAVIGATE_MAX,
+    ),
+    narrowColumnGradientDarknessOnNavigateLg: clamp(
+      base.narrowColumnGradientDarknessOnNavigateLg,
+      NARROW_COLUMN_GRADIENT_DARKNESS_ON_NAVIGATE_MIN,
+      NARROW_COLUMN_GRADIENT_DARKNESS_ON_NAVIGATE_MAX,
     ),
     perspectivePx: clamp(base.perspectivePx, PERSPECTIVE_PX_MIN, PERSPECTIVE_PX_MAX),
     perspectiveOriginXPercent: clamp(
