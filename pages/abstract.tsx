@@ -2276,11 +2276,13 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       const neutralInk = colord(
         narrowColumnLightInkCandidate ?? narrowColumnTypographyResolved.titleColor,
       ).grayscale();
-      if (narrowColumnLightInkCandidate) return neutralInk.toHex();
-      // Contrast-side selection still comes from the achromatic surface. The
-      // tiered retention control restores only a bounded amount of the sampled
-      // gradient's chroma, so the dark ink can fuse with the surface without
-      // becoming a second independently-resolved role color.
+      if (darkInkSaturation === 0) return neutralInk.toHex();
+      // Contrast-side (and, when the light-ink candidate is active,
+      // lightness) selection still comes from the achromatic surface above —
+      // this only reintroduces a bounded amount of the sampled gradient's
+      // chroma on top of it, so the tolerance-driven light-ink path doesn't
+      // permanently discard darkInkSaturation the way an unconditional
+      // grayscale return used to.
       const neutralInkHsl = neutralInk.toHsl();
       const gradientHsl = colord(narrowColumnGradientReference).toHsl();
       // Do not resolve this second candidate through the contrast search: at
@@ -2298,12 +2300,10 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
         s: Math.min(100, gradientHsl.s * (1 + darkInkSaturation * 4)),
         l: Math.max(6, neutralInkHsl.l),
       }).toHex();
-      return darkInkSaturation === 0
-        ? neutralInk.toHex()
-        : neutralInk.mix(
-          chromaticInk,
-          Math.min(1, darkInkSaturation),
-        ).toHex();
+      return neutralInk.mix(
+        chromaticInk,
+        Math.min(1, darkInkSaturation),
+      ).toHex();
     })()
     : narrowColumnTypographyResolved.titleColor;
   // In the gradient-backed narrow column, visual hierarchy is carried by

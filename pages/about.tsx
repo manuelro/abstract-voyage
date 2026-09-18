@@ -968,7 +968,13 @@ function AboutPageContent() {
       const neutralInk = colord(
         narrowColumnLightInkCandidate ?? narrowColumnTypographyResolved.titleColor,
       ).grayscale();
-      if (narrowColumnLightInkCandidate) return neutralInk.toHex();
+      if (darkInkSaturation === 0) return neutralInk.toHex();
+      // Contrast-side (and, when the light-ink candidate is active,
+      // lightness) selection still comes from the achromatic surface above —
+      // this only reintroduces a bounded amount of the sampled gradient's
+      // chroma on top of it, so the tolerance-driven light-ink path doesn't
+      // permanently discard darkInkSaturation the way an unconditional
+      // grayscale return used to.
       const neutralInkHsl = neutralInk.toHsl();
       const gradientHsl = colord(narrowColumnGradientReference).toHsl();
       const chromaticInk = colord({
@@ -976,9 +982,7 @@ function AboutPageContent() {
         s: Math.min(100, gradientHsl.s * (1 + darkInkSaturation * 4)),
         l: Math.max(6, neutralInkHsl.l),
       }).toHex();
-      return darkInkSaturation === 0
-        ? neutralInk.toHex()
-        : neutralInk.mix(chromaticInk, Math.min(1, darkInkSaturation)).toHex();
+      return neutralInk.mix(chromaticInk, Math.min(1, darkInkSaturation)).toHex();
     })()
     : narrowColumnTypographyResolved.titleColor;
   const narrowColumnTypography = {

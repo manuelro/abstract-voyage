@@ -117,7 +117,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientDarkInkOpacityMultiplierLg: 1,
   scrollGradientLightInkOnLightBackgroundContrastTolerance: 0,
   scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 0,
-  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 2.5,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 1.8,
   scrollGradientBaseHue: 190,
   scrollGradientHueScheme: 'dual-complementary',
   scrollGradientLightnessMin: 50,
@@ -189,7 +189,7 @@ export const ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // background-untouched residual limitation of a text-only lever.
   scrollGradientLegibilityTargetRatio: 0,
   scrollGradientLegibilityTargetRatioWide: 0,
-  scrollGradientLegibilityTargetRatioLg: 8,
+  scrollGradientLegibilityTargetRatioLg: 5,
   scrollGradientTauMs: 550,
   // Relocated verbatim from pages/abstract.config.ts's own AbstractFooterConfig
   // (adaptiveInkEnabled/-MaxAmount/-TargetContrastRatio,
@@ -568,7 +568,7 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientNarrowColumnDarknessLg: 0,
   scrollGradientDarkInkSaturation: 0,
   scrollGradientDarkInkSaturationWide: 0,
-  scrollGradientDarkInkSaturationLg: 2,
+  scrollGradientDarkInkSaturationLg: 0.22,
   scrollGradientDarkInkOpacityMultiplier: 1,
   scrollGradientDarkInkOpacityMultiplierWide: 1,
   scrollGradientDarkInkOpacityMultiplierLg: 0.99,
