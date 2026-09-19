@@ -747,6 +747,23 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     label: 'Transition easing',
     options: MOTION_EASING_OPTIONS,
   },
+  {
+    kind: 'group',
+    label: 'Timeline introduction',
+    fields: [
+      {
+        kind: 'boolean',
+        key: 'introEnabled',
+        label: 'Enable introductory reveal',
+        description: 'Uses the page introduction gate shared by the navigation and hero. Each row stays in its final position and fades in sequentially.',
+      },
+      { kind: 'number', key: 'introDelayMs', label: 'Delay', min: 0, max: 2000, step: 10, unit: 'ms', visibleWhen: config => config.introEnabled },
+      { kind: 'number', key: 'introDurationMs', label: 'Duration', min: 0, max: 2000, step: 10, unit: 'ms', visibleWhen: config => config.introEnabled },
+      { kind: 'enum', key: 'introEasing', label: 'Easing', options: MOTION_EASING_OPTIONS, visibleWhen: config => config.introEnabled },
+      { kind: 'number', key: 'introItemStaggerMs', label: 'Row gap', description: 'Extra quiet time after one row finishes before the next row would begin. Use Row overlap below to make the entries overlap instead.', min: 0, max: 500, step: 1, unit: 'ms', visibleWhen: config => config.introEnabled },
+      { kind: 'number', key: 'introItemOverlapMs', label: 'Row overlap', description: 'How long the prior row is still fading when the next row begins. 0 keeps rows sequential; a modest value creates a continuous desktop cascade.', min: 0, max: 2000, step: 1, unit: 'ms', visibleWhen: config => config.introEnabled },
+    ],
+  },
 ];
 
 export const ABOUT_TIMELINE_PANEL = defineConfigScope<AboutTimelineConfig>({

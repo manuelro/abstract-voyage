@@ -8,11 +8,31 @@ const PROJECT_ROOT = process.cwd();
 
 const LOCALHOST_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
+async function waitForRouteRebuild(host: string, route: string) {
+  // Let Next's watcher observe the in-place update before probing. A rename
+  // looks like an unlink/add pair to Next 13's pages watcher and can remove
+  // the route from its dev manifest altogether; keep the inode and wait for
+  // the ordinary change event instead.
+  await new Promise<void>(resolve => setTimeout(resolve, 200));
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`http://${host}${route}`, { cache: 'no-store' });
+      if (response.ok) return true;
+    } catch {
+      // Next can briefly refuse requests while replacing its dev manifest.
+    }
+    await new Promise<void>(resolve => setTimeout(resolve, 100));
+  }
+  return false;
+}
+
 type ApplyResultEntry = {
   targetSymbol: string;
   targetFile: string;
   ok: boolean;
   changedKeys?: string[];
+  wrote?: boolean;
   unmatchedKeys?: string[];
   unmentionedExistingKeys?: string[];
   error?: string;
@@ -51,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  const { payload } = (req.body ?? {}) as { payload?: unknown };
+  const { payload, route } = (req.body ?? {}) as { payload?: unknown; route?: unknown };
   if (typeof payload !== 'string' || payload.trim().length === 0) {
     res.status(400).json({ error: 'Request body must be { payload: string } (a component-config-update/v1 payload).' });
     return;
@@ -97,11 +117,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
         continue;
       }
-      await fs.writeFile(resolvedPath, applied.updatedSource, 'utf8');
+      // A no-op update should not ask Next to rebuild at all. Besides being
+      // unnecessary work, an avoidable rebuild is another opportunity for a
+      // developer to refresh during a route's transient recompilation.
+      const wrote = applied.updatedSource !== sourceText;
+      if (wrote) {
+        await fs.writeFile(resolvedPath, applied.updatedSource, 'utf8');
+      }
       results.push({
         targetSymbol: parsed.targetSymbol,
         targetFile: parsed.targetFile,
         ok: true,
+        wrote,
         changedKeys: applied.changedKeys,
         unmentionedExistingKeys: applied.unmentionedExistingKeys.length > 0
           ? applied.unmentionedExistingKeys
@@ -118,5 +145,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const allOk = results.every(result => result.ok);
+  // Do not return success into the brief dev-rebuild gap caused by a watched
+  // source update. The client supplies only its own path/query; reject every
+  // other form so this local-only endpoint cannot be used as a proxy.
+  const safeRoute = typeof route === 'string'
+    && route.startsWith('/')
+    && !route.startsWith('//')
+    && !route.includes('\\')
+    ? route
+    : undefined;
+  const didWrite = results.some(result => result.ok && result.wrote);
+  const host = req.headers.host;
+  if (allOk && didWrite && safeRoute && host) {
+    const routeReady = await waitForRouteRebuild(host, safeRoute);
+    if (!routeReady) {
+      res.status(503).json({
+        ok: false,
+        results,
+        error: 'Config was written, but the development route did not become ready within 10 seconds.',
+      });
+      return;
+    }
+  }
   res.status(allOk ? 200 : 207).json({ ok: allOk, results });
 }

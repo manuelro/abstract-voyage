@@ -11,6 +11,39 @@
   transition: background-color 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* The shared breakpoint hook is intentionally SSR-safe and therefore starts
+   at the mobile tier. On a desktop cold load that tier is only a hydration
+   placeholder, not a composition users should see. Keep the deterministic
+   document backdrop exposed until the first client viewport measurement
+   resolves the real branch. Pausing the existing wordmark animations while
+   hidden preserves their configured choreography: their clocks begin when
+   the final layout becomes visible, with no timing or easing changes. */
+.layoutGatePending {
+  visibility: hidden;
+}
+
+.layoutGatePending [data-site-wordmark-anchor] svg * {
+  animation-play-state: paused;
+}
+
+/* Keep the split header from painting its percentage fallback while the
+   desktop column boundary is being measured. Without this short gate the
+   nav is visibly corrected from the right to its final pixel-aligned seam. */
+.navGeometryPending {
+  visibility: hidden;
+}
+
+.navGeometryPending [data-site-wordmark-anchor] svg * {
+  animation-play-state: paused;
+}
+
+/* Reserve the carousel's final slot, but do not paint the temporary
+   anchor-box geometry or shared palette fallback before its measured inputs
+   are ready. */
+.coverFlowVisualPending {
+  visibility: hidden;
+}
+
 .gradientSourceViewport,
 .gradientOutputViewport {
   position: absolute;
@@ -29,14 +62,19 @@
 
 .gradientSourceCanvas {
   display: block;
+  transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .gradientOutputViewport {
   pointer-events: none;
   isolation: isolate;
   contain: layout paint;
+  opacity: 0;
+  transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gradientOutputViewport[data-renderer-ready="true"] {
   opacity: 1;
-  transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .gradientOutputViewport[data-content-surface="light"] {
@@ -91,6 +129,37 @@
     var(--hero-sky-stops)
   );
   background-repeat: no-repeat;
+}
+
+.heroZone[data-sky-mode="legacy"] {
+  background-image: radial-gradient(
+    ellipse var(--hero-sky-radius-x) var(--hero-sky-radius-y) at var(--hero-sky-origin-x) var(--hero-sky-origin-y),
+    var(--hero-initial-color-a) 0%,
+    var(--hero-initial-color-b) 52%,
+    var(--hero-initial-color-c) 100%
+  );
+  background-repeat: no-repeat;
+}
+
+/* ABS-01 authored first frame for the banded glass renderer. These are the
+   renderer's configured palette colors, so the first GPU frame increases
+   fidelity instead of replacing an unrelated loading treatment. */
+.heroZone[data-sky-mode="glass"] {
+  background-image: linear-gradient(
+    var(--hero-glass-angle),
+    var(--hero-glass-color-a) 0%,
+    var(--hero-glass-color-b) 33%,
+    var(--hero-glass-color-c) 67%,
+    var(--hero-glass-color-d) 100%
+  );
+  background-repeat: no-repeat;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradientSourceCanvas,
+  .gradientOutputViewport {
+    transition-duration: 0ms;
+  }
 }
 
 .refractorLayer {

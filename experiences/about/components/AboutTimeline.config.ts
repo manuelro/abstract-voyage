@@ -695,6 +695,21 @@ export type AboutTimelineConfig = {
    * opacity transition as the active row changes. */
   transitionDurationMs: number;
   transitionEasing: CtaButtonMotionEasing;
+  /** Opt-in page-introduction reveal. The page supplies the shared start
+   * signal; timeline rows remain fully laid out and only their opacity is
+   * choreographed, so this never changes reading order or geometry. */
+  introEnabled: boolean;
+  /** Delay before the first row begins its introductory reveal. */
+  introDelayMs: number;
+  /** Fade duration for each row in the introductory reveal. */
+  introDurationMs: number;
+  /** CSS easing used by every row's introductory fade. */
+  introEasing: CtaButtonMotionEasing;
+  /** Additional delay between consecutive timeline rows. */
+  introItemStaggerMs: number;
+  /** Amount of time the following row may begin before the previous row's
+   * introductory fade completes. */
+  introItemOverlapMs: number;
 };
 
 export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
@@ -888,6 +903,12 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   descriptionMinContrast: 4.5,
   transitionDurationMs: 550,
   transitionEasing: 'gentle',
+  introEnabled: false,
+  introDelayMs: 0,
+  introDurationMs: 300,
+  introEasing: 'gentle',
+  introItemStaggerMs: 60,
+  introItemOverlapMs: 0,
 } satisfies AboutTimelineConfig;
 
 const GAP_VALUES: ReadonlyArray<GapClass> = GAP_OPTIONS.map(option => option.value);
@@ -1396,5 +1417,11 @@ export function normalizeAboutTimelineConfig(
     descriptionMinContrast: clampRange(base.descriptionMinContrast, 1, 21, D.descriptionMinContrast),
     transitionDurationMs: clampRange(base.transitionDurationMs, 0, 1000, D.transitionDurationMs),
     transitionEasing: token(base.transitionEasing, MOTION_EASINGS, D.transitionEasing),
+    introEnabled: base.introEnabled === true,
+    introDelayMs: clampRange(base.introDelayMs, 0, 2000, D.introDelayMs),
+    introDurationMs: clampRange(base.introDurationMs, 0, 2000, D.introDurationMs),
+    introEasing: token(base.introEasing, MOTION_EASINGS, D.introEasing),
+    introItemStaggerMs: clampRange(base.introItemStaggerMs, 0, 500, D.introItemStaggerMs),
+    introItemOverlapMs: clampRange(base.introItemOverlapMs, 0, 2000, D.introItemOverlapMs),
   };
 }

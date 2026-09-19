@@ -72,6 +72,7 @@ export function LiquidGradientAdapter({
   isActive = false,
   activationRampDurationMs = 0,
   activationRampEasingCss = 'ease-out',
+  onFirstRender,
 }: {
   slide: SliderSlide;
   motion: ReturnType<typeof useLiquidSliderMotion>;
@@ -135,6 +136,8 @@ export function LiquidGradientAdapter({
    * tenth-pass revision note). 0 (default): every existing caller sees zero
    * behavior change. */
   activationRampDurationMs?: number;
+  /** Called once after this instance has produced its first real WebGL frame. */
+  onFirstRender?: () => void;
   /** CSS easing for the ramp above — pass the same token driving the
    * `useCardLiftPhysics` side (that hook's own `config.stateExitEasing`) so
    * both engines feel like one coordinated motion rather than two
@@ -142,6 +145,8 @@ export function LiquidGradientAdapter({
    * 0. */
   activationRampEasingCss?: string;
 }) {
+  const onFirstRenderRef = useRef(onFirstRender);
+  onFirstRenderRef.current = onFirstRender;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const motionValuesRef = useRef<LiquidSliderMotionValues>(NEUTRAL_MOTION_VALUES);
   const configRef = useRef(config);
@@ -711,6 +716,7 @@ export function LiquidGradientAdapter({
       });
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.flush();
+      if (!hasRendered) onFirstRenderRef.current?.();
       hasRendered = true;
       needsRender = false;
 

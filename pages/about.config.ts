@@ -160,7 +160,7 @@ export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
   maxWidthClassName: 'max-w-prose',
   maxWidthWideClassName: 'md:max-w-prose',
   maxWidthLgClassName: 'lg:max-w-prose',
-  rowGap: 'gap-5',
+  rowGap: 'gap-7',
   markerSizeClassName: 'w-2.5 h-2.5',
   markerColorMode: 'text',
   markerCustomColor: '#6c6b94',

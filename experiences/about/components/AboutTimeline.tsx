@@ -126,6 +126,10 @@ export interface AboutTimelineProps {
   descriptionLg?: string;
   config: AboutTimelineConfig;
   prefersReducedMotion: boolean;
+  /** Timestamp released by the page once first-frame geometry is stable.
+   * Undefined preserves the component's existing, immediately-visible
+   * behavior for every caller that does not participate in page intro. */
+  introStartAt?: number | null;
   /** A11Y-01 — the id of the single dock region these tabs control (see
    * pages/about.tsx's own `role="tabpanel"` wrapper around the desktop
    * dock). */
@@ -186,6 +190,7 @@ export function AboutTimeline({
   descriptionLg,
   config,
   prefersReducedMotion,
+  introStartAt,
   panelId,
   gradientSlides,
   gradientPaletteStates,
@@ -197,6 +202,31 @@ export function AboutTimeline({
   const rowRefs = useRef<Array<HTMLButtonElement | HTMLAnchorElement | null>>([]);
   const transitionEasingCss = CTA_BUTTON_MOTION_EASINGS[config.transitionEasing];
   const transitionDurationMs = prefersReducedMotion ? 0 : config.transitionDurationMs;
+  const timelineIntroActive = config.introEnabled
+    && introStartAt !== undefined
+    && !prefersReducedMotion;
+  const [timelineIntroVisible, setTimelineIntroVisible] = useState(!timelineIntroActive);
+  useEffect(() => {
+    if (!timelineIntroActive || introStartAt === null) {
+      setTimelineIntroVisible(!timelineIntroActive);
+      return;
+    }
+    // Changing an introduction setting deliberately replays the timeline in
+    // place, matching the nav/hero authoring experience. No rows remount and
+    // no geometry changes, so keyboard order and the active selection stay
+    // stable while an author tunes the cadence.
+    setTimelineIntroVisible(false);
+    const timeout = window.setTimeout(() => setTimelineIntroVisible(true), config.introDelayMs);
+    return () => window.clearTimeout(timeout);
+  }, [
+    timelineIntroActive,
+    introStartAt,
+    config.introDelayMs,
+    config.introDurationMs,
+    config.introEasing,
+    config.introItemStaggerMs,
+    rows.length,
+  ]);
   const scaleInkOpacity = (opacity: number) => (
     Math.min(1, Math.max(0, opacity * inkOpacityMultiplier))
   );
@@ -368,6 +398,19 @@ export function AboutTimeline({
     const selectionEnabled = !navigationMode && config.maxActiveRows > 0;
     const selected = (navigationMode || selectionEnabled) && row.slideIndex === activeIndex;
     const isHoveredRow = row.slideIndex === hoveredIndex;
+    // The row gap is measured after the preceding fade; overlap pulls the
+    // next start back into that fade. Clamp so an over-large overlap can
+    // start rows together but never creates a negative CSS delay.
+    const introStepMs = Math.max(
+      0,
+      config.introDurationMs + config.introItemStaggerMs - config.introItemOverlapMs,
+    );
+    const introStyle: CSSProperties | undefined = timelineIntroActive ? {
+      opacity: timelineIntroVisible ? 1 : 0,
+      transition: timelineIntroVisible
+        ? `opacity ${config.introDurationMs}ms ${CTA_BUTTON_MOTION_EASINGS[config.introEasing]} ${index * introStepMs}ms`
+        : 'none',
+    } : undefined;
     return (
       <AboutTimelineRow
         key={row.slideIndex}
@@ -421,7 +464,7 @@ export function AboutTimeline({
         onPointerEnter={() => handleRowPointerEnter(row.slideIndex)}
         onPointerLeave={() => handleRowPointerLeave(row.slideIndex)}
         rowRef={element => { rowRefs.current[index] = element; }}
-        itemStyle={row.itemStyle}
+        itemStyle={introStyle ? { ...row.itemStyle, ...introStyle } : row.itemStyle}
         gradientEnabled={config.markerGradientEnabled}
         gradientSlide={gradientSlides?.[row.slideIndex]}
         gradientPalette={gradientPaletteStates?.[row.slideIndex]}
@@ -452,6 +495,8 @@ export function AboutTimeline({
     gradientMotion, gradientConfig,
     transitionDurationMs, transitionEasingCss, onSelect, handleKeyDown,
     handleRowPointerEnter, handleRowPointerLeave, panelId, navigationMode,
+    timelineIntroActive, timelineIntroVisible, config.introDurationMs,
+    config.introEasing, config.introItemStaggerMs, config.introItemOverlapMs,
   ]);
 
   const ruleWeightPx = RULE_WEIGHT_PX[config.ruleWeightClassName] ?? 1;

@@ -50,3 +50,35 @@ For config-driven visual changes, the browser test must change the value via
 the real config-panel/control path or the same runtime state mechanism used by
 the panel, then confirm that the rendered output changes in the expected
 direction. A static screenshot at the default value is insufficient.
+
+## Resource safety: browser and development-server verification
+
+This project has graphics-heavy pages (including animated WebGL/canvas
+surfaces). Browser verification can consume multiple CPU cores and exhaust
+the host. Treat resource containment as a hard requirement, not an optional
+optimization.
+
+1. Before launching a browser or `next dev`, inspect running `next`, Chrome,
+   Chromium, and Playwright processes. Do not add load while an existing
+   agent-owned browser/verification server is running. Never terminate a
+   process unless the agent started it and can identify its PID.
+2. An agent may run **at most one** browser instance and **at most one**
+   agent-owned Next development server at a time. Do not run browser tests in
+   parallel, do not retry by spawning another browser, and close the browser
+   immediately after each bounded check.
+3. Prefer the cheapest adequate verification first: unit tests, direct HTTP,
+   DOM inspection, or a single screenshot. Use a browser only where rendered
+   behavior genuinely requires it. For graphics-heavy pages, do not use
+   repeated screenshots, video, tracing, or `networkidle` waits by default.
+4. Use a private Next build directory for every agent-owned dev server to
+   avoid corrupting another server's `.next` output, e.g.
+   `CLAUDE_NEXT_DIST_DIR=.next-agent-<task> npm run dev -- -p <non-3000-port>`.
+   Never start a second server for the same verification task.
+5. Keep browser viewports and test duration minimal. If CPU use becomes high,
+   the browser becomes unresponsive, or a check exceeds its expected bound,
+   stop the agent-owned browser/server processes immediately and continue
+   with lower-cost verification. Report the limitation; do not compensate by
+   launching more processes.
+6. At handoff, stop every agent-owned browser and dev-server process and say
+   which verification process, if any, remains running. Do not leave a
+   background verification process behind.

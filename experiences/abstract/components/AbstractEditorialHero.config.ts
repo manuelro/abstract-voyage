@@ -549,6 +549,11 @@ export type AbstractEditorialHeroConfig = {
    * `/about`'s real accordion, that should keep showing it regardless of
    * this hero's own choice). */
   accordionItemOpenIndicatorEnabled: boolean;
+  introEnabled: boolean;
+  introDelayMs: number;
+  introDurationMs: number;
+  introEasing: string;
+  introMode: 'opacity' | 'none';
 };
 
 export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
@@ -612,6 +617,11 @@ export const DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG = {
   composerVisible: false,
   accordionItemPresentationEnabled: true,
   accordionItemOpenIndicatorEnabled: false,
+  introEnabled: true,
+  introDelayMs: 430,
+  introDurationMs: 340,
+  introEasing: 'linear',
+  introMode: 'opacity',
 } satisfies AbstractEditorialHeroConfig;
 
 const clampRange = (value: number, min: number, max: number, fallback: number) =>
@@ -889,5 +899,11 @@ export function normalizeAbstractEditorialHeroConfig(
     composerVisible: base.composerVisible !== false,
     accordionItemPresentationEnabled: base.accordionItemPresentationEnabled === true,
     accordionItemOpenIndicatorEnabled: base.accordionItemOpenIndicatorEnabled !== false,
+    introEnabled: base.introEnabled === true,
+    introDelayMs: clampRange(base.introDelayMs, 0, 2000, DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.introDelayMs),
+    introDurationMs: clampRange(base.introDurationMs, 0, 2000, DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.introDurationMs),
+    introEasing: typeof base.introEasing === 'string' && base.introEasing.trim()
+      ? base.introEasing.trim() : DEFAULT_ABSTRACT_EDITORIAL_HERO_CONFIG.introEasing,
+    introMode: base.introMode === 'none' ? 'none' : 'opacity',
   };
 }

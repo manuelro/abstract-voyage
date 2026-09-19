@@ -18,19 +18,23 @@ const resolveModel = (value) => {
 }
 
 const resolveGatewayConfig = (env = process.env) => {
-  const apiKey = normalize(env.GEMINI_API_KEY) || normalize(env.NETLIFY_AI_GATEWAY_KEY)
-  const baseUrl = normalize(env.GOOGLE_GEMINI_BASE_URL || env.NETLIFY_AI_GATEWAY_URL ||
-    env.NETLIFY_AI_GATEWAY_BASE_URL).replace(/\/+$/, '')
+  // Standard (non-edge) Netlify Functions are not guaranteed the injected
+  // provider env vars (GEMINI_API_KEY, NETLIFY_AI_GATEWAY_KEY/URL) — per
+  // Netlify support (case 1110525), those are reliable for edge functions
+  // only. The supported path for classic functions is calling the site's own
+  // /.netlify/ai/ proxy and authenticating with the x-netlify-ai-gateway
+  // header instead of a provider API key.
+  const siteUrl = normalize(env.URL).replace(/\/+$/, '')
 
-  if (!apiKey || !baseUrl) {
+  if (!siteUrl) {
     throw new IntakeAiError('gateway_configuration_missing', { retryable: false })
   }
 
-  if (!/^https?:\/\//i.test(baseUrl)) {
+  if (!/^https?:\/\//i.test(siteUrl)) {
     throw new IntakeAiError('gateway_base_url_invalid', { retryable: false })
   }
 
-  return { apiKey, baseUrl }
+  return { baseUrl: `${siteUrl}/.netlify/ai` }
 }
 
 const extractResponseText = (payload) => {
@@ -68,7 +72,7 @@ const requestGeminiJson = async ({
     throw new IntakeAiError('fetch_unavailable', { retryable: false })
   }
 
-  const { apiKey, baseUrl } = resolveGatewayConfig(env)
+  const { baseUrl } = resolveGatewayConfig(env)
   const resolvedModel = resolveModel(model)
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
@@ -80,7 +84,7 @@ const requestGeminiJson = async ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
+          'x-netlify-ai-gateway': 'true',
         },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: system }] },

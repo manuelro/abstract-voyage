@@ -44,7 +44,28 @@ const WIDE_FONT_SIZE_OPTIONS: ReadonlyArray<
   value: `lg:text-${sizeToken}`,
 }));
 
+// A deliberately small, recognizable timing vocabulary. The values are
+// native CSS timing functions consumed directly by the hero reveal.
+const INTRO_EASING_OPTIONS = [
+  { label: 'ease', value: 'ease' },
+  { label: 'easeIn', value: 'ease-in' },
+  { label: 'easeOut', value: 'ease-out' },
+  { label: 'easeInOut', value: 'ease-in-out' },
+  { label: 'linear', value: 'linear' },
+] as const;
+
 const ALL_SIZES_FIELDS = [
+  {
+    kind: 'group',
+    label: 'Introduction',
+    fields: [
+      { kind: 'boolean', key: 'introEnabled', label: 'Enable introductory reveal' },
+      { kind: 'number', key: 'introDelayMs', label: 'Delay', min: 0, max: 2000, step: 10, unit: 'ms', visibleWhen: config => config.introEnabled },
+      { kind: 'number', key: 'introDurationMs', label: 'Duration', min: 0, max: 2000, step: 10, unit: 'ms', visibleWhen: config => config.introEnabled },
+      { kind: 'select', key: 'introEasing', label: 'Easing', options: INTRO_EASING_OPTIONS, visibleWhen: config => config.introEnabled },
+      { kind: 'enum', key: 'introMode', label: 'Reveal mode', visibleWhen: config => config.introEnabled, options: [{ label: 'OPACITY', value: 'opacity' }, { label: 'NONE', value: 'none' }] },
+    ],
+  },
   {
     kind: 'group',
     label: 'Headline gradient',

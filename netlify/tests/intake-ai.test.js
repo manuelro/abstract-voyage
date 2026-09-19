@@ -5,8 +5,7 @@ const {
 } = require('../functions/lib/intake-ai')
 
 const env = {
-  GEMINI_API_KEY: 'netlify-managed-test-key',
-  GOOGLE_GEMINI_BASE_URL: 'https://gateway.example.test/',
+  URL: 'https://gateway.example.test/',
 }
 
 const gatewayResponse = (data, usageMetadata = {}) => ({
@@ -47,8 +46,8 @@ describe('Gemini AI Gateway adapter', () => {
     })
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [url, options] = fetchImpl.mock.calls[0]
-    expect(url).toBe(`https://gateway.example.test/v1beta/models/${DEFAULT_MODEL}:generateContent`)
-    expect(options.headers['x-goog-api-key']).toBe(env.GEMINI_API_KEY)
+    expect(url).toBe(`https://gateway.example.test/.netlify/ai/v1beta/models/${DEFAULT_MODEL}:generateContent`)
+    expect(options.headers['x-netlify-ai-gateway']).toBe('true')
     expect(JSON.parse(options.body)).toMatchObject({
       systemInstruction: { parts: [{ text: 'System rules' }] },
       contents: [{ role: 'user', parts: [{ text: 'Untrusted visitor transcript' }] }],
@@ -119,23 +118,6 @@ describe('Gemini AI Gateway adapter', () => {
         code: 'gateway_configuration_missing',
         retryable: false,
       }),
-    )
-  })
-
-  it('falls back to the universal Netlify Gateway variables', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(gatewayResponse({ accepted: true }))
-    const universalEnv = {
-      NETLIFY_AI_GATEWAY_KEY: 'netlify-gateway-key',
-      NETLIFY_AI_GATEWAY_URL: 'https://universal-gateway.example.test',
-    }
-
-    await request({ env: universalEnv, fetchImpl })
-
-    expect(fetchImpl.mock.calls[0][0]).toBe(
-      `https://universal-gateway.example.test/v1beta/models/${DEFAULT_MODEL}:generateContent`,
-    )
-    expect(fetchImpl.mock.calls[0][1].headers['x-goog-api-key']).toBe(
-      universalEnv.NETLIFY_AI_GATEWAY_KEY,
     )
   })
 

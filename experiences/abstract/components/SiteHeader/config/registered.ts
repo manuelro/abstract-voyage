@@ -204,6 +204,11 @@ export type AbstractHeroContactBorderWidth = 'border' | 'border-2';
 export type SiteHeaderConfig = {
   colorMode: SiteHeaderColorMode;
   fontFamily: SiteHeaderFontFamily;
+  navIntroEnabled: boolean;
+  navIntroDelayMs: number;
+  navIntroDurationMs: number;
+  navIntroEasing: string;
+  navIntroItemStaggerMs: number;
   /** Nav labels (About/Journal/Contact) only — never the logo, which is
    * vector artwork (see Logo.tsx), not text, and has no font properties at
    * all. Color is deliberately not part of this config — nav text color is
@@ -548,6 +553,11 @@ export type SiteHeaderConfig = {
 export const DEFAULT_SITE_HEADER_CONFIG = {
   colorMode: 'column',
   fontFamily: 'serif',
+  navIntroEnabled: true,
+  navIntroDelayMs: 220,
+  navIntroDurationMs: 430,
+  navIntroEasing: 'linear',
+  navIntroItemStaggerMs: 0,
   navUppercase: true,
   navLetterSpacingEm: 0.14,
   navFontWeight: 'font-normal',
@@ -737,6 +747,12 @@ export function normalizeSiteHeaderConfig(
   return {
     colorMode: token(base.colorMode, COLOR_MODES, DEFAULT_SITE_HEADER_CONFIG.colorMode),
     fontFamily: token(base.fontFamily, FONT_FAMILIES, DEFAULT_SITE_HEADER_CONFIG.fontFamily),
+    navIntroEnabled: base.navIntroEnabled === true,
+    navIntroDelayMs: clampRange(base.navIntroDelayMs, 0, 2000, DEFAULT_SITE_HEADER_CONFIG.navIntroDelayMs),
+    navIntroDurationMs: clampRange(base.navIntroDurationMs, 0, 2000, DEFAULT_SITE_HEADER_CONFIG.navIntroDurationMs),
+    navIntroEasing: typeof base.navIntroEasing === 'string' && base.navIntroEasing.trim()
+      ? base.navIntroEasing.trim() : DEFAULT_SITE_HEADER_CONFIG.navIntroEasing,
+    navIntroItemStaggerMs: clampRange(base.navIntroItemStaggerMs, 0, 250, DEFAULT_SITE_HEADER_CONFIG.navIntroItemStaggerMs),
     navUppercase: base.navUppercase !== false,
     navLetterSpacingEm: clampRange(
       base.navLetterSpacingEm, 0, 0.3, DEFAULT_SITE_HEADER_CONFIG.navLetterSpacingEm,

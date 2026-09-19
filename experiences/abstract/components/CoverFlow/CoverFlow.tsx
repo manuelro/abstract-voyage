@@ -136,6 +136,13 @@ export interface CoverFlowProps<T> {
    * uses the same split: its clip viewport spans the whole page while its
    * cards stay sized from a narrower measured anchor. */
   cardWidthBasisPx?: number;
+  /** When true, `cardWidthBasisPx` is part of the component's layout
+   * contract rather than an optional enhancement. The interaction plane is
+   * still mounted immediately so it can be measured, but cards are not
+   * exposed until both that external basis and the plane's own height are
+   * known. This prevents a visible reference-width/intermediate layout from
+   * preceding the final measured composition on client-rendered pages. */
+  requireCardWidthBasis?: boolean;
   /** Matches how CardStack.tsx already receives prefersReducedMotion as a
    * prop rather than each piece deriving it independently. */
   prefersReducedMotion?: boolean;
@@ -355,6 +362,7 @@ export function CoverFlow<T>({
   renderItem,
   config = DEFAULT_COVER_FLOW_CONFIG,
   cardWidthBasisPx,
+  requireCardWidthBasis = false,
   prefersReducedMotion = false,
   hoverMaxScale = 1,
   hoverMaxLiftPx = 0,
@@ -380,6 +388,12 @@ export function CoverFlow<T>({
       config, cardWidthBasisPx ?? containerRect?.width, containerRect?.height,
       hoverMaxScale, hoverMaxLiftPx, hoverMaxTiltDeg, hoverTiltPerspectivePx,
     );
+  const hasContainerGeometry = Boolean(
+    containerRect && containerRect.width > 0 && containerRect.height > 0,
+  );
+  const hasRequiredWidthBasis = !requireCardWidthBasis
+    || (cardWidthBasisPx !== undefined && cardWidthBasisPx > 0);
+  const geometryReady = hasContainerGeometry && hasRequiredWidthBasis;
 
   const activeIndexRef = useRef(safeInitial);
   const enableScrollRef = useRef(config.enableScroll);
@@ -878,7 +892,8 @@ export function CoverFlow<T>({
       role={accessibilityHidden ? undefined : 'region'}
       aria-label={accessibilityHidden ? undefined : 'Cover Flow'}
       aria-hidden={accessibilityHidden || undefined}
-      drag="x"
+      data-cover-flow-geometry={geometryReady ? 'ready' : 'pending'}
+      drag={geometryReady ? 'x' : false}
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0}
       dragMomentum={false}
@@ -892,7 +907,7 @@ export function CoverFlow<T>({
           transformStyle: prefersReducedMotion && externallyControlled ? 'flat' : 'preserve-3d',
         }}
       >
-        {items.map((item, index) => (
+        {geometryReady && items.map((item, index) => (
           <CoverFlowItem
             key={index}
             item={item}

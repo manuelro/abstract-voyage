@@ -580,6 +580,8 @@ export type HueFadeCardProps = {
    * loop, stopping that work instead of paying for it off-screen or behind
    * a fully-opaque cover. */
   meshActivity?: AbstractPostDockGradientActivity;
+  /** Keeps the card hidden until its final WebGL mesh has painted once. */
+  onGradientFirstRender?: () => void;
   /** Tilt/lift/shadow physics tuning for this card — same shape CtaButton
    * itself uses (useCardLiftPhysics is the shared engine both are built
    * on). Optional and defaults to the module's own CTA constant
@@ -830,6 +832,7 @@ export function AbstractJournalLabHueFadeCard({
   cardProportionalContentInsetCqw,
   cardContentBlockHeight = 'clamp(5rem, 26cqh, 8rem)',
   meshActivity,
+  onGradientFirstRender,
   ctaConfig = CTA,
   stackActiveSlide = false,
   activationRampDurationMs = 0,
@@ -849,6 +852,7 @@ export function AbstractJournalLabHueFadeCard({
 }: HueFadeCardProps) {
   const visibilityRef = useRef<HTMLAnchorElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [gradientReady, setGradientReady] = useState(false);
   const interactionRef = useRef<PointerProximityState>({
     proximity: 0,
     x: 0,
@@ -1478,6 +1482,10 @@ export function AbstractJournalLabHueFadeCard({
             isActive={stackActiveSlide}
             activationRampDurationMs={activationRampDurationMs}
             activationRampEasingCss={CTA_BUTTON_MOTION_EASINGS[ctaConfig.stateExitEasing]}
+            onFirstRender={() => {
+              setGradientReady(true);
+              onGradientFirstRender?.();
+            }}
           />
         ) : null}
       </div>
@@ -1529,7 +1537,7 @@ export function AbstractJournalLabHueFadeCard({
     top: `${slot.position.topPx}px`,
     width: `${cardWidthPx}px`,
     height: `${cardHeightPx}px`,
-    '--fade-opacity': shellVisible ? 1 : 0,
+    '--fade-opacity': shellVisible && gradientReady ? 1 : 0,
     '--fade-duration': prefersReducedMotion
       ? '0ms'
       : `${contentDurationMs}ms`,

@@ -8,6 +8,16 @@ import {
 export const SITE_HEADER_COLORS_SCOPE_ID =
   'SiteHeader/colors' as const;
 
+// Familiar CSS timing names keep the authoring surface readable while the
+// runtime continues to receive standards-compliant timing-function values.
+const INTRO_EASING_OPTIONS = [
+  { label: 'ease', value: 'ease' },
+  { label: 'easeIn', value: 'ease-in' },
+  { label: 'easeOut', value: 'ease-out' },
+  { label: 'easeInOut', value: 'ease-in-out' },
+  { label: 'linear', value: 'linear' },
+] as const;
+
 // Content-container width/alignment for both header segments is edited
 // from pages/posts-lab/postLab.panel.ts's own 'Posts lab page layout'
 // scope instead — the only page that currently exposes a control for
@@ -577,6 +587,17 @@ export const SITE_HEADER_COLORS_PANEL =
           // 'Header layout' scope — see that file's own doc comment for why
           // layout concerns don't belong in this 'colors' scope alongside
           // font/wrapper-height fields.
+        ],
+      },
+      {
+        kind: 'group',
+        label: 'Navigation introduction',
+        fields: [
+          { kind: 'boolean', key: 'navIntroEnabled', label: 'Enable introductory reveal' },
+          { kind: 'number', key: 'navIntroDelayMs', label: 'Delay', min: 0, max: 2000, step: 10, unit: 'ms', visibleWhen: config => config.navIntroEnabled },
+          { kind: 'number', key: 'navIntroDurationMs', label: 'Duration', min: 0, max: 2000, step: 10, unit: 'ms', visibleWhen: config => config.navIntroEnabled },
+          { kind: 'select', key: 'navIntroEasing', label: 'Easing', options: INTRO_EASING_OPTIONS, visibleWhen: config => config.navIntroEnabled },
+          { kind: 'number', key: 'navIntroItemStaggerMs', label: 'Item stagger', min: 0, max: 250, step: 1, unit: 'ms', visibleWhen: config => config.navIntroEnabled },
         ],
       },
       {

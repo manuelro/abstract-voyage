@@ -150,10 +150,21 @@ export const DEFAULT_POST_LAB_ARTICLE_CONFIG = {
   bodyLeading: 'leading-relaxed',
   bodyTracking: 'tracking-normal',
   paragraphMarginBottom: 'mb-5',
+  // strongOpacity was 0.93 — nearly invisible against a static surface, but
+  // over the scroll-gradient's saturated, multi-hue background even that
+  // small an alpha gap lets a visibly different hue bleed through behind
+  // bold text than behind the fully-opaque body text around it (operator-
+  // reported: "bold words show a different color"). Fixed at 1 (no opacity
+  // gap, so strongInk === bodyInk exactly) and the weight bumped from
+  // font-medium to font-semibold to carry the emphasis on its own — the
+  // same principle helpers/textEmphasis.tsx's own doc comment already
+  // states for /abstract's and /about's shared **word**/link emphasis
+  // convention: "a font-weight class ... is never less contrasty," so it's
+  // the correct knob when opacity can't safely carry a visible highlight.
   strongColorMode: 'inherit',
   strongCustomColor: '#1f2937',
-  strongOpacity: 0.97,
-  strongFontWeight: 'font-medium',
+  strongOpacity: 1,
+  strongFontWeight: 'font-semibold',
   headingFontFamily: 'font-serif',
   headingFontWeight: 'font-medium',
   headingLeading: 'leading-tight',

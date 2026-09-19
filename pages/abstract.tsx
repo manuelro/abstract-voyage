@@ -309,6 +309,7 @@ import {
 } from '../experiences/abstract/components/useScrollAdaptiveInk';
 import { usePolymorphicColumnAdaptiveInk } from '../experiences/abstract/components/usePolymorphicColumnAdaptiveInk';
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect';
+import { useBreakpointTier } from '../components/useBreakpointTier';
 import { tailwindSpacingTokenToPx } from '../components/tailwindSpacingScale';
 import {
   normalizePolymorphicLayoutConfig,
@@ -1588,6 +1589,15 @@ function useHasHoverPointer(): boolean {
     mediaQuery.addListener(handleChange);
     return () => mediaQuery.removeListener(handleChange);
   }, []);
+  // The document owns the first-frame CSS gap filler. Release that marker as
+  // soon as the client breakpoint measurement exists so the live, configured
+  // gradient is never covered by the bootstrap twin after layout readiness.
+  const { viewportWidthPx: abstractViewportWidthPx } = useBreakpointTier();
+  useEffect(() => {
+    if (abstractViewportWidthPx === undefined) return;
+    document.documentElement.removeAttribute('data-abstract-gap');
+    document.documentElement.removeAttribute('data-abstract-gap-tier');
+  }, [abstractViewportWidthPx]);
 
   return hasHoverPointer;
 }
@@ -1615,6 +1625,19 @@ export async function getStaticProps() {
 }
 
 export default function AbstractPage({ dockItems, labs, footerConfigOverrides }: AbstractPageProps) {
+  useEffect(() => {
+    // Keep the document-level ABS-01 backdrop active for this route's whole
+    // lifetime. Chrome can briefly expose the outgoing document's body while
+    // a hard refresh waits for the next HTML response; removing this marker
+    // immediately after mount restored the global near-black body underneath
+    // the page and reproduced the exact black frame ABS-01 is meant to remove.
+    // Cleanup on unmount prevents the route treatment leaking through SPA
+    // navigation to another page.
+    document.documentElement.setAttribute('data-abstract-boot', 'true');
+    return () => {
+      document.documentElement.removeAttribute('data-abstract-boot');
+    };
+  }, []);
   const [abstractTimelineContentConfig, setAbstractTimelineContentConfig] =
     useState<AbstractTimelineContentConfig>(() => (
       normalizeAbstractTimelineContentConfig(DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG)
@@ -1709,6 +1732,15 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   const twilightGradientRef = useRef<TwilightSkyGradient | null>(null);
   const glassRenderScheduleRef = useRef<(() => void) | null>(null);
   const dragRef = useRef<DragState>({ active: false, pointerId: null, x: 0, y: 0 });
+  // ABS-01: a mounted canvas is not necessarily a painted canvas. Keep the
+  // deterministic CSS backdrop visible until the active GPU renderer has
+  // completed its first draw, then progressively enhance it with the live
+  // result. This is deliberately page-local client state: the Netlify
+  // deployment currently relies on client rendering for this route.
+  const [heroRendererReady, setHeroRendererReady] = useState(false);
+  const markHeroRendererReady = useCallback(() => {
+    setHeroRendererReady(true);
+  }, []);
   const [config, setConfig] = useState<GradientDesignerConfig>(DEFAULT_GRADIENT_DESIGNER_CONFIG);
   const [headingGradientConfig, setHeadingGradientConfig] =
     useState<GradientDesignerConfig>(() => ({ ...DEFAULT_GRADIENT_DESIGNER_CONFIG }));
@@ -2698,9 +2730,29 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // the 4th arg (fallbackStops) in that mode, and this page's own
   // wordmarkConfig.colorMode isn't 'adaptive' by default. See
   // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
+  // Page-local override of the shared wordmarkConfig's own intro-timing
+  // fields (DEFAULT_WORDMARK_CONFIG: introDurationS 1.4, introStepDelayS
+  // 0.02) — same layered-override technique as about.tsx's
+  // spacefieldHeaderConfig, not a change to the shared default every page
+  // reads. Live-measured: the per-glyph fade/scale/bloom reveal at the
+  // shared defaults takes ~1.4-1.8s end to end after the wordmark first
+  // mounts, well after the header/nav/hero text/card have already settled
+  // (PLAN-ABSTRACT-PAGE-INTRO-SEQUENCE.md) — the wordmark visibly still
+  // drawing itself in nearly two seconds after everything around it is
+  // done is exactly the "wordmark missing/appears out of nowhere"
+  // complaint. Tightened here so the whole reveal completes in ~0.5s,
+  // in line with the rest of the settled shell, while keeping the same
+  // letter-by-letter direction/bloom character (only the pacing changes).
+  const ABSTRACT_WORDMARK_INTRO_OVERRIDE = {
+    introDurationS: 0.4,
+    introStepDelayS: 0.006,
+    introInitialDelayS: 0,
+    introBloomInitialDelayS: 0.02,
+    introBloomStepDelayS: 0.006,
+  } as const;
   const effectiveWordmarkConfig = colors.wordmarkGradientStops
-    ? { ...wordmarkConfig, colorMode: 'adaptive' as const }
-    : wordmarkConfig;
+    ? { ...wordmarkConfig, ...ABSTRACT_WORDMARK_INTRO_OVERRIDE, colorMode: 'adaptive' as const }
+    : { ...wordmarkConfig, ...ABSTRACT_WORDMARK_INTRO_OVERRIDE };
   const heroHeaderLogoStops = gradientBackedNarrowColumn
     ? [{ color: heroAccordionBaseTextColor, at: 0 }, { color: heroAccordionBaseTextColor, at: 100 }]
     : resolveSiteHeaderLogoStops(
@@ -2780,12 +2832,41 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     '--hero-sky-origin-y': `${clamp(config.skyOriginYPercent, -20, 40)}%`,
     '--hero-sky-radius-x': `${clamp(config.skyRadiusXPercent, 40, 180)}%`,
     '--hero-sky-radius-y': `${clamp(config.skyRadiusYPercent, 40, 180)}%`,
+    // Legacy's authored shell keeps the same generated twilight hue path,
+    // mixed into the real page surface so the dark first-frame ink remains
+    // legible before background-aware canvas sampling has run.
+    '--hero-initial-color-a': blendOpaqueColors(
+      normalizedPageSurfaceConfig.color,
+      twilightGradient.stops[0]?.color ?? twilightGradient.terminalColor,
+      0.45,
+    ),
+    '--hero-initial-color-b': blendOpaqueColors(
+      normalizedPageSurfaceConfig.color,
+      twilightGradient.stops[Math.floor(twilightGradient.stops.length / 3)]?.color
+        ?? twilightGradient.terminalColor,
+      0.25,
+    ),
+    '--hero-initial-color-c': blendOpaqueColors(
+      normalizedPageSurfaceConfig.color,
+      twilightGradient.terminalColor,
+      0.12,
+    ),
+    '--hero-glass-angle': `${config.glassGradientAngleDeg}deg`,
+    '--hero-glass-color-a': config.glassGradientColorA,
+    '--hero-glass-color-b': config.glassGradientColorB,
+    '--hero-glass-color-c': config.glassGradientColorC,
+    '--hero-glass-color-d': config.glassGradientColorD,
     '--hero-header-height': heroHeaderHeight,
     '--hero-header-height-desktop': heroHeaderDesktopHeight,
     '--hero-editorial-stack-height': `${editorialRow.rowCount * 100}%`,
     '--hero-editorial-stack-offset': `${-editorialRow.rowIndex * 100}%`,
   } as CSSProperties), [
     config.backgroundColor,
+    config.glassGradientAngleDeg,
+    config.glassGradientColorA,
+    config.glassGradientColorB,
+    config.glassGradientColorC,
+    config.glassGradientColorD,
     config.skyOriginXPercent,
     config.skyOriginYPercent,
     config.skyRadiusXPercent,
@@ -2798,9 +2879,18 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     heroHeaderDesktopHeight,
     normalizedPageSurfaceConfig.color,
     heroContentPresentationActive,
+    twilightGradient.stops,
     twilightGradient.cssStops,
     twilightGradient.terminalColor,
   ]);
+  useEffect(() => {
+    // Changing modes exposes the authored fallback until the newly selected
+    // renderer produces a real frame. Static/refractor modes need no GPU
+    // readiness gate.
+    setHeroRendererReady(
+      config.skyRenderMode === 'static' || config.skyRenderMode === 'refractor',
+    );
+  }, [config.skyRenderMode]);
   const refractorSliceCount = Math.round(clamp(config.refractorSliceCount, 1, 64));
   const refractorCenterSliceIndex = Math.floor(refractorSliceCount / 2);
   const refractorRowDisplacementStepPercent = clamp(
@@ -3556,6 +3646,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       );
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.flush();
+      markHeroRendererReady();
 
       const currentEditorialHeroConfig = editorialHeroConfigRef.current;
       if (
@@ -3847,7 +3938,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       frozenGradientFrameRef.current = null;
       frozenGradientLayerSourcesRef.current = null;
     };
-  }, [config.skyRenderMode]);
+  }, [
+    abstractPageLayoutConfig.presentationMode,
+    config.skyRenderMode,
+    markHeroRendererReady,
+  ]);
 
   useEffect(() => {
     legacyGradientRenderScheduleRef.current?.();
@@ -3983,6 +4078,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       });
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.flush();
+      markHeroRendererReady();
 
       if (!prefersReducedMotion) animationFrame = window.requestAnimationFrame(render);
     };
@@ -4008,6 +4104,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       gl.deleteProgram(gradientProgram.program);
     };
   }, [
+    abstractPageLayoutConfig.presentationMode,
     config.seed,
     config.skyBreathAmount,
     config.skyDitherStrength,
@@ -4022,6 +4119,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     config.skyResolution,
     config.skyTurbulence,
     twilightGradient,
+    markHeroRendererReady,
   ]);
 
   useEffect(() => {
@@ -4118,6 +4216,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       }
       gl.disable(gl.SCISSOR_TEST);
       gl.flush();
+      markHeroRendererReady();
 
       if (isDynamic) animationFrame = window.requestAnimationFrame(render);
     };
@@ -4150,7 +4249,12 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       gl.deleteBuffer(gradientProgram.vertexBuffer);
       gl.deleteProgram(gradientProgram.program);
     };
-  }, [config.glassPlayback, config.skyRenderMode]);
+  }, [
+    abstractPageLayoutConfig.presentationMode,
+    config.glassPlayback,
+    config.skyRenderMode,
+    markHeroRendererReady,
+  ]);
 
   useEffect(() => {
     if (config.skyRenderMode === 'glass') glassRenderScheduleRef.current?.();
@@ -4212,6 +4316,34 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // fixed CardStack no longer mounts.
   const coverFlowPrefersReducedMotion = usePrefersReducedMotion();
   const coverFlowHasHoverPointer = useHasHoverPointer();
+  // PolymorphicLayout intentionally defaults to the mobile tier during SSR.
+  // That is safe for hydration, but it is not a valid visible composition on
+  // a desktop cold load: the mobile branch can paint before the first client
+  // breakpoint measurement and then be replaced by the split layout. Keep
+  // the authored document backdrop visible while that one measurement lands.
+  const abstractLayoutPending = colors.viewportWidthPx === undefined;
+  // Release opacity-only component reveals after the client breakpoint has
+  // committed its final geometry. This gate never changes layout values.
+  const [pageIntroStartedAt, setPageIntroStartedAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (abstractLayoutPending) return;
+    if (coverFlowPrefersReducedMotion) {
+      setPageIntroStartedAt(Date.now());
+      return;
+    }
+    const firstFrame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setPageIntroStartedAt(Date.now()));
+    });
+    return () => window.cancelAnimationFrame(firstFrame);
+  }, [abstractLayoutPending, coverFlowPrefersReducedMotion]);
+  // The split header initially has only its percentage fallback. On desktop
+  // that fallback places the nav a few pixels to the right, then the live
+  // pixel boundary moves it left on the next measurement. Keep the header
+  // out of the first paint until the same boundary used by the body grid is
+  // available; mobile/stacked layouts do not require this gate.
+  const navGeometryPending = colors.viewportWidthPx !== undefined
+    && colors.viewportWidthPx >= 768
+    && colors.splitBandBoundaryPx === undefined;
   const isCoverFlowDesktopTier = colors.breakpointTier !== 'mobile';
   const { ref: coverFlowSectionAnchorRef, rect: coverFlowSectionAnchorRect } =
     useMeasuredElementRect<HTMLDivElement>([isCoverFlowDesktopTier]);
@@ -4351,6 +4483,62 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       tier: colors.breakpointTier,
     }),
     [carouselAndListItems, dockPaletteConfig, dockHueInfluenceConfig, colors.breakpointTier],
+  );
+  const [coverFlowGeometryStable, setCoverFlowGeometryStable] = useState(false);
+  const coverFlowGeometryReleasedRef = useRef(false);
+  useEffect(() => {
+    // This is an initial-load reveal latch. Once the coordinated layout has
+    // been published, later observer updates must not hide the page again —
+    // doing so creates the exact paint/disappear/repaint flicker seen during
+    // the intro sequence. A full unmount/remount resets the ref naturally.
+    if (coverFlowGeometryReleasedRef.current) return;
+    if (
+      colors.viewportWidthPx === undefined
+      || colors.breakpointTier === undefined
+      || !coverFlowSectionAnchorRect?.width
+      || coverFlowSectionAnchorRect.width <= 0
+      || (isCoverFlowDesktopTier && colors.splitBandBoundaryPx === undefined)
+    ) return;
+
+    let firstFrame: number | null = null;
+    let secondFrame: number | null = null;
+    const settle = () => {
+      firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(() => {
+          coverFlowGeometryReleasedRef.current = true;
+          setCoverFlowGeometryStable(true);
+        });
+      });
+    };
+    settle();
+    return () => {
+      if (firstFrame !== null) window.cancelAnimationFrame(firstFrame);
+      if (secondFrame !== null) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [
+    colors.viewportWidthPx,
+    colors.breakpointTier,
+    colors.splitBandBoundaryPx,
+    coverFlowSectionAnchorRect?.left,
+    coverFlowSectionAnchorRect?.top,
+    coverFlowSectionAnchorRect?.width,
+    coverFlowSectionAnchorRect?.height,
+    isCoverFlowDesktopTier,
+  ]);
+  // Do not expose the desktop carousel while its breakout geometry or
+  // breakpoint-specific card palettes are still resolving. The temporary
+  // anchor-box fallback is narrower and left-shifted, while a null palette
+  // makes every card use the same visual fallback; revealing only after all
+  // inputs are ready makes the first painted frame the settled one.
+  const coverFlowVisualReady = Boolean(
+    colors.viewportWidthPx !== undefined
+    && colors.breakpointTier !== undefined
+    && coverFlowSectionAnchorRect?.width
+    && coverFlowSectionAnchorRect.width > 0
+    && coverFlowPalettes
+    && coverFlowPalettes.length >= carouselAndListItems.length
+    && (!isCoverFlowDesktopTier || colors.splitBandBoundaryPx !== undefined)
+    && coverFlowGeometryStable,
   );
 
   // Neighbour "look and feel" — the exact same formula
@@ -4895,7 +5083,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     {abstractPageLayoutConfig.presentationMode === 'classic' ? (
     <>
     <main
-      className="relative min-h-[100dvh] overflow-x-clip"
+      className={`relative min-h-[100dvh] overflow-x-clip ${abstractLayoutPending ? styles.layoutGatePending : ''}`}
       style={{
         color: 'white',
         background: heroContentPresentationActive
@@ -4920,6 +5108,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
         data-hero-content-surface={heroContentPresentationActive ? 'light' : 'field'}
         data-layout-mode={heroLayoutMode}
         data-sky-mode={config.skyRenderMode}
+        data-hero-renderer-ready={heroRendererReady ? 'true' : 'false'}
         style={heroStyle}
       >
         {config.skyRenderMode === 'living' || config.skyRenderMode === 'glass' || config.skyRenderMode === 'legacy' ? (
@@ -4939,7 +5128,9 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                 cursor: legacyGradientDragEnabled
                   ? isDragging ? 'grabbing' : 'grab'
                   : 'default',
-                opacity: config.skyRenderMode === 'living' || config.skyRenderMode === 'glass' ? 1 : 0,
+                opacity: config.skyRenderMode === 'living' || config.skyRenderMode === 'glass'
+                  ? heroRendererReady ? 1 : 0
+                  : 0,
                 pointerEvents: legacyGradientDragEnabled ? 'auto' : 'none',
                 touchAction: legacyGradientDragEnabled ? 'pan-y' : 'auto',
                 userSelect: 'none',
@@ -5006,6 +5197,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                 aria-hidden="true"
                 className={styles.gradientOutputViewport}
                 data-content-surface={heroContentPresentationActive ? 'light' : 'field'}
+                data-renderer-ready={heroRendererReady ? 'true' : 'false'}
               >
                 <div className={styles.gradientOutputStack}>
                   {Array.from({ length: gradientLayerCount }).map((_, layerIndex) => (
@@ -5051,6 +5243,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             navBandCanvasRef={heroNavBandCanvasRef}
             navBandColorFilter={heroNavBandColorFilter}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
+            introStartAt={pageIntroStartedAt}
           />
           </>
         )}
@@ -5061,6 +5254,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
           actionInkTone={actionsTone}
           config={normalizedEditorialHeroConfig}
+          introStartAt={pageIntroStartedAt}
           accordionItemConfig={heroAccordionItemConfig}
           horizontalPlacement={
             NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
@@ -5295,7 +5489,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       // now-inconsistent margin instead of containing it).
       <PolymorphicLayout
         config={splitColumnLayoutConfigForColors}
-        className={styles.splitColumnViewport}
+        className={`${styles.splitColumnViewport} ${abstractLayoutPending || !coverFlowGeometryStable ? styles.layoutGatePending : ''}`}
+        backgroundColor={normalizedPageSurfaceConfig.color}
         pageSurfaceConfig={normalizedPageSurfaceConfig}
         paletteColorResolver={paletteColorResolver}
         scrollGradientReturnToLight={{
@@ -5304,6 +5499,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           returnToLightFinalDarken: abstractFooterConfig.backgroundReturnToLightFinalDarken,
         }}
         headerWrapperRef={splitColumnHeaderWrapperRef}
+        headerWrapperClassName={navGeometryPending ? styles.navGeometryPending : undefined}
         // Forces the shared scroll-gradient background to its own max
         // darken while the mobile article list's expanded panel is open —
         // operator ask (PLAN-MOBILE-ARTICLE-LIST-EXPAND-DARKEN.md). Gated
@@ -5393,6 +5589,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
               splitColumnLayoutConfig,
             )}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
+            introStartAt={pageIntroStartedAt}
             logoStops={topHeaderLogoStops}
             wordmarkConfig={effectiveWordmarkConfig}
             wordmarkGradientStops={narrowColumnWordmarkGradientStops}
@@ -5507,7 +5704,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             aria-live={isCoverFlowDesktopTier ? 'polite' : undefined}
           >
             {isCoverFlowDesktopTier ? (
-              <div className="absolute" style={coverFlowWideColumnStyle}>
+              <div
+                className={`absolute ${coverFlowVisualReady ? '' : styles.coverFlowVisualPending}`}
+                style={coverFlowWideColumnStyle}
+                data-cover-flow-visual-ready={coverFlowVisualReady ? 'true' : 'false'}
+              >
                 <CoverFlow
                   items={carouselAndListItems}
                   activeIndex={articleActiveIndex}
@@ -5515,6 +5716,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                   renderItem={renderCoverFlowItem}
                   config={coverFlowConfig}
                   cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
+                  requireCardWidthBasis
                   prefersReducedMotion={coverFlowPrefersReducedMotion}
                   suppressEntranceAnimation={!coverFlowEntranceRestored}
                   hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
@@ -5571,6 +5773,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                         mobileCoverFlowPlaneRect.width
                           - 2 * tailwindSpacingTokenToPx(mobilePinnedArticleSectionConfig.carouselGutterX, 0),
                       ) : undefined}
+                      requireCardWidthBasis
                       // Wrapped (rather than passing renderCoverFlowItem
                       // directly, as the desktop instance below does) only
                       // to supply the 7th, mobile-only focusProgress
@@ -5627,6 +5830,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                       description={abstractTimelineConfig.description || undefined}
                       config={abstractTimelineConfig}
                       prefersReducedMotion={coverFlowPrefersReducedMotion}
+                      introStartAt={pageIntroStartedAt}
                       panelId={ABSTRACT_TIMELINE_PANEL_ID}
                       // Same exact marker-gradient inputs as the desktop
                       // instance below, not a mobile-specific subset — see
@@ -5652,6 +5856,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                 paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
                 actionInkTone={actionsTone}
                 config={normalizedSplitColumnHeroConfig}
+                introStartAt={pageIntroStartedAt}
                 accordionItemConfig={heroAccordionItemConfig}
                 horizontalPlacement={
                   NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
@@ -5721,6 +5926,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                   description={abstractTimelineConfig.description || undefined}
                   config={abstractTimelineConfig}
                   prefersReducedMotion={coverFlowPrefersReducedMotion}
+                  introStartAt={pageIntroStartedAt}
                   panelId={ABSTRACT_TIMELINE_PANEL_ID}
                   // Same gradient-marker inputs renderCoverFlowItem already
                   // threads into CoverFlow's own cards (carouselAndListItems

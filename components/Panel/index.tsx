@@ -223,7 +223,10 @@ export function UpdateDiffButton({
       const response = await fetch('/api/dev/apply-config-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: text }),
+        body: JSON.stringify({
+          payload: text,
+          route: `${window.location.pathname}${window.location.search}`,
+        }),
       });
       const body = await response.json() as { ok?: boolean; results?: ApplyConfigUpdateResultEntry[]; error?: string };
       // eslint-disable-next-line no-console -- the one feedback channel detailed

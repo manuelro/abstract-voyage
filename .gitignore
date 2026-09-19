@@ -66,3 +66,4 @@ storybook-static/
 
 # Temporary files from the local dev server's own CLAUDE_NEXT_DIST_DIR (see
 /tmp/
+/evidence/

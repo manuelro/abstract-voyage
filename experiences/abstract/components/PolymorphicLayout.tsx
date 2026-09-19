@@ -1405,7 +1405,13 @@ export function PolymorphicLayout({
 
   return (
     <>
-      {colors.scrollGradientNarrowColumnActive && colors.scrollGradientWideColumnActive ? (
+      {/* Do not let the SSR-safe mobile tier paint a full-viewport gradient
+          before useBreakpointTier has measured the real client viewport.
+          The document's authored gap filler remains visible for this brief
+          interval; mounting this renderer only after viewportWidthPx exists
+          means its first generated stops already use the correct tier. */}
+      {colors.viewportWidthPx !== undefined
+        && colors.scrollGradientNarrowColumnActive && colors.scrollGradientWideColumnActive ? (
         <PolymorphicScrollGradientBackground
           {...colors.scrollGradientResolved}
           {...scrollGradientReturnToLight}
@@ -1413,7 +1419,8 @@ export function PolymorphicLayout({
           narrowColumnVariant={narrowColumnVariant}
         />
       ) : null}
-      {colors.scrollGradientNarrowColumnActive && !colors.scrollGradientWideColumnActive ? (
+      {colors.viewportWidthPx !== undefined
+        && colors.scrollGradientNarrowColumnActive && !colors.scrollGradientWideColumnActive ? (
         <PolymorphicScrollGradientBackground
           {...colors.scrollGradientResolved}
           {...scrollGradientReturnToLight}
@@ -1422,7 +1429,8 @@ export function PolymorphicLayout({
           narrowColumnVariant={narrowColumnVariant}
         />
       ) : null}
-      {colors.scrollGradientWideColumnActive && !colors.scrollGradientNarrowColumnActive ? (
+      {colors.viewportWidthPx !== undefined
+        && colors.scrollGradientWideColumnActive && !colors.scrollGradientNarrowColumnActive ? (
         <PolymorphicScrollGradientBackground
           {...colors.scrollGradientResolved}
           {...scrollGradientReturnToLight}

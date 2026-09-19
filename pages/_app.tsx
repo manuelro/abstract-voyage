@@ -18,17 +18,22 @@ const CopyTool = dynamic(() => import('../components/CopyTool'), { ssr: false })
 // variable classes and font-sans class are deliberately applied together:
 // Tailwind resolves the custom property on this exact element before every
 // page's typography inherits from it.
+// adjustFontFallback (default true, previously disabled here with no
+// recorded reason) makes next/font generate a size-adjusted fallback
+// font-face (ascent/descent/line-gap/size-adjust matched to the real
+// font's metrics) so the display:'swap' transition doesn't reflow
+// surrounding layout — this is what makes the swap itself invisible
+// instead of the visible font-jump + reflow seen on /abstract's cold
+// load (PLAN-ABSTRACT-PAGE-INTRO-SEQUENCE.md Phase 2).
 const siteSans = Instrument_Sans({
   subsets: ['latin'],
   display: 'swap',
-  adjustFontFallback: false,
   variable: '--site-font-sans',
 })
 const siteSerif = Instrument_Serif({
   subsets: ['latin'],
   weight: ['400'],
   display: 'swap',
-  adjustFontFallback: false,
   variable: '--site-font-serif',
 })
 

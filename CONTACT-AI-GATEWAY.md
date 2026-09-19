@@ -14,8 +14,17 @@ requests; delivery remains SMTP-first and does not depend on AI success.
    `CONTACT_FROM_EMAIL` variables.
 4. Optionally set `LEAD_WEBHOOK_URL`, the rate-limit variables, and the model
    variables shown in `.env.example`.
-5. Do not set owner-managed `GEMINI_API_KEY` or `GOOGLE_GEMINI_BASE_URL`
-   values in production. Netlify AI Gateway injects both at function runtime.
+
+The `intake` function is a classic (non-edge) Netlify Function. Per Netlify
+support (case 1110525), the AI Gateway's auto-injected provider env vars
+(`GEMINI_API_KEY`, `NETLIFY_AI_GATEWAY_KEY`/`NETLIFY_AI_GATEWAY_URL`) are not
+reliably available to standard functions the way they are to edge functions.
+Instead, the function calls the Gateway through the site's own proxy path —
+`${URL}/.netlify/ai/v1beta/models/<model>:generateContent` — authenticating
+with the `x-netlify-ai-gateway: true` request header rather than a provider
+API key. `URL` is the Netlify-provided site URL env var, always present at
+function runtime. No provider API key or Gateway base URL needs to be
+configured.
 
 The default contact path does not use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
 `GOOGLE_API_KEY`, or Google Vertex credentials. Legacy OpenAI and Anthropic

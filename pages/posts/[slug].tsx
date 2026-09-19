@@ -481,6 +481,17 @@ export default function PostLab({
       headingInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.titleOpacity),
       bodyInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
       mutedInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
+      // strongInk was left on `base.strongInk` (resolvePostLabArticlePresentation's
+      // own static deriveReadableInk output, pinned to articleColumnColor at
+      // render time) while bodyInk above was switched to the LIVE scroll-
+      // adaptive articleInkColor — the two then visibly diverge in hue the
+      // deeper the page scrolls (operator-reported, screenshot evidence:
+      // bold body text reading a saturated teal against neutral gray-blue
+      // body text). Bold text must track the same live ink as the body text
+      // around it (strongOpacity: 1 in DEFAULT_POST_LAB_ARTICLE_CONFIG
+      // already makes them the same color at rest; this is what keeps them
+      // the same color as the live ink itself changes on scroll).
+      strongInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
       metadataInk: withLiveAlpha(articleInkColor, articleConfig.metadataOpacity),
       dividerInk: withLiveAlpha(articleInkColor, articleConfig.tableDividerOpacity),
       figureBorderInk: withLiveAlpha(articleInkColor, articleConfig.figureBorderOpacity),

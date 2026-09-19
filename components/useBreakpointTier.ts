@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { MD_MEDIA_QUERY, LG_MEDIA_QUERY } from './breakpoints';
 
 export type BreakpointTier = 'mobile' | 'md' | 'lg';
@@ -34,7 +34,16 @@ export type BreakpointTierState = {
 export function useBreakpointTier(): BreakpointTierState {
   const [state, setState] = useState<BreakpointTierState>({ tier: 'mobile', viewportWidthPx: undefined });
 
-  useEffect(() => {
+  // useLayoutEffect, not useEffect: hydration still reconciles against the
+  // SSR-safe 'mobile' default above (no mismatch — this runs after
+  // hydration, only before paint), but the correction to the real tier
+  // lands before the browser paints instead of one frame after. Every
+  // consumer that derives per-tier geometry from this hook (CoverFlow's
+  // card width chief among them) was otherwise visibly rendering its
+  // mobile-tier layout for a frame on desktop viewports too, compounding
+  // the card-resize jank fixed via useMeasuredElementRect
+  // (PLAN-ABSTRACT-PAGE-INTRO-SEQUENCE.md Phase 4).
+  useLayoutEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
     const mdQuery = window.matchMedia(MD_MEDIA_QUERY);
     const lgQuery = window.matchMedia(LG_MEDIA_QUERY);

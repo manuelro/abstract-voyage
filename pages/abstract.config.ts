@@ -637,6 +637,17 @@ export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   rowAppendixSeparator: '⋅',
   paddingTopLgClassName: 'lg:pt-7',
   marginTopLgClassName: 'lg:mt-0',
+  // Starts with the page-wide introduction gate used by the main nav and
+  // hero; each article row follows in a quiet, readable stagger.
+  introEnabled: true,
+  introDelayMs: 610,
+  introDurationMs: 190,
+  introEasing: 'linear',
+  introItemStaggerMs: 0,
+  // The next desktop row begins 83ms before the prior row resolves
+  // (380ms duration + 137ms gap - 220ms overlap), giving the sequence a
+  // continuous cascade without obscuring its reading order.
+  introItemOverlapMs: 80,
 };
 
 const VERTICAL_ALIGN_WIDE_BY_BASE: Record<

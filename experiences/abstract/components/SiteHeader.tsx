@@ -455,6 +455,9 @@ export type SiteHeaderProps = {
    * config where nothing floats under either side. */
   legibilityScrimLeftEnabled?: boolean;
   legibilityScrimRightEnabled?: boolean;
+  /** Timestamp released by a page once its first-frame geometry is stable.
+   * Undefined leaves the shared header's existing behavior untouched. */
+  introStartAt?: number | null;
 };
 
 /**
@@ -492,6 +495,7 @@ export function SiteHeader({
   splitBandStacked = false,
   legibilityScrimLeftEnabled = false,
   legibilityScrimRightEnabled = false,
+  introStartAt,
 }: SiteHeaderProps) {
   const normalized = normalizeSiteHeaderConfig(config);
   // See SiteHeaderProps.wordmarkConfig's own doc comment — a caller that
@@ -508,6 +512,49 @@ export function SiteHeader({
     columnTextMinContrast: normalized.columnTextMinContrast,
   };
   const { globalTypographyConfig, mobileNavCubeConfig } = useSharedDesignConfig();
+  const navIntroActive = normalized.navIntroEnabled && introStartAt !== undefined;
+  const [navIntroVisible, setNavIntroVisible] = useState(!navIntroActive);
+  useEffect(() => {
+    if (!navIntroActive || introStartAt === null) {
+      setNavIntroVisible(false);
+      return;
+    }
+    // Every introduction control is deliberately a replay trigger. A panel
+    // author needs to see the new delay/duration/easing in motion, not only
+    // inspect a changed resting value. The timeout is measured from this
+    // change (rather than the original page gate) so a later panel edit gets
+    // its full configured delay and affects only this nav wrapper.
+    setNavIntroVisible(false);
+    const timeout = window.setTimeout(
+      () => setNavIntroVisible(true),
+      normalized.navIntroDelayMs,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [
+    introStartAt,
+    navIntroActive,
+    normalized.navIntroDelayMs,
+    normalized.navIntroDurationMs,
+    normalized.navIntroEasing,
+    normalized.navIntroItemStaggerMs,
+  ]);
+  const navIntroStyle: CSSProperties | undefined = navIntroActive ? {
+    opacity: navIntroVisible ? 1 : 0,
+    // Hiding to arm an authoring replay is instantaneous. Only the
+    // subsequent false → true change is animated, so tuning never produces
+    // an unintended fade-out/flicker before the configured delay.
+    transition: navIntroVisible
+      ? `opacity ${normalized.navIntroDurationMs}ms ${normalized.navIntroEasing}`
+      : 'none',
+  } : undefined;
+  const navItemIntroStyle = (index: number): CSSProperties | undefined => (
+    navIntroActive && normalized.navIntroItemStaggerMs > 0 ? {
+      opacity: navIntroVisible ? 1 : 0,
+      transition: navIntroVisible
+        ? `opacity ${normalized.navIntroDurationMs}ms ${normalized.navIntroEasing} ${index * normalized.navIntroItemStaggerMs}ms`
+        : 'none',
+    } : undefined
+  );
   const cuboidNavigationEnabled = mobileNavCubeConfig.enabled;
   const resolvedFontFamily = normalized.fontFamily === 'inherit'
     ? globalTypographyConfig.headingFontFamily
@@ -856,19 +903,19 @@ export function SiteHeader({
   );
   const renderNavItems = (contactPlain: boolean) => (
     <>
-      <li className={navItemWrapperClassName}>
+      <li className={navItemWrapperClassName} style={navItemIntroStyle(0)}>
         <Link className={navItemClassName} href="/about">
           <span className={styles.navLabel} style={navLabelGradientStyle}>About</span>
         </Link>
       </li>
       {renderMobileNavDivider('about-journal-divider')}
-      <li className={navItemWrapperClassName}>
+      <li className={navItemWrapperClassName} style={navItemIntroStyle(1)}>
         <Link className={navItemClassName} href="/journal">
           <span className={styles.navLabel} style={navLabelGradientStyle}>Journal</span>
         </Link>
       </li>
       {renderMobileNavDivider('journal-contact-divider')}
-      <li className={navItemWrapperClassName}>
+      <li className={navItemWrapperClassName} style={navItemIntroStyle(2)}>
         <Link className={contactPlain ? navItemClassName : contactItemClassName} href="/contact">
           <span className={styles.navLabel} style={navLabelGradientStyle}>Contact</span>
         </Link>
@@ -1261,6 +1308,8 @@ export function SiteHeader({
                 : 'md:w-auto'),
             normalized.headerRightContentClassName,
           ].filter(Boolean).join(' ')}
+          style={navIntroStyle}
+          data-navigation-intro={navIntroActive ? (navIntroVisible ? 'visible' : 'pending') : 'off'}
         >
           {navSeparator}
           <ul

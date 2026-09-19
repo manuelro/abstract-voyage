@@ -20,6 +20,10 @@
   font-family: var(--active-body-font, var(--hero-sans, var(--site-font-sans))), -apple-system, BlinkMacSystemFont;
   line-height: var(--editorial-copy-line-height);
   letter-spacing: var(--editorial-copy-letter-spacing);
+  /* The hero is presented in place during the page intro. Prevent any
+     inherited/utility transform transition from turning its first paint into
+     a slide-up reveal; the surrounding page choreography owns visibility. */
+  transform: none !important;
 }
 
 .copyColumn {

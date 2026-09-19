@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, MutableRefObject, Ref, RefObject } from 'react';
 import { colord, extend } from 'colord';
 import a11yPlugin from 'colord/plugins/a11y';
@@ -205,6 +205,8 @@ type AbstractEditorialHeroProps = {
    * state, so a panel edit on one page never silently retunes the other's
    * real mobile accordion. */
   accordionItemConfig?: AboutMobileAccordionConfig;
+  /** Timestamp released by a page only once its first-frame geometry is stable. */
+  introStartAt?: number | null;
 };
 
 export function AbstractEditorialHero({
@@ -240,6 +242,7 @@ export function AbstractEditorialHero({
   scrollGradientOriginColor,
   scrollGradientMaxDarken,
   accordionItemConfig,
+  introStartAt,
 }: AbstractEditorialHeroProps) {
   const normalized = normalizeAbstractEditorialHeroConfig(config);
   // CSS background value built from the exact same stops the wordmark's own
@@ -450,6 +453,12 @@ export function AbstractEditorialHero({
   // AND this hero-local override are true.
   const effectiveAccordionItemConfig = useMemo(() => ({
     ...resolvedAccordionItemConfig,
+    // The hero reuses the accordion item's expanded presentation as static
+    // introductory copy. Disable the accordion height/content reveal here so
+    // it appears in place on page load; /about's interactive accordion keeps
+    // the shared config timing unchanged.
+    transitionMs: 0,
+    contentSettleMs: 0,
     openIndicatorEnabled: resolvedAccordionItemConfig.openIndicatorEnabled
       && normalized.accordionItemOpenIndicatorEnabled,
   }), [resolvedAccordionItemConfig, normalized.accordionItemOpenIndicatorEnabled]);
@@ -606,6 +615,30 @@ export function AbstractEditorialHero({
     normalizedCta.shadowElevationRestingPx,
   ]);
 
+  const heroIntroActive = normalized.introEnabled && normalized.introMode === 'opacity' && introStartAt !== undefined;
+  const [heroIntroVisible, setHeroIntroVisible] = useState(!heroIntroActive);
+  useEffect(() => {
+    if (!heroIntroActive || introStartAt === null) {
+      setHeroIntroVisible(false);
+      return;
+    }
+    // Intro controls are authoring controls as well as runtime settings:
+    // changing any of them replays this hero alone from its hidden,
+    // already-laid-out state. No geometry or accordion state is remounted.
+    setHeroIntroVisible(false);
+    const timeout = window.setTimeout(
+      () => setHeroIntroVisible(true),
+      normalized.introDelayMs,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [
+    heroIntroActive,
+    introStartAt,
+    normalized.introDelayMs,
+    normalized.introDurationMs,
+    normalized.introEasing,
+    normalized.introMode,
+  ]);
   const style = {
     '--editorial-copy-color': resolvedCopyColor,
     '--editorial-paragraph-color': resolvedParagraphTextColor,
@@ -630,6 +663,12 @@ export function AbstractEditorialHero({
     '--active-body-font': resolvedParagraphFontFamily === 'serif'
       ? 'var(--site-font-serif)'
       : 'var(--site-font-sans)',
+    ...(heroIntroActive ? {
+      opacity: heroIntroVisible ? 1 : 0,
+      transition: heroIntroVisible
+        ? `opacity ${normalized.introDurationMs}ms ${normalized.introEasing}`
+        : 'none',
+    } : {}),
   } as CSSProperties;
 
   // AboutMobileAccordionItem's own header button hardcodes `justify-between`
@@ -734,6 +773,7 @@ export function AbstractEditorialHero({
         horizontalPlacementLg,
       ].join(' ')}
       data-editorial-hero-root="true"
+      data-editorial-hero-intro={heroIntroActive ? (heroIntroVisible ? 'visible' : 'pending') : 'off'}
       data-action-ink-tone={actionInkTone}
       data-content-surface={gradientHeadlineActive ? 'light' : 'field'}
       data-copy-ink-tone={copyInkTone}

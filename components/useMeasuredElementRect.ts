@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 export type MeasuredElementRect = {
   width: number; height: number; left: number; top: number;
@@ -25,7 +25,14 @@ export function useMeasuredElementRect<T extends HTMLElement>(
   const elementRef = useRef<T | null>(null);
   const [rect, setRect] = useState<MeasuredElementRect | undefined>(undefined);
 
-  useEffect(() => {
+  // useLayoutEffect, not useEffect: the first measurement must commit
+  // before the browser paints, or every consumer (CoverFlow's own card
+  // width chief among them) visibly renders its pre-measurement fallback
+  // for one or more frames, then snaps to the real value — exactly the
+  // "card resize" jank reported on /abstract's cold load
+  // (PLAN-ABSTRACT-PAGE-INTRO-SEQUENCE.md Phase 4). ResizeObserver/resize
+  // re-measurements after this first one are unaffected either way.
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const element = elementRef.current;
     if (!element) return undefined;
