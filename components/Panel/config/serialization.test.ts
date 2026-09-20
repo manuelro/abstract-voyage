@@ -69,6 +69,7 @@ describe('serializeConfigScopeBindingDiff', () => {
     const payload = serializeConfigScopeBindingDiff(binding);
     expect(payload).not.toBeNull();
     expect(payload).toContain('amount: 0.9');
+    expect(payload).toContain('known_keys: enabled,amount,mode');
     expect(payload).not.toContain('enabled:');
     expect(payload).not.toContain('mode:');
   });

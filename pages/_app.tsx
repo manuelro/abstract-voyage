@@ -10,6 +10,7 @@ import { SharedDesignConfigProvider, useSharedDesignConfig } from '../components
 import { LayoutDebugHighlightProvider } from '../components/LayoutDebugHighlight'
 import { AbstractDesignConfigProvider } from '../experiences/abstract/components/AbstractDesignConfigProvider'
 import { MobileNavCube } from '../experiences/abstract/components/MobileNavCube'
+import { PageCapabilityRuntimeProvider } from '../experiences/shared/PageCapabilityRuntime'
 // import 'tools/light/styles.css';
 
 const CopyTool = dynamic(() => import('../components/CopyTool'), { ssr: false })
@@ -98,11 +99,13 @@ export default function App({ Component, pageProps }: AppProps) {
             covers every page uniformly; LayoutDebugHighlightProvider
             itself takes no props, so this is a pure relocation. */}
         <LayoutDebugHighlightProvider>
-          {immersive ? <Component {...pageProps} /> : (
-            <CuboidNavigationRoot>
-              <Component {...pageProps} />
-            </CuboidNavigationRoot>
-          )}
+          <PageCapabilityRuntimeProvider key={pathname}>
+            {immersive ? <Component {...pageProps} /> : (
+              <CuboidNavigationRoot>
+                <Component {...pageProps} />
+              </CuboidNavigationRoot>
+            )}
+          </PageCapabilityRuntimeProvider>
         </LayoutDebugHighlightProvider>
         {process.env.NODE_ENV === 'development' && !immersive && <CopyTool />}
       </div>

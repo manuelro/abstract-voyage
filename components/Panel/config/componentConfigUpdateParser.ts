@@ -15,6 +15,7 @@ export type ParsedComponentConfigUpdate = {
   targetType: string;
   updateStrategy: 'replace_scope' | 'merge';
   completeScope: boolean;
+  knownKeys: readonly string[];
   config: Record<string, ComponentConfigUpdateScalar>;
 };
 
@@ -58,6 +59,7 @@ const HEADER_KEYS = {
   target_type: 'targetType',
   update_strategy: 'updateStrategy',
   complete_scope: 'completeScope',
+  known_keys: 'knownKeys',
 } as const;
 
 function parseComponentConfigUpdateBlock(block: string): ParsedComponentConfigUpdate {
@@ -111,6 +113,9 @@ function parseComponentConfigUpdateBlock(block: string): ParsedComponentConfigUp
     targetType: header.targetType!,
     updateStrategy: (header.updateStrategy as 'replace_scope' | 'merge' | undefined) ?? 'replace_scope',
     completeScope: header.completeScope === undefined ? true : header.completeScope === 'true',
+    knownKeys: header.knownKeys === undefined || header.knownKeys === ''
+      ? []
+      : header.knownKeys.split(',').map(key => key.trim()).filter(Boolean),
     config,
   };
 }

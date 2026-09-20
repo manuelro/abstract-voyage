@@ -132,10 +132,21 @@ export function applyComponentConfigUpdateToSource(
   const unmatchedKeys: string[] = [];
   const edits: Array<{ start: number; end: number; text: string }> = [];
 
+  const inserted: Array<{ key: string; value: ComponentConfigUpdateScalar }> = [];
   for (const [key, value] of Object.entries(payload.config)) {
     const property = propertiesByName.get(key);
     if (!property) {
-      unmatchedKeys.push(key);
+      // A diff from a registered panel carries its complete declared key
+      // set. This is the systemic escape hatch for page configs expressed as
+      // `{ ...SHARED_DEFAULT, localOverride }`: newly shared fields exist at
+      // runtime but have no literal AST property to replace yet.
+      if (payload.updateStrategy === 'merge'
+        && payload.completeScope === false
+        && payload.knownKeys.includes(key)) {
+        inserted.push({ key, value });
+      } else {
+        unmatchedKeys.push(key);
+      }
       continue;
     }
     changedKeys.push(key);
@@ -164,6 +175,27 @@ export function applyComponentConfigUpdateToSource(
   let updatedSource = sourceText;
   for (const edit of edits.sort((a, b) => b.start - a.start)) {
     updatedSource = updatedSource.slice(0, edit.start) + edit.text + updatedSource.slice(edit.end);
+  }
+  if (inserted.length > 0) {
+    const closingBraceOffset = objectLiteral.getEnd() - 1;
+    const objectText = sourceText.slice(objectLiteral.getStart(), objectLiteral.getEnd());
+    const indent = objectText.match(/\n(\s+)\S/)?.[1] ?? '  ';
+    const lastProperty = objectLiteral.properties[objectLiteral.properties.length - 1];
+    const hasTrailingComma = lastProperty
+      ? sourceText.slice(lastProperty.getEnd(), closingBraceOffset).includes(',')
+      : true;
+    const separator = objectLiteral.properties.length > 0 && !hasTrailingComma ? ',' : '';
+    const insertion = `${separator}\n${inserted.map(({ key, value }) => (
+      `${indent}${key}: ${formatTsValue(value)},`
+    )).join('\n')}\n`;
+    // All replacement offsets were against sourceText. Insert after those
+    // edits so a replacement before the closing brace cannot shift it.
+    const shiftedClosingBraceOffset = closingBraceOffset + edits
+      .filter(edit => edit.start < closingBraceOffset)
+      .reduce((delta, edit) => delta + edit.text.length - (edit.end - edit.start), 0);
+    updatedSource = updatedSource.slice(0, shiftedClosingBraceOffset)
+      + insertion + updatedSource.slice(shiftedClosingBraceOffset);
+    changedKeys.push(...inserted.map(entry => entry.key));
   }
 
   return {

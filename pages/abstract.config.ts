@@ -641,7 +641,7 @@ export const DEFAULT_ABSTRACT_TIMELINE_CONFIG: AboutTimelineConfig = {
   // hero; each article row follows in a quiet, readable stagger.
   introEnabled: true,
   introDelayMs: 610,
-  introDurationMs: 190,
+  introDurationMs: 150,
   introEasing: 'linear',
   introItemStaggerMs: 0,
   // The next desktop row begins 83ms before the prior row resolves

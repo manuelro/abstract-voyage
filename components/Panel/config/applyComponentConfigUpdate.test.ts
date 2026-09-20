@@ -13,6 +13,7 @@ function makePayload(overrides: Partial<ParsedComponentConfigUpdate>): ParsedCom
     completeScope: false,
     config: {},
     ...overrides,
+    knownKeys: overrides.knownKeys ?? [],
   };
 }
 
@@ -77,6 +78,24 @@ describe('applyComponentConfigUpdateToSource', () => {
     expect(result.ok).toBe(false);
     expect(result.unmatchedKeys).toEqual(['nonexistentField']);
     expect(result.updatedSource).toBeUndefined();
+  });
+
+  it('inserts a schema-declared diff key into a spread-derived page override', () => {
+    const source = [
+      'export const PAGE_CONFIG = {',
+      '  ...SHARED_CONFIG,',
+      '  localOnly: true,',
+      '} satisfies ExampleConfig;',
+      '',
+    ].join('\n');
+    const result = applyComponentConfigUpdateToSource(source, makePayload({
+      targetSymbol: 'PAGE_CONFIG',
+      config: { newlyShared: 42 },
+      knownKeys: ['newlyShared'],
+    }));
+    expect(result.ok).toBe(true);
+    expect(result.changedKeys).toEqual(['newlyShared']);
+    expect(result.updatedSource).toContain('  newlyShared: 42,');
   });
 
   it('reports an error when target_symbol is not found', () => {

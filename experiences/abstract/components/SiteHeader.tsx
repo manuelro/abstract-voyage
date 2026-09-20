@@ -6,6 +6,7 @@ import type { PageSurfaceConfig } from '../../../components/PageSurface.config';
 import type { SvgStop } from '../../../helpers/gradientMath';
 import { deriveSurfaceColor, resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDerivation';
 import { useSharedDesignConfig } from '../../../components/SharedDesignConfigProvider';
+import { usePageCapabilityRuntime } from '../../shared/PageCapabilityRuntime';
 import { LayoutDebugOverlay } from '../../../components/LayoutDebug';
 import { resolveSiteHeaderLogoStops } from './SiteHeader/hooks/resolveSiteHeaderLogoStops';
 import Logo from './Logo';
@@ -455,9 +456,6 @@ export type SiteHeaderProps = {
    * config where nothing floats under either side. */
   legibilityScrimLeftEnabled?: boolean;
   legibilityScrimRightEnabled?: boolean;
-  /** Timestamp released by a page once its first-frame geometry is stable.
-   * Undefined leaves the shared header's existing behavior untouched. */
-  introStartAt?: number | null;
 };
 
 /**
@@ -495,8 +493,8 @@ export function SiteHeader({
   splitBandStacked = false,
   legibilityScrimLeftEnabled = false,
   legibilityScrimRightEnabled = false,
-  introStartAt,
 }: SiteHeaderProps) {
+  const { introStartAt } = usePageCapabilityRuntime();
   const normalized = normalizeSiteHeaderConfig(config);
   // See SiteHeaderProps.wordmarkConfig's own doc comment — a caller that
   // hasn't migrated gets a shim built from this same `normalized` object's

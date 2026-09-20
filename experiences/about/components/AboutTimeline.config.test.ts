@@ -5,8 +5,8 @@ import {
 } from './AboutTimeline.config';
 
 describe('AboutTimeline introduction config', () => {
-  it('keeps the shared timeline intro opt-in by default', () => {
-    expect(DEFAULT_ABOUT_TIMELINE_CONFIG.introEnabled).toBe(false);
+  it('makes the shared timeline intro available by default', () => {
+    expect(DEFAULT_ABOUT_TIMELINE_CONFIG.introEnabled).toBe(true);
   });
 
   it('normalizes configurable stagger timing to its authored safety bounds', () => {

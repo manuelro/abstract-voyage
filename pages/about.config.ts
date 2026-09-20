@@ -199,6 +199,14 @@ export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
   rowAppendixSeparator: '⋅',
   paddingTopLgClassName: 'lg:pt-7',
   marginTopLgClassName: 'lg:mt-0',
+  // Match /abstract's Timeline introduction choreography while retaining a
+  // page-owned override target for independent future tuning.
+  introEnabled: true,
+  introDelayMs: 610,
+  introDurationMs: 150,
+  introEasing: 'linear',
+  introItemStaggerMs: 0,
+  introItemOverlapMs: 80,
 };
 
 export const DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG = {

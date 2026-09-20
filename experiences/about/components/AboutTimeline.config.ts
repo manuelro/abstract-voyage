@@ -903,12 +903,12 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   descriptionMinContrast: 4.5,
   transitionDurationMs: 550,
   transitionEasing: 'gentle',
-  introEnabled: false,
-  introDelayMs: 0,
-  introDurationMs: 300,
+  introEnabled: true,
+  introDelayMs: 430,
+  introDurationMs: 340,
   introEasing: 'gentle',
-  introItemStaggerMs: 60,
-  introItemOverlapMs: 0,
+  introItemStaggerMs: 0,
+  introItemOverlapMs: 80,
 } satisfies AboutTimelineConfig;
 
 const GAP_VALUES: ReadonlyArray<GapClass> = GAP_OPTIONS.map(option => option.value);

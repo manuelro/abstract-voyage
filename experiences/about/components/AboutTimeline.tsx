@@ -10,6 +10,7 @@ import type { DeckPaletteState } from '../../abstract/components/AbstractPostDoc
 import type { SliderContentSlide } from '../../../helpers/postContent';
 import type { LiquidSliderConfig } from '../../abstract/components/AbstractPostDock/config/legacy';
 import type { useLiquidSliderMotion } from '../../abstract/components/AbstractPostDock/hooks/motion';
+import { usePageCapabilityRuntime } from '../../shared/PageCapabilityRuntime';
 
 export type AboutTimelineRowData = {
   caption: string;
@@ -126,10 +127,6 @@ export interface AboutTimelineProps {
   descriptionLg?: string;
   config: AboutTimelineConfig;
   prefersReducedMotion: boolean;
-  /** Timestamp released by the page once first-frame geometry is stable.
-   * Undefined preserves the component's existing, immediately-visible
-   * behavior for every caller that does not participate in page intro. */
-  introStartAt?: number | null;
   /** A11Y-01 — the id of the single dock region these tabs control (see
    * pages/about.tsx's own `role="tabpanel"` wrapper around the desktop
    * dock). */
@@ -190,7 +187,6 @@ export function AboutTimeline({
   descriptionLg,
   config,
   prefersReducedMotion,
-  introStartAt,
   panelId,
   gradientSlides,
   gradientPaletteStates,
@@ -199,6 +195,7 @@ export function AboutTimeline({
   navigationMode = false,
   ariaLabel = 'Career timeline',
 }: AboutTimelineProps) {
+  const { introStartAt } = usePageCapabilityRuntime();
   const rowRefs = useRef<Array<HTMLButtonElement | HTMLAnchorElement | null>>([]);
   const transitionEasingCss = CTA_BUTTON_MOTION_EASINGS[config.transitionEasing];
   const transitionDurationMs = prefersReducedMotion ? 0 : config.transitionDurationMs;
@@ -225,6 +222,7 @@ export function AboutTimeline({
     config.introDurationMs,
     config.introEasing,
     config.introItemStaggerMs,
+    config.introItemOverlapMs,
     rows.length,
   ]);
   const scaleInkOpacity = (opacity: number) => (

@@ -12,6 +12,7 @@ describe('parseComponentConfigUpdatePayloads', () => {
       targetType: 'AbstractPostDockIntroductionConfig',
       updateStrategy: 'merge',
       completeScope: false,
+      knownKeys: [],
       config: {
         enabled: false,
         durationMs: 480,
@@ -28,6 +29,7 @@ describe('parseComponentConfigUpdatePayloads', () => {
       targetType: 'AbstractPostDockIntroductionConfig',
       updateStrategy: 'merge',
       completeScope: false,
+      knownKeys: [],
       config: {
         enabled: false,
         durationMs: 480,

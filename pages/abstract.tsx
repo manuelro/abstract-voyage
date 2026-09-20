@@ -5243,7 +5243,6 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             navBandCanvasRef={heroNavBandCanvasRef}
             navBandColorFilter={heroNavBandColorFilter}
             pageSurfaceConfig={normalizedPageSurfaceConfig}
-            introStartAt={pageIntroStartedAt}
           />
           </>
         )}
@@ -5589,7 +5588,6 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
               splitColumnLayoutConfig,
             )}
             dataInkTone={backgroundAwarenessActive ? headerTone : undefined}
-            introStartAt={pageIntroStartedAt}
             logoStops={topHeaderLogoStops}
             wordmarkConfig={effectiveWordmarkConfig}
             wordmarkGradientStops={narrowColumnWordmarkGradientStops}
@@ -5830,7 +5828,6 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                       description={abstractTimelineConfig.description || undefined}
                       config={abstractTimelineConfig}
                       prefersReducedMotion={coverFlowPrefersReducedMotion}
-                      introStartAt={pageIntroStartedAt}
                       panelId={ABSTRACT_TIMELINE_PANEL_ID}
                       // Same exact marker-gradient inputs as the desktop
                       // instance below, not a mobile-specific subset — see
@@ -5926,7 +5923,6 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                   description={abstractTimelineConfig.description || undefined}
                   config={abstractTimelineConfig}
                   prefersReducedMotion={coverFlowPrefersReducedMotion}
-                  introStartAt={pageIntroStartedAt}
                   panelId={ABSTRACT_TIMELINE_PANEL_ID}
                   // Same gradient-marker inputs renderCoverFlowItem already
                   // threads into CoverFlow's own cards (carouselAndListItems

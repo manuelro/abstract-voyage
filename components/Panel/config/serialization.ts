@@ -1,4 +1,5 @@
 import { formatComponentConfigPayload } from '../componentConfigPayload';
+import { getConfigScopeFieldKeys } from './defineConfigScope';
 import type { ConfigScalar } from './types';
 import type { ConfigScopeBinding } from './types';
 
@@ -96,6 +97,7 @@ export function serializeConfigScopeBindingDiff(binding: ConfigScopeBinding): st
     targetType: definition.copy.targetType,
     updateStrategy: 'merge',
     completeScope: false,
+    knownKeys: getConfigScopeFieldKeys(definition.fields),
     config: changed,
   });
 }

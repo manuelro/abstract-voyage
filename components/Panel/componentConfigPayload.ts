@@ -14,6 +14,10 @@ export type ComponentConfigPayload = {
   config: Record<string, string | number | boolean | readonly number[]>;
   updateStrategy?: 'replace_scope' | 'merge';
   completeScope?: boolean;
+  /** Field keys declared by the registered shared-component schema. Diff
+   * updates may insert one of these keys into a page override object when it
+   * is inherited through a spread and therefore has no literal source node. */
+  knownKeys?: readonly string[];
 };
 
 function formatScalar(value: string | number | boolean | readonly number[]): string {
@@ -37,6 +41,7 @@ export function formatComponentConfigPayload({
   config,
   updateStrategy = 'replace_scope',
   completeScope = true,
+  knownKeys,
 }: ComponentConfigPayload): string {
   const configLines = Object.entries(config).map(
     ([key, value]) => `  ${key}: ${formatScalar(value)}`,
@@ -51,6 +56,7 @@ export function formatComponentConfigPayload({
     `target_type: ${targetType}`,
     `update_strategy: ${updateStrategy}`,
     `complete_scope: ${completeScope}`,
+    ...(knownKeys && knownKeys.length > 0 ? [`known_keys: ${knownKeys.join(',')}`] : []),
     '',
     'config:',
     ...configLines,
