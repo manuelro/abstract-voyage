@@ -13,6 +13,7 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:editor": "playwright test editor-smoke.spec.js --reporter=line --workers=1",
+    "verify:contact-ai-gateway": "node scripts/verify-contact-ai-gateway.js",
     "test:watch": "vitest",
     "export": "next export",
     "verify:release": "node scripts/verify-release.js"

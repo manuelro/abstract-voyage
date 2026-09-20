@@ -18,23 +18,23 @@ const resolveModel = (value) => {
 }
 
 const resolveGatewayConfig = (env = process.env) => {
-  // Standard (non-edge) Netlify Functions are not guaranteed the injected
-  // provider env vars (GEMINI_API_KEY, NETLIFY_AI_GATEWAY_KEY/URL) — per
-  // Netlify support (case 1110525), those are reliable for edge functions
-  // only. The supported path for classic functions is calling the site's own
-  // /.netlify/ai/ proxy and authenticating with the x-netlify-ai-gateway
-  // header instead of a provider API key.
-  const siteUrl = normalize(env.URL).replace(/\/+$/, '')
+  // Netlify AI Gateway injects these into Functions and Netlify Dev for
+  // credit-based sites. Use the official Gemini REST contract rather than a
+  // site-relative proxy: a request made with only x-netlify-ai-gateway has no
+  // provider authentication and is rejected with 401 outside an old gateway
+  // integration path.
+  const baseUrl = normalize(env.GOOGLE_GEMINI_BASE_URL).replace(/\/+$/, '')
+  const apiKey = normalize(env.GEMINI_API_KEY)
 
-  if (!siteUrl) {
+  if (!baseUrl || !apiKey) {
     throw new IntakeAiError('gateway_configuration_missing', { retryable: false })
   }
 
-  if (!/^https?:\/\//i.test(siteUrl)) {
+  if (!/^https?:\/\//i.test(baseUrl)) {
     throw new IntakeAiError('gateway_base_url_invalid', { retryable: false })
   }
 
-  return { baseUrl: `${siteUrl}/.netlify/ai` }
+  return { baseUrl, apiKey }
 }
 
 const extractResponseText = (payload) => {
@@ -72,7 +72,7 @@ const requestGeminiJson = async ({
     throw new IntakeAiError('fetch_unavailable', { retryable: false })
   }
 
-  const { baseUrl } = resolveGatewayConfig(env)
+  const { baseUrl, apiKey } = resolveGatewayConfig(env)
   const resolvedModel = resolveModel(model)
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
@@ -84,7 +84,7 @@ const requestGeminiJson = async ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-netlify-ai-gateway': 'true',
+          'x-goog-api-key': apiKey,
         },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: system }] },

@@ -15,16 +15,13 @@ requests; delivery remains SMTP-first and does not depend on AI success.
 4. Optionally set `LEAD_WEBHOOK_URL`, the rate-limit variables, and the model
    variables shown in `.env.example`.
 
-The `intake` function is a classic (non-edge) Netlify Function. Per Netlify
-support (case 1110525), the AI Gateway's auto-injected provider env vars
-(`GEMINI_API_KEY`, `NETLIFY_AI_GATEWAY_KEY`/`NETLIFY_AI_GATEWAY_URL`) are not
-reliably available to standard functions the way they are to edge functions.
-Instead, the function calls the Gateway through the site's own proxy path —
-`${URL}/.netlify/ai/v1beta/models/<model>:generateContent` — authenticating
-with the `x-netlify-ai-gateway: true` request header rather than a provider
-API key. `URL` is the Netlify-provided site URL env var, always present at
-function runtime. No provider API key or Gateway base URL needs to be
-configured.
+The `intake` function is a classic (non-edge) Netlify Function. Netlify AI
+Gateway injects `GEMINI_API_KEY` and `GOOGLE_GEMINI_BASE_URL` into supported
+Functions and into Netlify Dev for credit-based sites. The function uses those
+values with Gemini's REST contract (`x-goog-api-key` and
+`<base-url>/v1beta/models/<model>:generateContent`). No provider API key or
+Gateway base URL should be configured manually: Netlify supplies short-lived,
+site-scoped values.
 
 The default contact path does not use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
 `GOOGLE_API_KEY`, or Google Vertex credentials. Legacy OpenAI and Anthropic
@@ -41,6 +38,33 @@ in an untracked `.env.local` or the Netlify environment.
 If Gateway configuration is unavailable locally, gap-check and recap return
 the existing degraded response and the UI proceeds with raw delivery. Tests
 mock Gateway, SMTP, and webhook calls and never require live credentials.
+
+### Live local Gateway smoke test
+
+The project includes a deliberately delivery-free smoke test for proving the
+real local-function → Netlify AI Gateway → Gemini path. It sends only a fixed,
+synthetic transcript to the local `gap-check` and `recap` stages; it never calls
+the `deliver` stage and cannot send email.
+
+Start one isolated Netlify Dev instance (Netlify's public proxy is on 8888;
+Next itself stays off 3000):
+
+```sh
+CLAUDE_NEXT_DIST_DIR=.next-contact-gateway netlify dev --port 8888 --target-port 3001 --command 'npm run dev -- -p 3001'
+```
+
+In another terminal, once Netlify Dev is ready, run:
+
+```sh
+npm run verify:contact-ai-gateway
+```
+
+Pass means both live Gemini stages returned the exact JSON shape the intake
+function accepts. A failure is intentionally non-zero and reports whether the
+local server could not be reached, a response was non-JSON/non-2xx, or the
+Gateway result failed the function's validation. This verifies a real remote
+inference call from local development, so it needs a linked Netlify site with
+AI Gateway enabled and consumes a small amount of the site's AI credits.
 
 ## Runtime behavior
 

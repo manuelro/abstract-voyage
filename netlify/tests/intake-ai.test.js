@@ -5,7 +5,8 @@ const {
 } = require('../functions/lib/intake-ai')
 
 const env = {
-  URL: 'https://gateway.example.test/',
+  GEMINI_API_KEY: 'netlify-managed-test-key',
+  GOOGLE_GEMINI_BASE_URL: 'https://gateway.example.test/',
 }
 
 const gatewayResponse = (data, usageMetadata = {}) => ({
@@ -46,8 +47,8 @@ describe('Gemini AI Gateway adapter', () => {
     })
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [url, options] = fetchImpl.mock.calls[0]
-    expect(url).toBe(`https://gateway.example.test/.netlify/ai/v1beta/models/${DEFAULT_MODEL}:generateContent`)
-    expect(options.headers['x-netlify-ai-gateway']).toBe('true')
+    expect(url).toBe(`https://gateway.example.test/v1beta/models/${DEFAULT_MODEL}:generateContent`)
+    expect(options.headers['x-goog-api-key']).toBe('netlify-managed-test-key')
     expect(JSON.parse(options.body)).toMatchObject({
       systemInstruction: { parts: [{ text: 'System rules' }] },
       contents: [{ role: 'user', parts: [{ text: 'Untrusted visitor transcript' }] }],
