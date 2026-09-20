@@ -1062,30 +1062,21 @@ function AboutPageContent() {
   }, []);
   const entranceTransition = `background-color ${aboutPageLayoutConfig.pageEntranceTransitionMs}ms `
     + `${CTA_BUTTON_MOTION_EASINGS[aboutPageLayoutConfig.pageEntranceEasing]}`;
-  // The header top-segment row's own mount-in motion — deliberately NOT
-  // colorsRevealed/entranceTransition above (that's this page's own
-  // separate, generic "palette swatch fades in" mechanism, used for flat
-  // colors elsewhere on this page). This instead reuses the SAME
-  // mechanism the real accordion rows use for their own mount-in
-  // (MagnificationDock.tsx: each row's own wrapper transitions `transform:
-  // translate3d(revealOffsetX, 0, 0) -> none` and `opacity: 0 -> 1`
-  // together, on a per-item staggered timer — computeMagnificationDock-
-  // RevealSchedule, driven by dockSliderConfig's own dockRevealFirstDelayMs/
-  // -StaggerMs/-DurationMs/-Easing/-OffsetXVw fields, unmodified here so a
-  // live edit to any of those config values retunes the header segment
-  // identically). MagnificationDock is a shared, canonical primitive this
-  // page must not modify (concretions belong at the page level) — so this
-  // is a second, independent timer in about.tsx's own code, computed to
-  // fire at the exact real-world instant the dock's OWN item -1 would
-  // have fired had the header genuinely been index -1 in that same
-  // schedule: schedule.startMs for mode 'stagger' is `index * staggerMs`
-  // (magnificationDockRevealMath.ts), and MagnificationDock's own effect
-  // fires each item at `dockRevealFirstDelayMs + schedule[index].startMs`
-  // (MagnificationDock.tsx) — so index -1 fires at
-  // `dockRevealFirstDelayMs - dockRevealStaggerMs`, strictly before real
-  // item 0's own `dockRevealFirstDelayMs`, satisfying "introduced first,
-  // the accordion items follow" using literally the same arithmetic the
-  // real items are scheduled with, not an approximated guess.
+  // An entrance fallback may stand in for an opaque palette swatch, but it
+  // must never replace an explicit transparent paint instruction. Doing so
+  // turns a transparent header segment into the page surface for the whole
+  // CSS transition, visibly creating a pale band before the gradient behind
+  // it can be seen. Preserve transparent at first paint; the layer behind
+  // the band is then the authored loading surface from the outset.
+  const entranceColor = (resolvedColor: string) => (
+    !colorsRevealed && resolvedColor !== 'transparent'
+      ? normalizedPageSurfaceConfig.color
+      : resolvedColor
+  );
+  // The header gradient is the dock's conceptual item -1: it uses the same
+  // reveal properties and starts one stagger interval before item 0. The
+  // transparent split band underneath remains visible while it waits, so
+  // this pre-reveal phase exposes the real page gradient—not a neutral band.
   const [topSegmentRevealed, setTopSegmentRevealed] = useState(false);
   const topSegmentRevealDelayMs = Math.max(
     0, dockSliderConfig.dockRevealFirstDelayMs - dockSliderConfig.dockRevealStaggerMs,
@@ -1097,11 +1088,16 @@ function AboutPageContent() {
       return undefined;
     }
     setTopSegmentRevealed(false);
-    const timeoutId = window.setTimeout(() => setTopSegmentRevealed(true), topSegmentRevealDelayMs);
+    const timeoutId = window.setTimeout(
+      () => setTopSegmentRevealed(true),
+      topSegmentRevealDelayMs,
+    );
     return () => window.clearTimeout(timeoutId);
   }, [
-    topSegmentBackgroundEnabled, prefersReducedMotion,
-    dockSliderConfig.dockRevealEnabled, topSegmentRevealDelayMs,
+    topSegmentBackgroundEnabled,
+    prefersReducedMotion,
+    dockSliderConfig.dockRevealEnabled,
+    topSegmentRevealDelayMs,
   ]);
   // Transparent, not a color transition, while the spacefield is visible —
   // its own backgroundColor becomes this panel's real background, painted
@@ -1109,7 +1105,7 @@ function AboutPageContent() {
   // this element's own background-color.
   const displayedLeftPanelColor = spacefieldVisible
     ? 'transparent'
-    : (colorsRevealed ? colors.narrowColumnColor : normalizedPageSurfaceConfig.color);
+    : entranceColor(colors.narrowColumnColor);
   // The wide column's own box background — previously never applied at all
   // (wideColumnStyle={{}} below), so colors.wideColumnColor/colorSource/
   // wideColumnCustomColor* were entirely inert on this page: real,
@@ -1136,9 +1132,7 @@ function AboutPageContent() {
   // identical to wideColumnColor everywhere else), so this is a drop-in
   // swap: unchanged on desktop (scrollGradientEnabled off there), fixed on
   // mobile.
-  const displayedWideColumnColor = colorsRevealed
-    ? colors.wideColumnPaintColor
-    : normalizedPageSurfaceConfig.color;
+  const displayedWideColumnColor = entranceColor(colors.wideColumnPaintColor);
   // Matches SpacefieldBackground's own flat backgroundColor exactly while
   // the field is visible, rather than the config-resolved split-band color
   // used otherwise. The header's left 38% is deliberately excluded from the
@@ -1149,7 +1143,7 @@ function AboutPageContent() {
   // stars there. Using the field's own base tone removes that seam.
   const displayedSplitBandLeftColor = spacefieldVisible
     ? spacefieldConfig.backgroundColor
-    : (colorsRevealed ? colors.resolvedSplitBandLeftColor : normalizedPageSurfaceConfig.color);
+    : entranceColor(colors.resolvedSplitBandLeftColor);
   // The dynamic top-segment layer remains independent visual content, but
   // its base paint and SiteHeader's nav-contrast basis must still come from
   // Polymorphic Layout. The former '#0e1230' override made every
@@ -1158,10 +1152,10 @@ function AboutPageContent() {
   // operator-selected resolved color here preserves the gradient while
   // restoring the layout panel as the authoritative color source.
   const displayedSplitBandRightColor = topSegmentBackgroundEnabled
-    ? (colorsRevealed ? colors.resolvedSplitBandRightColor : normalizedPageSurfaceConfig.color)
+    ? entranceColor(colors.resolvedSplitBandRightColor)
     : spacefieldVisible
       ? 'transparent'
-      : (colorsRevealed ? colors.resolvedSplitBandRightColor : normalizedPageSurfaceConfig.color);
+      : entranceColor(colors.resolvedSplitBandRightColor);
   // The right segment's own actual injected background content (SiteHeader's
   // generic splitBandRightBackgroundSlot). Renders the real WebGL mesh
   // gradient — LiquidGradientAdapter, the exact component the narrative
@@ -1218,16 +1212,7 @@ function AboutPageContent() {
       }}
       className="w-full h-full overflow-hidden relative"
       style={{
-        // opacity + transform together, both driven by topSegmentRevealed —
-        // the same two properties, animated together off the same single
-        // boolean, that MagnificationDock.tsx uses for every real accordion
-        // row's own mount-in (see topSegmentRevealed's own doc comment
-        // above for the full timing derivation). Replaces the earlier,
-        // page-generic colorsRevealed/entranceTransition-only opacity fade
-        // this element used before — that mechanism stays in place for the
-        // flat palette-color swatches elsewhere on this page, but this
-        // element's whole point is to read as an accordion row itself, so
-        // it needs the accordion's own motion, not the page's generic one.
+        // Same opacity/translation contract as each accordion row.
         opacity: topSegmentRevealed ? 1 : 0,
         transform: topSegmentRevealed
           ? 'none'
@@ -1335,8 +1320,7 @@ function AboutPageContent() {
       ref={logoGradientSegmentRef}
       className="w-full h-full overflow-hidden relative"
       style={{
-        // Same accordion-row mount-in motion as topSegmentBackgroundSlot's
-        // own wrapper — see topSegmentRevealed's own doc comment above.
+        // Same item -1 reveal as the nav segment above.
         opacity: topSegmentRevealed ? 1 : 0,
         transform: topSegmentRevealed
           ? 'none'

@@ -710,7 +710,7 @@ export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   splitBandRightMode: 'transparent',
   splitBandRightCustomColor: '#cbcbe1',
   splitBandRightModeWide: 'syncWithColumnBelow',
-  splitBandRightModeLg: 'syncWithColumnBelow',
+  splitBandRightModeLg: 'transparent',
   contentContainer: 'full-bleed',
   wideColumnContentContainer: 'full-bleed',
   wideColumnContentHeight: 'auto',
