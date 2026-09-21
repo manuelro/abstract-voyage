@@ -46,17 +46,17 @@ real local-function → Netlify AI Gateway → Gemini path. It sends only a fixe
 synthetic transcript to the local `gap-check` and `recap` stages; it never calls
 the `deliver` stage and cannot send email.
 
-Start one isolated Netlify Dev instance (Netlify's public proxy is on 8888;
-Next itself stays off 3000):
+Start the Contact AI development environment (Netlify's public proxy is on
+8888; Next itself stays off 3000):
 
 ```sh
-CLAUDE_NEXT_DIST_DIR=.next-contact-gateway netlify dev --port 8888 --target-port 3001 --command 'npm run dev -- -p 3001'
+npm run dev:contact-ai
 ```
 
 In another terminal, once Netlify Dev is ready, run:
 
 ```sh
-npm run verify:contact-ai-gateway
+npm run verify:contact-ai
 ```
 
 Pass means both live Gemini stages returned the exact JSON shape the intake
@@ -65,6 +65,11 @@ local server could not be reached, a response was non-JSON/non-2xx, or the
 Gateway result failed the function's validation. This verifies a real remote
 inference call from local development, so it needs a linked Netlify site with
 AI Gateway enabled and consumes a small amount of the site's AI credits.
+
+`dev:contact-ai` defaults to Gemini, a session-only follow-up signing secret,
+and console delivery. It deliberately does not send email. To test a local
+SMTP sink, explicitly supply `CONTACT_DELIVERY_MODE=smtp` in the shell before
+starting it.
 
 ## Runtime behavior
 

@@ -117,6 +117,30 @@ describe('contact intake function', () => {
       )).toBe(1)
     })
 
+    it('does not ask a second follow-up after the visitor answers', async () => {
+      const transcript = 'Visitor: I need help with a handoff.\nAgent: Where does it usually break down?\nVisitor: Between design and engineering.'
+      const followUpToken = intake.signFollowUpToken(
+        { count: 1, transcript: 'Visitor: I need help with a handoff.\nAgent: Where does it usually break down?' },
+        process.env.INTAKE_FOLLOWUP_TOKEN_SECRET,
+      )
+
+      const response = await invoke({ stage: 'gap-check', transcript, followUpToken })
+
+      expect(response.body).toEqual({ ok: true, needsFollowUp: false })
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['meta question', 'Visitor: Hi, are you Gemini?', 'meta'],
+      ['test declaration', 'Visitor: This is just a test.', 'test'],
+    ])('returns a no-send %s response without calling AI', async (_label, transcript, mode) => {
+      const response = await invoke({ stage: 'gap-check', transcript })
+
+      expect(response.body).toMatchObject({ ok: true, needsFollowUp: false, mode })
+      expect(response.body.message).toEqual(expect.any(String))
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
     it('degrades after two attempts when the model asks excessive questions', async () => {
       globalThis.fetch.mockResolvedValue(geminiResponse({
         needsFollowUp: true,
@@ -309,6 +333,19 @@ describe('contact intake function', () => {
         statusCode: 502,
         body: { ok: false, message: 'Unable to send that right now.' },
       })
+    })
+
+    it('requires a reply email but never requires a name', async () => {
+      const withoutEmail = await invoke({ ...deliveryPayload, identity: 'Anonymous', submissionId: 'missing-email' })
+      expect(withoutEmail).toEqual({
+        statusCode: 400,
+        body: { ok: false, message: 'A reply email is required.' },
+      })
+
+      const sendMail = vi.spyOn(mailer, 'sendMail').mockResolvedValue()
+      const withoutName = await invoke({ ...deliveryPayload, identity: 'anonymous@example.test', submissionId: 'no-name' })
+      expect(withoutName.body).toEqual({ ok: true })
+      expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ replyTo: 'anonymous@example.test' }))
     })
 
     it('allows raw SMTP delivery after AI degradation', async () => {

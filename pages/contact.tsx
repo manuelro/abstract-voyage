@@ -60,6 +60,7 @@ import {
 import { CONTACT_EXPERIENCE_SCOPE_ID } from '../experiences/contact/ContactExperience.panel'
 import {
   DEFAULT_CONTACT_DEV_MODE_CONFIG,
+  shouldSimulateIntakeStage,
   type ContactDevModeConfig,
 } from '../experiences/contact/ContactDevMode.config'
 import { CONTACT_DEV_MODE_SCOPE_ID } from '../experiences/contact/ContactDevMode.panel'
@@ -70,7 +71,6 @@ import {
   clearPendingComposerDraft,
   peekPendingComposerDraft,
 } from '../helpers/pendingComposerDraft'
-import { renderEmphasisText } from '../helpers/textEmphasis'
 
 const intakeEndpoint = '/.netlify/functions/intake'
 
@@ -80,17 +80,9 @@ const AGENT_NAME = process.env.NEXT_PUBLIC_AGENT_NAME || 'Relay'
 // the clause in CLOSE_MESSAGE below.
 const REPLY_WINDOW_TEXT = process.env.NEXT_PUBLIC_REPLY_WINDOW_TEXT || ''
 
-const ENTRY_MESSAGE = `Hello. I’m ${AGENT_NAME}, an agent Manuel engineered. Listening is the part of his work I handle.
+const ENTRY_MESSAGE = `Hello. I’m ${AGENT_NAME}, Manuel’s contact assistant.
 
-Tell me what’s going on. It doesn’t need to be polished. Whatever you say reaches him as you said it, and he reads all of it himself.`
-
-// Moved here from the /abstract homepage (that page's own hero now carries
-// only the origin-story paragraph) — this is the "how I work" paragraph,
-// read as context above the composer rather than as a pitch.
-const CONTACT_INTRO_PARAGRAPH =
-  'I start by listening to the people closest to the work. That is usually where the ' +
-  'unnamed **risks** are. Once the picture is accurate I plan against **outcomes**, and ' +
-  'we test the plan.'
+Tell Manuel what’s on your mind. It can be rough. I can help shape the note before you send it.`
 
 // Shown once after gap-check/recap fails and merged with the identity ask in
 // the same turn,
@@ -99,40 +91,42 @@ const CONTACT_INTRO_PARAGRAPH =
 // there's no AI-organized recap to show — the visitor's own messages are
 // already visible above as their own bubbles, so nothing gets re-echoed
 // here at all.
-const DEGRADED_ENTRY_MESSAGE = 'Something on my side isn’t evaluating messages properly right now — but everything you write above still reaches Manuel exactly as you wrote it. Where should he reply, and what’s your name?'
+const DEGRADED_ENTRY_MESSAGE = 'Something on my side isn’t shaping the note properly right now. Your original words can still reach Manuel exactly as you wrote them. What’s the best email for him to reply to?'
 
-const RECAP_INTRO = 'Here’s what I’ll pass on.'
-const RECAP_UPDATE_INTRO = 'Here’s the update.'
-const IDENTITY_QUESTION = 'Where should Manuel reply, and what’s your name?'
+const RECAP_INTRO = 'Here’s the note Manuel would receive.'
+const RECAP_UPDATE_INTRO = 'Here’s the updated note Manuel would receive.'
+const REPLY_ROUTE_QUESTION = 'What’s the best email for Manuel to reply to?'
+const NAME_QUESTION = 'What should Manuel call you? This is optional.'
 
 const CLOSE_MESSAGE = REPLY_WINDOW_TEXT
   ? `That’s with Manuel now. He usually replies within ${REPLY_WINDOW_TEXT}, and he’ll come back with what he’s already thinking. If a conversation follows, the first one costs nothing.`
   : `That’s with Manuel now. He’ll come back with what he’s already thinking. If a conversation follows, the first one costs nothing.`
 
 const ENTRY_PLACEHOLDER = 'Start anywhere'
-const IDENTITY_PLACEHOLDER = 'Where to reply, and your name'
-const CORRECTION_PLACEHOLDER = 'Add or correct anything'
+const REPLY_ROUTE_PLACEHOLDER = 'your@email.com'
+const NAME_PLACEHOLDER = 'Your name, if you’d like to share it'
+const NOTE_EDIT_PLACEHOLDER = 'Edit the note'
 const DEGRADED_ADDENDUM_PLACEHOLDER = 'Add anything else'
 
-const CONFIRM_CORRECT_LABEL = 'Something’s off, let me fix it'
-const CONFIRM_ACCEPT_LABEL = 'That’s right'
+const CONFIRM_CORRECT_LABEL = 'Edit note'
+const CONFIRM_ACCEPT_LABEL = 'Send note to Manuel'
 
 // Degraded mode's own confirm-screen vocabulary — "correct" doesn't make
 // sense when there's no AI interpretation to have gotten wrong, just a
 // verbatim echo of what the visitor already wrote (see DEGRADED_ENTRY_MESSAGE).
 const DEGRADED_CONFIRM_CORRECT_LABEL = 'Add more'
-const DEGRADED_CONFIRM_ACCEPT_LABEL = 'Send it'
+const DEGRADED_CONFIRM_ACCEPT_LABEL = 'Send note to Manuel'
 
 // A quiet way back to the identity step from confirm — identical in normal
 // and degraded mode (unlike CONFIRM_CORRECT_LABEL/DEGRADED_CONFIRM_CORRECT_LABEL above,
 // editing a typo'd reply-to address isn't an AI-recap concern either way).
-const EDIT_IDENTITY_LINK_LABEL = 'Fix where to reply'
+const EDIT_IDENTITY_LINK_LABEL = 'Edit reply details'
 
 // The persistent escape hatch's default label. During an active follow-up
 // question it swaps to CONTINUE_AS_WRITTEN_LABEL below — same handler
 // (handleSendAsIs), just a copy change so the option reads as answering the
 // question in front of the visitor rather than a generic bail-out.
-const SEND_AS_IS_LABEL = 'Send as is'
+const SEND_AS_IS_LABEL = 'Use my original words'
 const CONTINUE_AS_WRITTEN_LABEL = 'Continue with what I’ve said'
 
 // Shown while automatic retries remain (see autoRetryMaxCount) — names the
@@ -145,13 +139,13 @@ const deliveryRetryMessage = (retryDelaySeconds: number) =>
 // flow actually gives up and hands off, rather than promising another try.
 const DELIVERY_GIVE_UP_MESSAGE = 'That still isn’t going through. Please use the email below so this doesn’t get lost.'
 
-// Shown once the follow-up ceiling (3) is reached and the model still can't
-// unlock a specific reply. Always leaves the choice with the visitor —
-// never a dead end, never a forced recap of an effectively empty message.
-const INSUFFICIENCY_STOP_MESSAGE = 'I don’t have enough here for Manuel to be useful yet. Even a rough sense of what you’re trying to sort out would be enough. Or send it as is, and he’ll reply asking.'
-const INSUFFICIENCY_PLACEHOLDER = 'A rough sense is enough'
-
-const MAX_FOLLOW_UPS = 3
+const STARTER_STEMS = [
+  'I’m trying to make sense of',
+  'I’m considering a change to',
+  'Something is getting in the way of',
+  'I’d value a perspective on',
+] as const
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type ChatTurn = {
   role: 'agent' | 'visitor'
@@ -171,7 +165,7 @@ type ChatTurn = {
   // updated recap (isUpdate) — matches today's conditional.
   recapQuestion?: string
 }
-type Step = 'message' | 'followup' | 'identity' | 'correction' | 'insufficient' | 'degraded-addendum'
+type Step = 'message' | 'followup' | 'reply-route' | 'name' | 'note-edit' | 'degraded-addendum'
 type Phase = 'writing' | 'pending' | 'confirm' | 'done' | 'failed'
 
 // Exported for its own unit test (pages/contact.fade.test.ts) — divides by
@@ -245,6 +239,7 @@ function GuidedIntake({
   const [initialCarriedDraft] = useState(() => peekPendingComposerDraft())
   const hadCarriedDraft = initialCarriedDraft !== null
   const [inputValue, setInputValue] = useState(() => initialCarriedDraft ?? '')
+  const [showStartHelp, setShowStartHelp] = useState(false)
   const [placeholder, setPlaceholder] = useState(ENTRY_PLACEHOLDER)
   const [botField, setBotField] = useState('')
   const [deliveryError, setDeliveryError] = useState('')
@@ -262,7 +257,8 @@ function GuidedIntake({
   // display); it is not the security boundary anymore.
   const followUpTokenRef = useRef<string | undefined>(undefined)
   const recapRef = useRef('')
-  const identityRef = useRef('')
+  const replyRouteRef = useRef('')
+  const nameRef = useRef('')
   const recapIsRawRef = useRef(false)
   const degradedRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -350,6 +346,10 @@ function GuidedIntake({
   useEffect(() => {
     if (phase === 'writing') textareaRef.current?.focus()
   }, [phase, turns.length])
+
+  useEffect(() => {
+    if (step !== 'message' || inputValue) setShowStartHelp(false)
+  }, [inputValue, step])
 
   useEffect(() => {
     const node = scrollRef.current
@@ -440,36 +440,31 @@ function GuidedIntake({
     followUpToken?: string
     recap?: string
     message?: string
+    mode?: 'meta' | 'test'
   }
 
-  // Dev-mode network simulation (see experiences/contact/ContactDevMode.config.ts) —
+  // Dev-mode intake simulation (see experiences/contact/ContactDevMode.config.ts) —
   // reuses followUpCountRef/deliveryRetryCountRef, the same refs the real
   // client logic already maintains for its own bookkeeping, rather than
   // parsing anything off the request body: the wire contract (followUpToken,
   // submissionId) is opaque to this mock exactly as it is to the real
   // server-verification logic in intake.js, and reading the local refs
   // directly stays correct regardless of what that wire shape looks like.
-  const DEV_FOLLOW_UP_ROUNDS = 2 // 'happy-with-followup' resolves after this many rounds
+  const DEV_FOLLOW_UP_ROUNDS = 1 // mirrors the production one-question limit
 
   const simulateIntakeResponse = async (body: Record<string, unknown>, signal?: AbortSignal): Promise<IntakeResponse> => {
     await simulateNetworkDelay(devModeConfig.simulatedLatencyMs, signal)
     const stage = body.stage as 'gap-check' | 'recap' | 'deliver'
-    const scenario = devModeConfig.scenario
 
-    if (scenario === 'degraded') {
-      // Uniform: any non-deliver stage fails the same way intake.js does on
-      // a missing API key. Gap-check always runs first in the real flow, so
-      // recap's branch here is defensive rather than load-bearing.
-      return stage === 'deliver' ? { ok: true } : { ok: false, degraded: true }
+    if (stage !== 'deliver' && devModeConfig.aiSource === 'simulate-unavailable') {
+      // Any AI stage fails the same way intake.js does on a missing Gateway
+      // configuration. Gap-check always runs first in the real flow, so the
+      // recap branch is defensive rather than load-bearing.
+      return { ok: false, degraded: true }
     }
 
     if (stage === 'gap-check') {
-      if (scenario === 'insufficiency-stop') {
-        // Always asks for more — the client's own MAX_FOLLOW_UPS ceiling
-        // (below) is what actually stops this, not the mock.
-        return { ok: true, needsFollowUp: true, question: 'Simulated follow-up question.', followUpToken: 'simulated' }
-      }
-      if (scenario === 'happy-with-followup' && followUpCountRef.current < DEV_FOLLOW_UP_ROUNDS) {
+      if (devModeConfig.aiSource === 'simulate-followup' && followUpCountRef.current < DEV_FOLLOW_UP_ROUNDS) {
         return {
           ok: true,
           needsFollowUp: true,
@@ -488,12 +483,12 @@ function GuidedIntake({
     }
 
     // stage === 'deliver'
-    if (scenario === 'delivery-fail-recover') {
+    if (devModeConfig.deliveryTestMode === 'simulate-fail-recover') {
       return deliveryRetryCountRef.current < 1
         ? { ok: false, message: 'Simulated delivery failure.' }
         : { ok: true }
     }
-    if (scenario === 'delivery-fail-exhausted') {
+    if (devModeConfig.deliveryTestMode === 'simulate-fail-exhausted') {
       return { ok: false, message: 'Simulated delivery failure.' }
     }
     return { ok: true }
@@ -502,9 +497,15 @@ function GuidedIntake({
   const postIntake = async (body: Record<string, unknown>, signal?: AbortSignal): Promise<IntakeResponse> => {
     // A second, independent gate on top of the panel's own showAuthoringTools
     // (which only controls whether the panel renders) — applied at the
-    // actual network chokepoint so a simulated scenario can never leak into
-    // a production build regardless of how devModeConfig got populated.
-    if (process.env.NODE_ENV !== 'production' && devModeConfig.scenario !== 'live') {
+    // Actual network chokepoint: the production guard is independent of
+    // whether this dev-only panel happens to render, so forged browser state
+    // can never simulate AI or delivery in a production build.
+    const stage = body.stage as 'gap-check' | 'recap' | 'deliver'
+    if (shouldSimulateIntakeStage(
+      devModeConfig,
+      stage,
+      process.env.NODE_ENV === 'production',
+    )) {
       return simulateIntakeResponse(body, signal)
     }
     const response = await fetch(intakeEndpoint, {
@@ -516,10 +517,8 @@ function GuidedIntake({
     return response.json() as Promise<IntakeResponse>
   }
 
-  // Renders the recap (model-ordered or raw passthrough) as the next agent
-  // turn. `isUpdate` distinguishes a correction's revised recap (no repeated
-  // identity question — never re-ask what was already answered) from the
-  // first time the recap appears (which also asks where to reply).
+  // Renders an editable note. The visitor sees the value before we ask for a
+  // reply route, making the personal-data exchange earned and explicit.
   const showRecapReady = (text: string, isUpdate: boolean) => {
     recapRef.current = text
     const intro = isUpdate ? RECAP_UPDATE_INTRO : RECAP_INTRO
@@ -527,13 +526,14 @@ function GuidedIntake({
       role: 'agent',
       variant: 'recap',
       text: `${intro}\n\n${text}`,
-      recapQuestion: isUpdate ? undefined : IDENTITY_QUESTION,
+      recapQuestion: undefined,
     }])
     if (isUpdate) {
       setPhase('confirm')
     } else {
-      setPlaceholder(IDENTITY_PLACEHOLDER)
-      setStep('identity')
+      setTurns(prev => [...prev, { role: 'agent', text: REPLY_ROUTE_QUESTION }])
+      setPlaceholder(REPLY_ROUTE_PLACEHOLDER)
+      setStep('reply-route')
       setPhase('writing')
     }
   }
@@ -544,10 +544,10 @@ function GuidedIntake({
   // visitorAnswersRef back as a synthetic turn. The visitor's own messages
   // are already visible above as their own bubbles; asking for identity is
   // the only thing left to say.
-  const askForIdentity = () => {
-    setTurns(prev => [...prev, { role: 'agent', text: IDENTITY_QUESTION }])
-    setPlaceholder(IDENTITY_PLACEHOLDER)
-    setStep('identity')
+  const askForReplyRoute = () => {
+    setTurns(prev => [...prev, { role: 'agent', text: REPLY_ROUTE_QUESTION }])
+    setPlaceholder(REPLY_ROUTE_PLACEHOLDER)
+    setStep('reply-route')
     setPhase('writing')
   }
 
@@ -555,19 +555,8 @@ function GuidedIntake({
     degradedRef.current = true
     recapIsRawRef.current = true
     setTurns(prev => [...prev, { role: 'agent', text: DEGRADED_ENTRY_MESSAGE }])
-    setPlaceholder(IDENTITY_PLACEHOLDER)
-    setStep('identity')
-    setPhase('writing')
-  }
-
-  // Hit the follow-up ceiling and the model still can't unlock a specific
-  // reply. Never a dead end: the visitor can add a sentence (routed straight
-  // to recap below, not another gap-check — the ceiling means no more
-  // questions, not no more chances) or use the ever-present "Send as is".
-  const showInsufficiencyStop = () => {
-    setTurns(prev => [...prev, { role: 'agent', text: INSUFFICIENCY_STOP_MESSAGE }])
-    setPlaceholder(INSUFFICIENCY_PLACEHOLDER)
-    setStep('insufficient')
+    setPlaceholder(REPLY_ROUTE_PLACEHOLDER)
+    setStep('reply-route')
     setPhase('writing')
   }
 
@@ -578,7 +567,10 @@ function GuidedIntake({
     abortRef.current = controller
     try {
       const result = await postIntake(
-        { stage: 'recap', transcript: modelTranscriptRef.current.join('\n') },
+        // The note is a visitor-authored artifact. Do not give the note model
+        // the agent's own clarification wording, or it can mistakenly echo
+        // that wording back as if the visitor had supplied it.
+        { stage: 'recap', transcript: visitorAnswersRef.current.map(text => `Visitor: ${text}`).join('\n') },
         controller.signal,
       )
       await waitForFloor(startedAt)
@@ -592,12 +584,8 @@ function GuidedIntake({
     }
   }
 
-  // Shared by the first message and every follow-up answer: decide whether
-  // Manuel could already reply specifically. Adaptive 0-3 rounds (see intake
-  // spec, "Decision A") — each call re-evaluates the whole conversation so
-  // far, not just the latest turn. The hard ceiling of 3 is enforced here,
-  // client-side: if the model still wants more once we're already at the
-  // ceiling, that becomes an insufficiency stop instead of a 4th question.
+  // The one AI judgment call: after a genuine opening message, decide whether
+  // one optional clarification would materially improve Manuel's first reply.
   const runGapCheck = async () => {
     setPhase('pending')
     const startedAt = Date.now()
@@ -611,13 +599,21 @@ function GuidedIntake({
       }, controller.signal)
       await waitForFloor(startedAt)
       if (!result.ok) return enterDegraded()
+      if (result.mode && result.message) {
+        const message = result.message
+        setTurns(prev => [...prev, { role: 'agent', text: message }])
+        modelTranscriptRef.current = []
+        visitorAnswersRef.current = []
+        followUpCountRef.current = 0
+        followUpTokenRef.current = undefined
+        setPlaceholder(ENTRY_PLACEHOLDER)
+        setStep('message')
+        setPhase('writing')
+        return
+      }
       followUpTokenRef.current = result.followUpToken
       if (!result.needsFollowUp) {
         await runRecap(false)
-        return
-      }
-      if (followUpCountRef.current >= MAX_FOLLOW_UPS) {
-        showInsufficiencyStop()
         return
       }
       followUpCountRef.current += 1
@@ -657,34 +653,21 @@ function GuidedIntake({
     visitorAnswersRef.current = [...visitorAnswersRef.current, text]
     modelTranscriptRef.current = [...modelTranscriptRef.current, `Visitor: ${text}`]
     setInputValue('')
-    await runGapCheck()
-  }
-
-  // No further gap-check here by design: the ceiling already fired once to
-  // reach this state, so whatever the visitor adds goes straight to the
-  // recap, not another evaluation round — guarantees the hard cap and rules
-  // out an insufficiency-stop loop.
-  const submitInsufficiencyAddendum = async (rawText: string) => {
-    const text = rawText.trim()
-    if (!text || phase === 'pending') return
-    setTurns(prev => [...prev, { role: 'visitor', text }])
-    visitorAnswersRef.current = [...visitorAnswersRef.current, text]
-    modelTranscriptRef.current = [...modelTranscriptRef.current, `Visitor: ${text}`]
-    setInputValue('')
     await runRecap(false)
   }
 
-  // AI-recap correction only — degraded mode has its own addendum flow (see
-  // submitDegradedAddendum) since there's no AI interpretation to correct,
-  // just raw text to add to.
-  const submitCorrection = async (rawText: string) => {
+  const submitNoteEdit = (rawText: string) => {
     const text = rawText.trim()
-    if (!text || phase === 'pending') return
-    setTurns(prev => [...prev, { role: 'visitor', text }])
-    visitorAnswersRef.current = [...visitorAnswersRef.current, text]
-    modelTranscriptRef.current = [...modelTranscriptRef.current, `Visitor (correction): ${text}`]
+    if (!text) return
+    recapRef.current = text
+    setTurns(prev => {
+      const recapIndex = [...prev].map(turn => turn.variant).lastIndexOf('recap')
+      return prev.map((turn, index) => index === recapIndex
+        ? { ...turn, text: `${RECAP_UPDATE_INTRO}\n\n${text}` }
+        : turn)
+    })
     setInputValue('')
-    await runRecap(true)
+    setPhase('confirm')
   }
 
   // Degraded mode's "Add more": no network call, no synthetic agent turn —
@@ -701,38 +684,66 @@ function GuidedIntake({
     setPhase('confirm')
   }
 
-  const submitIdentity = (rawText: string) => {
+  const submitReplyRoute = (rawText: string) => {
     const text = rawText.trim()
     if (!text) return
-    identityRef.current = text
+    if (!EMAIL_PATTERN.test(text)) {
+      setTurns(prev => [...prev, { role: 'agent', text: 'Please enter an email address so Manuel can reply.' }])
+      return
+    }
+    replyRouteRef.current = text
     setTurns(prev => [...prev, { role: 'visitor', text }])
     setInputValue('')
+    setTurns(prev => [...prev, { role: 'agent', text: NAME_QUESTION }])
+    setPlaceholder(NAME_PLACEHOLDER)
+    setStep('name')
+    setPhase('writing')
+  }
+
+  const submitName = (rawText: string) => {
+    const text = rawText.trim()
+    if (text) {
+      nameRef.current = text
+      setTurns(prev => [...prev, { role: 'visitor', text }])
+    }
+    setInputValue('')
     setPhase('confirm')
+  }
+
+  const handleSkipName = () => submitName('')
+
+  const selectStarterStem = (stem: string) => {
+    const seededValue = `${stem} `
+    setInputValue(seededValue)
+    setShowStartHelp(false)
+    window.requestAnimationFrame(() => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+      textarea.focus()
+      textarea.setSelectionRange(seededValue.length, seededValue.length)
+    })
   }
 
   const handleSend = () => {
     if (step === 'message') void submitFirstMessage(inputValue)
     else if (step === 'followup') void submitFollowUpAnswer(inputValue)
-    else if (step === 'identity') submitIdentity(inputValue)
-    else if (step === 'insufficient') void submitInsufficiencyAddendum(inputValue)
+    else if (step === 'reply-route') submitReplyRoute(inputValue)
+    else if (step === 'name') submitName(inputValue)
     else if (step === 'degraded-addendum') submitDegradedAddendum(inputValue)
-    else void submitCorrection(inputValue)
+    else submitNoteEdit(inputValue)
   }
 
   const handleRequestCorrection = () => {
-    setPlaceholder(CORRECTION_PLACEHOLDER)
-    setStep('correction')
+    setInputValue(recapRef.current)
+    setPlaceholder(NOTE_EDIT_PLACEHOLDER)
+    setStep('note-edit')
     setPhase('writing')
   }
 
-  // Reuses submitIdentity unchanged — calling it again simply overwrites
-  // identityRef.current and returns to confirm, which is exactly what an
-  // edit needs. Prefilling with the current value (rather than leaving the
-  // composer blank) makes this an edit, not a re-ask from scratch.
   const handleRequestIdentityEdit = () => {
-    setInputValue(identityRef.current)
-    setPlaceholder(IDENTITY_PLACEHOLDER)
-    setStep('identity')
+    setInputValue(replyRouteRef.current)
+    setPlaceholder(REPLY_ROUTE_PLACEHOLDER)
+    setStep('reply-route')
     setPhase('writing')
   }
 
@@ -782,7 +793,7 @@ function GuidedIntake({
       const result = await postIntake({
         stage: 'deliver',
         recap,
-        identity: identityRef.current,
+        identity: [nameRef.current, replyRouteRef.current].filter(Boolean).join(' '),
         transcript: visitorAnswersRef.current.join('\n\n'),
         raw: recapIsRawRef.current,
         submissionId: submissionIdRef.current,
@@ -797,43 +808,24 @@ function GuidedIntake({
     }
   }
 
-  // Persistent escape hatch (every state): relay whatever has been written,
-  // unprocessed, skipping any remaining agent turns. Meaning is consistent
-  // regardless of where it's clicked from — see intake spec, "PERSISTENT".
+  // Restoring the original words is an edit to the visible, unsent note —
+  // never an implicit delivery shortcut. Keeping it inside the note/review
+  // states preserves both authorship and the explicit send boundary.
   const handleSendAsIs = () => {
-    if (phase === 'done') return
-    clearPendingRetry()
-    // triggerExit is idempotent (see useComposerHeroPhase) and normally
-    // fires from submitFirstMessage — but Send As Is is a persistent escape
-    // hatch that can *also* be the visitor's first-ever submission (a draft
-    // typed at step 'message', sent here instead of through the composer's
-    // own send button). Without this, that path skips the hero exit
-    // entirely and the greeting stays on screen, overlapping the identity
-    // question appended right under it.
-    triggerExit()
-    if (phase === 'confirm' || phase === 'failed') {
-      recapIsRawRef.current = true
-      void handleConfirmed(phase === 'failed')
-      return
-    }
-    abortRef.current?.abort()
-    const draft = inputValue.trim()
-    if (draft) {
-      setTurns(prev => [...prev, { role: 'visitor', text: draft }])
-      visitorAnswersRef.current = [...visitorAnswersRef.current, draft]
-      setInputValue('')
-    }
-    if (visitorAnswersRef.current.length === 0) return
-    recapIsRawRef.current = true
-    if (identityRef.current) {
-      setPhase('confirm')
-    } else {
-      askForIdentity()
-    }
+    const text = visitorAnswersRef.current.join('\n\n').trim()
+    if (!text) return
+    recapRef.current = text
+    recapIsRawRef.current = false
+    setTurns(prev => {
+      const recapIndex = [...prev].map(turn => turn.variant).lastIndexOf('recap')
+      return prev.map((turn, index) => index === recapIndex
+        ? { ...turn, text: `${RECAP_UPDATE_INTRO}\n\n${text}` }
+        : turn)
+    })
   }
 
-  const sendAsIsDisabled = phase === 'done' ||
-    (visitorAnswersRef.current.length === 0 && !inputValue.trim())
+  const canUseOriginalWords = phase !== 'done' && !degradedRef.current &&
+    (step === 'reply-route' || step === 'name' || phase === 'confirm')
 
   // Deterministic top-fade: only the last messageVisibleCount turns ever
   // render (older ones are dropped from the DOM, not just faded out), and
@@ -1030,6 +1022,56 @@ function GuidedIntake({
           />
         )}
 
+        {phase === 'writing' && step === 'message' && !inputValue && (
+          <div className="flex flex-col items-center gap-2 text-center" aria-label="Writing help">
+            <p className="m-0 text-sm text-[color:var(--contact-muted)]">
+              Start with what you’re noticing, considering, or trying to work through.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowStartHelp(previous => !previous)}
+              aria-expanded={showStartHelp}
+              className="inline-flex min-h-11 items-center px-1 text-sm text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
+            >
+              {showStartHelp ? 'Hide starting points' : 'Not sure where to begin?'}
+            </button>
+            {showStartHelp && (
+              <div className="flex flex-col items-center gap-1" aria-label="Writing prompts">
+                {STARTER_STEMS.map(stem => (
+                  <button
+                    key={stem}
+                    type="button"
+                    onClick={() => selectStarterStem(stem)}
+                    className="min-h-10 px-1 text-sm text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
+                  >
+                    {stem}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {phase === 'writing' && step === 'name' && (
+          <button
+            type="button"
+            onClick={handleSkipName}
+            className="inline-flex min-h-11 items-center px-1 text-sm text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
+          >
+            Skip
+          </button>
+        )}
+
+        {phase === 'writing' && step === 'followup' && (
+          <button
+            type="button"
+            onClick={() => void runRecap(false)}
+            className="inline-flex min-h-11 items-center px-1 text-sm text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
+          >
+            {CONTINUE_AS_WRITTEN_LABEL}
+          </button>
+        )}
+
         {/* Degraded mode gets its own vocabulary here — "Something's off, let
             me fix it" implies an AI interpretation that might be wrong, but
             degraded mode has no AI interpretation, just a verbatim echo of
@@ -1139,21 +1181,20 @@ function GuidedIntake({
               separators below keep the div's own inherited muted color at
               full opacity — appropriate for decorative punctuation, not
               interactive text a visitor needs to read. */}
-          {phase !== 'done' && (
+          {canUseOriginalWords && (
             <button
               type="button"
               onClick={handleSendAsIs}
-              disabled={sendAsIsDisabled}
-              className="inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
+              className="inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
             >
-              {step === 'followup' || step === 'insufficient' ? CONTINUE_AS_WRITTEN_LABEL : SEND_AS_IS_LABEL}
+              {SEND_AS_IS_LABEL}
             </button>
           )}
-          {phase !== 'done' && <span aria-hidden="true">·</span>}
+          {canUseOriginalWords && <span aria-hidden="true">·</span>}
           {/* Only meaningful once an identity has actually been given — this
               is the one field the rest of the confirm screen (correction /
               degraded "Add more") has no way to revise. */}
-          {phase === 'confirm' && identityRef.current && (
+          {phase === 'confirm' && replyRouteRef.current && (
             <>
               <button
                 type="button"
@@ -1463,30 +1504,16 @@ export default function ContactPage() {
                 className={`flex h-full min-h-0 w-full flex-col gap-6 overflow-x-clip pb-20 pt-4 font-sans text-[color:var(--contact-primary)] lg:translate-y-[var(--contact-optical-y)] lg:py-10 ${PAGE_CONTENT_GUTTER_CLASSNAME}`}
               >
                 <div className="mx-auto flex h-full min-h-0 w-full max-w-[var(--contact-conversation-max)] flex-col pt-6">
-                  {/* Static, outside GuidedIntake entirely — it owns no part
-                      of that component's hero-phase/FLIP-transform machinery
-                      (see the animation notes below), so this can't disturb
-                      it. flex-shrink-0 so it only adds height, never
-                      compresses the conversation area beneath it. */}
-                  <p
-                    className="mb-6 flex-shrink-0 max-w-[var(--contact-message-measure)] text-[length:var(--contact-conversation-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-muted)]"
-                  >
-                    {renderEmphasisText(
-                      CONTACT_INTRO_PARAGRAPH,
-                      contactConfig.mutedTextOpacity,
-                      1,
-                    )}
-                  </p>
                   <GuidedIntake
-                    // Changing scenario remounts GuidedIntake outright — its
+                    // Changing AI source remounts GuidedIntake outright — its
                     // existing unmount cleanup effect already aborts any in-flight
                     // request and clears pending retries, so this is a clean reset
                     // across every ref/state value without hand-writing one.
-                    // simulatedLatencyMs is deliberately excluded: a pacing-only
-                    // change should never discard an in-progress conversation. In
-                    // production this key is permanently 'live', since the panel
-                    // that could change it never renders.
-                    key={contactDevModeConfig.scenario}
+                    // Delivery behavior and simulatedLatencyMs are deliberately
+                    // excluded: neither should discard a conversation already
+                    // ready for confirmation. In production this key is always
+                    // live-gateway, since the panel cannot render.
+                    key={contactDevModeConfig.aiSource}
                     config={contactConfig}
                     ctaButtonConfig={normalizedCtaButtonConfig}
                     devModeConfig={contactDevModeConfig}

@@ -4,15 +4,15 @@ import {
   type ContactDevModeConfig,
 } from './ContactDevMode.config';
 
-export const CONTACT_DEV_MODE_SCOPE_ID = 'ContactDevMode/network-simulation' as const;
+export const CONTACT_DEV_MODE_SCOPE_ID = 'ContactDevMode/intake-testing' as const;
 
 export const CONTACT_DEV_MODE_PANEL = defineConfigScope<ContactDevModeConfig>({
   id: CONTACT_DEV_MODE_SCOPE_ID,
   component: 'ContactDevMode',
-  scope: 'network-simulation',
-  title: 'Dev mode — network simulation',
+  scope: 'intake-testing',
+  title: 'Intake test mode',
   createdAt: '2026-07-23',
-  summary: 'Force each gap-check/recap/deliver branch without a real API call',
+  summary: 'Choose live AI or deterministic responses, separately from delivery testing',
   // Off (closed) by default, unlike the main layout scope — this is a
   // niche, occasionally-used debug tool, not something every editing
   // session needs open.
@@ -20,35 +20,40 @@ export const CONTACT_DEV_MODE_PANEL = defineConfigScope<ContactDevModeConfig>({
   defaultValue: DEFAULT_CONTACT_DEV_MODE_CONFIG,
   fields: [
     {
-      // 'select' over 'enum': 7 options with multi-word descriptive labels
-      // are past SegmentedControl's comfortable ~6-8-option ceiling (see
-      // AGENTS.md) — this page's own LEFT/CENTER enum is the contrast case
-      // for when a short button row is still the right call.
       kind: 'select',
-      key: 'scenario',
-      label: 'Scenario',
-      description: 'Resolves postIntake from a fabricated response instead of the real Netlify function. "Live" (default) leaves the real network path untouched. Degraded/delivery-fail scenarios still run through the real client-side retry ceiling (Auto-retry delay × Auto-retry ceiling, in the Retry group above) — turn those down for faster iteration.',
+      key: 'aiSource',
+      label: 'AI response source',
+      description: 'Live AI Gateway sends gap-check and recap through Netlify Dev to the configured Gemini Gateway and consumes credits. It requires Netlify Dev, not npm run dev. Every simulated choice stays in the browser and never calls the intake function.',
       options: [
-        { label: 'Live (real network)', value: 'live' },
-        { label: 'Happy — no follow-up', value: 'happy-no-followup' },
-        { label: 'Happy — with follow-up', value: 'happy-with-followup' },
-        { label: 'Insufficiency stop', value: 'insufficiency-stop' },
-        { label: 'Degraded (AI unavailable)', value: 'degraded' },
-        { label: 'Delivery fails then recovers', value: 'delivery-fail-recover' },
-        { label: 'Delivery fails, exhausts retries', value: 'delivery-fail-exhausted' },
+        { label: 'Live AI Gateway (Netlify Dev required)', value: 'live-gateway' },
+        { label: 'Simulate — enough context', value: 'simulate-no-followup' },
+        { label: 'Simulate — follow-up questions', value: 'simulate-followup' },
+        { label: 'Simulate — AI unavailable', value: 'simulate-unavailable' },
+      ],
+    },
+    {
+      kind: 'select',
+      key: 'deliveryTestMode',
+      label: 'Delivery behavior',
+      description: 'Independent of the AI choice above. Simulated success is the safe default for testing the full agent flow with real AI but no email. Local function reaches the configured local delivery transport; use it only with a local SMTP sink or intentional test recipient.',
+      options: [
+        { label: 'Simulate — success (safe default)', value: 'simulate-success' },
+        { label: 'Simulate — fails then recovers', value: 'simulate-fail-recover' },
+        { label: 'Simulate — fails, exhausts retries', value: 'simulate-fail-exhausted' },
+        { label: 'Local function (SMTP/sink)', value: 'local-function' },
       ],
     },
     {
       kind: 'number',
       key: 'simulatedLatencyMs',
       label: 'Simulated latency',
-      description: 'Stand-in round-trip delay before a simulated stage resolves.',
+      description: 'Stand-in round-trip delay before a simulated AI or delivery stage resolves.',
       min: 0,
       max: 5000,
       step: 50,
       integer: true,
       unit: 'ms',
-      visibleWhen: config => config.scenario !== 'live',
+      visibleWhen: config => config.aiSource !== 'live-gateway' || config.deliveryTestMode !== 'local-function',
     },
   ],
   copy: {

@@ -5,6 +5,7 @@
   "scripts": {
     "predev": "node scripts/kill-stale-dev-servers.js",
     "dev": "next dev",
+    "dev:contact-ai": "node scripts/dev-contact-ai.js",
     "editor": "BIND_HOST=127.0.0.1 decap-server",
     "dev:editor": "concurrently --kill-others --names site,editor --prefix-colors cyan,magenta \"npm run dev\" \"npm run editor\"",
     "build": "next build",
@@ -14,6 +15,7 @@
     "test": "vitest run",
     "test:editor": "playwright test editor-smoke.spec.js --reporter=line --workers=1",
     "verify:contact-ai-gateway": "node scripts/verify-contact-ai-gateway.js",
+    "verify:contact-ai": "npm run verify:contact-ai-gateway",
     "test:watch": "vitest",
     "export": "next export",
     "verify:release": "node scripts/verify-release.js"

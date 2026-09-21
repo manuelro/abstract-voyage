@@ -494,19 +494,12 @@ export function ComposerPill({
         // (not just the placeholder overlay, which already had its own
         // independent centering) — operator-reported, 2026-08-26: caret
         // visibly sat above the placeholder/arrow's own vertical center.
-        // singleLine-only exception: once content wraps past one line,
-        // items-center on a scrollable (overflow-y-auto) flex container
-        // makes the overflow bleed symmetrically above AND below the box
-        // instead of clipping to it (a known flexbox+overflow interaction —
-        // confirmed live, text rendered outside the pill's own rounded
-        // edges). Not a real tradeoff in practice: with padding symmetric
-        // top/bottom and the box height matching exactly one line's own
-        // content (rows={1}'s native sizing, no resize effect — see above),
-        // top-alignment and center-alignment land on the exact same pixel
-        // whenever content actually fits; native top-alignment only visibly
-        // differs once content overflows, which is exactly the case where
-        // it's also the *correct* behavior (start at the top, scroll down),
-        // matching every other scrollable text box's own convention.
+        // singleLine keeps flex centering enabled as well: the fixed-height
+        // one-line state is the primary contact interaction, so the native
+        // caret must share the pill's visual midline rather than sitting
+        // against its top padding. Overflow remains scrollable when a long
+        // message wraps; the browser clips the scrollable flex content to
+        // the textarea's own box instead of changing the pill's height.
         //
         // singleLine also drops max-h-40 (the growing case's own cap, now
         // unreachable — see the resize effect above) since there's nothing
@@ -516,7 +509,7 @@ export function ComposerPill({
         // place. overflow-y-auto keeps content that wraps past that one
         // line reachable by scrolling within the fixed box, rather than
         // bleeding outside it.
-        className={`${singleLine ? 'overflow-y-auto' : 'flex items-center max-h-40'} min-h-6 w-full flex-1 resize-none border-0 bg-transparent text-left font-sans ${ctaButtonConfig.fontSize} leading-snug text-[color:var(--pill-text)] caret-[color:var(--pill-text)] outline-none placeholder:text-[color:var(--pill-placeholder)] ${isTagPill ? 'placeholder:font-mono placeholder:uppercase placeholder:tracking-[0.16em]' : ''} read-only:cursor-wait ${ctaButtonConfig.paddingX} ${ctaButtonConfig.paddingXDesktop} ${ctaButtonConfig.paddingY} ${ctaButtonConfig.paddingYDesktop} pr-12 md:pr-16`}
+        className={`${singleLine ? 'flex items-center overflow-y-auto' : 'flex items-center max-h-40'} min-h-6 w-full flex-1 resize-none border-0 bg-transparent text-left font-sans ${ctaButtonConfig.fontSize} leading-snug text-[color:var(--pill-text)] caret-[color:var(--pill-text)] outline-none placeholder:text-[color:var(--pill-placeholder)] ${isTagPill ? 'placeholder:font-mono placeholder:uppercase placeholder:tracking-[0.16em]' : ''} read-only:cursor-wait ${ctaButtonConfig.paddingX} ${ctaButtonConfig.paddingXDesktop} ${ctaButtonConfig.paddingY} ${ctaButtonConfig.paddingYDesktop} pr-12 md:pr-16`}
       />
       {showHeroEntrance && !value && (
         <span
