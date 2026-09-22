@@ -1,6 +1,13 @@
 import { defineConfigScope } from '../../components/Panel/config';
 import {
+  FONT_SIZE_OPTIONS, MD_FONT_SIZE_OPTIONS, LG_FONT_SIZE_OPTIONS,
+  LEADING_OPTIONS, MD_LEADING_OPTIONS, LG_LEADING_OPTIONS,
+  FONT_WEIGHT_OPTIONS,
+} from '../../components/tailwindTypographyScale';
+import {
   DEFAULT_CONTACT_EXPERIENCE_CONFIG,
+  CONTACT_BUTTON_FONT_WEIGHT_WIDE_OPTIONS,
+  CONTACT_BUTTON_FONT_WEIGHT_LG_OPTIONS,
   type ContactExperienceConfig,
 } from './ContactExperience.config';
 
@@ -41,11 +48,148 @@ export const CONTACT_EXPERIENCE_PANEL = defineConfigScope<ContactExperienceConfi
       kind: 'group',
       label: 'Typography',
       fields: [
-        { kind: 'number', key: 'baseTextSizePx', label: 'Base size', min: 14, max: 20, step: 0.5, unit: 'px' },
-        { kind: 'number', key: 'conversationTextSizePx', label: 'Message size', min: 16, max: 24, step: 0.5, unit: 'px' },
-        { kind: 'number', key: 'lineHeight', label: 'Line height', min: 1.25, max: 1.75, step: 0.01, unit: 'x' },
         { kind: 'number', key: 'mutedTextOpacity', label: 'Muted opacity', min: 0.35, max: 0.85, step: 0.01 },
         { kind: 'number', key: 'recapBodyTextOpacity', label: 'Recap body opacity', min: 0.65, max: 1, step: 0.01 },
+      ],
+    },
+    // Font size / line height, segregated per breakpoint via the same
+    // device-size `kind: 'tabs'` switcher AboutTimeline.panel.ts's own
+    // font-size/line-height fields already use — literal Tailwind tokens
+    // (components/tailwindTypographyScale.ts), not raw px/decimal numbers.
+    // Excludes the top-level site nav/wordmark, which is its own separate
+    // config panel (SiteHeaderConfig) — everything here is /contact's own
+    // conversation/hero-greeting text. A tabs entry is a top-level scope
+    // field, not nestable inside a `kind: 'group'` (see ConfigFieldTabs's
+    // own doc comment, components/Panel/config/types.ts — tabs sit ABOVE
+    // groups in the hierarchy), hence its own sibling entry here rather
+    // than folded into the "Typography" group above.
+    {
+      kind: 'tabs',
+      tabs: [
+        {
+          id: 'mobile',
+          label: 'MOBILE (< 768px)',
+          fields: [
+            {
+              kind: 'group',
+              label: 'Message text',
+              fields: [
+                { kind: 'select', key: 'baseTextSize', label: 'Base size', options: FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'conversationTextSize', label: 'Message size', options: FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'lineHeight', label: 'Line height', options: LEADING_OPTIONS },
+              ],
+            },
+            {
+              kind: 'group',
+              label: 'Hero greeting',
+              fields: [
+                {
+                  kind: 'select',
+                  key: 'heroGreetingTextSize',
+                  label: 'Greeting text size',
+                  description: 'Deliberately smaller than the conversation\'s own message size — auxiliary context, not a turn.',
+                  options: FONT_SIZE_OPTIONS,
+                },
+              ],
+            },
+            {
+              kind: 'group',
+              label: 'Confirm button text',
+              fields: [
+                { kind: 'select', key: 'buttonFontSize', label: 'Size', options: FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'buttonFontWeight', label: 'Weight', options: FONT_WEIGHT_OPTIONS },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'tablet',
+          label: 'TABLET (≥ 768px)',
+          fields: [
+            {
+              kind: 'group',
+              label: 'Message text',
+              fields: [
+                { kind: 'select', key: 'baseTextSizeWide', label: 'Base size', options: MD_FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'conversationTextSizeWide', label: 'Message size', options: MD_FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'lineHeightWide', label: 'Line height', options: MD_LEADING_OPTIONS },
+              ],
+            },
+            {
+              kind: 'group',
+              label: 'Hero greeting',
+              fields: [
+                { kind: 'select', key: 'heroGreetingTextSizeWide', label: 'Greeting text size', options: MD_FONT_SIZE_OPTIONS },
+              ],
+            },
+            {
+              kind: 'group',
+              label: 'Confirm button text',
+              fields: [
+                { kind: 'select', key: 'buttonFontSizeWide', label: 'Size', options: MD_FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'buttonFontWeightWide', label: 'Weight', options: CONTACT_BUTTON_FONT_WEIGHT_WIDE_OPTIONS },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'desktop',
+          label: 'DESKTOP (≥ 1024px)',
+          fields: [
+            {
+              kind: 'group',
+              label: 'Message text',
+              fields: [
+                { kind: 'select', key: 'baseTextSizeLg', label: 'Base size', options: LG_FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'conversationTextSizeLg', label: 'Message size', options: LG_FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'lineHeightLg', label: 'Line height', options: LG_LEADING_OPTIONS },
+              ],
+            },
+            {
+              kind: 'group',
+              label: 'Hero greeting',
+              fields: [
+                { kind: 'select', key: 'heroGreetingTextSizeLg', label: 'Greeting text size', options: LG_FONT_SIZE_OPTIONS },
+              ],
+            },
+            {
+              kind: 'group',
+              label: 'Confirm button text',
+              fields: [
+                { kind: 'select', key: 'buttonFontSizeLg', label: 'Size', options: LG_FONT_SIZE_OPTIONS },
+                { kind: 'select', key: 'buttonFontWeightLg', label: 'Weight', options: CONTACT_BUTTON_FONT_WEIGHT_LG_OPTIONS },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Confirm buttons',
+      fields: [
+        { kind: 'color', key: 'primaryButtonBackgroundColor', label: 'Primary fill (default)' },
+        { kind: 'color', key: 'primaryButtonHoverActiveBackgroundColor', label: 'Primary fill (hover/active)' },
+        { kind: 'color', key: 'primaryButtonBorderColor', label: 'Primary border (default)' },
+        { kind: 'color', key: 'primaryButtonHoverActiveBorderColor', label: 'Primary border (hover/active)' },
+        { kind: 'number', key: 'secondaryButtonBackgroundDarkenAmount', label: 'Secondary fill darken (default)', min: 0, max: 1, step: 0.01 },
+        { kind: 'number', key: 'secondaryButtonHoverActiveBackgroundDarkenAmount', label: 'Secondary fill darken (hover/active)', min: 0, max: 1, step: 0.01 },
+        { kind: 'number', key: 'secondaryButtonBorderDarkenAmount', label: 'Secondary border darken (default)', min: 0, max: 1, step: 0.01 },
+        { kind: 'number', key: 'secondaryButtonHoverActiveBorderDarkenAmount', label: 'Secondary border darken (hover/active)', min: 0, max: 1, step: 0.01 },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Composer pill',
+      fields: [
+        { kind: 'color', key: 'composerPillBackgroundColor', label: 'Fill (default)' },
+        { kind: 'color', key: 'composerPillHoverActiveBackgroundColor', label: 'Fill (hover/active)' },
+        { kind: 'color', key: 'composerPillBorderColor', label: 'Border (default)' },
+        { kind: 'color', key: 'composerPillHoverActiveBorderColor', label: 'Border (hover/active)' },
+        { kind: 'color', key: 'composerButtonTextColor', label: 'Send button text (default)' },
+        { kind: 'color', key: 'composerButtonHoverActiveTextColor', label: 'Send button text (hover/active)' },
+        { kind: 'color', key: 'emptyValueActionTextColor', label: 'Empty-value link text (default)' },
+        { kind: 'color', key: 'emptyValueActionHoverActiveTextColor', label: 'Empty-value link text (hover/active)' },
       ],
     },
     {
@@ -105,6 +249,45 @@ export const CONTACT_EXPERIENCE_PANEL = defineConfigScope<ContactExperienceConfi
           max: 20,
           step: 0.5,
           unit: 'px',
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Composer resize',
+      fields: [
+        {
+          kind: 'number',
+          key: 'composerMaxVisibleLines',
+          label: 'Max visible lines',
+          description: 'How many lines the composer pill grows to (on fresh composition and on "Edit note" alike) before it stops resizing and scrolls its own content internally instead. Growth only ever expands as far as the visitor\'s own content actually wraps.',
+          min: 1,
+          max: 10,
+          step: 1,
+          integer: true,
+        },
+        {
+          kind: 'number',
+          key: 'composerResizeDurationMs',
+          label: 'Resize duration',
+          description: 'How long the pill\'s own height takes to animate between line counts as the visitor types past a wrap point.',
+          min: 0,
+          max: 600,
+          step: 20,
+          unit: 'ms',
+          integer: true,
+        },
+        {
+          kind: 'enum',
+          key: 'composerResizeEasing',
+          label: 'Resize easing',
+          options: [
+            { label: 'LINEAR', value: 'linear' },
+            { label: 'STANDARD', value: 'standard' },
+            { label: 'EXPRESSIVE', value: 'expressive' },
+            { label: 'VISCOUS', value: 'viscous' },
+            { label: 'GENTLE', value: 'gentle' },
+          ],
         },
       ],
     },
@@ -206,6 +389,90 @@ export const CONTACT_EXPERIENCE_PANEL = defineConfigScope<ContactExperienceConfi
           max: 21,
           step: 0.1,
           visibleWhen: config => config.messageTextColorMode === 'auto',
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Below-pill actions',
+      fields: [
+        {
+          kind: 'boolean',
+          key: 'useOriginalWordsActionEnabled',
+          label: 'Use original words link',
+          description: 'Off by default. When on, adds a link letting a visitor bypass the AI-organized recap and send their own raw wording verbatim, at the reply-route/name/confirm steps.',
+        },
+        {
+          kind: 'enum',
+          key: 'mandatoryActionsFontSize',
+          label: 'Font size',
+          description: 'The below-pill row\'s own font size — the email fallback link plus whatever step-specific link sits beside it.',
+          options: [
+            { label: 'XS', value: 'text-xs' },
+            { label: 'SM', value: 'text-sm' },
+            { label: 'BASE', value: 'text-base' },
+            { label: 'LG', value: 'text-lg' },
+          ],
+        },
+        {
+          kind: 'select',
+          key: 'mandatoryActionsTopGap',
+          label: 'Top gap',
+          description: 'The dedicated space between the dock\'s main content and this row, as a real flex gap (not padding) — independent of the message gap used within the dock above it. 0 means flush against the pill.',
+          options: [
+            { label: '0', value: 'gap-0' },
+            { label: '1', value: 'gap-1' },
+            { label: '2', value: 'gap-2' },
+            { label: '3', value: 'gap-3' },
+            { label: '4', value: 'gap-4' },
+            { label: '5', value: 'gap-5' },
+            { label: '6', value: 'gap-6' },
+            { label: '8', value: 'gap-8' },
+          ],
+        },
+        {
+          kind: 'select',
+          key: 'mandatoryActionsPaddingRight',
+          label: 'Padding right',
+          options: [
+            { label: '0', value: 'pr-0' },
+            { label: '1', value: 'pr-1' },
+            { label: '2', value: 'pr-2' },
+            { label: '3', value: 'pr-3' },
+            { label: '4', value: 'pr-4' },
+            { label: '5', value: 'pr-5' },
+            { label: '6', value: 'pr-6' },
+            { label: '8', value: 'pr-8' },
+          ],
+        },
+        {
+          kind: 'select',
+          key: 'mandatoryActionsPaddingBottom',
+          label: 'Padding bottom',
+          options: [
+            { label: '0', value: 'pb-0' },
+            { label: '1', value: 'pb-1' },
+            { label: '2', value: 'pb-2' },
+            { label: '3', value: 'pb-3' },
+            { label: '4', value: 'pb-4' },
+            { label: '5', value: 'pb-5' },
+            { label: '6', value: 'pb-6' },
+            { label: '8', value: 'pb-8' },
+          ],
+        },
+        {
+          kind: 'select',
+          key: 'mandatoryActionsPaddingLeft',
+          label: 'Padding left',
+          options: [
+            { label: '0', value: 'pl-0' },
+            { label: '1', value: 'pl-1' },
+            { label: '2', value: 'pl-2' },
+            { label: '3', value: 'pl-3' },
+            { label: '4', value: 'pl-4' },
+            { label: '6', value: 'pl-6' },
+            { label: '8', value: 'pl-8' },
+          ],
         },
       ],
     },
@@ -377,16 +644,6 @@ export const CONTACT_EXPERIENCE_PANEL = defineConfigScope<ContactExperienceConfi
         { kind: 'number', key: 'heroGreetingGapPx', label: 'Greeting gap', description: 'Space between the greeting and the composer below it.', min: 8, max: 64, step: 2, unit: 'px', integer: true },
         {
           kind: 'number',
-          key: 'heroGreetingTextSizePx',
-          label: 'Greeting text size',
-          description: 'Deliberately smaller than the conversation\'s own message size — auxiliary context, not a turn.',
-          min: 12,
-          max: 20,
-          step: 0.5,
-          unit: 'px',
-        },
-        {
-          kind: 'number',
           key: 'heroGreetingMeasureCh',
           label: 'Greeting measure',
           description: 'Deliberately narrower than the conversation\'s own message measure, for the same reason.',
@@ -489,6 +746,85 @@ export const CONTACT_EXPERIENCE_PANEL = defineConfigScope<ContactExperienceConfi
           step: 100,
           unit: 'ms',
           integer: true,
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Starting points',
+      fields: [
+        {
+          kind: 'boolean',
+          key: 'starterPointsEnabled',
+          label: 'Enabled',
+          description: 'Master switch for the whole in-pill starters module (hint, browsing carousel, idle nudge). Off: the standard flow — a bare "Start anywhere" placeholder, nothing else.',
+        },
+        {
+          kind: 'number',
+          key: 'starterAffordanceTransitionDurationMs',
+          label: 'Transition duration',
+          description: 'Reused for hide-on-type, idle reappearance, the send-arrow/close-X swap, and the stem crossfade while browsing.',
+          min: 100,
+          max: 600,
+          step: 10,
+          unit: 'ms',
+          integer: true,
+          visibleWhen: config => config.starterPointsEnabled,
+        },
+        {
+          kind: 'enum',
+          key: 'starterAffordanceTransitionEasing',
+          label: 'Transition easing',
+          options: [
+            { label: 'LINEAR', value: 'linear' },
+            { label: 'STANDARD', value: 'standard' },
+            { label: 'EXPRESSIVE', value: 'expressive' },
+            { label: 'GENTLE', value: 'gentle' },
+          ],
+          visibleWhen: config => config.starterPointsEnabled,
+        },
+        {
+          kind: 'number',
+          key: 'starterAffordanceFadeInDurationMs',
+          label: 'Reveal fade-in duration',
+          description: 'The hint\'s idle fade-in only (a gentler, slower onset than the shared transition). Hide-on-type still uses the transition duration above.',
+          min: 100,
+          max: 900,
+          step: 10,
+          unit: 'ms',
+          integer: true,
+          visibleWhen: config => config.starterPointsEnabled,
+        },
+        {
+          kind: 'enum',
+          key: 'starterAffordanceFadeInEasing',
+          label: 'Reveal fade-in easing',
+          options: [
+            { label: 'LINEAR', value: 'linear' },
+            { label: 'STANDARD', value: 'standard' },
+            { label: 'EXPRESSIVE', value: 'expressive' },
+            { label: 'GENTLE', value: 'gentle' },
+          ],
+          visibleWhen: config => config.starterPointsEnabled,
+        },
+        {
+          kind: 'number',
+          key: 'starterAffordanceIdleReappearDelayMs',
+          label: 'Idle reappear delay',
+          description: 'How long the empty composer must sit engaged with no keystroke or pointer movement before "Not sure where to begin?" fades in. The countdown restarts on any activity.',
+          min: 1000,
+          max: 15000,
+          step: 250,
+          unit: 'ms',
+          integer: true,
+          visibleWhen: config => config.starterPointsEnabled,
+        },
+        {
+          kind: 'boolean',
+          key: 'starterAffordanceReappearAfterUse',
+          label: 'Reappear after use',
+          visibleWhen: config => config.starterPointsEnabled,
+          description: 'Off (recommended): once the visitor has opened the starters this session, the idle hint stays away rather than re-nagging. On: it can fade back in again.',
         },
       ],
     },

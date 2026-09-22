@@ -141,6 +141,45 @@ describe('contact intake function', () => {
       expect(globalThis.fetch).not.toHaveBeenCalled()
     })
 
+    it.each([
+      ['an accidental fragment', 'Visitor: hI I'],
+      ['a bare greeting', 'Visitor: hi'],
+    ])('asks a gentle clarification for %s without calling AI', async (_label, transcript) => {
+      const response = await invoke({ stage: 'gap-check', transcript })
+
+      expect(response.body).toMatchObject({
+        ok: true,
+        needsFollowUp: true,
+        needsClarification: true,
+        question: 'What are you trying to work through? Even a few words is enough.',
+      })
+      expect(typeof response.body.followUpToken).toBe('string')
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
+    it('treats a short but meaningful message as a genuine inquiry', async () => {
+      globalThis.fetch.mockResolvedValue(geminiResponse({ needsFollowUp: false }))
+
+      const response = await invoke({ stage: 'gap-check', transcript: 'Visitor: Need help with a redesign.' })
+
+      expect(response.body).toEqual({ ok: true, needsFollowUp: false })
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('blocks a low-signal fragment from reaching a second question after clarification is answered', async () => {
+      const question = 'What are you trying to work through? Even a few words is enough.'
+      const transcript = `Visitor: hi\nAgent: ${question}\nVisitor: still just poking around`
+      const followUpToken = intake.signFollowUpToken(
+        { count: 1, transcript: `Visitor: hi\nAgent: ${question}` },
+        process.env.INTAKE_FOLLOWUP_TOKEN_SECRET,
+      )
+
+      const response = await invoke({ stage: 'gap-check', transcript, followUpToken })
+
+      expect(response.body).toEqual({ ok: true, needsFollowUp: false })
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
     it('degrades after two attempts when the model asks excessive questions', async () => {
       globalThis.fetch.mockResolvedValue(geminiResponse({
         needsFollowUp: true,
@@ -224,6 +263,25 @@ describe('contact intake function', () => {
 
       expect(response.body).toEqual({ ok: false, degraded: true })
       expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('isLowSignalMessage', () => {
+    it.each([
+      ['hI I'],
+      ['hi'],
+      ['hello'],
+      ['ok'],
+    ])('flags %j as low-signal', (message) => {
+      expect(intake.isLowSignalMessage(message)).toBe(true)
+    })
+
+    it.each([
+      ['Need help with a redesign'],
+      ['I have a project'],
+      ['I need help rebuilding checkout'],
+    ])('treats %j as meaningful', (message) => {
+      expect(intake.isLowSignalMessage(message)).toBe(false)
     })
   })
 

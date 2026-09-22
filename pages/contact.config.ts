@@ -42,63 +42,106 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   // No column background — matches /contact's current flat single-
   // page-surface-color <main>, with no per-column tinting.
   colorSource: 'none',
-  scrollGradientEnabled: false,
-  scrollGradientEnabledWide: false,
-  scrollGradientEnabledLg: false,
-  scrollGradientNarrowColumnEnabled: false,
-  scrollGradientNarrowColumnEnabledWide: false,
-  scrollGradientNarrowColumnEnabledLg: false,
-  scrollGradientWideColumnEnabled: false,
-  scrollGradientWideColumnEnabledWide: false,
-  scrollGradientWideColumnEnabledLg: false,
+  // Enabled at every tier (base/Wide/Lg) — previously Lg-only, so the
+  // gradient only ever appeared at desktop widths and mobile/tablet saw a
+  // flat page surface instead (operator-reported, 2026-09-21: "duplicate
+  // the config for the gradient (the diff in desktop breakpoint) into
+  // tablet and mobile"). Every field below this point that used to carry
+  // only an *Lg suffix (the desktop-only tuning) now has its base/Wide
+  // siblings set to the exact same values, so the gradient looks and
+  // behaves identically across all three tiers rather than only appearing
+  // once the viewport crosses into desktop width.
+  scrollGradientEnabled: true,
+  scrollGradientEnabledWide: true,
+  scrollGradientEnabledLg: true,
+  scrollGradientNarrowColumnEnabled: true,
+  scrollGradientNarrowColumnEnabledWide: true,
+  scrollGradientNarrowColumnEnabledLg: true,
+  scrollGradientWideColumnEnabled: true,
+  scrollGradientWideColumnEnabledWide: true,
+  scrollGradientWideColumnEnabledLg: true,
+  // No base/Wide equivalent exists in PolymorphicLayoutConfig's own type for
+  // these three fields (Lg-only — the narrow-column "variant" sample concept
+  // is desktop-only elsewhere in this codebase too, e.g. ABSTRACT_
+  // POLYMORPHIC_LAYOUT_CONFIG) — nothing to duplicate, left as-is (off).
   scrollGradientNarrowColumnVariantEnabledLg: false,
   scrollGradientNarrowColumnSaturationLg: 1,
   scrollGradientNarrowColumnDarknessLg: 0,
-  scrollGradientDarkInkSaturation: 0,
-  scrollGradientDarkInkSaturationWide: 0,
-  scrollGradientDarkInkSaturationLg: 0,
-  scrollGradientDarkInkOpacityMultiplier: 1,
-  scrollGradientDarkInkOpacityMultiplierWide: 1,
-  scrollGradientDarkInkOpacityMultiplierLg: 1,
-  scrollGradientLightInkOnLightBackgroundContrastTolerance: 0,
-  scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 0,
-  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 0,
-  wideColumnTransparent: false,
-  wideColumnTransparentWide: false,
-  wideColumnTransparentLg: false,
-  narrowColumnTransparent: false,
-  narrowColumnTransparentWide: false,
-  narrowColumnTransparentLg: false,
+  // Base/Wide kept equal to Lg — same "duplicate the desktop diff into
+  // tablet/mobile" rule as every other scrollGradient* field in this
+  // block. Lg's own values here were live-tuned via the panel after the
+  // dark-ink wiring fix (0.96/0.29/0 -> 0.71/0.26/3.2, operator adjustment,
+  // 2026-09-21) — duplicated down to base/Wide so all three tiers keep
+  // producing the identical resolved ink, not just the identical gradient
+  // background.
+  scrollGradientDarkInkSaturation: 0.71,
+  scrollGradientDarkInkSaturationWide: 0.31,
+  scrollGradientDarkInkSaturationLg: 0.31,
+  scrollGradientDarkInkOpacityMultiplier: 0.26,
+  scrollGradientDarkInkOpacityMultiplierWide: 0.23,
+  scrollGradientDarkInkOpacityMultiplierLg: 0.23,
+  // /contact's own bright, "center-bright"/lightnessMin: 80 gradient
+  // recipe samples a near-white narrowColumnGradientReferenceColor at its
+  // core — a HIGH tolerance here tells the resolver a light-on-light ink
+  // candidate is acceptable, which risks the exact near-invisible-text
+  // regression found live, 2026-09-21 ("the text is too colorful...
+  // darken it"). 3.2 is a small, deliberately live-tuned allowance (down
+  // from /abstract's own much larger 18.1, tuned for a gradient recipe
+  // with genuinely dark stops /contact's never reaches) rather than the
+  // 0 (unconditionally forced dark) this shipped with initially — an
+  // operator adjustment, not a reversion of the original fix's reasoning.
+  scrollGradientLightInkOnLightBackgroundContrastTolerance: 3.2,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 3.2,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 3.2,
+  wideColumnTransparent: true,
+  wideColumnTransparentWide: true,
+  wideColumnTransparentLg: true,
+  narrowColumnTransparent: true,
+  narrowColumnTransparentWide: true,
+  narrowColumnTransparentLg: true,
   // Inert given colorSource: 'none' — never read, carried over verbatim.
   wideColumnCustomColor: '#0e1230',
   narrowColumnCustomColor: '#0e1230',
   wideColumnSurfaceOffset: 0,
   narrowColumnSurfaceOffset: 0,
-  // Inert given colorSource: 'none' — never read, carried over verbatim.
-  // See PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md.
+  // NOT inert — read by the scroll-gradient generator regardless of
+  // colorSource (a wholly separate system from the per-column custom/
+  // surface/palette tinting colorSource governs; colorSource: 'none' just
+  // means no additional column-level tint layered on top of this
+  // gradient). lightnessMin/chromaMin/mode below are now identical at
+  // every tier (previously base/Wide used a dimmer/desaturated/side-bright
+  // placeholder recipe distinct from Lg's actual tuned look) — see
+  // PLAN-POLYMORPHIC-SCROLL-GRADIENT-BACKGROUND.md for the generator
+  // itself.
   scrollGradientBaseHue: 215,
   scrollGradientHueScheme: 'dual-complementary',
-  scrollGradientLightnessMin: 10,
-  scrollGradientChromaMin: 45,
-  scrollGradientMode: 'side-bright',
+  // lightnessMin was live-tuned at the mobile/base tier only (80 -> 87,
+  // operator adjustment, 2026-09-21) and never duplicated up — Wide/Lg
+  // still sat at the pre-tuning 80, contradicting this block's own "now
+  // identical at every tier" comment above. Duplicated up here so all
+  // three tiers stay on the same value, same rule as the rest of this
+  // gradient block.
+  scrollGradientLightnessMin: 87,
+  scrollGradientChromaMin: 100,
+  scrollGradientMode: 'center-bright',
   scrollGradientStops: 22,
   scrollGradientVariance: 1,
   scrollGradientCenterStretch: 0.3,
   scrollGradientSeed: 50,
   scrollGradientBaseHueWide: 215,
   scrollGradientHueSchemeWide: 'dual-complementary',
-  scrollGradientLightnessMinWide: 10,
-  scrollGradientChromaMinWide: 45,
-  scrollGradientModeWide: 'side-bright',
+  scrollGradientLightnessMinWide: 87,
+  scrollGradientChromaMinWide: 100,
+  scrollGradientModeWide: 'center-bright',
   scrollGradientStopsWide: 22,
   scrollGradientVarianceWide: 1,
   scrollGradientCenterStretchWide: 0.3,
   scrollGradientSeedWide: 50,
   scrollGradientBaseHueLg: 215,
   scrollGradientHueSchemeLg: 'dual-complementary',
-  scrollGradientLightnessMinLg: 10,
-  scrollGradientChromaMinLg: 45,
-  scrollGradientModeLg: 'side-bright',
+  scrollGradientLightnessMinLg: 87,
+  scrollGradientChromaMinLg: 100,
+  scrollGradientModeLg: 'center-bright',
   scrollGradientStopsLg: 22,
   scrollGradientVarianceLg: 1,
   scrollGradientCenterStretchLg: 0.3,
@@ -108,7 +151,7 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientInkColorLg: '#f8fafc',
   scrollGradientViewportRangeVh: 1.25,
   scrollGradientViewportRangeVhWide: 1.25,
-  scrollGradientViewportRangeVhLg: 1.25,
+  scrollGradientViewportRangeVhLg: 0.9,
   scrollGradientMaxDarken: 0.65,
   scrollGradientMaxDarkenWide: 0.65,
   scrollGradientMaxDarkenLg: 0.65,
@@ -302,7 +345,19 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   // page's) — exactly the class of bug this shared constant exists to make
   // structurally impossible going forward.
   ...POLYMORPHIC_LAYOUT_HEADER_SEGMENT_DEFAULTS,
-  headerLeftContentPaddingTop: 'pt-0',
+  // pt-8 (32px) at the base/mobile tier — matches ABSTRACT_POLYMORPHIC_LAYOUT_
+  // CONFIG and ABOUT_POLYMORPHIC_LAYOUT_CONFIG (PolymorphicLayout.pageConfigs.ts)
+  // exactly. Previously pt-0 here, an undocumented divergence (not one of
+  // this file's own explained "deliberate operator override" cases, unlike
+  // headerLeftContentPaddingRightWide/-Lg below) — confirmed via live
+  // measurement (operator-reported 2026-09-21): at 390px the wordmark/nav
+  // block sat 32px higher on /contact than on /about and /abstract, both of
+  // which are otherwise pixel-identical to /contact at every desktop width
+  // and on this same field's own md/lg tiers (already 'pt-0' everywhere).
+  // The nav row has no separate top-padding divergence to fix — it flows
+  // immediately below this same wordmark box (headerRightContentPaddingTop
+  // is 'pt-0' on every page already), so it inherits this offset for free.
+  headerLeftContentPaddingTop: 'pt-8',
   headerLeftContentPaddingTopWide: 'md:pt-0',
   headerLeftContentPaddingTopLg: 'lg:pt-0',
   headerLeftContentPaddingRight: 'pr-0',
@@ -387,4 +442,35 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   splitBandWidthTier: 'stacked',
   splitBandWidthTierWide: '38/62',
   splitBandWidthTierLg: '38/62',
+
+  // Enhanced-compositor recipe duplicated to base/Wide — previously Lg-only
+  // (base/Wide silently fell back to POLYMORPHIC_LAYOUT_ENHANCED_GRADIENT_
+  // COMPAT_DEFAULTS' spread-in 'legacy'/'left'/50/100/1/1/100 values at the
+  // top of this file, a visibly different, flatter gradient shape than
+  // desktop's tuned 'enhanced' look). Same values at every tier now.
+  scrollGradientCompositor: 'enhanced',
+  scrollGradientCompositorWide: 'enhanced',
+  scrollGradientCompositorLg: 'enhanced',
+  scrollGradientFocalHorizontal: 'center',
+  scrollGradientFocalHorizontalWide: 'center',
+  scrollGradientFocalHorizontalLg: 'center',
+  scrollGradientLightHiddenPercent: 0,
+  scrollGradientLightHiddenPercentWide: 0,
+  scrollGradientLightHiddenPercentLg: 0,
+  // radius/aspect were also live-tuned at the mobile/base tier only
+  // (138 -> 139, 0.95 -> 1.55, operator adjustment, 2026-09-21) and never
+  // duplicated up — same leftover-parity gap as scrollGradientLightnessMin
+  // above.
+  scrollGradientLightRadiusPercent: 139,
+  scrollGradientLightRadiusPercentWide: 139,
+  scrollGradientLightRadiusPercentLg: 139,
+  scrollGradientLightAspectRatio: 1.55,
+  scrollGradientLightAspectRatioWide: 1.55,
+  scrollGradientLightAspectRatioLg: 1.55,
+  scrollGradientLightFalloff: 0.85,
+  scrollGradientLightFalloffWide: 0.85,
+  scrollGradientLightFalloffLg: 0.85,
+  scrollGradientExtentPercent: 95,
+  scrollGradientExtentPercentWide: 95,
+  scrollGradientExtentPercentLg: 95,
 } satisfies PolymorphicLayoutConfig

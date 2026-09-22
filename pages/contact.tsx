@@ -1,9 +1,10 @@
 import SeoHead from '../components/SeoHead'
 import { buildSiteTitle } from '../helpers/siteMetadata'
 import {
-  useCallback, useEffect, useMemo, useRef, useState,
+  useEffect, useMemo, useRef, useState,
   type CSSProperties,
 } from 'react'
+import { flushSync } from 'react-dom'
 import { createConfigScopeBinding } from '../components/Panel/config'
 import { useAuthoringToolsVisibility } from '../components/Panel/useAuthoringToolsVisibility'
 import { CtaButton } from '../components/CtaButton'
@@ -11,12 +12,15 @@ import {
   ComposerPill,
   computeSweepDurationMs,
   resolveAutoMessageTextColor,
+  type ComposerStarterPoints,
 } from '../components/ComposerPill'
 import {
+  CTA_BUTTON_MOTION_EASINGS,
   normalizeCtaButtonConfig,
   type CtaButtonConfig,
 } from '../components/CtaButton/config/registered'
 import { usePrefersReducedMotion } from '../helpers/usePrefersReducedMotion'
+import { deriveSurfaceColor } from '../helpers/surfaceColorDerivation'
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect'
 import { SiteHeader } from '../experiences/abstract/components/SiteHeader'
 import { buildEffectiveSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/buildEffectiveSiteHeaderConfig'
@@ -29,7 +33,11 @@ import {
   useAbstractDesignConfigBindings,
 } from '../experiences/abstract/hooks/useAbstractDesignConfigBindings'
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout'
-import { FixedViewportColumnContent } from '../experiences/abstract/components/FixedViewportColumnContent'
+import {
+  resolvePolymorphicColumnBackgroundReference,
+  resolvePolymorphicNarrowColumnTypography,
+} from '../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography'
+import { DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG } from '../components/GlobalTypography.config'
 import {
   normalizePolymorphicLayoutConfig,
   type PolymorphicLayoutConfig,
@@ -82,7 +90,7 @@ const REPLY_WINDOW_TEXT = process.env.NEXT_PUBLIC_REPLY_WINDOW_TEXT || ''
 
 const ENTRY_MESSAGE = `Hello. I’m ${AGENT_NAME}, Manuel’s contact assistant.
 
-Tell Manuel what’s on your mind. It can be rough. I can help shape the note before you send it.`
+Start with what you’re noticing, considering, or trying to work through, rough as it is, and I’ll help shape it into a note for Manuel before you send it.`
 
 // Shown once after gap-check/recap fails and merged with the identity ask in
 // the same turn,
@@ -104,7 +112,30 @@ const CLOSE_MESSAGE = REPLY_WINDOW_TEXT
 
 const ENTRY_PLACEHOLDER = 'Start anywhere'
 const REPLY_ROUTE_PLACEHOLDER = 'your@email.com'
-const NAME_PLACEHOLDER = 'Your name, if you’d like to share it'
+const NAME_PLACEHOLDER = 'Your name (optional)'
+// Shorter fallback for the name step specifically — the composer pill's
+// placeholder and its emptyValueAction ("Stay anonymous") sit side by side
+// in the same single-line row (see ComposerPill.tsx's own trailing-slot
+// swap), and at 320px (iPhone SE-class, the narrowest common real device)
+// the pairing above still overlaps even after shortening it once already
+// (operator-reported, live-measured 2026-09-21: fits cleanly at 375px+,
+// overlaps ~26px at 320px). Below 375px, both strings drop further —
+// "Name (optional)" + "Skip" measured with wide clearance (89px+) at both
+// 320px and 375px, the only pairing tested that holds at the true floor.
+// "Skip" is deliberately the least warm of the tested options (Jakob's
+// Law: the single most learned convention for bypassing a non-required
+// step needs no further explanation) — the tradeoff made explicitly here
+// only on the narrowest tier, where there is no room left to also be warm.
+const NAME_PLACEHOLDER_NARROW = 'Name (optional)'
+const SKIP_NAME_LABEL_NARROW = 'Skip'
+const SKIP_NAME_LABEL = 'Stay anonymous'
+// Below this width the standard name-step copy pair no longer fits the
+// pill without overlapping (see NAME_PLACEHOLDER_NARROW's own doc comment
+// for the measurements) — 374px, not a shared breakpoints.ts tier (sm/md/
+// lg/xl start at 640px+), since this is a component-internal text-fit
+// threshold, not a layout breakpoint any other part of the page reflows
+// around.
+const NAME_STEP_NARROW_MEDIA_QUERY = '(max-width: 374px)'
 const NOTE_EDIT_PLACEHOLDER = 'Edit the note'
 const DEGRADED_ADDENDUM_PLACEHOLDER = 'Add anything else'
 
@@ -185,6 +216,26 @@ export const computeMessageFadeOpacity = (
   return 1 - fadeRatio * (1 - floorOpacity)
 }
 
+export type StarterPointsMode = 'hidden' | 'hint' | 'browsing'
+
+// Exported for its own unit test rather than only exercised indirectly via
+// the component's idle-timer effect — the effect's only synchronous
+// decision (the idle timer itself is the sole path back to 'hint', and is
+// inherently time-based). A real keystroke always wins over any mode,
+// including 'browsing' (the visitor typing directly is "I changed my
+// mind," same outcome as clicking the close X).
+export const resolveStarterModeOnInput = (
+  mode: StarterPointsMode,
+  hasInput: boolean,
+): StarterPointsMode => (hasInput ? 'hidden' : mode)
+
+// Exported for its own unit test — the wraparound arithmetic behind the
+// starting-points carousel's prev/next controls (ComposerPill's
+// starterPoints.onPrev/onNext in GuidedIntake below).
+export const cycleStarterIndex = (current: number, direction: 1 | -1, length: number) => (
+  length <= 0 ? 0 : (current + direction + length) % length
+)
+
 // Stands in for a real fetch's round-trip time in dev-mode simulation (see
 // GuidedIntake's simulateIntakeResponse) — rejects the same way a real
 // fetch does on abort, so the existing `error.name === 'AbortError'` no-ops
@@ -206,7 +257,7 @@ function EmailFallback({ emphasized = false }: { emphasized?: boolean }) {
   return (
     <a
       href="mailto:reach@abstract.voyage"
-      className={`inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)] ${emphasized ? 'font-semibold' : ''}`}
+      className={`inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)] ${emphasized ? 'font-semibold' : ''}`}
     >
       reach@abstract.voyage
     </a>
@@ -239,8 +290,42 @@ function GuidedIntake({
   const [initialCarriedDraft] = useState(() => peekPendingComposerDraft())
   const hadCarriedDraft = initialCarriedDraft !== null
   const [inputValue, setInputValue] = useState(() => initialCarriedDraft ?? '')
-  const [showStartHelp, setShowStartHelp] = useState(false)
+  // The in-pill "Not sure where to begin?" affordance (see
+  // ComposerPill.tsx's own ComposerStarterPoints doc comment for the full
+  // mode contract). Never visible on arrival — only a deliberate signal of
+  // hesitation (focusing the field and pausing, or hovering it and pausing,
+  // both for starterAffordanceIdleReappearDelayMs — see the isComposerFocused/
+  // isComposerHovered effect below) reveals it. The idle-reappear/hide-on-type
+  // effect below is the only other place this changes.
+  const [starterMode, setStarterMode] = useState<StarterPointsMode>('hidden')
+  const [starterIndex, setStarterIndex] = useState(0)
+  // Real focus/hover of the composer pill itself (via ComposerPill's own
+  // onFocusChange/onHoverChange — see its doc comment), not inferred from
+  // step/phase — the starter-points idle reveal below is keyed on genuine
+  // engagement with the field, not just "this is the opening message."
+  const [isComposerFocused, setIsComposerFocused] = useState(false)
+  const [isComposerHovered, setIsComposerHovered] = useState(false)
+  // Non-null only for the brief window between selecting a starting-point
+  // stem and that same text becoming real, editable inputValue — see
+  // selectStarterStem's own doc comment.
+  const [starterRevealText, setStarterRevealText] = useState<string | null>(null)
   const [placeholder, setPlaceholder] = useState(ENTRY_PLACEHOLDER)
+  // Live-tracked (not just read once) so rotating a narrow device, or
+  // resizing a desktop window down past the threshold, while already on
+  // the name step swaps to the fitting copy immediately — see
+  // NAME_PLACEHOLDER_NARROW's own doc comment. SSR-safe default false: the
+  // name step is several turns into the conversation, never the first
+  // paint, so there's no hydration-mismatch window to guard against the
+  // way useBreakpointTier's own mobile-first default has to.
+  const [isNameStepNarrow, setIsNameStepNarrow] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+    const query = window.matchMedia(NAME_STEP_NARROW_MEDIA_QUERY)
+    const resolve = () => setIsNameStepNarrow(query.matches)
+    resolve()
+    query.addEventListener('change', resolve)
+    return () => query.removeEventListener('change', resolve)
+  }, [])
   const [botField, setBotField] = useState('')
   const [deliveryError, setDeliveryError] = useState('')
 
@@ -280,6 +365,12 @@ function GuidedIntake({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const dockRef = useRef<HTMLDivElement | null>(null)
+  // True once the visitor has opened the starters at least once this session.
+  // Gates the idle re-nudge (see the idle-reveal effect and
+  // config.starterAffordanceReappearAfterUse) so proactive help doesn't keep
+  // returning after the visitor has already found it — a ref, not state,
+  // because it only ever flips on a click that already re-runs that effect.
+  const hasEngagedStarterRef = useRef(false)
 
   const { heroPhase, triggerExit } = useComposerHeroPhase(config, dockRef)
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -347,17 +438,81 @@ function GuidedIntake({
     if (phase === 'writing') textareaRef.current?.focus()
   }, [phase, turns.length])
 
+  // Drives starterMode's transitions that aren't a direct click (browsing's
+  // own open/select/close are wired straight into the ComposerPill
+  // starterPoints prop below). A real keystroke always hides the affordance
+  // immediately (including one that lands while browsing — the visitor typing
+  // is "I changed my mind," so this exits browsing exactly like the close X).
+  //
+  // The reveal is a genuine hesitation/dwell nudge, not a bare timer since
+  // focus: it arms only when the field is hidden, EMPTY, and genuinely engaged
+  // (focused or hovered), and its countdown restarts on any real activity —
+  // a keystroke OR pointer movement over the field — so an actively-engaged
+  // visitor (typing, or moving the cursor while reading) is never nudged;
+  // only a truly still, silent pause of starterAffordanceIdleReappearDelayMs
+  // trips it. Deliberately never armed by step/phase alone (arriving at the
+  // opening message untouched must not surface it), never while the field
+  // holds real text, and — unless starterAffordanceReappearAfterUse — never
+  // again once the visitor has already opened the starters this session (see
+  // hasEngagedStarterRef; proactive help that keeps returning after use reads
+  // as nagging).
   useEffect(() => {
-    if (step !== 'message' || inputValue) setShowStartHelp(false)
-  }, [inputValue, step])
+    // Master switch (see ContactExperienceConfig's own doc comment):
+    // skipped outright when off, rather than just leaving starterMode stuck
+    // at 'hidden' — the composer's own starterPoints prop already goes
+    // undefined in that case, so this effect updating starterMode would be
+    // pure unobservable churn (no UI reads it), and skipping it also means
+    // no keydown/pointermove listeners get attached for a feature that
+    // isn't showing anything.
+    if (!config.starterPointsEnabled) return
+    if (step !== 'message' || phase !== 'writing') return
+    const nextMode = resolveStarterModeOnInput(starterMode, Boolean(inputValue))
+    if (nextMode !== starterMode) {
+      setStarterMode(nextMode)
+      return
+    }
+    if (starterMode !== 'hidden') return
+    if (inputValue) return
+    if (!isComposerFocused && !isComposerHovered) return
+    if (hasEngagedStarterRef.current && !config.starterAffordanceReappearAfterUse) return
+
+    const textarea = textareaRef.current
+    let timeoutId = 0
+    const arm = () => {
+      window.clearTimeout(timeoutId)
+      timeoutId = window.setTimeout(
+        () => setStarterMode('hint'),
+        config.starterAffordanceIdleReappearDelayMs,
+      )
+    }
+    arm()
+    // Any deliberate engagement — a key, or purposeful pointer motion over
+    // the field — restarts the wait from zero; the nudge is for stillness,
+    // not merely for time-since-focus.
+    textarea?.addEventListener('keydown', arm)
+    textarea?.addEventListener('pointermove', arm)
+    return () => {
+      window.clearTimeout(timeoutId)
+      textarea?.removeEventListener('keydown', arm)
+      textarea?.removeEventListener('pointermove', arm)
+    }
+  }, [
+    inputValue, step, phase, starterMode,
+    isComposerFocused, isComposerHovered, config.starterPointsEnabled,
+    config.starterAffordanceIdleReappearDelayMs, config.starterAffordanceReappearAfterUse,
+  ])
 
   useEffect(() => {
+    // scrollRef.current IS the scroll owner now — it used to be a plain,
+    // overflow-visible node delegating to a distant position:fixed
+    // ancestor (data-responsive-overflow-owner, formerly two levels up on
+    // FixedViewportColumnContent's own div), which is why this used to
+    // climb via .closest() to find it. See
+    // PLAN-CONTACT-VIEWPORT-SIMPLIFICATION.md.
     const node = scrollRef.current
     if (!node) return
-    const overflowOwner = node.closest<HTMLElement>('[data-responsive-overflow-owner="true"]')
-    const scrollOwner = overflowOwner ?? node
-    scrollOwner.scrollTo({
-      top: scrollOwner.scrollHeight,
+    node.scrollTo({
+      top: node.scrollHeight,
       behavior: prefersReducedMotion ? 'auto' : 'smooth',
     })
   }, [turns.length, phase, prefersReducedMotion])
@@ -436,6 +591,11 @@ function GuidedIntake({
     ok: boolean
     degraded?: boolean
     needsFollowUp?: boolean
+    // Server-side low-signal opening guard (see intake.js's isLowSignalMessage):
+    // a deterministic third outcome alongside ready/needsFollowUp, delivered
+    // over the same needsFollowUp/question/followUpToken shape so it rides
+    // the existing one-question ceiling without a new client branch.
+    needsClarification?: boolean
     question?: string
     followUpToken?: string
     recap?: string
@@ -712,15 +872,71 @@ function GuidedIntake({
 
   const handleSkipName = () => submitName('')
 
+  // Selecting a stem hands off to ComposerPill's own introText overlay (see
+  // its doc comment) rather than setting inputValue immediately — the exact
+  // same per-character SplitTextReveal sweep, at the exact same
+  // heroPlaceholderReveal*/config timing, that ENTRY_PLACEHOLDER itself
+  // plays on a fresh load, so a selected starting point arrives the same
+  // way the composer's own placeholder did rather than snapping in as
+  // already-typed text. Only once that sweep finishes does the seeded text
+  // become real, editable value with the caret placed at its end.
   const selectStarterStem = (stem: string) => {
     const seededValue = `${stem} `
-    setInputValue(seededValue)
-    setShowStartHelp(false)
-    window.requestAnimationFrame(() => {
+    setStarterMode('hidden')
+    setStarterRevealText(seededValue)
+    // The extra heroPlaceholderRevealStepDelayMs on top of the sweep's own
+    // computed length is deliberate headroom, not slack in the math above —
+    // it absorbs whatever render/layout/paint jank the double-rAF below
+    // doesn't fully cover on a loaded or slower device, at the cost of one
+    // more step's worth of wait (already a small, intentionally-tuned
+    // value) rather than an arbitrary magic-number buffer.
+    const revealDurationMs = computeSweepDurationMs(
+      Array.from(seededValue).length,
+      config.heroPlaceholderRevealStepDelayMs,
+      config.heroPlaceholderRevealUnitDurationMs,
+    ) + config.heroPlaceholderRevealStepDelayMs
+    const commitRevealedText = () => {
+      // A visitor who typed their own text during the brief reveal window
+      // wins — never clobber real input with the seeded stem underneath it.
+      if (textareaRef.current?.value) {
+        setStarterRevealText(null)
+        return
+      }
+      // flushSync forces both state updates to commit (and the textarea's
+      // value to actually update in the DOM) synchronously, before the
+      // browser paints the next frame — so the caret can be placed at the
+      // end below in that same frame, with no intermediate paint where the
+      // full text is visible but the caret still sits at its old position
+      // (0, since a controlled textarea's caret doesn't follow a
+      // programmatic value change on its own). A rAF-deferred
+      // focus/setSelectionRange here would let that wrong-position frame
+      // actually paint first, visible as the caret flickering at the start
+      // of the seeded text for one frame before jumping to the end.
+      flushSync(() => {
+        setStarterRevealText(null)
+        setInputValue(seededValue)
+      })
       const textarea = textareaRef.current
       if (!textarea) return
       textarea.focus()
       textarea.setSelectionRange(seededValue.length, seededValue.length)
+    }
+    // Two nested rAFs, not a setTimeout started from this synchronous call:
+    // the CSS reveal's own animation-delay clock only starts once the
+    // browser has actually committed and PAINTED the newly mounted
+    // character spans this setStarterRevealText triggers — which happens
+    // strictly after this function returns. Starting revealDurationMs's
+    // countdown from here instead races ahead of that paint by however long
+    // React + layout + paint take, cutting the last character(s) short
+    // before their fade visually finishes. The first rAF fires before that
+    // paint; the second fires once it has actually happened, so the
+    // countdown below is measured from a point that actually corresponds to
+    // the animation's real start, letting every character — including the
+    // last — finish exactly as it does on a fresh page load.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(commitRevealedText, revealDurationMs)
+      })
     })
   }
 
@@ -824,7 +1040,8 @@ function GuidedIntake({
     })
   }
 
-  const canUseOriginalWords = phase !== 'done' && !degradedRef.current &&
+  const canUseOriginalWords = config.useOriginalWordsActionEnabled &&
+    phase !== 'done' && !degradedRef.current &&
     (step === 'reply-route' || step === 'name' || phase === 'confirm')
 
   // Deterministic top-fade: only the last messageVisibleCount turns ever
@@ -845,16 +1062,117 @@ function GuidedIntake({
   const firstVisibleIndex = turns.length - visibleCount
   const messageTextAlignClassName = config.messageTextAlign === 'center' ? 'text-center' : 'text-left'
 
-  // The confirm screen's correction action ("Something's off"/"Add more")
-  // gets a transparent/outline variant of the shared ctaButtonConfig, so
-  // the accept action ("That's right"/"Send it") — rendered with
-  // ctaButtonConfig as-is, solid per its own configured backgroundMode —
-  // visually stands out as the primary choice. No new component needed:
-  // CtaButtonConfig already fully supports this distinction.
-  const secondaryCtaButtonConfig = useMemo(
-    () => ({ ...ctaButtonConfig, backgroundMode: 'transparent' as const }),
-    [ctaButtonConfig],
+  // The confirm screen's accept action ("Send note to Manuel") used to
+  // inherit its fill/border straight from the shared, site-wide
+  // ctaButtonConfig; it now owns its own explicit default/hover-active
+  // colors here (see primaryButtonBackgroundColor's own doc comment,
+  // ContactExperience.config.ts) so this page can tune them independently.
+  // backgroundColorMode/borderColorMode both 'custom' so CtaButton never
+  // falls back to deriving either from surfaceColor.
+  const primaryCtaButtonConfig = useMemo(
+    () => ({
+      ...ctaButtonConfig,
+      backgroundColorMode: 'custom' as const,
+      backgroundColor: config.primaryButtonBackgroundColor,
+      hoverColorsEnabled: true,
+      hoverBackgroundColor: config.primaryButtonHoverActiveBackgroundColor,
+      borderColorMode: 'custom' as const,
+      borderColor: config.primaryButtonBorderColor,
+      hoverBorderColor: config.primaryButtonHoverActiveBorderColor,
+    }),
+    [
+      ctaButtonConfig,
+      config.primaryButtonBackgroundColor,
+      config.primaryButtonHoverActiveBackgroundColor,
+      config.primaryButtonBorderColor,
+      config.primaryButtonHoverActiveBorderColor,
+    ],
   )
+  // The correction action ("Edit note"/"Add more") never owns its own fill/
+  // border hex values — it always derives from the primary button's own
+  // colors above, each darkened by its own relative amount (see
+  // secondaryButtonBackgroundDarkenAmount's own doc comment,
+  // ContactExperience.config.ts). Used to render fully transparent
+  // (backgroundMode: 'transparent'), reading as a disabled/inert control
+  // next to the accept action's solid fill (operator-reported, 2026-09-21).
+  const secondaryCtaButtonConfig = useMemo(
+    () => ({
+      ...primaryCtaButtonConfig,
+      backgroundColor: deriveSurfaceColor(
+        config.primaryButtonBackgroundColor, -config.secondaryButtonBackgroundDarkenAmount,
+      ),
+      hoverBackgroundColor: deriveSurfaceColor(
+        config.primaryButtonHoverActiveBackgroundColor, -config.secondaryButtonHoverActiveBackgroundDarkenAmount,
+      ),
+      borderColor: deriveSurfaceColor(
+        config.primaryButtonBorderColor, -config.secondaryButtonBorderDarkenAmount,
+      ),
+      hoverBorderColor: deriveSurfaceColor(
+        config.primaryButtonHoverActiveBorderColor, -config.secondaryButtonHoverActiveBorderDarkenAmount,
+      ),
+    }),
+    [
+      primaryCtaButtonConfig,
+      config.primaryButtonBackgroundColor,
+      config.primaryButtonHoverActiveBackgroundColor,
+      config.primaryButtonBorderColor,
+      config.primaryButtonHoverActiveBorderColor,
+      config.secondaryButtonBackgroundDarkenAmount,
+      config.secondaryButtonHoverActiveBackgroundDarkenAmount,
+      config.secondaryButtonBorderDarkenAmount,
+      config.secondaryButtonHoverActiveBorderDarkenAmount,
+    ],
+  )
+  // The composer pill's own fill/border — same "own explicit colors instead
+  // of the shared, site-wide ctaButtonConfig's 'auto' surface-derived ones"
+  // move as primaryCtaButtonConfig above, applied to ComposerPill's own
+  // ctaButtonConfig prop (see composerPillBackgroundColor's own doc comment,
+  // ContactExperience.config.ts). Derived from the raw shared ctaButtonConfig
+  // (not primaryCtaButtonConfig) — the pill and the confirm buttons are
+  // independently colored, just via the same technique.
+  const composerCtaButtonConfig = useMemo(
+    () => ({
+      ...ctaButtonConfig,
+      backgroundColorMode: 'custom' as const,
+      backgroundColor: config.composerPillBackgroundColor,
+      hoverColorsEnabled: true,
+      hoverBackgroundColor: config.composerPillHoverActiveBackgroundColor,
+      borderColorMode: 'custom' as const,
+      borderColor: config.composerPillBorderColor,
+      hoverBorderColor: config.composerPillHoverActiveBorderColor,
+    }),
+    [
+      ctaButtonConfig,
+      config.composerPillBackgroundColor,
+      config.composerPillHoverActiveBackgroundColor,
+      config.composerPillBorderColor,
+      config.composerPillHoverActiveBorderColor,
+    ],
+  )
+  // Active is deliberately rendered identical to hover on both confirm
+  // actions — CtaButtonConfig has no distinct third color slot, and a real
+  // click is simultaneously :hover AND :active anyway, so this just
+  // repoints --cta-background/--cta-border to the same --cta-hover-
+  // background/-border custom properties CtaButton.tsx already sets for
+  // hover (the exact technique its own internal group-hover rule uses),
+  // guaranteeing the two states can never visually diverge. `!` (Tailwind's
+  // important marker): group-hover's own rule otherwise wins this tie
+  // (confirmed live, 2026-09-21).
+  const ctaButtonActiveClassName = 'active:![--cta-background:var(--cta-hover-background)] active:![--cta-border:var(--cta-hover-border)]'
+
+  // Confirm-screen button label size/weight, segregated per breakpoint (see
+  // buttonFontSize's own doc comment, ContactExperience.config.ts). Applied
+  // to a <span> wrapping the label text itself — one DOM level deeper than
+  // CtaButton's own inner surface span (which sets its own fontSize/
+  // font-medium classes directly) — so these explicit classes win the
+  // inheritance battle instead of losing to CtaButton's closer-to-the-text
+  // declaration the way a plain className passed to CtaButton itself would
+  // (that prop lands on CtaButton's outer wrapping element, further from
+  // the text, not the surface span).
+  const buttonFontClassName = [
+    config.buttonFontSize, config.buttonFontSizeWide, config.buttonFontSizeLg,
+    config.buttonFontWeight, config.buttonFontWeightWide, config.buttonFontWeightLg,
+  ].join(' ')
 
   // Centering-while-empty and settling-to-the-bottom both come from plain
   // flexbox, not position/percentage math: a spacer below the dock grows
@@ -893,7 +1211,34 @@ function GuidedIntake({
         ref={scrollRef}
         aria-live="polite"
         data-contact-turns="true"
-        className="flex w-full flex-1 min-h-[var(--contact-viewport-height)] flex-col items-center justify-end gap-[var(--contact-message-gap)] overflow-visible pr-2"
+        // The one designated scroller in this whole page now (see
+        // PLAN-CONTACT-VIEWPORT-SIMPLIFICATION.md) — previously
+        // overflow-visible, delegating actual scrolling to a distant
+        // position:fixed ancestor (FixedViewportColumnContent, since
+        // removed).
+        //
+        // min-h-0, not the old min-h-[var(--contact-viewport-height)]
+        // (360px) floor: min-h-0 is the standard, required pairing with
+        // flex-1 in a column that must be able to shrink below its own
+        // content size (CSS flexbox's default min-height:auto on a flex
+        // item otherwise refuses to shrink below its content height at
+        // all). The 360px floor was a real, deliberate choice (see its own
+        // former doc comment — a short-viewport aesthetic guarantee so the
+        // feed never looked cramped), but a *fixed* floor and *guaranteed
+        // composer visibility* are directly in tension on a short-enough
+        // viewport: forcing this box to at least 360px when the keyboard
+        // has left less room than that just reintroduces the exact "big
+        // box the composer sinks into" bug this whole plan exists to
+        // remove — the outer column's own overflow-hidden would then clip
+        // the composer instead of merely scrolling it out of reach, worse.
+        // Composer visibility wins when the two conflict. In practice this
+        // costs nothing on ordinary tall/desktop viewports either: flex-1
+        // already claims all remaining column space regardless of
+        // min-height (that's flex-grow's job, not min-height's) — the
+        // floor was only ever a *shrinking* constraint, never what made
+        // the feed fill tall screens.
+        className="flex w-full flex-1 min-h-0 flex-col items-center justify-end gap-[var(--contact-message-gap)] overflow-y-auto overscroll-contain pr-2"
+        data-responsive-overflow-owner="true"
       >
         {visibleTurns.map((turn, index) => {
           const distanceFromBottom = visibleCount - 1 - index
@@ -925,16 +1270,22 @@ function GuidedIntake({
                   only rather than changing every turn's wrapper. */}
               <div className={`contact-message-enter ${turn.role === 'agent' ? '' : 'w-full'}`}>
                 {turn.role === 'agent' ? (() => {
-                  const baseClassName = `w-fit max-w-[var(--contact-message-measure)] whitespace-pre-line [overflow-wrap:anywhere] ${messageTextAlignClassName} leading-[var(--contact-line-height)]`
-                  const mutedClassName = 'text-[length:var(--contact-hero-greeting-size)] text-[color:var(--contact-muted)] opacity-[var(--contact-muted-opacity)]'
-                  const primaryClassName = 'text-[length:var(--contact-conversation-size)] text-[color:var(--contact-primary)]'
+                  // Literal Tailwind size/leading tokens straight from
+                  // config (components/tailwindTypographyScale.ts) — the
+                  // Wide/Lg values already carry their own md:/lg: prefix
+                  // (ContactExperienceConfig's own doc comment), so they
+                  // compose directly into the class string, no CSS-custom-
+                  // property indirection.
+                  const baseClassName = `w-fit max-w-[var(--contact-message-measure)] whitespace-pre-line [overflow-wrap:anywhere] ${messageTextAlignClassName} ${config.lineHeight} ${config.lineHeightWide} ${config.lineHeightLg}`
+                  const mutedClassName = `${config.heroGreetingTextSize} ${config.heroGreetingTextSizeWide} ${config.heroGreetingTextSizeLg} text-[color:var(--contact-muted)] opacity-[var(--contact-muted-opacity)]`
+                  const primaryClassName = `${config.conversationTextSize} ${config.conversationTextSizeWide} ${config.conversationTextSizeLg} text-[color:var(--contact-primary)]`
                   // Recap-body-only tier, between mutedClassName's label
                   // opacity and primaryClassName's full contrast — the
                   // visitor's own words reflected back read as calm
                   // reference copy, so it recedes on its own rather than
                   // needing recapQuestion below (plain primaryClassName, no
                   // added weight) to shout over it.
-                  const recapBodyClassName = 'text-[length:var(--contact-conversation-size)] text-[color:var(--contact-primary)] opacity-[var(--contact-recap-body-opacity)]'
+                  const recapBodyClassName = `${config.conversationTextSize} ${config.conversationTextSizeWide} ${config.conversationTextSizeLg} text-[color:var(--contact-primary)] opacity-[var(--contact-recap-body-opacity)]`
 
                   if (turn.variant === 'recap') {
                     // intro is always one of the two fixed, single-line
@@ -961,7 +1312,7 @@ function GuidedIntake({
                     </p>
                   )
                 })() : (
-                  <p className={`mx-auto w-fit max-w-[min(var(--contact-message-measure),88%)] whitespace-pre-line [overflow-wrap:anywhere] rounded-[22px] bg-black/[0.06] px-4 py-2.5 ${messageTextAlignClassName} text-[length:var(--contact-base-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-primary)]`}>
+                  <p className={`mx-auto w-fit max-w-[min(var(--contact-message-measure),88%)] whitespace-pre-line [overflow-wrap:anywhere] rounded-[22px] bg-black/[0.06] px-4 py-2.5 ${messageTextAlignClassName} ${config.baseTextSize} ${config.baseTextSizeWide} ${config.baseTextSizeLg} ${config.lineHeight} ${config.lineHeightWide} ${config.lineHeightLg} text-[color:var(--contact-primary)]`}>
                     {turn.text}
                   </p>
                 )}
@@ -983,7 +1334,22 @@ function GuidedIntake({
           hero redesign. The visible glide between those two positions is
           a FLIP transform useComposerHeroPhase applies imperatively via
           dockRef, not a transition on the flex values above. */}
-      <div ref={dockRef} className="relative flex w-full flex-col items-center gap-[var(--contact-message-gap)]">
+      <div
+        ref={dockRef}
+        // gap here is the dedicated, config-driven space between the dock's
+        // main content (greeting/composer/confirm/failed states, all still
+        // sharing messageGapPx's own gap internally, one level in) and the
+        // mandatory-actions row below — a real CSS gap between the two
+        // groups, not the padding-top + negative-margin cancellation this
+        // used to be (operator suggestion, simpler and more direct: gap is
+        // the property actually meant for "space between two flex
+        // siblings," padding is for space inside one box). dockRef's own
+        // measured rect (useComposerHeroPhase's FLIP transform) is
+        // unaffected — same two groups of content, same total box, just
+        // reorganized which gap value applies where internally.
+        className={`relative flex w-full flex-col items-center ${config.mandatoryActionsTopGap}`}
+      >
+        <div className="flex w-full flex-col items-center gap-[var(--contact-message-gap)]">
         {/* A normal flex-col child, stacking above the composer via the
             same gap every other row in this column already uses — not
             positioned at all. Unmounts for good once heroPhase reaches
@@ -1004,72 +1370,71 @@ function GuidedIntake({
             autoFocus
             bounceElevationPx={config.submitBounceElevationPx}
             bounceOnSubmitEnabled={config.submitBounceEnabled}
+            buttonHoverActiveTextColor={config.composerButtonHoverActiveTextColor}
+            buttonTextColor={config.composerButtonTextColor}
             composerElevationPx={config.composerElevationPx}
             motionConfig={config}
-            ctaButtonConfig={ctaButtonConfig}
+            ctaButtonConfig={composerCtaButtonConfig}
             disabled={phase === 'pending'}
+            emptyValueActionHoverActiveTextColor={config.emptyValueActionHoverActiveTextColor}
+            emptyValueActionTextColor={config.emptyValueActionTextColor}
             heroPhase={heroPhase}
+            emptyValueAction={step === 'name' ? {
+              label: isNameStepNarrow ? SKIP_NAME_LABEL_NARROW : SKIP_NAME_LABEL,
+              onClick: handleSkipName,
+            } : undefined}
+            introText={starterRevealText ?? undefined}
             onChange={setInputValue}
+            onFocusChange={setIsComposerFocused}
+            onHoverChange={setIsComposerHovered}
             onSubmit={handleSend}
             pendingIndicator={<AgentPendingIndicator config={config} />}
-            placeholder={placeholder}
+            placeholder={step === 'name' && isNameStepNarrow ? NAME_PLACEHOLDER_NARROW : placeholder}
             placeholderMinContrast={config.composerPlaceholderMinContrast}
-            placeholderRevealInitialDelayMs={heroPlaceholderRevealInitialDelayMs}
+            // 0 once a selected stem is revealing — the cascaded delay
+            // above exists to sequence the page's own load-time entrance
+            // (container fade, then this, then the greeting); replaying
+            // that same dead pause after a deliberate click would just read
+            // as lag. Matches AbstractHeroCtaComposer's own precedent for
+            // the same prop (0 for every reveal after its own first line).
+            placeholderRevealInitialDelayMs={starterRevealText ? 0 : heroPlaceholderRevealInitialDelayMs}
+            maxVisibleLines={config.composerMaxVisibleLines}
             singleLine
+            starterPoints={step === 'message' && config.starterPointsEnabled ? {
+              mode: starterMode,
+              hintLabel: 'Not sure where to begin?',
+              options: STARTER_STEMS,
+              index: starterIndex,
+              transitionDurationMs: config.starterAffordanceTransitionDurationMs,
+              transitionEasing: CTA_BUTTON_MOTION_EASINGS[config.starterAffordanceTransitionEasing],
+              fadeInDurationMs: config.starterAffordanceFadeInDurationMs,
+              fadeInEasing: CTA_BUTTON_MOTION_EASINGS[config.starterAffordanceFadeInEasing],
+              onHintClick: () => {
+                // Opening the starters counts as engagement — the idle nudge
+                // won't auto-return afterwards (unless reappearAfterUse).
+                hasEngagedStarterRef.current = true
+                setStarterIndex(0)
+                setStarterMode('browsing')
+              },
+              onPrev: () => setStarterIndex(
+                previous => cycleStarterIndex(previous, -1, STARTER_STEMS.length),
+              ),
+              onNext: () => setStarterIndex(
+                previous => cycleStarterIndex(previous, 1, STARTER_STEMS.length),
+              ),
+              onSelect: selectStarterStem,
+              // Also the mobile hint's own dismiss × (ComposerPill.tsx) —
+              // a visitor who explicitly backs out (from either mode) has
+              // made their "no" clear, same as one who opened browsing.
+              onClose: () => {
+                hasEngagedStarterRef.current = true
+                setStarterMode('hidden')
+              },
+            } satisfies ComposerStarterPoints : undefined}
             surfaceColor={surfaceColor}
             textareaRef={textareaRef}
             value={inputValue}
           />
-        )}
-
-        {phase === 'writing' && step === 'message' && !inputValue && (
-          <div className="flex flex-col items-center gap-2 text-center" aria-label="Writing help">
-            <p className="m-0 text-sm text-[color:var(--contact-muted)]">
-              Start with what you’re noticing, considering, or trying to work through.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowStartHelp(previous => !previous)}
-              aria-expanded={showStartHelp}
-              className="inline-flex min-h-11 items-center px-1 text-sm text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
-            >
-              {showStartHelp ? 'Hide starting points' : 'Not sure where to begin?'}
-            </button>
-            {showStartHelp && (
-              <div className="flex flex-col items-center gap-1" aria-label="Writing prompts">
-                {STARTER_STEMS.map(stem => (
-                  <button
-                    key={stem}
-                    type="button"
-                    onClick={() => selectStarterStem(stem)}
-                    className="min-h-10 px-1 text-sm text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
-                  >
-                    {stem}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {phase === 'writing' && step === 'name' && (
-          <button
-            type="button"
-            onClick={handleSkipName}
-            className="inline-flex min-h-11 items-center px-1 text-sm text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
-          >
-            Skip
-          </button>
-        )}
-
-        {phase === 'writing' && step === 'followup' && (
-          <button
-            type="button"
-            onClick={() => void runRecap(false)}
-            className="inline-flex min-h-11 items-center px-1 text-sm text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
-          >
-            {CONTINUE_AS_WRITTEN_LABEL}
-          </button>
         )}
 
         {/* Degraded mode gets its own vocabulary here — "Something's off, let
@@ -1077,58 +1442,62 @@ function GuidedIntake({
             degraded mode has no AI interpretation, just a verbatim echo of
             what's already visible above. "Add more" / "Send it" match what's
             actually happening instead.
-            The accept action (right) renders with ctaButtonConfig as-is
-            (solid, per its own configured backgroundMode) while the
-            correction action (left) gets the transparent secondaryCtaButtonConfig
-            variant — a real visual primary/secondary hierarchy, not two
-            visually-identical choices. Both get onFocus/onMouseEnter release
-            handlers regardless of which one is forceHover-highlighted: a real
-            hover or focus on *either* action retires the simulated nudge for
-            the rest of this confirm-screen instance. */}
+            The accept action (right) renders with primaryCtaButtonConfig
+            while the correction action (left) gets the derived-darker
+            secondaryCtaButtonConfig variant — a real visual primary/
+            secondary hierarchy, not two visually-identical choices. Both
+            get onFocus/onMouseEnter release handlers regardless of which
+            one is forceHover-highlighted: a real hover or focus on *either*
+            action retires the simulated nudge for the rest of this
+            confirm-screen instance. */}
         {phase === 'confirm' && (
           <div className="flex flex-wrap items-center justify-center gap-[var(--contact-control-gap)]">
             {degradedRef.current ? (
               <>
                 <CtaButton
+                  className={ctaButtonActiveClassName}
                   config={secondaryCtaButtonConfig}
                   onClick={handleRequestDegradedAddendum}
                   onFocus={handleReleaseConfirmForceHover}
                   onMouseEnter={handleReleaseConfirmForceHover}
                   surfaceColor={surfaceColor}
                 >
-                  {DEGRADED_CONFIRM_CORRECT_LABEL}
+                  <span className={buttonFontClassName}>{DEGRADED_CONFIRM_CORRECT_LABEL}</span>
                 </CtaButton>
                 <CtaButton
-                  config={ctaButtonConfig}
+                  className={ctaButtonActiveClassName}
+                  config={primaryCtaButtonConfig}
                   forceHover={confirmForceHover}
                   onClick={() => void handleConfirmed()}
                   onFocus={handleReleaseConfirmForceHover}
                   onMouseEnter={handleReleaseConfirmForceHover}
                   surfaceColor={surfaceColor}
                 >
-                  {DEGRADED_CONFIRM_ACCEPT_LABEL}
+                  <span className={buttonFontClassName}>{DEGRADED_CONFIRM_ACCEPT_LABEL}</span>
                 </CtaButton>
               </>
             ) : (
               <>
                 <CtaButton
+                  className={ctaButtonActiveClassName}
                   config={secondaryCtaButtonConfig}
                   onClick={handleRequestCorrection}
                   onFocus={handleReleaseConfirmForceHover}
                   onMouseEnter={handleReleaseConfirmForceHover}
                   surfaceColor={surfaceColor}
                 >
-                  {CONFIRM_CORRECT_LABEL}
+                  <span className={buttonFontClassName}>{CONFIRM_CORRECT_LABEL}</span>
                 </CtaButton>
                 <CtaButton
-                  config={ctaButtonConfig}
+                  className={ctaButtonActiveClassName}
+                  config={primaryCtaButtonConfig}
                   forceHover={confirmForceHover}
                   onClick={() => void handleConfirmed()}
                   onFocus={handleReleaseConfirmForceHover}
                   onMouseEnter={handleReleaseConfirmForceHover}
                   surfaceColor={surfaceColor}
                 >
-                  {CONFIRM_ACCEPT_LABEL}
+                  <span className={buttonFontClassName}>{CONFIRM_ACCEPT_LABEL}</span>
                 </CtaButton>
               </>
             )}
@@ -1138,11 +1507,12 @@ function GuidedIntake({
         {phase === 'failed' && (
           <div className="flex flex-wrap items-center justify-center gap-[var(--contact-control-gap)]">
             <CtaButton
-              config={ctaButtonConfig}
+              className={ctaButtonActiveClassName}
+              config={primaryCtaButtonConfig}
               onClick={() => { clearPendingRetry(); void handleConfirmed(true) }}
               surfaceColor={surfaceColor}
             >
-              Try sending again
+              <span className={buttonFontClassName}>Try sending again</span>
             </CtaButton>
           </div>
         )}
@@ -1153,7 +1523,7 @@ function GuidedIntake({
             visitor's attention. */}
         {phase === 'failed' && (
           <p
-            className={`contact-message-enter max-w-[var(--contact-message-measure)] [overflow-wrap:anywhere] ${messageTextAlignClassName} text-[length:var(--contact-conversation-size)] leading-[var(--contact-line-height)] ${
+            className={`contact-message-enter max-w-[var(--contact-message-measure)] [overflow-wrap:anywhere] ${messageTextAlignClassName} ${config.conversationTextSize} ${config.conversationTextSizeWide} ${config.conversationTextSizeLg} ${config.lineHeight} ${config.lineHeightWide} ${config.lineHeightLg} ${
               deliveryRetriesExhausted
                 ? 'text-rose-700'
                 : 'text-[color:var(--contact-muted)] opacity-[var(--contact-muted-opacity)]'
@@ -1162,9 +1532,10 @@ function GuidedIntake({
             {deliveryError}
           </p>
         )}
+        </div>
 
         <div
-          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-[color:var(--contact-muted)]"
+          className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[color:var(--contact-muted)] ${config.mandatoryActionsFontSize} ${config.mandatoryActionsPaddingRight} ${config.mandatoryActionsPaddingBottom} ${config.mandatoryActionsPaddingLeft}`}
           data-contact-mandatory-actions="true"
         >
           {/* Same text/decoration split EmailFallback below already uses:
@@ -1181,11 +1552,25 @@ function GuidedIntake({
               separators below keep the div's own inherited muted color at
               full opacity — appropriate for decorative punctuation, not
               interactive text a visitor needs to read. */}
+          {/* Mutually exclusive with canUseOriginalWords below (followup vs.
+              reply-route/name/confirm) — never both in this row at once. */}
+          {phase === 'writing' && step === 'followup' && (
+            <>
+              <button
+                type="button"
+                onClick={() => void runRecap(false)}
+                className="inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
+              >
+                {CONTINUE_AS_WRITTEN_LABEL}
+              </button>
+              <span aria-hidden="true">·</span>
+            </>
+          )}
           {canUseOriginalWords && (
             <button
               type="button"
               onClick={handleSendAsIs}
-              className="inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
+              className="inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
             >
               {SEND_AS_IS_LABEL}
             </button>
@@ -1199,7 +1584,7 @@ function GuidedIntake({
               <button
                 type="button"
                 onClick={handleRequestIdentityEdit}
-                className="inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] underline decoration-[color:var(--contact-muted)] underline-offset-4 transition-colors hover:decoration-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
+                className="inline-flex min-h-11 items-center px-1 text-[color:var(--contact-primary)] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)]"
               >
                 {EDIT_IDENTITY_LINK_LABEL}
               </button>
@@ -1273,6 +1658,48 @@ export default function ContactPage() {
   const colors = usePolymorphicLayoutColors(
     contactPolymorphicLayoutConfig, normalizedPageSurfaceConfig.color,
   )
+  // The real, physically-painted background reference for /contact's own
+  // content column (all of it lives in narrowColumn — see
+  // CONTACT_POLYMORPHIC_LAYOUT_CONFIG's own doc comment) — NEVER the flat
+  // normalizedPageSurfaceConfig.color once the scroll gradient is active,
+  // the mistake resolvePolymorphicColumnBackgroundReference's own doc
+  // comment documents as a confirmed, repeated bug elsewhere in this
+  // codebase (/about's AboutTimeline, /posts's article/ToC ink, each fixed
+  // by hand before this shared helper existed to prevent a third). Falls
+  // back to colors.narrowColumnColor (which itself resolves to the flat
+  // page surface whenever the gradient is inactive) the moment the
+  // gradient isn't painting this column, so every resolvedXTextColor below
+  // is byte-identical to its pre-gradient value on any tier/config where
+  // the gradient stays off — this only changes behavior once the gradient
+  // is genuinely visible underneath.
+  const narrowColumnBackgroundReference = useMemo(
+    () => resolvePolymorphicColumnBackgroundReference(colors, 'narrow'),
+    [colors],
+  )
+  // Same shared call /about.tsx and /abstract.tsx already make
+  // (PolymorphicLayout.narrowColumnTypography.ts) — the one place
+  // colors.scrollGradientDarkInkSaturation/-OpacityMultiplier/
+  // scrollGradientLightInkOnLightBackgroundContrastTolerance are actually
+  // consumed. Fixing narrowColumnBackgroundReference above (previous
+  // round) corrected WHAT color the text contrasts against, but
+  // resolveAutoMessageTextColor itself never reads those three fields —
+  // it's a plain hue-preserving contrast search, unrelated to the shared
+  // grayscale-then-reintroduce-tint dark-ink algorithm those panel
+  // controls drive. Operator-reported, 2026-09-21: raising "Dark ink
+  // saturation/opacity" or "Light ink tolerance" in the panel had no
+  // visible effect on /contact's text — confirmed root cause. Using
+  // DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG (not a live/panel-editable config,
+  // same as /about's own identical call) as the typography input —
+  // messageAutoTextMinContrast/mutedAutoTextMinContrast/
+  // borderAutoTextMinContrast stay in effect only for the gradient-
+  // INACTIVE branch below (resolveAutoMessageTextColor, unchanged),
+  // matching how /about/-abstract themselves only ever resolve one shared
+  // ink per column, not an independently-searched contrast target per
+  // text role.
+  const narrowColumnTypography = useMemo(
+    () => resolvePolymorphicNarrowColumnTypography(colors, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG),
+    [colors],
+  )
   const normalizedCtaButtonConfig = useMemo(
     () => applyCtaButtonColorOverride(
       normalizeCtaButtonConfig(ctaButtonConfig),
@@ -1284,63 +1711,85 @@ export default function ContactPage() {
   const resolvedMessageTextColor = useMemo(
     () => (
       contactConfig.messageTextColorMode === 'auto'
-        ? resolveAutoMessageTextColor(
-          normalizedPageSurfaceConfig.color,
-          contactConfig.messageAutoTextMinContrast,
-        )
+        ? colors.scrollGradientActive
+          ? narrowColumnTypography.titleColor
+          : resolveAutoMessageTextColor(
+            narrowColumnBackgroundReference,
+            contactConfig.messageAutoTextMinContrast,
+          )
         : contactConfig.primaryTextColor
     ),
     [
       contactConfig.messageTextColorMode,
       contactConfig.messageAutoTextMinContrast,
       contactConfig.primaryTextColor,
-      normalizedPageSurfaceConfig.color,
+      narrowColumnBackgroundReference,
+      colors.scrollGradientActive,
+      narrowColumnTypography,
     ],
   )
   // Same 'auto'/'custom' contract as resolvedMessageTextColor above, for the
   // muted-tier text (composer placeholder, "Send as is," turn labels) and
   // control borders — previously flat hardcoded grays regardless of the
   // page surface color (see ContactExperienceConfig.mutedTextColorMode's
-  // own doc comment for the legibility gap this closes).
+  // own doc comment for the legibility gap this closes). Shares the exact
+  // same narrowColumnTypography.titleColor as resolvedMessageTextColor
+  // while the gradient is active (one shared ink per column, same as
+  // /about and /abstract — mutedAutoTextMinContrast/borderAutoTextMinContrast
+  // only still apply in the gradient-inactive branch below) — this page's
+  // own pre-existing opacity/color-mix layering (--contact-muted-opacity,
+  // the border color-mix chain) is what visually differentiates the three
+  // roles from that one shared ink, not an independently-searched contrast
+  // target per role.
   const resolvedMutedTextColor = useMemo(
     () => (
       contactConfig.mutedTextColorMode === 'auto'
-        ? resolveAutoMessageTextColor(
-          normalizedPageSurfaceConfig.color,
-          contactConfig.mutedAutoTextMinContrast,
-        )
+        ? colors.scrollGradientActive
+          ? narrowColumnTypography.titleColor
+          : resolveAutoMessageTextColor(
+            narrowColumnBackgroundReference,
+            contactConfig.mutedAutoTextMinContrast,
+          )
         : contactConfig.mutedTextColor
     ),
     [
       contactConfig.mutedTextColorMode,
       contactConfig.mutedAutoTextMinContrast,
       contactConfig.mutedTextColor,
-      normalizedPageSurfaceConfig.color,
+      narrowColumnBackgroundReference,
+      colors.scrollGradientActive,
+      narrowColumnTypography,
     ],
   )
   const resolvedBorderColor = useMemo(
     () => (
       contactConfig.borderColorMode === 'auto'
-        ? resolveAutoMessageTextColor(
-          normalizedPageSurfaceConfig.color,
-          contactConfig.borderAutoTextMinContrast,
-        )
+        ? colors.scrollGradientActive
+          ? narrowColumnTypography.titleColor
+          : resolveAutoMessageTextColor(
+            narrowColumnBackgroundReference,
+            contactConfig.borderAutoTextMinContrast,
+          )
         : contactConfig.borderColor
     ),
     [
       contactConfig.borderColorMode,
       contactConfig.borderAutoTextMinContrast,
       contactConfig.borderColor,
-      normalizedPageSurfaceConfig.color,
+      narrowColumnBackgroundReference,
+      colors.scrollGradientActive,
+      narrowColumnTypography,
     ],
   )
-  // Live-measured header height, feeding FixedViewportColumnContent's
-  // headerOffsetPx below — mirrors components/SplitColumnPageShell.tsx's own
-  // internal measuredHeaderHeightPx/internalHeaderWrapperRef idiom verbatim.
-  // Independent of that internal measurement (which drives *ColumnHeaderBehavior's
-  // pushDown margin reservation, inert here under headerScrollBehavior: 'static')
-  // — this page needs its own instance for the composer's fixed-position math,
-  // via PolymorphicLayout's own headerWrapperRef passthrough. Sourced from
+  // Live-measured header height, feeding the narrowColumn content's own
+  // height: calc(100dvh - headerHeightPx) below (see
+  // PLAN-CONTACT-VIEWPORT-SIMPLIFICATION.md) — mirrors components/
+  // SplitColumnPageShell.tsx's own internal measuredHeaderHeightPx/
+  // internalHeaderWrapperRef idiom verbatim. Independent of that internal
+  // measurement (which drives *ColumnHeaderBehavior's pushDown margin
+  // reservation, inert here under headerScrollBehavior: 'static') — this
+  // page needs its own instance for its own layout math, via
+  // PolymorphicLayout's own headerWrapperRef passthrough. Sourced from
   // useMeasuredElementRect (PLAN-DEDUPLICATE-PAGE-SHELL-LOGIC.md §1) — was a
   // page-local hand-rolled ResizeObserver+resize effect before that hook
   // existed.
@@ -1388,11 +1837,7 @@ export default function ContactPage() {
     '--contact-optical-y': `${contactConfig.opticalOffsetYVh}svh`,
     '--contact-message-measure': `${contactConfig.messageMeasureCh}ch`,
     '--contact-hero-greeting-gap': `${contactConfig.heroGreetingGapPx}px`,
-    '--contact-hero-greeting-size': `${contactConfig.heroGreetingTextSizePx}px`,
     '--contact-hero-greeting-measure': `${contactConfig.heroGreetingMeasureCh}ch`,
-    '--contact-base-size': `${contactConfig.baseTextSizePx}px`,
-    '--contact-conversation-size': `${contactConfig.conversationTextSizePx}px`,
-    '--contact-line-height': contactConfig.lineHeight,
     '--contact-muted-opacity': contactConfig.mutedTextOpacity,
     '--contact-recap-body-opacity': contactConfig.recapBodyTextOpacity,
     '--contact-message-gap': `${contactConfig.messageGapPx}px`,
@@ -1487,41 +1932,51 @@ export default function ContactPage() {
         wideColumn={undefined}
         narrowColumn={(
           <section aria-label="Contact" style={contactStyle}>
-            {/* anchorClassName is deliberately just "w-full" — the anchor's
-                own padding/max-width would be a geometry no-op for
-                FixedViewportColumnContent's fixed layer (it copies only the
-                anchor's measured width/left, both computed pre-padding under
-                border-box sizing, never the padding itself). The gutter and
-                conversation-column width cap below reproduce contact's
-                original two-level nesting (outer: full-bleed + gutter
-                padding; inner: mx-auto + max-w) as real, rendered children
-                inside the fixed layer instead. */}
-            <FixedViewportColumnContent
-              headerOffsetPx={headerWrapperRect?.height ?? 0}
-              anchorClassName="w-full"
+            {/* height: calc(100dvh - headerHeightPx) — a plain CSS bound
+                reactively fed by the SAME headerWrapperRect measurement this
+                page already takes for its header (nothing new to measure),
+                rather than the old FixedViewportColumnContent's
+                position:fixed box, whose top/height were kept in sync with
+                window.visualViewport via JS event listeners
+                (useFixedViewportColumnLayout). That JS-measured approach is
+                exactly what PLAN-CONTACT-VIEWPORT-SIMPLIFICATION.md's own
+                real-device evidence (2026-09-21) traced this whole session's
+                composer-hidden-by-the-keyboard bug to: visualViewport
+                resize/scroll firing promptly, before the OS's own native
+                "scroll input into view" behavior runs, is a cross-browser
+                timing race, not a guarantee — Chrome-iOS in particular is a
+                documented source of exactly this inconsistency. dvh is
+                resolved natively by the browser's own layout engine against
+                the CURRENT visual viewport (keyboard included), with zero
+                JS and zero race — the standard, robust fix for this exact,
+                extremely common problem. overflow-hidden here (not auto):
+                this box is not itself meant to scroll — GuidedIntake's own
+                message feed below is the one designated scroller now (see
+                its own doc comment) — anything that doesn't fit here is a
+                sizing bug to fix, not something to paper over with a second
+                scroll container. */}
+            <div
+              className={`flex h-full min-h-0 w-full flex-col gap-6 overflow-hidden pb-20 pt-4 font-sans text-[color:var(--contact-primary)] lg:translate-y-[var(--contact-optical-y)] lg:py-10 ${PAGE_CONTENT_GUTTER_CLASSNAME}`}
+              style={{ height: `calc(100dvh - ${headerWrapperRect?.height ?? 0}px)` }}
             >
-              <div
-                className={`flex h-full min-h-0 w-full flex-col gap-6 overflow-x-clip pb-20 pt-4 font-sans text-[color:var(--contact-primary)] lg:translate-y-[var(--contact-optical-y)] lg:py-10 ${PAGE_CONTENT_GUTTER_CLASSNAME}`}
-              >
-                <div className="mx-auto flex h-full min-h-0 w-full max-w-[var(--contact-conversation-max)] flex-col pt-6">
-                  <GuidedIntake
-                    // Changing AI source remounts GuidedIntake outright — its
-                    // existing unmount cleanup effect already aborts any in-flight
-                    // request and clears pending retries, so this is a clean reset
-                    // across every ref/state value without hand-writing one.
-                    // Delivery behavior and simulatedLatencyMs are deliberately
-                    // excluded: neither should discard a conversation already
-                    // ready for confirmation. In production this key is always
-                    // live-gateway, since the panel cannot render.
-                    key={contactDevModeConfig.aiSource}
-                    config={contactConfig}
-                    ctaButtonConfig={normalizedCtaButtonConfig}
-                    devModeConfig={contactDevModeConfig}
-                    surfaceColor={normalizedPageSurfaceConfig.color}
-                  />
-                </div>
+              <div className="mx-auto flex h-full min-h-0 w-full max-w-[var(--contact-conversation-max)] flex-col pt-6">
+                <GuidedIntake
+                  // Changing AI source remounts GuidedIntake outright — its
+                  // existing unmount cleanup effect already aborts any in-flight
+                  // request and clears pending retries, so this is a clean reset
+                  // across every ref/state value without hand-writing one.
+                  // Delivery behavior and simulatedLatencyMs are deliberately
+                  // excluded: neither should discard a conversation already
+                  // ready for confirmation. In production this key is always
+                  // live-gateway, since the panel cannot render.
+                  key={contactDevModeConfig.aiSource}
+                  config={contactConfig}
+                  ctaButtonConfig={normalizedCtaButtonConfig}
+                  devModeConfig={contactDevModeConfig}
+                  surfaceColor={normalizedPageSurfaceConfig.color}
+                />
               </div>
-            </FixedViewportColumnContent>
+            </div>
           </section>
         )}
       >

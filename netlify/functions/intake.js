@@ -219,6 +219,34 @@ const getLastVisitorMessage = (transcript) => {
   return matches.length ? matches[matches.length - 1][1].trim() : transcript.trim()
 }
 
+// Deterministic, server-side guard against a fragment ("hI I"), a bare
+// greeting, or other input too thin to form a useful note — evaluated before
+// the model ever sees the transcript so the browser cannot bypass it and the
+// same rule governs local and production flows. Deliberately not a character
+// minimum: a short but meaningful message such as "Need help with a
+// redesign" must remain valid, so this counts real content words instead.
+const LOW_SIGNAL_GREETING_WORDS = new Set(['hi', 'hello', 'hey', 'hiya', 'yo', 'sup', 'greetings', 'hola'])
+const LOW_SIGNAL_FILLER_WORDS = new Set([
+  'i', "i'm", 'im', 'a', 'an', 'the', 'uh', 'um', 'so', 'well', 'just', 'there', 'ok', 'okay',
+])
+
+const isLowSignalMessage = (message) => {
+  const words = message
+    .toLowerCase()
+    .replace(/[^a-z0-9'\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+  if (words.length === 0) return true
+  const meaningfulWords = words.filter(
+    (word) => !LOW_SIGNAL_GREETING_WORDS.has(word) && !LOW_SIGNAL_FILLER_WORDS.has(word),
+  )
+  if (meaningfulWords.length === 0) return true
+  if (meaningfulWords.length === 1 && meaningfulWords[0].length <= 2) return true
+  return false
+}
+
+const LOW_SIGNAL_CLARIFICATION_QUESTION = 'What are you trying to work through? Even a few words is enough.'
+
 const resolveNonInquiry = (transcript) => {
   const text = getLastVisitorMessage(transcript).toLowerCase()
   if (/\b(?:this|it|i(?:'m| am))\s+(?:is\s+)?(?:just\s+)?(?:a\s+)?test\b|\btesting\s+(?:the\s+)?(?:form|flow|site)\b/.test(text)) {
@@ -392,6 +420,15 @@ const handleGapCheck = async (payload) => {
 
   if (followUpCount >= MAX_FOLLOW_UPS) {
     return json(200, { ok: true, needsFollowUp: false })
+  }
+
+  if (followUpCount === 0 && isLowSignalMessage(getLastVisitorMessage(transcript))) {
+    const question = LOW_SIGNAL_CLARIFICATION_QUESTION
+    const followUpToken = signFollowUpToken({
+      count: followUpCount + 1,
+      transcript: `${transcript}\nAgent: ${question}`,
+    }, secret)
+    return json(200, { ok: true, needsFollowUp: true, needsClarification: true, question, followUpToken })
   }
 
   const data = await runWithRetry({
@@ -581,6 +618,7 @@ exports.MAX_REQUEST_BODY_BYTES = MAX_REQUEST_BODY_BYTES
 exports.GAP_CHECK_SYSTEM_PROMPT = GAP_CHECK_SYSTEM_PROMPT
 exports.RECAP_SYSTEM_PROMPT = RECAP_SYSTEM_PROMPT
 exports.signFollowUpToken = signFollowUpToken
+exports.isLowSignalMessage = isLowSignalMessage
 exports.verifyFollowUpToken = verifyFollowUpToken
 exports.resolveFollowUpCount = resolveFollowUpCount
 exports.rateLimitHits = rateLimitHits

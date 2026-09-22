@@ -2,7 +2,10 @@
 
 ## Status
 
-**Approved product direction; implementation pending.** This plan supersedes
+**Implemented, including the low-signal opening guard described in §2**
+(server-side `isLowSignalMessage` check in `netlify/functions/intake.js`,
+reusing the existing one-question ceiling and signed follow-up token). This
+plan supersedes
 the previous lead-qualification framing. It does not change production
 behaviour yet.
 

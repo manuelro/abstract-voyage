@@ -53,6 +53,26 @@ export const LEADING_OPTIONS = [
 ] as const;
 export type LeadingClass = typeof LEADING_OPTIONS[number]['value'];
 
+export const MD_LEADING_OPTIONS = [
+  { label: 'md:leading-none', value: 'md:leading-none' },
+  { label: 'md:leading-tight', value: 'md:leading-tight' },
+  { label: 'md:leading-snug', value: 'md:leading-snug' },
+  { label: 'md:leading-normal', value: 'md:leading-normal' },
+  { label: 'md:leading-relaxed', value: 'md:leading-relaxed' },
+  { label: 'md:leading-loose', value: 'md:leading-loose' },
+] as const;
+export type MdLeadingClass = typeof MD_LEADING_OPTIONS[number]['value'];
+
+export const LG_LEADING_OPTIONS = [
+  { label: 'lg:leading-none', value: 'lg:leading-none' },
+  { label: 'lg:leading-tight', value: 'lg:leading-tight' },
+  { label: 'lg:leading-snug', value: 'lg:leading-snug' },
+  { label: 'lg:leading-normal', value: 'lg:leading-normal' },
+  { label: 'lg:leading-relaxed', value: 'lg:leading-relaxed' },
+  { label: 'lg:leading-loose', value: 'lg:leading-loose' },
+] as const;
+export type LgLeadingClass = typeof LG_LEADING_OPTIONS[number]['value'];
+
 export const TRACKING_OPTIONS = [
   { label: 'tracking-tighter', value: 'tracking-tighter' },
   { label: 'tracking-tight', value: 'tracking-tight' },

@@ -30,6 +30,11 @@ export default function AbstractDocument({ isAbstractRoute }: AbstractDocumentPr
       style={isAbstractRoute ? ABSTRACT_BOOTSTRAP_STYLE : undefined}
     >
       <Head>
+        {/* Deliberately NOT a <meta name="viewport"> here — see
+            pages/_app.tsx's own Head for why the fix lives there instead
+            (this Head, from next/document, doesn't participate in
+            next/head's per-request viewport dedup, so declaring it here
+            too would just produce a second, redundant tag). */}
         <link rel="shortcut icon" href="/favicon.ico" />
         <style
           dangerouslySetInnerHTML={{

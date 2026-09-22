@@ -91,7 +91,7 @@ export function ContactHeroGreeting({
       className={`pointer-events-none absolute inset-x-0 bottom-full mx-auto w-full max-w-[520px] mb-[var(--contact-hero-greeting-gap)] ${ctaButtonConfig.paddingX} ${ctaButtonConfig.paddingXDesktop}`}
     >
       <div
-        className={`whitespace-pre-line ${textAlignClassName} max-w-[var(--contact-hero-greeting-measure)] text-[length:var(--contact-hero-greeting-size)] leading-[var(--contact-line-height)] text-[color:var(--contact-muted)] opacity-[var(--contact-muted-opacity)] ${className}`}
+        className={`whitespace-pre-line ${textAlignClassName} max-w-[var(--contact-hero-greeting-measure)] ${config.heroGreetingTextSize} ${config.heroGreetingTextSizeWide} ${config.heroGreetingTextSizeLg} ${config.lineHeight} ${config.lineHeightWide} ${config.lineHeightLg} text-[color:var(--contact-muted)] opacity-[var(--contact-muted-opacity)] ${className}`}
         style={style}
       >
         <SplitTextReveal
