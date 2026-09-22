@@ -27,7 +27,14 @@ const CopyTool = dynamic(() => import('../components/CopyTool'), { ssr: false })
 // surrounding layout — this is what makes the swap itself invisible
 // instead of the visible font-jump + reflow seen on /abstract's cold
 // load (PLAN-ABSTRACT-PAGE-INTRO-SEQUENCE.md Phase 2).
-const siteSans = Instrument_Sans({
+// Exported (not just module-local) so content portaled straight to
+// document.body — outside this file's own font-variable wrapper div below,
+// e.g. pages/contact.tsx's own ConversationResumeNotice — can still set the
+// real Instrument Sans family directly via siteSans.style.fontFamily: a
+// var(--site-font-sans) reference alone resolves to nothing there, since
+// that custom property is scoped to the wrapper div, not document.body,
+// and a portaled node is body's sibling, not its descendant.
+export const siteSans = Instrument_Sans({
   subsets: ['latin'],
   display: 'swap',
   variable: '--site-font-sans',

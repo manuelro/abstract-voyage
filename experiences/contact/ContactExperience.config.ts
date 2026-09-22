@@ -4,6 +4,7 @@ import type {
   LeadingClass, MdLeadingClass, LgLeadingClass,
   FontWeightClass,
 } from '../../components/tailwindTypographyScale';
+import type { PaddingXClass, PaddingYClass, MarginTopClass } from '../../components/tailwindSpacingScale';
 
 /** Confirm-screen button label font-weight, `md:`/`lg:`-prefixed. Local
  * catalog — no shared `FontWeightWideClass`/`-LgClass` exists yet in
@@ -119,7 +120,28 @@ export type ContactExperienceConfig = {
    * not priority) as the only full-opacity text in the turn. See
    * pages/contact.tsx's recap turn rendering. */
   recapBodyTextOpacity: number;
+  /** The DEFAULT (loose, "between exchanges") gap — an agent turn starting
+   * a genuinely new topic/question, or two consecutive turns with no
+   * tighter relationship. See messageExchangeGapClass below for the
+   * tighter, Gestalt-proximity-driven gap used specifically for a
+   * question→its-own-answer pair. */
   messageGapPx: number;
+  /** Literal Tailwind margin-top token (components/tailwindSpacingScale.ts's
+   * own MarginTopClass/MARGIN_TOP_OPTIONS catalog — not a raw px number,
+   * per this file's Tailwind-token convention) for the TIGHT tier of the
+   * turn feed's two-tier spacing (operator ask, 2026-09-22, grounded in
+   * Gestalt's law of proximity and Sweller's cognitive load/chunking
+   * theory: a flat, uniform gap between every turn regardless of
+   * relationship forces the visitor to track N separate items instead of
+   * chunking the conversation into a handful of resolved question→answer
+   * exchanges). Applied in exactly two places, both "parts of one already-
+   * resolved exchange" relationships: (1) between an agent question and
+   * the visitor's own turn that answers it — see GuidedIntake's own
+   * isTightExchangeGap; (2) between the recap turn's own intro/body/
+   * identity-question sub-lines, which are three parts of one single
+   * agent utterance — the tightest possible relationship of all. Every
+   * other adjacent pair keeps messageGapPx above unchanged. */
+  messageExchangeGapClass: MarginTopClass;
   controlGapPx: number;
   actionGapPx: number;
   chipHeightPx: number;
@@ -151,6 +173,71 @@ export type ContactExperienceConfig = {
    * this setting (see GuidedIntake's turns.map), a calm/editorial choice
    * kept over a per-speaker chat layout. */
   messageTextAlign: ContactMessageTextAlign;
+  /** Role differentiation for the turn feed (PLAN-CONTACT-CHAT-HISTORY-
+   * REFINEMENT.md Stage 3 / P1) — deliberately NOT left/right sender sides
+   * (messageTextAlign above already documents that choice as a calm/
+   * editorial one, kept over a per-speaker chat layout); every turn stays
+   * horizontally centered. Instead, a visitor answer is styled as a
+   * distinct *captured-value object* versus the agent's plain, container-
+   * less prose: a stronger, colored fill (was a flat, barely-visible
+   * bg-black/[0.06] with no relation to the page's own accent color) plus a
+   * heavier weight on the value text, so "you answered this" reads even as
+   * position-based fade lowers opacity. Reuses --contact-border (this
+   * file's own borderColorMode/borderColor/borderAutoTextMinContrast,
+   * "control borders/dividers... and its color-mix'd subtle/hover/focus
+   * variants") as the fill source color rather than inventing a parallel
+   * color knob — this IS a control border/divider concern, just a new
+   * location for it. No separate edge-following accent rule field exists
+   * (removed, 2026-09-22): rounded-[22px] on a ~40px-tall pill means
+   * 2×radius exceeds the element's own height, so the shape is a full
+   * capsule with no straight segment on the left edge at all — neither a
+   * real border-left nor an inset box-shadow can render flush against a
+   * curve with no straight run; both were tried and both produced the same
+   * visible crescent at the rounded corner (operator-reported both times).
+   * Fill + weight below are geometry-independent and carry the role cue
+   * with no such risk. */
+  visitorAnswerFillOpacityPercent: number;
+  /** Weight applied to a visitor answer's own text only (never the agent's) —
+   * the type-cue half of the role differentiation above. */
+  visitorAnswerFontWeight: FontWeightClass;
+  /** A visitor turn recording a *choice* (ChatTurn.kind === 'choice', e.g.
+   * "Staying anonymous" from skipping the name step — see PLAN-CONTACT-
+   * CHAT-HISTORY-REFINEMENT.md Stage 2/F10a) renders lighter than a typed
+   * answer: italic, and dimmed by this opacity — independent of, and
+   * multiplied with, the position-based fade (computeMessageFadeOpacity),
+   * so a decision always reads as visually distinct from prose the visitor
+   * actually wrote, at any point in the fade window. */
+  visitorChoiceOpacity: number;
+  /** The reply-route (email) validation-error turn's own letter-by-letter
+   * SplitTextReveal timing — 'char' unit, mirroring ComposerPill's own
+   * heroPlaceholderReveal*'s cadence for the same "short, attention-
+   * catching, not prose" reason (this file's own doc comment on
+   * ContactHeroGreetingRevealUnit). Replays on every repeated wrong
+   * submission via GuidedIntake's own replyRouteErrorReplayNonce, never by
+   * appending a duplicate turn (PLAN-CONTACT-CHAT-HISTORY-REFINEMENT.md's
+   * F10c principle, extended here from visitor answers to this agent-side
+   * error — operator-reported 2026-09-22: 4 wrong attempts used to stack 4
+   * identical error turns). */
+  replyRouteErrorRevealStepDelayMs: number;
+  replyRouteErrorRevealUnitDurationMs: number;
+  replyRouteErrorRevealEasing: CtaButtonMotionEasing;
+  /** Mobile-only (components/useBreakpointTier.ts's own 'mobile' tier, i.e.
+   * below Tailwind's md breakpoint): while an in-place edit is active
+   * (GuidedIntake's own isMessageEditActive — "Edit note"/"Edit reply
+   * details" from the confirm screen), the whole turn history fades out,
+   * then fades back in once the edit is submitted. Desktop never hides it —
+   * this exists because a narrow viewport's on-screen keyboard already
+   * consumes most of the space the edit field and history would otherwise
+   * share (operator ask, 2026-09-22). Deliberately an "expensive" (slow),
+   * smooth duration/easing pair for the fade-OUT — this is a deliberate,
+   * legible transition the visitor should notice, not a snap. The fade
+   * back IN reuses the exact same duration but the mathematically REVERSED
+   * easing curve (reverseCubicBezierEasing, pages/contact.tsx's own pure
+   * helper) — not a second, independently-tunable easing field: the two directions
+   * are meant to always mirror each other by construction, never drift
+   * apart via two separately-edited config values. */
+  mobileHistoryFadeOnEditDurationMs: number;
+  mobileHistoryFadeOnEditEasing: CtaButtonMotionEasing;
   /** Font size of the below-pill mandatory-actions row — the email
    * fallback link, plus whatever step-specific link/label sits beside it
    * (e.g. "Use my original words," "Edit identity"). Was a hardcoded
@@ -190,6 +277,23 @@ export type ContactExperienceConfig = {
    * unaffected either way by every other change in this session's own
    * gradient/typography work above. */
   useOriginalWordsActionEnabled: boolean;
+  /** Opt-in gate for the confirm screen's two mandatory actions (Edit note/
+   * Add more · Send note to Manuel/Send it — see pages/contact.tsx's own
+   * degradedRef-gated action row) rendering as one continuous joined strip
+   * on mobile (< 768px) instead of two independent pills — the far outer
+   * corners keep whatever CtaButton `radius` those buttons already use
+   * unchanged, only the shared inner edge squares off, joined by a thin
+   * 1px seam. Default false: byte-identical to today's stacked/wrapped
+   * pill pair for every existing consumer. Desktop (≥768px) is always
+   * unaffected either way — this only ever changes the mobile tier. While
+   * on, both actions also drop tilt/proximity-scale/elevation-reaction (see
+   * pages/contact.tsx's own joinedStripMotionOverride) — two halves of one
+   * physically joined strip independently lifting/tilting/scaling would
+   * read as two separate objects, not one; the accept action's own
+   * attention-guiding nudge (forceHover's color/arrow-translate cues) still
+   * works exactly as before, it just no longer relies on physical motion
+   * to do it. */
+  confirmActionsJoinedStripEnabled: boolean;
   /** How many of the most recent turns stay visible at all — older turns are
    * dropped from the DOM entirely (not just faded out), so this is also the
    * fade window's own length: the oldest of the n visible turns always lands
@@ -351,6 +455,97 @@ export type ContactExperienceConfig = {
    * continuation of that action, not a jarring layout jump. */
   composerResizeDurationMs: number;
   composerResizeEasing: CtaButtonMotionEasing;
+
+  // ── Conversation persistence and resume (see PLAN-CONTACT-CONVERSATION-
+  // PERSISTENCE.md for the full design rationale — user-research/privacy
+  // literature, the "contract validity" load gates, and why this is a
+  // visible/reversible resume rather than a silent one) ────────────────────
+  /** Master gate for the whole feature — persisting the in-progress
+   * conversation to localStorage on change, restoring it (through the
+   * load-time validity gates: schema version, TTL, phase coercion,
+   * structural shape, stale AI follow-up token) on a later visit, and
+   * showing the resume notice below. Default false: ships behind this flag
+   * until reviewed live (operator decision, 2026-09-22), not on by
+   * default. */
+  conversationPersistenceEnabled: boolean;
+  /** How long a paused conversation stays resumable before a later visit
+   * discards it outright instead of restoring it (one of the load-time
+   * validity gates above) — see PLAN-CONTACT-CONVERSATION-PERSISTENCE.md
+   * §3/§7 for the full reasoning (intent decay, stale-context risk, privacy
+   * exposure window) behind defaulting this to a bounded, not indefinite,
+   * window. Resolved default: 24 hours (operator decision, 2026-09-22). */
+  conversationPersistenceTtlMs: number;
+  /** Optional idle fallback: how long the resume notice lingers with no
+   * visitor action before it fades on its own. `0` = stays until an
+   * explicit dismissal (see conversationResumeNotice below) — the
+   * action-triggered dismissal is the primary, deliberate trigger; this is
+   * only a secondary safety net so the notice doesn't linger forever for a
+   * visitor who never re-engages. */
+  conversationResumeNoticeAutoDismissMs: number;
+  /** Duration/easing for the resume notice's own fade-out — triggered by
+   * the visitor taking any real action with the restored conversation
+   * (submitting the composer, or any confirm-screen/correction/identity
+   * button), read as implicit acknowledgment that the resumed thread is
+   * valid and theirs to continue (see PLAN-CONTACT-CONVERSATION-
+   * PERSISTENCE.md §4.3) — never an instant unmount. */
+  resumeNoticeDismissDurationMs: number;
+  resumeNoticeDismissEasing: CtaButtonMotionEasing;
+  /** One size, shared by the notice's plain text and its "Start fresh?"
+   * link — matches mandatoryActionsFontSize's own precedent for a small,
+   * single-tier UI string rather than a full Base/Wide/Lg triplet. */
+  resumeNoticeFontSize: FontSizeClass;
+  /** Independent per-role opacities (mirrors this file's existing
+   * mutedTextOpacity/recapBodyTextOpacity precedent), not one shared value —
+   * the plain "Picked up where you left off." text and the "Start fresh?"
+   * link read at different visual weights. */
+  resumeNoticeTextOpacity: number;
+  resumeNoticeLinkOpacity: number;
+  /** Weight for "Start fresh?" only — the plain text stays at its own
+   * (non-configurable, inherited) weight; only the link needs emphasis to
+   * read as actionable. */
+  resumeNoticeLinkFontWeight: FontWeightClass;
+  /** "Start fresh?" always renders sans (font-sans), transparent-background,
+   * no underline — the link reads as plain colored text, not a traditional
+   * underlined hyperlink. Default and unified hover/active colors follow
+   * this file's established primaryButtonHoverActiveBackgroundColor /
+   * emptyValueActionHoverActiveTextColor precedent: only two states are
+   * configurable (resting + one shared hover/active), since a real click is
+   * simultaneously :hover and :active anyway. */
+  resumeNoticeLinkColor: string;
+  resumeNoticeLinkHoverActiveColor: string;
+  /** The notice's own container padding, independent axes — literal
+   * Tailwind spacing tokens (components/tailwindSpacingScale.ts's own
+   * PaddingXClass/PaddingYClass), not raw px, so the JIT-visible class
+   * itself is the source of truth rather than an inline style. */
+  resumeNoticePaddingX: PaddingXClass;
+  resumeNoticePaddingY: PaddingYClass;
+  /** 'transparent': the notice renders with no fill at all — resumeNotice
+   * BackgroundColor below is ignored outright rather than fed to the color
+   * input as a literal 'transparent' string, since ColorInput only accepts
+   * strict 6-digit hex (components/Panel/index.tsx's own ColorInput). */
+  resumeNoticeFillMode: 'solid' | 'transparent';
+  /** The notice's own fill — only read when resumeNoticeFillMode is
+   * 'solid'. */
+  resumeNoticeBackgroundColor: string;
+  /** 0 (default): no border at all — same "the metric itself is the on/off
+   * switch" convention as resumeNoticeElevationPx below (no separate enable
+   * flag). */
+  resumeNoticeBorderWidthPx: number;
+  resumeNoticeBorderColor: string;
+  /** Elevation, via the SAME shared shadow engine every other elevated
+   * surface on this page already uses (useCardLiftPhysics), never a
+   * hand-rolled CSS box-shadow — follows composerElevationPx's own
+   * established pattern exactly (elevationReactionEnabled: false, pinned,
+   * not reacting to hover/press, since this notice isn't itself the
+   * primary interactive surface). */
+  resumeNoticeElevationPx: number;
+  /** true (default): unchanged behavior. false: truly zero shadow, not just
+   * settled to its smallest one — useCardLiftPhysics's own shadowEnabled
+   * doc comment explains why resumeNoticeElevationPx: 0 alone does NOT
+   * guarantee this (the contact/ambient-occlusion shadow layer is
+   * strongest at elevation 0, inversely coupled to elevation by design). */
+  resumeNoticeShadowEnabled: boolean;
+
   /** Opt-in: whether submitting a message triggers a brief dip-then-spring-
    * back "pond bounce" on the composer pill — a submit-specific cue, layered
    * on top of (not a replacement for) composerElevationPx above. Off by
@@ -519,16 +714,20 @@ export const DEFAULT_CONTACT_EXPERIENCE_CONFIG: ContactExperienceConfig = {
   // this field was tiered.
   baseTextSize: 'text-sm',
   baseTextSizeWide: 'md:text-base',
-  baseTextSizeLg: 'lg:text-base',
+  baseTextSizeLg: 'lg:text-sm',
   conversationTextSize: 'text-sm',
   conversationTextSizeWide: 'md:text-lg',
-  conversationTextSizeLg: 'lg:text-lg',
+  conversationTextSizeLg: 'lg:text-sm',
   lineHeight: 'leading-normal',
   lineHeightWide: 'md:leading-normal',
   lineHeightLg: 'lg:leading-normal',
   mutedTextOpacity: 0.64,
   recapBodyTextOpacity: 0.72,
   messageGapPx: 20,
+  // 8px (mt-2) — lower end of the ~8-12px "same group" convention (operator
+  // agreement, 2026-09-22), a clean 4px-multiple already in this codebase's
+  // established spacing rhythm.
+  messageExchangeGapClass: 'mt-2',
   controlGapPx: 12,
   actionGapPx: 10,
   chipHeightPx: 44,
@@ -545,12 +744,28 @@ export const DEFAULT_CONTACT_EXPERIENCE_CONFIG: ContactExperienceConfig = {
   messageTextColorMode: 'auto',
   messageAutoTextMinContrast: 4.5,
   messageTextAlign: 'left',
+  visitorAnswerFillOpacityPercent: 14,
+  visitorAnswerFontWeight: 'font-medium',
+  visitorChoiceOpacity: 0.72,
+  // Mirrors heroPlaceholderReveal*'s own cadence (components/ComposerPill.tsx
+  // consumer) — the established "short, attention-catching char reveal"
+  // precedent already in this file.
+  replyRouteErrorRevealStepDelayMs: 18,
+  replyRouteErrorRevealUnitDurationMs: 180,
+  replyRouteErrorRevealEasing: 'standard',
+  // "Expensive"/slow and smooth on purpose (operator ask, 2026-09-22) — a
+  // deliberate, legible transition, not a snap. 'gentle' is this codebase's
+  // own "smooth, fast-then-settle curve built for color/opacity" token (see
+  // CTA_BUTTON_MOTION_EASINGS's own doc comment).
+  mobileHistoryFadeOnEditDurationMs: 700,
+  mobileHistoryFadeOnEditEasing: 'gentle',
   mandatoryActionsFontSize: 'text-xs',
   mandatoryActionsTopGap: 'gap-0',
   mandatoryActionsPaddingRight: 'pr-0',
   mandatoryActionsPaddingBottom: 'pb-0',
   mandatoryActionsPaddingLeft: 'pl-0',
   useOriginalWordsActionEnabled: false,
+  confirmActionsJoinedStripEnabled: false,
   messageVisibleCount: 6,
   messageFadeFloorOpacity: 0.1,
   mutedTextColorMode: 'auto',
@@ -585,9 +800,9 @@ export const DEFAULT_CONTACT_EXPERIENCE_CONFIG: ContactExperienceConfig = {
   // Matches the confirm buttons' own fill/border family (primaryButton*
   // above) for a visually unified light-neutral look across the pill and
   // the buttons below it — hover/active a modest lighten off the same base.
-  composerPillBackgroundColor: '#ecedf4',
-  composerPillHoverActiveBackgroundColor: '#f2f3f6',
-  composerPillBorderColor: '#f1f1f9',
+  composerPillBackgroundColor: '#edeef2',
+  composerPillHoverActiveBackgroundColor: '#fafbff',
+  composerPillBorderColor: '#f0f1ff',
   composerPillHoverActiveBorderColor: '#ffffff',
   // Matches primaryTextColor (this page's own default reading-text color)
   // — reproduces the send arrow's former inherited --pill-text look exactly
@@ -610,6 +825,32 @@ export const DEFAULT_CONTACT_EXPERIENCE_CONFIG: ContactExperienceConfig = {
   composerMaxVisibleLines: 5,
   composerResizeDurationMs: 200,
   composerResizeEasing: 'standard',
+  // Off until reviewed live (operator decision, 2026-09-22) — see
+  // conversationPersistenceEnabled's own doc comment.
+  conversationPersistenceEnabled: true,
+  // 24 hours (operator decision, 2026-09-22) — see
+  // conversationPersistenceTtlMs's own doc comment.
+  conversationPersistenceTtlMs: 24 * 60 * 60 * 1000,
+  conversationResumeNoticeAutoDismissMs: 0,
+  resumeNoticeDismissDurationMs: 240,
+  resumeNoticeDismissEasing: 'standard',
+  resumeNoticeFontSize: 'text-xs',
+  resumeNoticeTextOpacity: 0.72,
+  resumeNoticeLinkOpacity: 1,
+  resumeNoticeLinkFontWeight: 'font-semibold',
+  resumeNoticeLinkColor: '#4b4b5c',
+  resumeNoticeLinkHoverActiveColor: '#1c1c26',
+  resumeNoticePaddingX: 'px-0',
+  resumeNoticePaddingY: 'py-0',
+  // Matches the confirm buttons'/composer pill's own fill family
+  // (primaryButtonBackgroundColor/composerPillBackgroundColor) for a
+  // visually unified light-neutral look.
+  resumeNoticeFillMode: 'transparent',
+  resumeNoticeBackgroundColor: '#ecedf4',
+  resumeNoticeBorderWidthPx: 0,
+  resumeNoticeBorderColor: '#d5d6e2',
+  resumeNoticeElevationPx: 6,
+  resumeNoticeShadowEnabled: false,
   submitBounceEnabled: true,
   submitBounceElevationPx: 0,
   autoRetryDelayMs: 30000,

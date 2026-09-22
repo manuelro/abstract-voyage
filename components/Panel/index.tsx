@@ -445,16 +445,17 @@ export function TabStrip({
   /** Which tab's own device-size window the browser's real, live viewport
    * width currently falls into — independent of activeId (which tab the
    * user is *editing*, a click/keyboard choice that never changes on its
-   * own). Rendered as its own, deliberately inverted (light background,
-   * dark text) treatment — see Panel.module.css's own
-   * [data-current-device='true'] rules — so "this is where you physically
-   * are right now" never reads as "this is what you're looking at."
-   * ConfigFieldTabsControl computes this from useBreakpointTier and updates
-   * it live as the window resizes; the tab it names can equal, differ from,
-   * or (if it doesn't match any tab id in this strip, e.g. "ALL SIZES" has
-   * no device-size window of its own) highlight nothing at all. Omitted
-   * (default): no such indicator, byte-identical to before this prop
-   * existed. */
+   * own). Rendered as a subtle background-only wash, no ink change — see
+   * Panel.module.css's own [data-current-device='true'] rules and
+   * panel-current-device-bg's own doc comment — deliberately quieter than
+   * aria-selected's own underline so "this is where you physically are
+   * right now" reads as a secondary hint, never competes with or gets
+   * mistaken for "this is what you're looking at." ConfigFieldTabsControl
+   * computes this from useBreakpointTier and updates it live as the window
+   * resizes; the tab it names can equal, differ from, or (if it doesn't
+   * match any tab id in this strip, e.g. "ALL SIZES" has no device-size
+   * window of its own) highlight nothing at all. Omitted (default): no
+   * such indicator, byte-identical to before this prop existed. */
   currentDeviceTabId?: string;
 }) {
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});

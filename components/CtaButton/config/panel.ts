@@ -135,19 +135,104 @@ export const CTA_BUTTON_APPEARANCE_PANEL = defineConfigScope<CtaButtonConfig>({
         },
       ],
     },
+    // Button size and font size each resolve independently per breakpoint
+    // tier (size/fontSize for mobile, sizeDesktop/fontSizeDesktop for
+    // ≥768px — see registered.ts's own normalizeCtaButtonConfig). Presented
+    // as Mobile/Desktop tabs, the same breakpoint-switcher primitive
+    // pages/carousel-lab.panel.ts already uses for its own per-tier
+    // controls, rather than a bespoke mechanism here.
+    {
+      kind: 'tabs',
+      tabs: [
+        {
+          id: 'mobile',
+          label: 'MOBILE (< 768px)',
+          fields: [
+            {
+              kind: 'group',
+              label: 'Size',
+              fields: [
+                {
+                  kind: 'enum',
+                  key: 'size',
+                  label: 'Button size',
+                  description: 'Resolves a coherent padding and min-height/width bundle for this tier (see CTA_BUTTON_SIZE_PRESETS). MD reproduces this component\'s original, only size.',
+                  options: [
+                    { label: 'SM', value: 'sm' },
+                    { label: 'MD', value: 'md' },
+                    { label: 'LG', value: 'lg' },
+                  ],
+                },
+                {
+                  kind: 'enum',
+                  key: 'fontSize',
+                  label: 'Font size',
+                  description: 'Label text size at this tier. Independent from Button size above — this stays a real, separately overridable control rather than folding into the size preset.',
+                  options: [
+                    { label: 'SM', value: 'text-sm' },
+                    { label: 'BASE', value: 'text-base' },
+                    { label: 'LG', value: 'text-lg' },
+                    { label: 'XL', value: 'text-xl' },
+                    { label: '2XL', value: 'text-2xl' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'desktop',
+          label: 'DESKTOP (≥ 768px)',
+          fields: [
+            {
+              kind: 'group',
+              label: 'Size',
+              fields: [
+                {
+                  kind: 'enum',
+                  key: 'sizeDesktop',
+                  label: 'Button size',
+                  description: 'Resolves this tier\'s own padding bundle, independently of Mobile\'s Button size. Defaults to matching Mobile\'s Button size unless overridden here.',
+                  options: [
+                    { label: 'SM', value: 'sm' },
+                    { label: 'MD', value: 'md' },
+                    { label: 'LG', value: 'lg' },
+                  ],
+                },
+                {
+                  kind: 'enum',
+                  key: 'fontSizeDesktop',
+                  label: 'Font size',
+                  description: 'Label text size at this tier. Defaults to matching Mobile\'s Font size unless overridden here.',
+                  options: [
+                    { label: 'SM', value: 'md:text-sm' },
+                    { label: 'BASE', value: 'md:text-base' },
+                    { label: 'LG', value: 'md:text-lg' },
+                    { label: 'XL', value: 'md:text-xl' },
+                    { label: '2XL', value: 'md:text-2xl' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
     {
       kind: 'group',
-      label: 'Size',
+      label: 'Icon',
       fields: [
         {
           kind: 'enum',
-          key: 'size',
-          label: 'Size',
-          description: 'Resolves a coherent font-size, padding, and min-height/width bundle (see CTA_BUTTON_SIZE_PRESETS). MD reproduces this component\'s original, only size.',
+          key: 'iconSize',
+          label: 'Icon size',
+          description: 'The trailing glyph\'s own size, independent from the label text (Font size above). Defaults one step above whatever Mobile\'s Button size resolves fontSize to: a glyph at the same literal size as body text reads visually smaller than the text does, so this stays a real, separately overridable control rather than folding into the Size preset. Not tiered by breakpoint. Always renders in the button\'s own text color (CtaButton.tsx\'s own arrowClasses) — never a separate color field.',
           options: [
-            { label: 'SM', value: 'sm' },
-            { label: 'MD', value: 'md' },
-            { label: 'LG', value: 'lg' },
+            { label: 'SM', value: 'text-sm' },
+            { label: 'BASE', value: 'text-base' },
+            { label: 'LG', value: 'text-lg' },
+            { label: 'XL', value: 'text-xl' },
+            { label: '2XL', value: 'text-2xl' },
           ],
         },
       ],
@@ -552,15 +637,21 @@ export const CTA_BUTTON_APPEARANCE_PANEL = defineConfigScope<CtaButtonConfig>({
       ],
     },
   ],
-  // These 5 remain real, tested config fields (explicit per-instance
-  // overrides on top of whatever `size` resolves — see
-  // normalizeCtaButtonConfig) plus the 2 that are purely size-preset-driven
-  // (minHeightPx/minWidthPx, never had their own panel control even before
-  // `size` existed) — just not rendered as their own controls now that
-  // `size` is the single coherent knob for all of them together.
+  // paddingX/paddingY/paddingXDesktop/paddingYDesktop remain real, tested
+  // config fields (explicit per-instance overrides on top of whatever
+  // size/sizeDesktop resolve — see normalizeCtaButtonConfig) plus the 2
+  // that are purely size-preset-driven (minHeightPx/minWidthPx, never had
+  // their own panel control even before `size` existed) — just not
+  // rendered as their own controls now that Button size (Mobile/Desktop
+  // tabs above) is the coherent knob for all four of them together.
+  // radiusCorners/radiusCornersDesktop are a structural composition detail
+  // (does this instance join into a strip with a sibling, and on which
+  // side) set by whichever page actually composes a joined pair — not
+  // something an operator picks per-instance in this generic panel, same
+  // reasoning as the four above.
   hiddenKeys: [
-    'fontSize', 'paddingX', 'paddingXDesktop', 'paddingY', 'paddingYDesktop',
-    'minHeightPx', 'minWidthPx',
+    'paddingX', 'paddingXDesktop', 'paddingY', 'paddingYDesktop',
+    'minHeightPx', 'minWidthPx', 'radiusCorners', 'radiusCornersDesktop',
   ],
   // Named states worth their own generated Storybook story (see
   // components/Panel/config/generateStorybookStories.ts) rather than only

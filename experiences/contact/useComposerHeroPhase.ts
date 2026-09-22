@@ -101,5 +101,23 @@ export function useComposerHeroPhase(config: ContactExperienceConfig, dockRef: R
     }, settleAfterMs);
   };
 
-  return { heroPhase, triggerExit };
+  // A restored conversation (pages/contact.tsx's own conversation-resume
+  // feature, see PLAN-CONTACT-CONVERSATION-PERSISTENCE.md) mounts with
+  // turns/step/phase already well past the opening greeting — it was never
+  // actually 'centered' in this browser session, so replaying triggerExit's
+  // whole FLIP/dock-glide/greeting-fade sequence for it would animate a
+  // transition that never visually happened, and briefly flash the centered
+  // hero layout on top of already-restored conversation content first
+  // (confirmed live, 2026-09-22: the greeting text visibly overlapped the
+  // restored turns/recap for one frame). This jumps straight to 'settled',
+  // idempotent via the same hasExitedRef triggerExit already uses, with no
+  // animation and no dock measurement — the equivalent of having already
+  // exited before this hook ever mounted.
+  const settleImmediately = () => {
+    if (hasExitedRef.current) return;
+    hasExitedRef.current = true;
+    setHeroPhase('settled');
+  };
+
+  return { heroPhase, triggerExit, settleImmediately };
 }

@@ -6,6 +6,12 @@ import {
 } from '../../../components/Panel/config';
 import { PAGE_SURFACE_APPEARANCE_PANEL } from '../../../components/PageSurface.panel';
 import { CTA_BUTTON_APPEARANCE_PANEL } from '../../../components/CtaButton/config/panel';
+import {
+  normalizeCtaButtonConfig,
+  withCtaButtonSize,
+  withCtaButtonSizeDesktop,
+  type CtaButtonConfig,
+} from '../../../components/CtaButton/config/registered';
 import { GLOBAL_TYPOGRAPHY_APPEARANCE_PANEL } from '../../../components/GlobalTypography.panel';
 import { LAYOUT_DEBUG_PANEL } from '../../../components/LayoutDebug.panel';
 import { useSharedDesignConfig } from '../../../components/SharedDesignConfigProvider';
@@ -89,7 +95,27 @@ export function useAbstractDesignConfigBindings(
           return createConfigScopeBinding({
             definition: CTA_BUTTON_APPEARANCE_PANEL,
             value: ctaButtonConfig,
-            onChange: setCtaButtonConfig,
+            // updateField/updateFields (binding.ts) spread the change onto
+            // the already-fully-materialized ctaButtonConfig, so every
+            // size-bound key (fontSize/paddingX/.../minWidthPx, and their
+            // sizeDesktop/*Desktop tier counterparts) is always "explicitly
+            // present" from normalizeCtaButtonConfig's point of view even
+            // though nobody but the Size preset actually set it — picking a
+            // new Button size (either tab) would otherwise silently keep
+            // the old size's stale values. withCtaButtonSize/
+            // withCtaButtonSizeDesktop strip exactly the changed tier's own
+            // keys so its preset can resolve them again; both can fire in
+            // the same change if a caller ever sets both at once via
+            // updateFields.
+            onChange: next => setCtaButtonConfig((prev) => {
+              const sizeChanged = next.size !== prev.size;
+              const sizeDesktopChanged = next.sizeDesktop !== prev.sizeDesktop;
+              if (!sizeChanged && !sizeDesktopChanged) return next;
+              let patched: Partial<CtaButtonConfig> = next;
+              if (sizeChanged) patched = withCtaButtonSize(patched, next.size);
+              if (sizeDesktopChanged) patched = withCtaButtonSizeDesktop(patched, next.sizeDesktop);
+              return normalizeCtaButtonConfig(patched);
+            }),
             global: true,
           });
         case 'siteHeader':

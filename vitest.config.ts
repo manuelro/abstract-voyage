@@ -1,6 +1,17 @@
 import { defineConfig } from 'vitest/config';
+import path from 'node:path';
 
 export default defineConfig({
+  // next/font/google is a Next.js build-time compiler macro, not a real
+  // runtime export — it only resolves under next build/next dev. Any test
+  // that transitively imports it (e.g. pages/contact.tsx importing pages/
+  // _app.tsx's own siteSans) throws under Vitest's plain esbuild transform
+  // without this. See test/mocks/nextFontGoogle.ts's own doc comment.
+  resolve: {
+    alias: {
+      'next/font/google': path.resolve(__dirname, 'test/mocks/nextFontGoogle.ts'),
+    },
+  },
   // Matches Next.js's own SWC transform (the automatic JSX runtime — no
   // `import React` needed per file). tsconfig's "jsx": "preserve" leaves the
   // actual transform to Next in the real app; esbuild (Vite/Vitest's own

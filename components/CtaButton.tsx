@@ -20,6 +20,7 @@ import { useCardLiftPhysics } from './proximity/useCardLiftPhysics';
 import {
   CTA_BUTTON_MOTION_EASINGS,
   normalizeCtaButtonConfig,
+  resolveCtaButtonRadiusClassName,
   type CtaButtonConfig,
 } from './CtaButton/config/registered';
 import { DEFAULT_PAGE_SURFACE_CONFIG } from './PageSurface.config';
@@ -52,6 +53,27 @@ type SharedCtaButtonProps = {
    * a real `:hover`. Does not affect group-focus-visible's own styling.
    * Off by default. */
   forceHover?: boolean;
+  /** The trailing glyph — '→' (unchanged default for every existing
+   * consumer) unless overridden. A plain Unicode character deliberately,
+   * not an icon-library component: this button already rendered '→' as
+   * inert text (aria-hidden, no icon font/SVG dependency), so any other
+   * single glyph drops in the same way at zero bundle cost. Use this to
+   * differentiate same-screen actions that would otherwise share an
+   * identical trailing arrow (e.g. pages/contact.tsx's own confirm-screen
+   * "Edit note" vs. "Send note to Manuel" pair). */
+  icon?: string;
+  /** Stretches the visible surface to 100% of this button's own outer
+   * element — which itself only actually grows if the *consumer* also
+   * gives it a growable width via `className` (e.g. `flex-1` inside a flex
+   * row), since the outer wrapper is `inline-flex` and shrinks to content
+   * otherwise. A plain per-render composition prop, not a persisted
+   * CtaButtonConfig field: unlike radiusCorners (a real design choice worth
+   * saving/copying), "does this particular render need to fill its flex
+   * parent" is a layout fact about where it's mounted, not a tunable look —
+   * same category as `icon`/`forceHover` above. `minWidthPx`/`minHeightPx`
+   * still apply underneath as a floor if the allocated space is narrower.
+   * Off (content-width, today's exact behavior) by default. */
+  fillWidth?: boolean;
 };
 
 /**
@@ -244,9 +266,12 @@ export const CtaButton = forwardRef<HTMLButtonElement | HTMLAnchorElement, CtaBu
     gradientSource,
     surfaceColor = DEFAULT_PAGE_SURFACE_CONFIG.color,
     forceHover = false,
+    icon = '→',
+    fillWidth = false,
     ...props
   }, forwardedRef) {
     const normalized = useMemo(() => normalizeCtaButtonConfig(config), [config]);
+    const radiusClassName = useMemo(() => resolveCtaButtonRadiusClassName(normalized), [normalized]);
     const surfaceAwareColors = useMemo(
       () => resolveSurfaceAwareCtaColors(normalized, surfaceColor),
       [normalized, surfaceColor],
@@ -363,12 +388,14 @@ export const CtaButton = forwardRef<HTMLButtonElement | HTMLAnchorElement, CtaBu
     const surfaceClassName = [
       surfaceClasses,
       normalized.borderMode === 'none' ? 'border-0' : normalized.borderWidth,
-      normalized.radius,
+      radiusClassName,
       normalized.fontSize,
+      normalized.fontSizeDesktop,
       normalized.paddingX,
       normalized.paddingXDesktop,
       normalized.paddingY,
       normalized.paddingYDesktop,
+      fillWidth ? 'w-full' : '',
       gradientFill ? 'data-[gradient-surface-ready=true]:[--cta-background:transparent]' : '',
       gradientBorder ? 'data-[gradient-surface-ready=true]:[--cta-border:transparent]' : '',
       normalized.hoverColorsEnabled
@@ -402,12 +429,12 @@ export const CtaButton = forwardRef<HTMLButtonElement | HTMLAnchorElement, CtaBu
         ) : null}
         <span className="relative z-10 [transform:translateZ(14px)]">{children}</span>
         <span className="relative z-10 [transform:translateZ(18px)]">
-          <span aria-hidden="true" className={arrowClasses}>→</span>
+          <span aria-hidden="true" className={`${arrowClasses} ${normalized.iconSize} text-[color:inherit]`}>{icon}</span>
         </span>
       </span>
     );
     const combinedClassName = `${outerClasses} ${className}`.trim();
-    const interactiveClassName = `${combinedClassName} ${normalized.radius} ${forceHover ? 'force-hover' : ''}`.trim();
+    const interactiveClassName = `${combinedClassName} ${radiusClassName} ${forceHover ? 'force-hover' : ''}`.trim();
     const debugOverlay = normalized.shadowDebugMode ? (
       <ElevationShadowDebugOverlay getSnapshot={getDebugSnapshot} />
     ) : null;

@@ -1,13 +1,15 @@
 import SeoHead from '../components/SeoHead'
+import { siteSans } from './_app'
 import { buildSiteTitle } from '../helpers/siteMetadata'
 import {
   useEffect, useMemo, useRef, useState,
   type CSSProperties,
 } from 'react'
-import { flushSync } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import { createConfigScopeBinding } from '../components/Panel/config'
 import { useAuthoringToolsVisibility } from '../components/Panel/useAuthoringToolsVisibility'
 import { CtaButton } from '../components/CtaButton'
+import { useCardLiftPhysics } from '../components/proximity/useCardLiftPhysics'
 import {
   ComposerPill,
   computeSweepDurationMs,
@@ -22,6 +24,8 @@ import {
 import { usePrefersReducedMotion } from '../helpers/usePrefersReducedMotion'
 import { deriveSurfaceColor } from '../helpers/surfaceColorDerivation'
 import { useMeasuredElementRect } from '../components/useMeasuredElementRect'
+import { SplitTextReveal } from '../components/SplitTextReveal'
+import { useBreakpointTier } from '../components/useBreakpointTier'
 import { SiteHeader } from '../experiences/abstract/components/SiteHeader'
 import { buildEffectiveSiteHeaderConfig } from '../experiences/abstract/components/SiteHeader/buildEffectiveSiteHeaderConfig'
 import { PAGE_CONTENT_GUTTER_CLASSNAME } from '../components/PageContainer'
@@ -104,6 +108,7 @@ const DEGRADED_ENTRY_MESSAGE = 'Something on my side isn’t shaping the note pr
 const RECAP_INTRO = 'Here’s the note Manuel would receive.'
 const RECAP_UPDATE_INTRO = 'Here’s the updated note Manuel would receive.'
 const REPLY_ROUTE_QUESTION = 'What’s the best email for Manuel to reply to?'
+const REPLY_ROUTE_ERROR_MESSAGE = 'Please enter an email address so Manuel can reply.'
 const NAME_QUESTION = 'What should Manuel call you? This is optional.'
 
 const CLOSE_MESSAGE = REPLY_WINDOW_TEXT
@@ -129,6 +134,13 @@ const NAME_PLACEHOLDER = 'Your name (optional)'
 const NAME_PLACEHOLDER_NARROW = 'Name (optional)'
 const SKIP_NAME_LABEL_NARROW = 'Skip'
 const SKIP_NAME_LABEL = 'Stay anonymous'
+// The recorded turn text for the skip-name choice (kind: 'choice') — past
+// tense/statement, not the button's own imperative label (SKIP_NAME_LABEL
+// above), since this renders as a transcript entry describing what the
+// visitor decided, not as an action to take. See PLAN-CONTACT-CHAT-HISTORY-
+// REFINEMENT.md Stage 2 (F10a) — without this, "Stay anonymous" recorded
+// nothing, so NAME_QUESTION was left looking unanswered.
+const NAME_SKIPPED_LABEL = 'Staying anonymous'
 // Below this width the standard name-step copy pair no longer fits the
 // pill without overlapping (see NAME_PLACEHOLDER_NARROW's own doc comment
 // for the measurements) — 374px, not a shared breakpoints.ts tier (sm/md/
@@ -186,8 +198,16 @@ type ChatTurn = {
   // showRecapReady's own turn (intro + AI-organized recap, `text` holding
   // `${intro}\n\n${body}`) — rendered as an intro (small/muted, same
   // treatment as 'status') stacked above the recap body at full
-  // size/primary color. Absent for every ordinary turn.
-  variant?: 'status' | 'recap'
+  // size/primary color. 'error' is a step-validation failure (e.g. an
+  // invalid email at the reply-route step) — appended at most ONCE per
+  // failing step (see ensureReplyRouteErrorTurn): a repeated wrong
+  // submission never stacks a second copy, it instead replays the existing
+  // turn's own letter-by-letter SplitTextReveal via replyRouteErrorReplayNonce
+  // (GuidedIntake's own state) to catch the visitor's attention again
+  // without polluting the transcript (PLAN-CONTACT-CHAT-HISTORY-
+  // REFINEMENT.md's own F10c principle: one accurate trace per event, not
+  // one per attempt). Absent for every ordinary turn.
+  variant?: 'status' | 'recap' | 'error'
   // 'recap' turns only — the identity question, rendered as its own
   // paragraph below the recap body at the same size/color as the body.
   // Kept structurally separate from `text` rather than concatenated, so
@@ -195,9 +215,190 @@ type ChatTurn = {
   // (AI-generated, arbitrarily-shaped) content. Absent for a correction's
   // updated recap (isUpdate) — matches today's conditional.
   recapQuestion?: string
+  // Visitor-answer turns only. A stable slot id an edit can locate and
+  // rewrite in place (upsertAnswerTurn) — the same role `variant: 'recap'` +
+  // lastIndexOf already plays for the note (showRecapReady/submitNoteEdit).
+  // Without this, nothing distinguishes "the email answer" from any other
+  // visitor turn, so a re-submitted identity step can only ever append a
+  // second copy instead of amending the first (PLAN-CONTACT-CHAT-HISTORY-
+  // REFINEMENT.md Stage 1/2). Absent for every non-editable-answer turn.
+  field?: 'reply-route' | 'name'
+  // Marks a turn that records a visitor *decision* (e.g. "Staying
+  // anonymous" from skipping the name step) rather than typed prose — lets
+  // rendering style a choice distinctly from an answer the visitor actually
+  // wrote, and lets a screen reader announce it as a choice. Absent for
+  // every ordinary typed turn.
+  kind?: 'choice'
 }
 type Step = 'message' | 'followup' | 'reply-route' | 'name' | 'note-edit' | 'degraded-addendum'
 type Phase = 'writing' | 'pending' | 'confirm' | 'done' | 'failed'
+
+// ── Conversation persistence and resume (see
+// PLAN-CONTACT-CONVERSATION-PERSISTENCE.md for the full design rationale —
+// user-research/privacy literature, the "contract validity" load gates, and
+// why this is a visible/reversible resume, not a silent one) ──────────────
+const CONVERSATION_STORAGE_KEY = 'contact:conversation-resume'
+// Bumped whenever the snapshot's own shape changes — validateConversationSnapshot
+// rejects (and readConversationSnapshot discards) anything from a different
+// version outright, never attempting a partial/best-effort migration. At 2
+// for degradedStage below (added to let the resume-time retry — see the
+// mount-restore effect further down — retake whichever AI stage originally
+// failed, not just recap).
+const CONVERSATION_SNAPSHOT_VERSION = 2
+const RESTORABLE_STEPS: readonly Step[] = [
+  'message', 'followup', 'reply-route', 'name', 'note-edit', 'degraded-addendum',
+]
+
+type PersistedConversationSnapshot = {
+  version: number
+  savedAt: number
+  turns: ChatTurn[]
+  step: Step
+  phase: Phase
+  inputValue: string
+  visitorAnswers: string[]
+  modelTranscript: string[]
+  followUpCount: number
+  followUpToken: string | undefined
+  recap: string
+  replyRoute: string
+  name: string
+  recapIsRaw: boolean
+  degraded: boolean
+  degradedStage: 'gap-check' | 'recap'
+  submissionId: string | undefined
+  deliveryError: string
+  deliveryRetriesExhausted: boolean
+}
+
+// 'pending' never survives a reload — no in-flight gap-check/recap/delivery
+// request does — so it coerces back to 'writing' rather than being
+// discarded outright. 'done' must never resurrect (already delivered);
+// anything else unrecognized is treated the same way. See
+// PLAN-CONTACT-CONVERSATION-PERSISTENCE.md §4.2, gate 3.
+const coercePersistedPhase = (phase: unknown): Phase | null => {
+  if (phase === 'writing' || phase === 'confirm' || phase === 'failed') return phase
+  if (phase === 'pending') return 'writing'
+  return null
+}
+
+const isStringArray = (value: unknown): value is string[] => (
+  Array.isArray(value) && value.every(item => typeof item === 'string')
+)
+
+const isValidChatTurn = (value: unknown): value is ChatTurn => {
+  if (typeof value !== 'object' || value === null) return false
+  const turn = value as Record<string, unknown>
+  if (turn.role !== 'agent' && turn.role !== 'visitor') return false
+  if (typeof turn.text !== 'string') return false
+  if (
+    turn.variant !== undefined
+    && turn.variant !== 'status' && turn.variant !== 'recap' && turn.variant !== 'error'
+  ) return false
+  if (turn.recapQuestion !== undefined && typeof turn.recapQuestion !== 'string') return false
+  if (turn.field !== undefined && turn.field !== 'reply-route' && turn.field !== 'name') return false
+  if (turn.kind !== undefined && turn.kind !== 'choice') return false
+  return true
+}
+
+/** The "contract is still valid" load-time gate — every check must pass or
+ * the whole snapshot is discarded outright, never half-restored (Postel's
+ * robustness principle, applied to a malformed/stale/version-mismatched
+ * snapshot the same way any other untrusted input would be). Exported for
+ * its own unit test, matching this file's existing precedent for pure logic
+ * (computeMessageFadeOpacity, resolveStarterModeOnInput, cycleStarterIndex).
+ * followUpToken itself is opaque and server-issued — there is no client-side
+ * way to verify it against the current server contract; a genuinely stale
+ * token is instead caught for free by the existing gap-check failure path
+ * (postIntake's `if (!result.ok) return enterDegraded()`), so this only
+ * checks its *shape* (string | undefined), not its validity. */
+export function validateConversationSnapshot(
+  raw: unknown,
+  ttlMs: number,
+  now: number,
+): PersistedConversationSnapshot | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const candidate = raw as Record<string, unknown>
+  if (candidate.version !== CONVERSATION_SNAPSHOT_VERSION) return null
+  if (typeof candidate.savedAt !== 'number' || now - candidate.savedAt > ttlMs) return null
+  const phase = coercePersistedPhase(candidate.phase)
+  if (!phase) return null
+  if (typeof candidate.step !== 'string' || !RESTORABLE_STEPS.includes(candidate.step as Step)) return null
+  if (!Array.isArray(candidate.turns) || !candidate.turns.every(isValidChatTurn)) return null
+  if (typeof candidate.inputValue !== 'string') return null
+  if (!isStringArray(candidate.visitorAnswers) || !isStringArray(candidate.modelTranscript)) return null
+  if (typeof candidate.followUpCount !== 'number') return null
+  if (candidate.followUpToken !== undefined && typeof candidate.followUpToken !== 'string') return null
+  if (typeof candidate.recap !== 'string') return null
+  if (typeof candidate.replyRoute !== 'string') return null
+  if (typeof candidate.name !== 'string') return null
+  if (typeof candidate.recapIsRaw !== 'boolean' || typeof candidate.degraded !== 'boolean') return null
+  if (candidate.degradedStage !== 'gap-check' && candidate.degradedStage !== 'recap') return null
+  if (candidate.submissionId !== undefined && typeof candidate.submissionId !== 'string') return null
+  if (typeof candidate.deliveryError !== 'string') return null
+  if (typeof candidate.deliveryRetriesExhausted !== 'boolean') return null
+  return {
+    version: CONVERSATION_SNAPSHOT_VERSION,
+    savedAt: candidate.savedAt,
+    turns: candidate.turns as ChatTurn[],
+    step: candidate.step as Step,
+    phase,
+    inputValue: candidate.inputValue,
+    visitorAnswers: candidate.visitorAnswers as string[],
+    modelTranscript: candidate.modelTranscript as string[],
+    followUpCount: candidate.followUpCount,
+    followUpToken: candidate.followUpToken as string | undefined,
+    recap: candidate.recap,
+    replyRoute: candidate.replyRoute,
+    name: candidate.name,
+    recapIsRaw: candidate.recapIsRaw,
+    degraded: candidate.degraded,
+    degradedStage: candidate.degradedStage,
+    submissionId: candidate.submissionId as string | undefined,
+    deliveryError: candidate.deliveryError,
+    deliveryRetriesExhausted: candidate.deliveryRetriesExhausted,
+  }
+}
+
+/** SSR-safe (returns null server-side, same as an empty/absent snapshot) and
+ * defensive against storage throwing (Safari private browsing, quota, or
+ * storage disabled outright) — persistence is a nicety layered on top of the
+ * real conversation, never allowed to break the page if it's unavailable. */
+function readConversationSnapshot(ttlMs: number): PersistedConversationSnapshot | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(CONVERSATION_STORAGE_KEY)
+    if (!raw) return null
+    return validateConversationSnapshot(JSON.parse(raw), ttlMs, Date.now())
+  } catch {
+    return null
+  }
+}
+
+function writeConversationSnapshot(
+  snapshot: Omit<PersistedConversationSnapshot, 'version' | 'savedAt'>,
+): void {
+  if (typeof window === 'undefined') return
+  try {
+    const payload: PersistedConversationSnapshot = {
+      ...snapshot,
+      version: CONVERSATION_SNAPSHOT_VERSION,
+      savedAt: Date.now(),
+    }
+    window.localStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(payload))
+  } catch {
+    // Same non-fatal handling as readConversationSnapshot.
+  }
+}
+
+function clearConversationSnapshot(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(CONVERSATION_STORAGE_KEY)
+  } catch {
+    // Same non-fatal handling as readConversationSnapshot.
+  }
+}
 
 // Exported for its own unit test (pages/contact.fade.test.ts) — divides by
 // the *configured* window size, not the current turn count. A short first
@@ -214,6 +415,171 @@ export const computeMessageFadeOpacity = (
 ) => {
   const fadeRatio = messageVisibleCount > 1 ? distanceFromBottom / (messageVisibleCount - 1) : 0
   return 1 - fadeRatio * (1 - floorOpacity)
+}
+
+/** Message-spacing grouping rule (operator ask, 2026-09-22 — Gestalt law of
+ * proximity + Sweller's cognitive load/chunking: a flat, uniform gap between
+ * every turn regardless of relationship forces the visitor to individually
+ * track N separate items instead of chunking the conversation into a
+ * handful of resolved question→answer exchanges). True only for the one
+ * relationship tight enough to read as a single chunk — an agent question
+ * immediately followed by the visitor's own answer to it. Every other
+ * adjacent pair (a completed exchange giving way to a new agent question,
+ * two consecutive agent turns, etc.) keeps the page's normal, looser
+ * between-exchange gap (messageGapPx) — only this one case switches to the
+ * tighter messageExchangeGapClass. Exported for its own unit test, matching
+ * this file's existing precedent for pure logic. */
+export const isTightExchangeGap = (
+  previousRole: ChatTurn['role'] | undefined,
+  currentRole: ChatTurn['role'],
+): boolean => previousRole === 'agent' && currentRole === 'visitor'
+
+export type UpsertAnswerTurnOutcome = 'inserted' | 'updated' | 'unchanged'
+
+/** Pure core of GuidedIntake's own upsertAnswerTurn — extracted for its own
+ * unit test, matching this file's existing precedent for pure logic
+ * (computeMessageFadeOpacity, resolveStarterModeOnInput, cycleStarterIndex,
+ * validateConversationSnapshot). See PLAN-CONTACT-CHAT-HISTORY-REFINEMENT.md
+ * Stage 2 (F10b/F10c): locates the visitor answer turn for this field (via
+ * the stable `field` slot id — see ChatTurn's own doc comment) and either
+ * appends a new one, rewrites it in place, or leaves the list untouched —
+ * never a second append for the same field. An edit is a mutation of one
+ * prior record, not a new one; a same-value re-submission is a history
+ * no-op. */
+// The fixed agent-question text each editable field's answer follows —
+// never duplicated in `turns` (see submitReplyRoute's own nameAlreadyAsked
+// reuse-check), so a plain text match reliably finds it.
+const ANSWER_FIELD_QUESTION_TEXT: Record<NonNullable<ChatTurn['field']>, string> = {
+  'reply-route': REPLY_ROUTE_QUESTION,
+  name: NAME_QUESTION,
+}
+
+export const upsertAnswerTurnInList = (
+  turns: ChatTurn[],
+  field: NonNullable<ChatTurn['field']>,
+  text: string,
+  kind?: ChatTurn['kind'],
+): { turns: ChatTurn[]; outcome: UpsertAnswerTurnOutcome } => {
+  const existingIndex = turns.map(turn => turn.field).lastIndexOf(field)
+  if (existingIndex === -1) {
+    return {
+      turns: [...turns, { role: 'visitor', field, text, ...(kind ? { kind } : {}) }],
+      outcome: 'inserted',
+    }
+  }
+  const existing = turns[existingIndex]
+  if (existing.text === text && existing.kind === kind) return { turns, outcome: 'unchanged' }
+  // Moves the whole exchange — its question turn through its answer,
+  // inclusive, carrying along any interleaved error turn from a prior
+  // failed attempt — to the end, rather than rewriting the answer at its
+  // original index. A same-index rewrite left a re-edited field anchored at
+  // its ORIGINAL position: correct the first time the flow runs start to
+  // finish, but wrong the moment an edit happens out of that original order
+  // (operator-reported 2026-09-22: editing the note, then the reply info,
+  // rendered the reply info's *update* above the note's — the note's own
+  // edit rewrote in place, still anchored before it, while this already
+  // moved reply-route/name to the end; upsertRecapTurnInList below now
+  // applies this exact same move-to-end contract to the note too, so
+  // every editable field resolves "where does an edit land" the same way).
+  const questionText = ANSWER_FIELD_QUESTION_TEXT[field]
+  const questionIndex = turns.findIndex(turn => turn.role === 'agent' && turn.text === questionText)
+  const blockStart = questionIndex !== -1 && questionIndex < existingIndex ? questionIndex : existingIndex
+  const updatedBlock = turns
+    .slice(blockStart, existingIndex + 1)
+    .map(turn => (turn === existing ? { ...existing, text, kind } : turn))
+  return {
+    turns: [...turns.slice(0, blockStart), ...turns.slice(existingIndex + 1), ...updatedBlock],
+    outcome: 'updated',
+  }
+}
+
+/** Pure core of GuidedIntake's own upsertRecapTurn — same extraction
+ * precedent as upsertAnswerTurnInList above. Rewrites the existing recap
+ * turn (variant 'recap') rather than appending a second "Here's the
+ * [updated] note..." block underneath the first — the note is still the
+ * *same* task (presenting the note for confirmation) across an edit, just
+ * with a changed value (operator-reported 2026-09-22: back-to-back note
+ * edits stacked duplicate blocks). Moves it to the end rather than
+ * rewriting at its own existing index — same "reflect real edit
+ * chronology" contract upsertAnswerTurnInList already applies to
+ * reply-route/name (operator-reported 2026-09-22: a note edited, then
+ * followed by a reply-info edit, stayed anchored above the reply-info's
+ * own moved-to-end update — an in-place rewrite kept the note looking
+ * older than an edit made after it). Unlike upsertAnswerTurnInList, there
+ * is only ever the one recap turn to find (never duplicated, never
+ * interleaved with another turn's own question/answer pair), so the move
+ * is just "take it out, put the updated copy at the end" — no paired
+ * question to carry along. */
+export const upsertRecapTurnInList = (
+  turns: ChatTurn[],
+  text: string,
+  isUpdate: boolean,
+): { turns: ChatTurn[]; outcome: UpsertAnswerTurnOutcome } => {
+  const introText = isUpdate ? RECAP_UPDATE_INTRO : RECAP_INTRO
+  const nextText = `${introText}\n\n${text}`
+  const recapIndex = turns.map(turn => turn.variant).lastIndexOf('recap')
+  if (recapIndex === -1) {
+    return {
+      turns: [...turns, { role: 'agent', variant: 'recap', text: nextText, recapQuestion: undefined }],
+      outcome: 'inserted',
+    }
+  }
+  const existing = turns[recapIndex]
+  if (existing.text === nextText) return { turns, outcome: 'unchanged' }
+  return {
+    turns: [
+      ...turns.slice(0, recapIndex),
+      ...turns.slice(recapIndex + 1),
+      { ...existing, text: nextText },
+    ],
+    outcome: 'updated',
+  }
+}
+
+/** Same "one accurate trace, never a stacked duplicate" contract as
+ * upsertAnswerTurnInList above, applied to a step-validation error (e.g. an
+ * invalid email at the reply-route step) rather than a visitor answer. A
+ * repeated wrong submission must never append a second identical error
+ * turn (confirmed live, 2026-09-22, operator-reported: submitting an
+ * invalid email 4 times stacked 4 copies of the same message) — this
+ * appends the error turn once, then leaves the list untouched on every
+ * later failure. Re-catching the visitor's attention on a *repeat* failure
+ * is instead the caller's job (GuidedIntake bumps replyRouteErrorReplayNonce
+ * to replay the existing turn's own SplitTextReveal — see ChatTurn's own
+ * `variant: 'error'` doc comment), which is exactly why this returns
+ * whether it actually inserted rather than mutating unconditionally: the
+ * caller still needs to know to trigger that replay either way. */
+export const ensureErrorTurnInList = (
+  turns: ChatTurn[],
+  text: string,
+): { turns: ChatTurn[]; inserted: boolean } => {
+  if (turns.some(turn => turn.variant === 'error' && turn.text === text)) {
+    return { turns, inserted: false }
+  }
+  return { turns: [...turns, { role: 'agent', variant: 'error', text }], inserted: true }
+}
+
+/** Reverses a CSS cubic-bezier easing string for a "play the return trip
+ * backwards" pair (PLAN-CONTACT-CHAT-HISTORY-REFINEMENT.md's own mobile
+ * history-fade-on-edit: fade out with one easing, fade back in with its
+ * exact mirror, both at the same duration — see GuidedIntake's own
+ * isMessageEditActive). Standard bezier-reversal identity: given control
+ * points (x1,y1),(x2,y2) — endpoints are implicitly (0,0) and (1,1), never
+ * part of the string — the time-reversed curve's control points are
+ * (1-x2,1-y2),(1-x1,1-y1) (mirror the curve 180° through its own center).
+ * 'linear' (and anything that isn't a 4-argument cubic-bezier(...) string,
+ * e.g. a bare CSS keyword) passes through unchanged — linear is its own
+ * reverse, and every other CTA_BUTTON_MOTION_EASINGS token IS always a
+ * cubic-bezier string, so this never silently no-ops a real easing by
+ * accident. Exported for its own unit test, matching this file's existing
+ * precedent for pure logic. */
+export const reverseCubicBezierEasing = (easingCss: string): string => {
+  const match = easingCss.match(
+    /^cubic-bezier\(\s*([\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*([\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/,
+  )
+  if (!match) return easingCss
+  const [x1, y1, x2, y2] = [match[1], match[2], match[3], match[4]].map(Number)
+  return `cubic-bezier(${1 - x2}, ${1 - y2}, ${1 - x1}, ${1 - y1})`
 }
 
 export type StarterPointsMode = 'hidden' | 'hint' | 'browsing'
@@ -264,6 +630,103 @@ function EmailFallback({ emphasized = false }: { emphasized?: boolean }) {
   )
 }
 
+/** The visible, reversible resume affordance — see
+ * PLAN-CONTACT-CONVERSATION-PERSISTENCE.md §4.3. Rendered via a portal to
+ * `document.body` (not inline in GuidedIntake's own DOM position): the
+ * page's own hero-optical-offset ancestor applies a CSS transform at the
+ * `lg:` breakpoint (pages/contact.tsx's own `lg:translate-y-[var(--contact-
+ * optical-y)]`), which would otherwise become this element's containing
+ * block for `position: fixed` and constrain it to that ancestor's box
+ * instead of the true viewport — the same technique LayoutDebug.tsx already
+ * uses for its own always-viewport-relative overlay. Never dismissed by
+ * unmounting: `visible` only toggles opacity/pointer-events, so the fade
+ * transition below is a real transition, not an instant pop. */
+function ConversationResumeNotice({
+  config, ctaButtonConfig, visible, onStartFresh,
+}: {
+  config: ContactExperienceConfig
+  ctaButtonConfig: CtaButtonConfig
+  visible: boolean
+  onStartFresh: () => void
+}) {
+  // Same shared shadow engine every other elevated surface on this page uses
+  // (useCardLiftPhysics), never a hand-rolled box-shadow — follows
+  // composerElevationPx's own established pattern (ComposerPill.tsx's own
+  // pillPhysicsConfig) exactly: pinned, not reacting to hover/press, since
+  // this notice isn't itself the primary interactive surface.
+  const physicsConfig = useMemo(
+    () => ({
+      ...ctaButtonConfig,
+      elevationReactionEnabled: false,
+      shadowElevationRestingPx: config.resumeNoticeElevationPx,
+    }),
+    [ctaButtonConfig, config.resumeNoticeElevationPx],
+  )
+  const { ref: liftPhysicsRef } = useCardLiftPhysics<HTMLDivElement>({
+    config: physicsConfig,
+    shadowEnabled: config.resumeNoticeShadowEnabled,
+  })
+
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div
+      ref={liftPhysicsRef}
+      role="status"
+      className={`fixed inset-x-0 bottom-6 z-40 mx-auto flex w-fit items-center gap-2 whitespace-nowrap rounded-full font-sans transition-opacity ${config.resumeNoticeFontSize} ${config.resumeNoticePaddingX} ${config.resumeNoticePaddingY} ${visible ? '' : 'pointer-events-none'}`}
+      style={{
+        // Re-supplies --site-font-sans locally so the `font-sans` class
+        // above (Tailwind's real token, resolving `font-family: var(--site-
+        // font-sans)`) actually works here: this node is portaled straight
+        // to document.body, outside _app.tsx's own wrapper div that's the
+        // only place that custom property is normally defined — see
+        // siteSans's own doc comment.
+        '--site-font-sans': siteSans.style.fontFamily,
+        backgroundColor: config.resumeNoticeFillMode === 'transparent' ? 'transparent' : config.resumeNoticeBackgroundColor,
+        borderWidth: `${config.resumeNoticeBorderWidthPx}px`,
+        borderStyle: 'solid',
+        borderColor: config.resumeNoticeBorderWidthPx > 0 ? config.resumeNoticeBorderColor : 'transparent',
+        opacity: visible ? 1 : 0,
+        transitionDuration: `${config.resumeNoticeDismissDurationMs}ms`,
+        transitionTimingFunction: CTA_BUTTON_MOTION_EASINGS[config.resumeNoticeDismissEasing],
+      } as CSSProperties}
+    >
+      <span
+        className="text-[color:var(--contact-primary)]"
+        style={{ opacity: config.resumeNoticeTextOpacity }}
+      >
+        Picked up where you left off.
+      </span>
+      <button
+        type="button"
+        onClick={onStartFresh}
+        tabIndex={visible ? 0 : -1}
+        // inline-flex items-center self-stretch: without an explicit
+        // display, a bare <button> full of nothing but text has a hit box
+        // exactly the size of its own line-height — noticeably smaller than
+        // the pill's own (padding-driven) height it visually sits inside,
+        // so a pointer moving within the perceived click target kept
+        // leaving the real one and landing on the plain sibling <span>/
+        // container instead, flickering between pointer and text-select
+        // cursors (operator-reported, 2026-09-22). self-stretch fills the
+        // row's already-computed height (driven by resumeNoticePaddingY)
+        // without growing the pill itself; px-1 -mx-1 adds real horizontal
+        // slack the same way, visually cancelled by the matching negative
+        // margin so the text doesn't shift.
+        className={`inline-flex -mx-1 items-center self-stretch bg-transparent px-1 text-[color:var(--resume-link-text)] no-underline transition-colors hover:text-[color:var(--resume-link-hover-text)] active:text-[color:var(--resume-link-hover-text)] focus-visible:rounded-sm focus-visible:text-[color:var(--resume-link-hover-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--contact-border-focus)] ${config.resumeNoticeLinkFontWeight}`}
+        style={{
+          opacity: config.resumeNoticeLinkOpacity,
+          '--resume-link-text': config.resumeNoticeLinkColor,
+          '--resume-link-hover-text': config.resumeNoticeLinkHoverActiveColor,
+        } as CSSProperties}
+      >
+        Start fresh?
+      </button>
+    </div>,
+    document.body,
+  )
+}
+
 function GuidedIntake({
   config, ctaButtonConfig, surfaceColor, devModeConfig,
 }: {
@@ -272,6 +735,26 @@ function GuidedIntake({
   surfaceColor: string
   devModeConfig: ContactDevModeConfig
 }) {
+  // The "contract is still valid" load-time gates (schema version, TTL,
+  // phase coercion, structural shape) all live inside
+  // validateConversationSnapshot — see its own doc comment and
+  // PLAN-CONTACT-CONVERSATION-PERSISTENCE.md §4.2. Deliberately NOT read
+  // inside a lazy useState initializer the way initialCarriedDraft below
+  // is — that precedent is hydration-safe only because the module-scope
+  // singleton it reads is inherently null on every fresh page load
+  // (server and client alike), so the two can never disagree. localStorage
+  // has no such guarantee: on a genuine reload the server always renders
+  // the empty/default state (no window there), while a synchronous client
+  // read here would see real stored content on that very first client
+  // render — a real, reproducible hydration mismatch (confirmed live,
+  // 2026-09-22: React's hydration failed and fell back to a full
+  // client-render, the same fallback that made the very first reload
+  // attempt during this feature's own implementation silently NOT show the
+  // restored conversation). Every piece of state/ref below instead starts
+  // at its ordinary pre-persistence default (byte-for-byte what SSR
+  // renders) and is only ever restored inside the mount-only effect further
+  // down, strictly after hydration has already completed.
+  //
   // The greeting is not turns[0] — it's ContactHeroGreeting, driven by
   // heroPhase below, not the scrolling conversation feed (see
   // useComposerHeroPhase's own doc comment for why: it has its own reveal
@@ -281,14 +764,43 @@ function GuidedIntake({
   const [turns, setTurns] = useState<ChatTurn[]>(() => [])
   const [step, setStep] = useState<Step>('message')
   const [phase, setPhase] = useState<Phase>('writing')
+  // Bumped on every failed reply-route (email) submission — never on the
+  // first. ensureErrorTurnInList only ever appends the shared error turn
+  // ONCE (a repeated wrong value must not stack duplicate copies, operator-
+  // reported 2026-09-22); this counter is what re-triggers that turn's own
+  // letter-by-letter SplitTextReveal on every subsequent failure, via its
+  // `key` below, so a visitor who keeps entering something invalid keeps
+  // getting the attention-catching replay without the transcript growing.
+  const [replyRouteErrorReplayNonce, setReplyRouteErrorReplayNonce] = useState(0)
+  // True only while an in-place edit (note or reply-route, entered from the
+  // confirm screen's "Edit note"/"Edit reply details") is actively being
+  // typed — set by handleRequestCorrection/handleRequestIdentityEdit below,
+  // cleared the moment that edit's own submit handler succeeds. Drives the
+  // mobile-only history fade-out/back-in (see the turns-feed's own style
+  // below) — desktop never hides the history during an edit, only narrow
+  // viewports where the on-screen keyboard and the edit field already
+  // dominate the available space.
+  const [isMessageEditActive, setIsMessageEditActive] = useState(false)
+  const { tier: breakpointTier } = useBreakpointTier()
+  const isMobileTier = breakpointTier === 'mobile'
   // Non-destructive peek (see helpers/pendingComposerDraft.ts's own doc
   // comment on why this must stay non-destructive inside a lazy useState
   // initializer, which React/StrictMode can invoke more than once without
   // committing) — a carried draft from abstract.tsx's own composer, if one
   // exists, seeds the composer already populated rather than empty. Actually
-  // clearing the store happens in a mount effect below, exactly once.
+  // clearing the store happens in a mount effect below, exactly once. Safe
+  // inside a lazy initializer (unlike the resumed-conversation read above)
+  // per this block's own opening comment.
   const [initialCarriedDraft] = useState(() => peekPendingComposerDraft())
   const hadCarriedDraft = initialCarriedDraft !== null
+  // Flips true (permanently, for this mounted instance — see the mount
+  // effect below) only once a resumed snapshot has actually been restored.
+  // Starts false so the very first client render matches SSR exactly (no
+  // notice, no restored content) — the restore, if any, always happens one
+  // effect-tick after hydration, a deliberate one-frame-or-so "upgrade"
+  // rather than risking a second hydration mismatch.
+  const [hasResumedConversation, setHasResumedConversation] = useState(false)
+  const [resumeNoticeVisible, setResumeNoticeVisible] = useState(false)
   const [inputValue, setInputValue] = useState(() => initialCarriedDraft ?? '')
   // The in-pill "Not sure where to begin?" affordance (see
   // ComposerPill.tsx's own ComposerStarterPoints doc comment for the full
@@ -331,7 +843,12 @@ function GuidedIntake({
 
   // Internal bookkeeping that never renders on its own — always mutated
   // alongside a state update above, so a render always follows shortly
-  // after any change here.
+  // after any change here. Each starts at its ordinary pre-persistence
+  // default; a resumed conversation's own values (if any) are only ever
+  // applied inside the mount-only restore effect further down (see the
+  // hydration-safety comment above turns/step/phase for why these can't be
+  // seeded synchronously here the way refs safely could be in isolation —
+  // kept consistent with the state above rather than half-hydration-safe).
   const visitorAnswersRef = useRef<string[]>([])
   const modelTranscriptRef = useRef<string[]>([])
   const followUpCountRef = useRef(0)
@@ -346,12 +863,25 @@ function GuidedIntake({
   const nameRef = useRef('')
   const recapIsRawRef = useRef(false)
   const degradedRef = useRef(false)
+  // Which AI stage was actually in flight when enterDegraded fired — the
+  // resume-time retry (mount-restore effect further down) needs this to
+  // retake the *same* stage that originally failed, not always jump
+  // straight to recap: a gap-check failure means the visitor never got the
+  // chance at a clarifying follow-up question at all, which retrying
+  // recap alone could never restore. Meaningless while degradedRef is
+  // false; default value here is never read in that case.
+  const degradedStageRef = useRef<'gap-check' | 'recap'>('recap')
   const abortRef = useRef<AbortController | null>(null)
 
   // Delivery is the only browser-controlled retry sequence. AI inference is
   // retried inside the function so one interaction cannot multiply calls
   // across the browser and server.
   const pendingRetryTimeoutRef = useRef<number | null>(null)
+  // Never restored from a snapshot: an in-flight auto-retry sequence and its
+  // scheduled timer don't survive a reload either way (pendingRetryTimeoutRef
+  // above starts fresh too), so a restored 'failed' phase always presents as
+  // a clean failure the visitor can retry manually via "Try sending again",
+  // never as if a retry were already silently in flight.
   const deliveryRetryCountRef = useRef(0)
   // Identifies one logical delivery attempt so a retry (automatic or
   // manual) of the same submission can never double-send — see
@@ -372,7 +902,7 @@ function GuidedIntake({
   // because it only ever flips on a click that already re-runs that effect.
   const hasEngagedStarterRef = useRef(false)
 
-  const { heroPhase, triggerExit } = useComposerHeroPhase(config, dockRef)
+  const { heroPhase, triggerExit, settleImmediately } = useComposerHeroPhase(config, dockRef)
   const prefersReducedMotion = usePrefersReducedMotion()
 
   // Each hero-entrance field is configured as the *gap* after the previous
@@ -404,6 +934,260 @@ function GuidedIntake({
   useEffect(() => {
     clearPendingComposerDraft()
   }, [])
+
+  // Restores a previously paused conversation, strictly after hydration —
+  // see the hydration-safety comment above turns/step/phase's own
+  // declarations for why this can't happen synchronously at render time the
+  // way initialCarriedDraft's own lazy-state peek does. Runs once, on
+  // mount. A carried draft (a deliberate, more recent cross-page handoff)
+  // takes full precedence over an old resumed conversation outright — not
+  // just for the composer's own text — since mixing "brand-new text meant
+  // for a fresh message" with "an old conversation's own step/phase" would
+  // produce an incoherent hybrid state (e.g. a freshly carried draft
+  // sitting in a composer whose step/turns still belong to an old,
+  // already-progressed conversation). Gated on there actually being
+  // something worth resuming (a snapshot with no turns and no typed draft
+  // would show "picked up where you left off" for literally nothing).
+  useEffect(() => {
+    if (hadCarriedDraft) return
+    if (!config.conversationPersistenceEnabled) return
+    const snapshot = readConversationSnapshot(config.conversationPersistenceTtlMs)
+    if (!snapshot) return
+    const hasContent = snapshot.turns.length > 0 || snapshot.inputValue.trim() !== ''
+    if (!hasContent) return
+    setTurns(snapshot.turns)
+    setStep(snapshot.step)
+    setPhase(snapshot.phase)
+    setInputValue(snapshot.inputValue)
+    setDeliveryError(snapshot.deliveryError)
+    setDeliveryRetriesExhausted(snapshot.deliveryRetriesExhausted)
+    visitorAnswersRef.current = snapshot.visitorAnswers
+    modelTranscriptRef.current = snapshot.modelTranscript
+    followUpCountRef.current = snapshot.followUpCount
+    followUpTokenRef.current = snapshot.followUpToken
+    recapRef.current = snapshot.recap
+    replyRouteRef.current = snapshot.replyRoute
+    nameRef.current = snapshot.name
+    recapIsRawRef.current = snapshot.recapIsRaw
+    degradedRef.current = snapshot.degraded
+    degradedStageRef.current = snapshot.degradedStage
+    submissionIdRef.current = snapshot.submissionId
+    // A resumed conversation that fell back to raw/degraded mode
+    // (enterDegraded) used to stay that way for the rest of its life,
+    // even across a refresh — degraded was persisted and restored above
+    // exactly as the API left it, with no path back except "Start fresh"
+    // (a full, destructive reset of everything typed so far). A refresh is
+    // itself a plausible reason to give the API a genuine second chance
+    // (operator-reported: "the end user refreshes and tries again" but the
+    // fallback message just stays put even once the API is stable again),
+    // matching this file's own precedent elsewhere of retrying a failure
+    // rather than treating one bad response as permanent (delivery's own
+    // auto-retry).
+    //
+    // Retakes whichever stage actually failed (degradedStage), not always
+    // recap — a gap-check failure never even reached recap, so retrying
+    // recap alone would silently, permanently forfeit the chance at a
+    // clarifying follow-up question the AI would otherwise have asked
+    // (operator-reported: "so the overall experience remains agentic as
+    // much as possible"). But a retaken gap-check is only ever applied
+    // silently when its outcome is safe to fold in without disturbing
+    // anything the visitor already resumed into: needsFollowUp / a meta-
+    // message redirect would mean moving them backward to an earlier step
+    // (or resetting the whole flow) out from under whatever they're
+    // already doing at 'reply-route' — that's a real regression, not a
+    // recovery, so both cases fall through to staying degraded exactly as
+    // before, silently. Only a clean "no follow-up needed" gap-check
+    // outcome chains into the same recap retry recap-stage failures already
+    // used, and only that combined outcome — a real, complete recap — ever
+    // gets applied. If anything in the chain fails, nothing changes: no
+    // repeated error turn, no partial application, no visible difference
+    // from today. Applying the final recap swap is guarded on the degraded
+    // message still being present at apply time (not just at retry time)
+    // so a visitor who already moved on via "Add more"/delivery in the
+    // meantime can't have their transcript rewritten out from under them.
+    if (snapshot.degraded) {
+      const applyRecoveredRecap = (recap: string) => {
+        let applied = false
+        setTurns((prev) => {
+          const hasDegradedMessage = prev.some(turn => (
+            turn.role === 'agent' && turn.variant === undefined && turn.text === DEGRADED_ENTRY_MESSAGE
+          ))
+          if (!hasDegradedMessage) return prev
+          applied = true
+          const withoutDegradedMessage = prev.filter(turn => !(
+            turn.role === 'agent' && turn.variant === undefined && turn.text === DEGRADED_ENTRY_MESSAGE
+          ))
+          return upsertRecapTurnInList(withoutDegradedMessage, recap, false).turns
+        })
+        if (applied) {
+          recapRef.current = recap
+          recapIsRawRef.current = false
+          degradedRef.current = false
+        }
+      }
+      const retryRecap = async () => {
+        const result = await postIntake({
+          stage: 'recap',
+          transcript: snapshot.visitorAnswers.map(text => `Visitor: ${text}`).join('\n'),
+        })
+        if (!result.ok || typeof result.recap !== 'string') return
+        applyRecoveredRecap(result.recap)
+      }
+      void (async () => {
+        try {
+          if (snapshot.degradedStage === 'recap') {
+            await retryRecap()
+            return
+          }
+          const gapCheckResult = await postIntake({
+            stage: 'gap-check',
+            transcript: snapshot.modelTranscript.join('\n'),
+            followUpToken: snapshot.followUpToken,
+          })
+          if (!gapCheckResult.ok) return
+          if (gapCheckResult.mode && gapCheckResult.message) return
+          if (gapCheckResult.needsFollowUp) return
+          await retryRecap()
+        } catch {
+          // Still down — stay in degraded mode exactly as already resumed.
+        }
+      })()
+    }
+    // A restored conversation with real turns was never actually 'centered'
+    // in this browser session — jump the hero phase straight to 'settled'
+    // (see settleImmediately's own doc comment, useComposerHeroPhase.ts) so
+    // the greeting doesn't render on top of the just-restored turns/recap
+    // for even one frame. A snapshot with only a typed-but-unsent draft and
+    // no turns yet (still genuinely step 'message') stays centered as
+    // normal — nothing to settle past yet.
+    if (snapshot.turns.length > 0) settleImmediately()
+    // Restores the step-appropriate placeholder the same way every existing
+    // step-transition handler already does (handleRequestCorrection et al.)
+    // rather than leaving whatever ENTRY_PLACEHOLDER the state above
+    // started at.
+    setPlaceholder(
+      snapshot.step === 'note-edit' ? NOTE_EDIT_PLACEHOLDER
+        : snapshot.step === 'reply-route' ? REPLY_ROUTE_PLACEHOLDER
+          : snapshot.step === 'name' ? NAME_PLACEHOLDER
+            : snapshot.step === 'degraded-addendum' ? DEGRADED_ADDENDUM_PLACEHOLDER
+              : ENTRY_PLACEHOLDER,
+    )
+    setHasResumedConversation(true)
+    setResumeNoticeVisible(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Persists the in-progress conversation on every meaningful change, so a
+  // later visit's own load-time gates (validateConversationSnapshot) have
+  // something current to restore — see PLAN-CONTACT-CONVERSATION-
+  // PERSISTENCE.md §4.1. Debounced (400ms of inactivity) rather than firing
+  // on every keystroke, but also flushed unconditionally on
+  // visibilitychange/pagehide so an abrupt close still captures the latest
+  // state even if the debounce timer never got to fire — refs (visitorAnswersRef
+  // etc.) aren't dependencies here (mutating a ref alone doesn't re-render),
+  // but every real mutation of one of them in this component happens
+  // alongside a turns/step/phase/inputValue update in the same handler, so
+  // this effect's own dependency list already re-runs whenever any of them
+  // meaningfully changes. Never persists a delivered ('done') conversation,
+  // and never persists a genuinely empty one (no turns, no typed draft) —
+  // the latter would otherwise show the resume notice for nothing on a
+  // later visit.
+  useEffect(() => {
+    if (!config.conversationPersistenceEnabled) return undefined
+    if (phase === 'done') return undefined
+    const hasContent = turns.length > 0 || inputValue.trim() !== ''
+    if (!hasContent) return undefined
+    const buildSnapshot = () => ({
+      turns,
+      step,
+      phase,
+      inputValue,
+      visitorAnswers: visitorAnswersRef.current,
+      modelTranscript: modelTranscriptRef.current,
+      followUpCount: followUpCountRef.current,
+      followUpToken: followUpTokenRef.current,
+      recap: recapRef.current,
+      replyRoute: replyRouteRef.current,
+      name: nameRef.current,
+      recapIsRaw: recapIsRawRef.current,
+      degraded: degradedRef.current,
+      degradedStage: degradedStageRef.current,
+      submissionId: submissionIdRef.current,
+      deliveryError,
+      deliveryRetriesExhausted,
+    })
+    const timeoutId = window.setTimeout(() => writeConversationSnapshot(buildSnapshot()), 400)
+    const flush = () => writeConversationSnapshot(buildSnapshot())
+    document.addEventListener('visibilitychange', flush)
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.clearTimeout(timeoutId)
+      document.removeEventListener('visibilitychange', flush)
+      window.removeEventListener('pagehide', flush)
+    }
+  }, [
+    config.conversationPersistenceEnabled, turns, step, phase, inputValue,
+    deliveryError, deliveryRetriesExhausted,
+  ])
+
+  // A delivered conversation must never resurrect (PLAN-CONTACT-
+  // CONVERSATION-PERSISTENCE.md §4.2, gate 3) — purged the moment it's
+  // actually delivered, independent of the write effect above (which itself
+  // already refuses to write while phase is 'done', but an earlier write
+  // from just before delivery could otherwise still be sitting in storage).
+  useEffect(() => {
+    if (phase === 'done') clearConversationSnapshot()
+  }, [phase])
+
+  // Optional idle fallback — see conversationResumeNoticeAutoDismissMs's own
+  // doc comment (ContactExperience.config.ts). The primary, deliberate
+  // dismissal trigger is dismissResumeNotice below, called from every
+  // guided-intake action handler.
+  useEffect(() => {
+    if (!resumeNoticeVisible) return undefined
+    if (config.conversationResumeNoticeAutoDismissMs <= 0) return undefined
+    const timeoutId = window.setTimeout(
+      () => setResumeNoticeVisible(false),
+      config.conversationResumeNoticeAutoDismissMs,
+    )
+    return () => window.clearTimeout(timeoutId)
+  }, [resumeNoticeVisible, config.conversationResumeNoticeAutoDismissMs])
+
+  // The resume notice fades the moment the visitor takes any real action
+  // with the restored conversation — read as implicit acknowledgment that
+  // the resumed thread is valid and theirs to continue (see
+  // PLAN-CONTACT-CONVERSATION-PERSISTENCE.md §4.3). Called from the top of
+  // every guided-intake action handler (handleSend covers every composer
+  // submit across every step in one place; the rest are one call each).
+  // Hovering, focusing, or scrolling are deliberately NOT triggers.
+  const dismissResumeNotice = () => setResumeNoticeVisible(false)
+
+  // "Start fresh" is a separate, explicit path from dismissResumeNotice
+  // above — it REJECTS the resumed conversation (full reset), not acks it.
+  // Mirrors exactly what a fresh mount with no restored snapshot would have
+  // initialized every piece of state/ref to.
+  const handleStartFresh = () => {
+    clearConversationSnapshot()
+    setResumeNoticeVisible(false)
+    setTurns([])
+    setStep('message')
+    setPhase('writing')
+    setInputValue('')
+    setDeliveryError('')
+    setDeliveryRetriesExhausted(false)
+    setPlaceholder(ENTRY_PLACEHOLDER)
+    visitorAnswersRef.current = []
+    modelTranscriptRef.current = []
+    followUpCountRef.current = 0
+    followUpTokenRef.current = undefined
+    recapRef.current = ''
+    replyRouteRef.current = ''
+    nameRef.current = ''
+    recapIsRawRef.current = false
+    degradedRef.current = false
+    submissionIdRef.current = undefined
+    deliveryRetryCountRef.current = 0
+  }
 
   // Debounced auto-submit for a carried draft: fires submitFirstMessage
   // (the exact same function a manual Enter press already calls, defined
@@ -677,17 +1461,37 @@ function GuidedIntake({
     return response.json() as Promise<IntakeResponse>
   }
 
+  // Same "next task, same as the previous one → reuse it, don't duplicate"
+  // principle upsertAnswerTurnInList already applies to reply-route/name,
+  // and handleSendAsIs already applied to this exact recap turn: a re-edit
+  // of the note is still the *same* task (presenting the note for
+  // confirmation), just with a changed value, so it rewrites the existing
+  // recap turn (moving it to the end, same as upsertAnswerTurnInList
+  // already does — see upsertRecapTurnInList's own doc comment) rather
+  // than appending a second "Here's the [updated] note..." block
+  // underneath the first (operator-reported 2026-09-22: back-to-back note
+  // edits stacked duplicate blocks, only the last of which was ever
+  // accurate). This gives up the earlier design (also 2026-09-22) of a
+  // full revision trail via one fresh turn per edit — no letter-by-letter
+  // replay stands in for that here either (deliberately dropped,
+  // operator-reported 2026-09-22: too much motion for a single-line
+  // value swap); the turn's own move to the end of the transcript is
+  // itself the visible signal that an edit just happened.
+  // Thin state wrapper around upsertRecapTurnInList above — same shape as
+  // upsertAnswerTurn's own wrapper around upsertAnswerTurnInList (see that
+  // function's own doc comment for why `turns` is read directly here rather
+  // than via setTurns's functional updater).
+  const upsertRecapTurn = (text: string, isUpdate: boolean) => {
+    recapRef.current = text
+    const result = upsertRecapTurnInList(turns, text, isUpdate)
+    if (result.outcome === 'unchanged') return
+    setTurns(result.turns)
+  }
+
   // Renders an editable note. The visitor sees the value before we ask for a
   // reply route, making the personal-data exchange earned and explicit.
   const showRecapReady = (text: string, isUpdate: boolean) => {
-    recapRef.current = text
-    const intro = isUpdate ? RECAP_UPDATE_INTRO : RECAP_INTRO
-    setTurns(prev => [...prev, {
-      role: 'agent',
-      variant: 'recap',
-      text: `${intro}\n\n${text}`,
-      recapQuestion: undefined,
-    }])
+    upsertRecapTurn(text, isUpdate)
     if (isUpdate) {
       setPhase('confirm')
     } else {
@@ -711,8 +1515,9 @@ function GuidedIntake({
     setPhase('writing')
   }
 
-  const enterDegraded = () => {
+  const enterDegraded = (stage: 'gap-check' | 'recap') => {
     degradedRef.current = true
+    degradedStageRef.current = stage
     recapIsRawRef.current = true
     setTurns(prev => [...prev, { role: 'agent', text: DEGRADED_ENTRY_MESSAGE }])
     setPlaceholder(REPLY_ROUTE_PLACEHOLDER)
@@ -734,13 +1539,13 @@ function GuidedIntake({
         controller.signal,
       )
       await waitForFloor(startedAt)
-      if (!result.ok || typeof result.recap !== 'string') return enterDegraded()
+      if (!result.ok || typeof result.recap !== 'string') return enterDegraded('recap')
       recapIsRawRef.current = false
       showRecapReady(result.recap, isCorrection)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       await waitForFloor(startedAt)
-      enterDegraded()
+      enterDegraded('recap')
     }
   }
 
@@ -758,7 +1563,7 @@ function GuidedIntake({
         followUpToken: followUpTokenRef.current,
       }, controller.signal)
       await waitForFloor(startedAt)
-      if (!result.ok) return enterDegraded()
+      if (!result.ok) return enterDegraded('gap-check')
       if (result.mode && result.message) {
         const message = result.message
         setTurns(prev => [...prev, { role: 'agent', text: message }])
@@ -786,7 +1591,7 @@ function GuidedIntake({
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       await waitForFloor(startedAt)
-      enterDegraded()
+      enterDegraded('gap-check')
     }
   }
 
@@ -819,15 +1624,15 @@ function GuidedIntake({
   const submitNoteEdit = (rawText: string) => {
     const text = rawText.trim()
     if (!text) return
-    recapRef.current = text
-    setTurns(prev => {
-      const recapIndex = [...prev].map(turn => turn.variant).lastIndexOf('recap')
-      return prev.map((turn, index) => index === recapIndex
-        ? { ...turn, text: `${RECAP_UPDATE_INTRO}\n\n${text}` }
-        : turn)
-    })
+    // Same-value no-op: re-confirming an unchanged note advances the flow
+    // but must not touch the transcript at all — nothing actually happened.
+    // A genuinely changed note reuses the existing recap turn (see
+    // upsertRecapTurn's own doc comment) — same "same task, reuse it"
+    // contract upsertAnswerTurnInList already applies to reply-route/name.
+    if (text !== recapRef.current) upsertRecapTurn(text, true)
     setInputValue('')
     setPhase('confirm')
+    setIsMessageEditActive(false)
   }
 
   // Degraded mode's "Add more": no network call, no synthetic agent turn —
@@ -844,17 +1649,57 @@ function GuidedIntake({
     setPhase('confirm')
   }
 
+  // Thin state wrapper around the pure upsertAnswerTurnInList above — see
+  // that function's own doc comment for the actual logic/rationale. Reads
+  // `turns` directly (not via setTurns's functional updater) since every
+  // caller here runs synchronously and this file's handlers already close
+  // over the latest render's state the same way (e.g. visibleTurns further
+  // down); setTurns itself still uses the returned list, never a stale one.
+  const upsertAnswerTurn = (
+    field: NonNullable<ChatTurn['field']>,
+    text: string,
+    kind?: ChatTurn['kind'],
+  ): UpsertAnswerTurnOutcome => {
+    const result = upsertAnswerTurnInList(turns, field, text, kind)
+    if (result.outcome !== 'unchanged') setTurns(result.turns)
+    return result.outcome
+  }
+
   const submitReplyRoute = (rawText: string) => {
     const text = rawText.trim()
     if (!text) return
     if (!EMAIL_PATTERN.test(text)) {
-      setTurns(prev => [...prev, { role: 'agent', text: 'Please enter an email address so Manuel can reply.' }])
+      // Never stacks a duplicate — ensureErrorTurnInList appends the shared
+      // error turn at most once, then every later failure just replays its
+      // existing SplitTextReveal (see replyRouteErrorReplayNonce's own doc
+      // comment) instead of adding another copy to the transcript.
+      const result = ensureErrorTurnInList(turns, REPLY_ROUTE_ERROR_MESSAGE)
+      if (result.inserted) setTurns(result.turns)
+      setReplyRouteErrorReplayNonce(nonce => nonce + 1)
       return
     }
     replyRouteRef.current = text
-    setTurns(prev => [...prev, { role: 'visitor', text }])
-    setInputValue('')
-    setTurns(prev => [...prev, { role: 'agent', text: NAME_QUESTION }])
+    // Always routes back through the name step after a confirmed email —
+    // first answer or edit alike ("Edit reply details" must still let the
+    // visitor revisit/change their name, operator-reported 2026-09-22: an
+    // earlier fix here made an *edit* skip straight to confirm, to stop a
+    // repeated re-submission from stacking a duplicate NAME_QUESTION/answer
+    // pair — but that same guard also silently skipped the step outright on
+    // every edit, which is the actual regression). NAME_QUESTION itself
+    // still only ever appears once: appended only if this exact turn isn't
+    // already in the transcript, so an edit's return trip re-uses the
+    // question already visible above instead of duplicating it — the F10b/
+    // F10c "one accurate trace" guarantee stays intact, it just now governs
+    // the QUESTION turn's own idempotency instead of skipping the whole step.
+    const { turns: afterAnswer } = upsertAnswerTurnInList(turns, 'reply-route', text)
+    const nameAlreadyAsked = afterAnswer.some(turn => turn.role === 'agent' && turn.text === NAME_QUESTION)
+    setTurns(nameAlreadyAsked ? afterAnswer : [...afterAnswer, { role: 'agent', text: NAME_QUESTION }])
+    // Pre-fills with whatever name was already given (empty if the visitor
+    // chose to stay anonymous) — same "show the existing answer, don't make
+    // them start over" precedent as handleRequestIdentityEdit's own
+    // replyRouteRef.current pre-fill.
+    setInputValue(nameRef.current)
+    setIsMessageEditActive(false)
     setPlaceholder(NAME_PLACEHOLDER)
     setStep('name')
     setPhase('writing')
@@ -864,13 +1709,24 @@ function GuidedIntake({
     const text = rawText.trim()
     if (text) {
       nameRef.current = text
-      setTurns(prev => [...prev, { role: 'visitor', text }])
+      upsertAnswerTurn('name', text)
     }
     setInputValue('')
     setPhase('confirm')
   }
 
-  const handleSkipName = () => submitName('')
+  const handleSkipName = () => {
+    dismissResumeNotice()
+    // "Stay anonymous" is itself the decision — it must leave a visible
+    // trace (F10a) instead of silently advancing with no answer turn, which
+    // used to leave NAME_QUESTION looking unanswered. nameRef.current always
+    // clears to '' here (never left at a stale prior value), matching this
+    // choice always meaning "no name," edit or not.
+    nameRef.current = ''
+    upsertAnswerTurn('name', NAME_SKIPPED_LABEL, 'choice')
+    setInputValue('')
+    setPhase('confirm')
+  }
 
   // Selecting a stem hands off to ComposerPill's own introText overlay (see
   // its doc comment) rather than setting inputValue immediately — the exact
@@ -941,6 +1797,10 @@ function GuidedIntake({
   }
 
   const handleSend = () => {
+    // Covers every composer submit across every step (Enter-to-send and the
+    // arrow click alike both route through here) in one place — see
+    // dismissResumeNotice's own doc comment.
+    dismissResumeNotice()
     if (step === 'message') void submitFirstMessage(inputValue)
     else if (step === 'followup') void submitFollowUpAnswer(inputValue)
     else if (step === 'reply-route') submitReplyRoute(inputValue)
@@ -950,20 +1810,25 @@ function GuidedIntake({
   }
 
   const handleRequestCorrection = () => {
+    dismissResumeNotice()
     setInputValue(recapRef.current)
     setPlaceholder(NOTE_EDIT_PLACEHOLDER)
     setStep('note-edit')
     setPhase('writing')
+    setIsMessageEditActive(true)
   }
 
   const handleRequestIdentityEdit = () => {
+    dismissResumeNotice()
     setInputValue(replyRouteRef.current)
     setPlaceholder(REPLY_ROUTE_PLACEHOLDER)
     setStep('reply-route')
     setPhase('writing')
+    setIsMessageEditActive(true)
   }
 
   const handleRequestDegradedAddendum = () => {
+    dismissResumeNotice()
     setPlaceholder(DEGRADED_ADDENDUM_PLACEHOLDER)
     setStep('degraded-addendum')
     setPhase('writing')
@@ -978,6 +1843,7 @@ function GuidedIntake({
   // an auto-retry is pending, it just races it (see handleFailure — the
   // scheduled timer is always cleared before either path re-attempts).
   const handleConfirmed = async (isRetry = false) => {
+    dismissResumeNotice()
     if (!isRetry) {
       deliveryRetryCountRef.current = 0
       submissionIdRef.current = crypto.randomUUID()
@@ -1030,14 +1896,8 @@ function GuidedIntake({
   const handleSendAsIs = () => {
     const text = visitorAnswersRef.current.join('\n\n').trim()
     if (!text) return
-    recapRef.current = text
     recapIsRawRef.current = false
-    setTurns(prev => {
-      const recapIndex = [...prev].map(turn => turn.variant).lastIndexOf('recap')
-      return prev.map((turn, index) => index === recapIndex
-        ? { ...turn, text: `${RECAP_UPDATE_INTRO}\n\n${text}` }
-        : turn)
-    })
+    upsertRecapTurn(text, true)
   }
 
   const canUseOriginalWords = config.useOriginalWordsActionEnabled &&
@@ -1123,6 +1983,48 @@ function GuidedIntake({
       config.secondaryButtonHoverActiveBorderDarkenAmount,
     ],
   )
+  // confirmActionsJoinedStripEnabled's own motion half (see
+  // ContactExperienceConfig's own doc comment) — two halves of one visually
+  // joined strip independently lifting/tilting/scaling would read as two
+  // separate physical objects, not one, so both drop every motion channel
+  // CtaButtonConfig already exposes for this rather than a new bundled
+  // flag: tiltEnabled (3D rotate), proximityScale (grow-on-approach),
+  // proximityLiftPx (belt-and-suspenders alongside elevationReactionEnabled
+  // below, which already pins elevation flat on its own), and
+  // elevationReactionEnabled (hover/press/focus shadow lift). shadowEngineEnabled:
+  // false goes one step further than elevationReactionEnabled alone
+  // (operator-reported: with the engine still running, the two halves'
+  // independently-computed shadows still visibly differed even at the same
+  // pinned elevation, since each instance's own contact/projected shadow
+  // layers factor in that element's own DOM rect — see
+  // helpers/elevationShadowEngine.ts) — disabling the engine entirely falls
+  // back to outerClasses' own flat, static Tailwind shadow (CtaButton.tsx),
+  // byte-identical between both halves since neither is computing anything
+  // instance-specific anymore. The accept action's own attention-guiding
+  // nudge (forceHover) still works — it also drives the color/arrow-
+  // translate cues CtaButton.tsx's own group-hover/group-[.force-hover]
+  // rules apply independently of all of these.
+  const joinedStripMotionOverride = {
+    tiltEnabled: false,
+    proximityScale: 1,
+    proximityLiftPx: 0,
+    elevationReactionEnabled: false,
+    shadowEngineEnabled: false,
+  } as const
+  // The corner-radius half — squares off only the shared inner edge
+  // (radiusCorners: 'left'/'right'), leaving the far outer corner exactly
+  // as each config's own `radius` already specifies. radiusCornersDesktop
+  // is deliberately left at its own default ('all', from ctaButtonConfig)
+  // rather than set here — desktop always reverts to two ordinary
+  // independent pills, unaffected either way.
+  const primaryCtaButtonJoinedConfig = useMemo(
+    () => ({ ...primaryCtaButtonConfig, ...joinedStripMotionOverride, radiusCorners: 'right' as const }),
+    [primaryCtaButtonConfig],
+  )
+  const secondaryCtaButtonJoinedConfig = useMemo(
+    () => ({ ...secondaryCtaButtonConfig, ...joinedStripMotionOverride, radiusCorners: 'left' as const }),
+    [secondaryCtaButtonConfig],
+  )
   // The composer pill's own fill/border — same "own explicit colors instead
   // of the shared, site-wide ctaButtonConfig's 'auto' surface-derived ones"
   // move as primaryCtaButtonConfig above, applied to ComposerPill's own
@@ -1160,6 +2062,32 @@ function GuidedIntake({
   // (confirmed live, 2026-09-21).
   const ctaButtonActiveClassName = 'active:![--cta-background:var(--cta-hover-background)] active:![--cta-border:var(--cta-hover-border)]'
 
+  // confirmActionsJoinedStripEnabled's own layout half (see
+  // ContactExperienceConfig's own doc comment; joinedStripMotionOverride/
+  // primaryCtaButtonJoinedConfig/secondaryCtaButtonJoinedConfig above cover
+  // the motion+corner half). Mobile: one non-wrapping row, no gap, each
+  // action flex-1 so the two share the row's width evenly edge-to-edge —
+  // the visible seam between them is the divider rendered between the two
+  // CtaButtons below, not a gap. Desktop (md:): reverts to exactly today's
+  // wrap+gap+content-width layout, unaffected either way.
+  const joinedStripEnabled = config.confirmActionsJoinedStripEnabled
+  const confirmActionsRowClassName = joinedStripEnabled
+    ? 'flex items-stretch justify-center gap-0 md:flex-wrap md:items-center md:gap-[var(--contact-control-gap)]'
+    : 'flex flex-wrap items-center justify-center gap-[var(--contact-control-gap)]'
+  const confirmActionButtonClassName = joinedStripEnabled
+    ? `${ctaButtonActiveClassName} flex-1 md:flex-none`
+    : ctaButtonActiveClassName
+  // Guaranteed visible regardless of either action's own border config
+  // (often 'none' on the accept action) — deliberately page-level chrome,
+  // not a new CtaButton config field, since CtaButtonConfig's own
+  // --cta-border custom property is scoped to each button's own DOM
+  // subtree and isn't reachable from a sibling divider element anyway.
+  // md:hidden: only ever relevant while the strip above it is actually
+  // joined, i.e. the mobile tier.
+  const confirmActionsJoinSeam = joinedStripEnabled ? (
+    <div aria-hidden="true" className="w-px self-stretch bg-black/10 md:hidden" />
+  ) : null
+
   // Confirm-screen button label size/weight, segregated per breakpoint (see
   // buttonFontSize's own doc comment, ContactExperience.config.ts). Applied
   // to a <span> wrapping the label text itself — one DOM level deeper than
@@ -1193,6 +2121,28 @@ function GuidedIntake({
   const heroSpacerStyle = {
     flexGrow: heroPhase === 'centered' ? 1 : 0,
   } as CSSProperties
+
+  // Mobile-only history fade during an in-place edit (isMessageEditActive —
+  // see its own doc comment above) — operator ask, 2026-09-22. Fading OUT
+  // (isMessageEditActive true, target opacity 0) plays with the configured
+  // easing verbatim; fading back IN (target opacity 1) plays with that same
+  // easing's exact mathematical reverse (reverseCubicBezierEasing) — same
+  // duration either direction, so the return trip always mirrors the exit
+  // rather than needing its own separately-tuned value. pointer-events:none
+  // while hidden so a faded-out history can't intercept a touch meant for
+  // the edit field sitting in front of it. Reduced-motion: instant, no
+  // transition at all (same convention as every other motion in this file).
+  const isHistoryFadedForEdit = isMobileTier && isMessageEditActive
+  const historyFadeEasing = CTA_BUTTON_MOTION_EASINGS[config.mobileHistoryFadeOnEditEasing]
+  const historyFadeStyle: CSSProperties = {
+    opacity: isHistoryFadedForEdit ? 0 : 1,
+    pointerEvents: isHistoryFadedForEdit ? 'none' : 'auto',
+    transitionProperty: 'opacity',
+    transitionDuration: prefersReducedMotion ? '0ms' : `${config.mobileHistoryFadeOnEditDurationMs}ms`,
+    transitionTimingFunction: isHistoryFadedForEdit
+      ? historyFadeEasing
+      : reverseCubicBezierEasing(historyFadeEasing),
+  }
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col items-center gap-[var(--contact-message-gap)] bg-transparent font-sans text-[color:var(--contact-primary)]">
@@ -1237,12 +2187,29 @@ function GuidedIntake({
         // min-height (that's flex-grow's job, not min-height's) — the
         // floor was only ever a *shrinking* constraint, never what made
         // the feed fill tall screens.
-        className="flex w-full flex-1 min-h-0 flex-col items-center justify-end gap-[var(--contact-message-gap)] overflow-y-auto overscroll-contain pr-2"
+        // No container-level gap-* here on purpose (was gap-[var(--contact-
+        // message-gap)], a single flat value applied uniformly between
+        // every turn regardless of relationship): the two-tier spacing
+        // below — a tighter gap grouping a question with its own answer,
+        // the page's normal looser gap everywhere else — varies per
+        // adjacent pair, which a shared flex `gap` can't express. Each
+        // turn's own top spacing is computed individually instead (see
+        // isTightExchangeGap below).
+        className="flex w-full flex-1 min-h-0 flex-col items-center justify-end overflow-y-auto overscroll-contain pr-2"
         data-responsive-overflow-owner="true"
+        style={historyFadeStyle}
       >
         {visibleTurns.map((turn, index) => {
           const distanceFromBottom = visibleCount - 1 - index
           const opacity = computeMessageFadeOpacity(distanceFromBottom, config.messageVisibleCount, config.messageFadeFloorOpacity)
+          // See isTightExchangeGap's own doc comment (Gestalt proximity +
+          // cognitive-load chunking, operator ask 2026-09-22) — only an
+          // agent question immediately followed by the visitor's own
+          // answer gets the tighter messageExchangeGapClass; every other
+          // adjacent pair (including the very first turn, index 0, which
+          // has no previous turn at all) keeps the page's normal gap via
+          // the existing --contact-message-gap CSS var.
+          const isTightGap = index > 0 && isTightExchangeGap(visibleTurns[index - 1]?.role, turn.role)
           return (
             // Two elements on purpose: the outer's `opacity` is a plain,
             // un-animated inline style, recomputed and reapplied fresh on
@@ -1254,7 +2221,11 @@ function GuidedIntake({
             // fades in toward whatever the outer already dialed in; an
             // existing row whose outer opacity changes on a later render
             // reflects that instantly, no animation involved).
-            <div key={firstVisibleIndex + index} className="flex w-full justify-center" style={{ opacity }}>
+            <div
+              key={firstVisibleIndex + index}
+              className={`flex w-full justify-center ${isTightGap ? config.messageExchangeGapClass : ''}`}
+              style={{ opacity, marginTop: isTightGap ? undefined : (index > 0 ? 'var(--contact-message-gap)' : undefined) }}
+            >
               {/* w-full only for a visitor turn — the visitor bubble's own
                   max-w uses min(measure,88%) (see its className below), and
                   that percentage needs a definite containing-block width to
@@ -1295,14 +2266,44 @@ function GuidedIntake({
                     const separatorIndex = turn.text.indexOf('\n\n')
                     const introText = separatorIndex === -1 ? turn.text : turn.text.slice(0, separatorIndex)
                     const bodyText = separatorIndex === -1 ? '' : turn.text.slice(separatorIndex + 2)
+                    // Per-child margin-top (config.messageExchangeGapClass),
+                    // not a flex gap: intro/body/[question] are three parts
+                    // of ONE agent utterance — the tightest possible
+                    // relationship of all — so they use the same tight tier
+                    // as a question→answer pair above, not the page's
+                    // looser default gap.
                     return (
-                      <div className="flex flex-col gap-[var(--contact-message-gap)]">
+                      <div className="flex flex-col">
                         <p className={`${baseClassName} ${mutedClassName}`}>{introText}</p>
-                        <p className={`${baseClassName} ${recapBodyClassName}`}>{bodyText}</p>
+                        <p className={`${baseClassName} ${recapBodyClassName} ${config.messageExchangeGapClass}`}>{bodyText}</p>
                         {turn.recapQuestion ? (
-                          <p className={`${baseClassName} ${primaryClassName}`}>{turn.recapQuestion}</p>
+                          <p className={`${baseClassName} ${primaryClassName} ${config.messageExchangeGapClass}`}>{turn.recapQuestion}</p>
                         ) : null}
                       </div>
+                    )
+                  }
+
+                  if (turn.variant === 'error') {
+                    // key={replyRouteErrorReplayNonce}: this turn is never
+                    // re-appended on a repeated wrong submission
+                    // (ensureErrorTurnInList), so without a changing key
+                    // React would just leave the already-mounted
+                    // SplitTextReveal alone — the key change is what forces
+                    // a fresh mount, replaying the letter-by-letter reveal
+                    // to catch the visitor's attention again. See ChatTurn's
+                    // own 'error' variant doc comment.
+                    return (
+                      <p className={`${baseClassName} ${primaryClassName}`}>
+                        <SplitTextReveal
+                          key={replyRouteErrorReplayNonce}
+                          easing={CTA_BUTTON_MOTION_EASINGS[config.replyRouteErrorRevealEasing]}
+                          initialDelayMs={0}
+                          stepDelayMs={config.replyRouteErrorRevealStepDelayMs}
+                          text={turn.text}
+                          unit="char"
+                          unitDurationMs={config.replyRouteErrorRevealUnitDurationMs}
+                        />
+                      </p>
                     )
                   }
 
@@ -1312,7 +2313,32 @@ function GuidedIntake({
                     </p>
                   )
                 })() : (
-                  <p className={`mx-auto w-fit max-w-[min(var(--contact-message-measure),88%)] whitespace-pre-line [overflow-wrap:anywhere] rounded-[22px] bg-black/[0.06] px-4 py-2.5 ${messageTextAlignClassName} ${config.baseTextSize} ${config.baseTextSizeWide} ${config.baseTextSizeLg} ${config.lineHeight} ${config.lineHeightWide} ${config.lineHeightLg} text-[color:var(--contact-primary)]`}>
+                  // Role differentiation (PLAN-CONTACT-CHAT-HISTORY-
+                  // REFINEMENT.md Stage 3 / P1) — a deliberately non-chat
+                  // treatment: still centered, no opposite-aligned sender
+                  // side. A visitor answer reads as a captured-value object
+                  // via a stronger, colored fill (--contact-answer-fill,
+                  // config.visitorAnswerFillOpacityPercent) and a heavier
+                  // weight. NO edge-following accent rule (border-left or
+                  // an inset box-shadow, both tried and reverted,
+                  // 2026-09-22, operator-reported both times): rounded-
+                  // [22px] on a ~40px-tall pill means 2×radius exceeds the
+                  // element's own height, so the shape is a full capsule
+                  // with NO straight segment anywhere on the left edge —
+                  // any edge-following treatment (border or shadow alike)
+                  // fundamentally can't render flush against a curve with
+                  // no straight run; offsetting a rounded shape sideways
+                  // and clipping it to itself produces a crescent at the
+                  // corner regardless of which CSS property draws it. Fill
+                  // + weight are geometry-independent and carry the role
+                  // cue with zero risk of this artifact. A recorded choice
+                  // (kind: 'choice', e.g. "Staying anonymous" from skipping
+                  // the name step) renders italic and dimmed relative to
+                  // typed prose, independent of the position-based fade
+                  // already applied by the outer wrapper.
+                  <p
+                    className={`mx-auto w-fit max-w-[min(var(--contact-message-measure),88%)] whitespace-pre-line [overflow-wrap:anywhere] rounded-[22px] bg-[color:var(--contact-answer-fill)] px-4 py-2.5 ${messageTextAlignClassName} ${config.baseTextSize} ${config.baseTextSizeWide} ${config.baseTextSizeLg} ${config.lineHeight} ${config.lineHeightWide} ${config.lineHeightLg} ${config.visitorAnswerFontWeight} text-[color:var(--contact-primary)] ${turn.kind === 'choice' ? 'italic opacity-[var(--contact-choice-opacity)]' : ''}`}
+                  >
                     {turn.text}
                   </p>
                 )}
@@ -1449,14 +2475,20 @@ function GuidedIntake({
             get onFocus/onMouseEnter release handlers regardless of which
             one is forceHover-highlighted: a real hover or focus on *either*
             action retires the simulated nudge for the rest of this
-            confirm-screen instance. */}
+            confirm-screen instance. confirmActionsJoinedStripEnabled swaps
+            in the *Joined variants of each config (radiusCorners + motion
+            flattened, see joinedStripMotionOverride's own comment above)
+            and a shared seam between them — same pair of actions, same
+            handlers, just a different mobile-only presentation. */}
         {phase === 'confirm' && (
-          <div className="flex flex-wrap items-center justify-center gap-[var(--contact-control-gap)]">
+          <div className={confirmActionsRowClassName}>
             {degradedRef.current ? (
               <>
                 <CtaButton
-                  className={ctaButtonActiveClassName}
-                  config={secondaryCtaButtonConfig}
+                  className={confirmActionButtonClassName}
+                  config={joinedStripEnabled ? secondaryCtaButtonJoinedConfig : secondaryCtaButtonConfig}
+                  fillWidth={joinedStripEnabled}
+                  icon="✎"
                   onClick={handleRequestDegradedAddendum}
                   onFocus={handleReleaseConfirmForceHover}
                   onMouseEnter={handleReleaseConfirmForceHover}
@@ -1464,9 +2496,11 @@ function GuidedIntake({
                 >
                   <span className={buttonFontClassName}>{DEGRADED_CONFIRM_CORRECT_LABEL}</span>
                 </CtaButton>
+                {confirmActionsJoinSeam}
                 <CtaButton
-                  className={ctaButtonActiveClassName}
-                  config={primaryCtaButtonConfig}
+                  className={confirmActionButtonClassName}
+                  config={joinedStripEnabled ? primaryCtaButtonJoinedConfig : primaryCtaButtonConfig}
+                  fillWidth={joinedStripEnabled}
                   forceHover={confirmForceHover}
                   onClick={() => void handleConfirmed()}
                   onFocus={handleReleaseConfirmForceHover}
@@ -1479,8 +2513,10 @@ function GuidedIntake({
             ) : (
               <>
                 <CtaButton
-                  className={ctaButtonActiveClassName}
-                  config={secondaryCtaButtonConfig}
+                  className={confirmActionButtonClassName}
+                  config={joinedStripEnabled ? secondaryCtaButtonJoinedConfig : secondaryCtaButtonConfig}
+                  fillWidth={joinedStripEnabled}
+                  icon="✎"
                   onClick={handleRequestCorrection}
                   onFocus={handleReleaseConfirmForceHover}
                   onMouseEnter={handleReleaseConfirmForceHover}
@@ -1488,9 +2524,11 @@ function GuidedIntake({
                 >
                   <span className={buttonFontClassName}>{CONFIRM_CORRECT_LABEL}</span>
                 </CtaButton>
+                {confirmActionsJoinSeam}
                 <CtaButton
-                  className={ctaButtonActiveClassName}
-                  config={primaryCtaButtonConfig}
+                  className={confirmActionButtonClassName}
+                  config={joinedStripEnabled ? primaryCtaButtonJoinedConfig : primaryCtaButtonConfig}
+                  fillWidth={joinedStripEnabled}
                   forceHover={confirmForceHover}
                   onClick={() => void handleConfirmed()}
                   onFocus={handleReleaseConfirmForceHover}
@@ -1604,6 +2642,18 @@ function GuidedIntake({
           the freed space. Never rendered as visible content, purely a
           layout device. */}
       <div aria-hidden="true" className="contact-hero-spacer w-full" style={heroSpacerStyle} />
+      {/* Mounted once, for good, the instant this component first has
+          something worth resuming — see hasResumedConversation's own doc
+          comment above for why this never re-arms later in the same mounted
+          instance. `visible` (not mount/unmount) drives the actual fade. */}
+      {hasResumedConversation && (
+        <ConversationResumeNotice
+          config={config}
+          ctaButtonConfig={ctaButtonConfig}
+          onStartFresh={handleStartFresh}
+          visible={resumeNoticeVisible}
+        />
+      )}
     </div>
   )
 }
@@ -1853,6 +2903,11 @@ export default function ContactPage() {
     '--contact-border-subtle': `color-mix(in srgb, ${resolvedBorderColor} 16%, transparent)`,
     '--contact-border-hover': `color-mix(in srgb, ${resolvedBorderColor} 28%, transparent)`,
     '--contact-border-focus': `color-mix(in srgb, ${resolvedBorderColor} 44%, transparent)`,
+    // Visitor-turn role differentiation (PLAN-CONTACT-CHAT-HISTORY-
+    // REFINEMENT.md Stage 3) — reuses resolvedBorderColor, same source as
+    // every --contact-border-* variant above, rather than a parallel color.
+    '--contact-answer-fill': `color-mix(in srgb, ${resolvedBorderColor} ${contactConfig.visitorAnswerFillOpacityPercent}%, transparent)`,
+    '--contact-choice-opacity': contactConfig.visitorChoiceOpacity,
   } as CSSProperties
 
   return (

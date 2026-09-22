@@ -1170,13 +1170,30 @@ export function ComposerPill({
               {emptyValueAction!.label}
             </button>
           ) : (
+            // inset-y-0 right-0 w-12 md:w-16: was right-2/md:right-4 + a
+            // small min-h-11/min-w-11 button floating inside this slot —
+            // the textarea's own reserved trailing padding (pr-12/md:pr-16,
+            // same w-12/md:w-16 zone, still part of the textarea's own
+            // hit box) is WIDER than that 44px button, leaving an
+            // unclaimed textarea-only sliver on both sides (measured live,
+            // 2026-09-22: ~7px left, ~12px right) — exactly where a
+            // pointer aiming at the visible arrow naturally rests,
+            // flickering the cursor between pointer and text-select as it
+            // drifted a few px off the button's own edge (operator-
+            // reported, same root cause as the emptyValueAction button's
+            // fix above, just never applied here). This span now exactly
+            // matches the textarea's own reserved zone pixel-for-pixel —
+            // full height (inset-y-0, not top-1/2 + translateY), full slot
+            // width — and the button inside fills it completely
+            // (h-full w-full below), leaving no boundary pixel at all for
+            // the cursor to fall through to the textarea underneath.
             <span
-              className="absolute right-2 top-1/2 md:right-4"
+              className="absolute inset-y-0 right-0 w-12 md:w-16"
               style={{
                 transitionProperty: 'transform, opacity',
                 transitionDuration: `${starterPoints?.transitionDurationMs ?? 0}ms`,
                 transitionTimingFunction: starterPoints?.transitionEasing ?? 'ease',
-                transform: `translateY(-50%) scale(${isBrowsingStarterPoints ? 0 : 1})`,
+                transform: `scale(${isBrowsingStarterPoints ? 0 : 1})`,
                 opacity: isBrowsingStarterPoints ? 0 : 1,
                 pointerEvents: isBrowsingStarterPoints ? 'none' : undefined,
               }}
@@ -1191,7 +1208,7 @@ export function ComposerPill({
                 // hidden/browsing states are untouched (existing
                 // isBrowsingStarterPoints scale/opacity below still governs
                 // those, on every breakpoint).
-                className={`inline-flex min-h-11 min-w-11 items-center justify-center ${isTagPill ? 'font-mono' : ''} ${isHintStarterPoints ? 'max-[767px]:hidden' : ''} text-lg text-[color:var(--pill-button-text)] opacity-60 transition-[transform,color] disabled:cursor-not-allowed disabled:opacity-30 group-hover:translate-x-1 group-hover:text-[color:var(--pill-button-hover-text)] group-focus-within:translate-x-1 group-focus-within:text-[color:var(--pill-button-hover-text)] active:text-[color:var(--pill-button-hover-text)] focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--pill-hover-border)]`}
+                className={`flex h-full w-full items-center justify-center ${isTagPill ? 'font-mono' : ''} ${isHintStarterPoints ? 'max-[767px]:hidden' : ''} text-lg text-[color:var(--pill-button-text)] opacity-60 transition-[transform,color] disabled:cursor-not-allowed disabled:opacity-30 group-hover:translate-x-1 group-hover:text-[color:var(--pill-button-hover-text)] group-focus-within:translate-x-1 group-focus-within:text-[color:var(--pill-button-hover-text)] active:text-[color:var(--pill-button-hover-text)] focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--pill-hover-border)]`}
                 disabled={!value.trim() || isBrowsingStarterPoints}
                 tabIndex={isBrowsingStarterPoints ? -1 : 0}
                 onClick={handleSubmit}

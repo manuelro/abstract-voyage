@@ -26,12 +26,18 @@
   --panel-owner-ink: #171307;
   --panel-global-accent: #7ec8e3;
   /* TabStrip's own [data-current-device='true'] state (components/Panel/
-     index.tsx) — a plain light/dark pair distinct from both accent colors
-     above (each already owns its own separate meaning — ownership, pressed
-     state — reusing either here would overload it with a third, unrelated
-     "this is your real viewport width" meaning). */
-  --panel-current-device-bg: rgba(255, 255, 255, 0.85);
-  --panel-current-device-ink: #14151a;
+     index.tsx) — a background-only wash, no ink override (operator-
+     reported 2026-09-22: the original near-opaque light/dark-ink pair
+     — 7x panel-surface-selected's own 0.12 opacity — read as *more*
+     prominent than aria-selected's own thin underline, so a tab that
+     merely matched the browser's current width could look like the
+     one actually being edited, the opposite of this indicator's own
+     intent: "this is where you physically are," never confused with
+     "this is what you're looking at," see TabStrip's own currentDeviceTabId
+     doc comment). Pegged near panel-surface-selected's own opacity so it
+     reads as a background tint at the same weight every other "highlighted
+     surface" in this panel already uses, not a shout above them. */
+  --panel-current-device-bg: rgba(255, 255, 255, 0.14);
   --panel-toggle-off-thumb: rgba(255, 255, 255, 0.42);
   --panel-toggle-on: #f0c84b;
   --panel-toggle-on-thumb: #171307;
@@ -1352,17 +1358,18 @@
    current viewport width, updated live on resize (components/Panel/
    index.tsx's own currentDeviceTabId prop). Distinct from and independent
    of [aria-selected='true'] above (which tab the user is *editing*) — a
-   tab can be either, both, or neither at once. Deliberately inverted from
-   every other tab state (light background, dark ink) so "this is where
-   you physically are" reads as a genuinely different signal from
-   "selected"/hover, not a brighter version of the same one. Declared after
-   [aria-selected='true'] so its own color wins when a tab is both selected
-   and the current device — var(--panel-selected-text) on this rule's own
-   light background would be nearly illegible otherwise. The background
-   itself sits on an absolutely-positioned ::before behind the button's own
-   text (same non-layout-affecting technique the underline ::after above
-   already uses) so highlighting a different tab on resize never changes
-   the tab strip's own flex layout — only the pill moves, nothing reflows. */
+   tab can be either, both, or neither at once. A background-only wash, no
+   ink color of its own (operator-reported 2026-09-22: an earlier near-
+   opaque light-bg/dark-ink pair here visually outweighed aria-selected's
+   own thin underline, so a tab merely matching the current viewport could
+   read as the one actually selected — see panel-current-device-bg's own
+   doc comment). Not setting `color` here at all means selected/hover/
+   default ink always wins on its own, with no cross-rule ordering to
+   reason about. The background itself sits on an absolutely-positioned
+   ::before behind the button's own text (same non-layout-affecting
+   technique the underline ::after above already uses) so highlighting a
+   different tab on resize never changes the tab strip's own flex layout —
+   only the tint moves, nothing reflows. */
 .tabButton[data-current-device='true']::before {
   position: absolute;
   inset: -3px -6px;
@@ -1370,10 +1377,6 @@
   border-radius: 4px;
   content: '';
   background: var(--panel-current-device-bg);
-}
-
-.tabButton[data-current-device='true'] {
-  color: var(--panel-current-device-ink);
 }
 
 .tabButton:focus-visible {
