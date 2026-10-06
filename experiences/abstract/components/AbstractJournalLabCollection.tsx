@@ -12,6 +12,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useMotionValue, useTransform, type MotionValue } from 'motion/react';
 import ArticleCard, { type ArticleCardTypographyScale } from '../../../components/ArticleCard';
 import type { SectionHeadingConfig } from '../../../components/SectionHeading.config';
 import {
@@ -624,6 +625,36 @@ export type HueFadeCardProps = {
    * own `Card.tsx` adapter (`pages/abstract.tsx`) currently resolves this
    * from `CoverFlowConfig.activationRampRate`. */
   activationRampDurationMs?: number;
+  /** Opt-in: PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md — CoverFlow's own
+   * live, continuous `Math.abs(index - scrollX)` for this card (0 while
+   * exactly active, rising through every fractional value toward 1 as it
+   * approaches the immediate-neighbour rest slot), read imperatively (never
+   * as a React render dependency) to taper `useCardLiftPhysics`'s own lift
+   * ceiling smoothly *during* a drag/settle, before `stackActiveSlide` ever
+   * discretely flips — closing the gap `activationRampDurationMs` above
+   * cannot: that ramp only starts counting once the discrete flip has
+   * already happened, which structurally can't prevent a jump that occurs
+   * at the flip itself if the live lift value is still non-trivial then
+   * (screenshot-reported: a real Y-position snap on drag release, traced to
+   * `liftAxis: stackActiveSlide ? 'z' : 'y'` switching axes while `lift`
+   * was still mid-flight). Undefined (default): every existing caller sees
+   * zero behavior change — the lift ceiling this drives resolves to 1,
+   * identical to before this prop existed. Only CoverFlow's own `Card.tsx`
+   * adapter (`pages/abstract.tsx`) currently supplies this, from
+   * `CoverFlowRenderItem`'s own `position.distanceFromActiveLive`. */
+  distanceFromActiveLive?: MotionValue<number>;
+  /** Opt-in, paired with `distanceFromActiveLive` above — the same ratio
+   * `CoverFlowConfig.inactiveCardHoverAmplitudeStep` already is, resolved
+   * here (rather than inside `useCardLiftPhysics.ts`, which has no
+   * knowledge of CoverFlow-specific config) into a continuous lift ceiling:
+   * `1 - min(1, distanceFromActiveLive * this)`. 0 (default, this field's
+   * own "disabled" convention): the ceiling always resolves to 1 — zero
+   * behavior change for every caller that doesn't pass both fields. */
+  inactiveCardHoverAmplitudeStep?: number;
+  /** Opt-in: each unit of live CoverFlow distance adds this percentage to
+   * the card's authored gradient scale. The active card remains at 100%. */
+  inactiveGradientScaleDistanceEnabled?: boolean;
+  inactiveGradientScaleDistancePercent?: number;
   /** Opt-in, stack-only: this card is CardStack.tsx's own non-active
    * neighbor slot (`offset !== 0`) that has *settled* — no step is in
    * flight (`!step.isTransitioning`). Only in that settled state do the
@@ -688,6 +719,13 @@ export type HueFadeCardProps = {
     surfaceColor: string;
     /** Inactive-card frame treatment from the shared stack config. */
     frameMode: 'border' | 'flat-fill' | 'gradient-mesh';
+    invertedGradientInkEnabled?: boolean;
+    invertedGradientInkBackgroundColor?: string;
+    invertedGradientInkBackgroundOpacity?: number;
+    invertedGradientInkForegroundColor?: string;
+    invertedGradientInkBlendMode?: 'screen' | 'multiply';
+    invertedGradientInkActiveBorderEnabled?: boolean;
+    invertedGradientInkActiveBorderWidthPx?: string;
     /** Neighbor (inactive)-only — label/meta/title/excerpt/separator/CTA
      * color, applied as an inline override of ArticleCard.module.css's own
      * `[data-appearance='neutral']` block (see stackAppearanceStyle below).
@@ -836,6 +874,10 @@ export function AbstractJournalLabHueFadeCard({
   ctaConfig = CTA,
   stackActiveSlide = false,
   activationRampDurationMs = 0,
+  distanceFromActiveLive,
+  inactiveCardHoverAmplitudeStep = 0,
+  inactiveGradientScaleDistanceEnabled = false,
+  inactiveGradientScaleDistancePercent = 0,
   stackNeighborSettled = false,
   stackSlotAnimating = false,
   stackPresentationTransitioning = false,
@@ -858,6 +900,105 @@ export function AbstractJournalLabHueFadeCard({
     x: 0,
     y: 0,
   });
+  // PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md — resolves distanceFromActiveLive
+  // (CoverFlow's own live, continuous closeness-to-active MotionValue) into
+  // a lift ceiling (0-1) using the same shape CoverFlowConfig's own
+  // inactiveCardHoverAmplitudeStep formula already has, then mirrors that
+  // value into a plain ref (liftCeilingRef, below) so useCardLiftPhysics can
+  // read it imperatively every frame — same "subscribe once, read via a
+  // ref" idiom this file already uses for interactionRef itself, never a
+  // React render dependency. distanceFromActiveNeutralMotionValue is a
+  // permanent, unchanging fallback (0, "always exactly active") so
+  // useTransform below always has a real MotionValue to read regardless of
+  // whether a caller passes distanceFromActiveLive — calling a hook
+  // conditionally per-prop would break the rules of hooks. With
+  // inactiveCardHoverAmplitudeStep at its own default (0, "disabled"), the
+  // ceiling always resolves to 1 — zero behavior change for every existing
+  // caller (CtaButton, ComposerPill, the flat/non-stack branch, and this
+  // very component's own CardStack-facing instance above) that never passes
+  // either of these two new props.
+  const distanceFromActiveNeutralMotionValue = useMotionValue(0);
+  const liftCeilingLive = useTransform(
+    distanceFromActiveLive ?? distanceFromActiveNeutralMotionValue,
+    (distance) => (
+      inactiveCardHoverAmplitudeStep > 0
+        ? 1 - Math.min(1, distance * inactiveCardHoverAmplitudeStep)
+        : 1
+    ),
+  );
+  // Unlike the old render-time index multiplier, this follows CoverFlow's
+  // fractional distance signal. It therefore updates through every drag
+  // frame and inherits CoverFlow's spring settle curve when the pointer is
+  // released; no discrete active-card boundary can make it jump.
+  const gradientScaleMultiplierLive = useTransform(
+    distanceFromActiveLive ?? distanceFromActiveNeutralMotionValue,
+    (distance) => (
+      inactiveGradientScaleDistanceEnabled
+        ? 1 + Math.max(0, distance) * (inactiveGradientScaleDistancePercent / 100)
+        : 1
+    ),
+  );
+  // PLAN-COVERFLOW-TIMELINE-CLICK-LIFT-JUMP.md — the distance-only ceiling
+  // above assumes position and role change together (true for a drag: the
+  // card only crosses the active/inactive boundary once positionX has
+  // already traveled there, so distanceFromActiveLive has already ramped
+  // this ceiling toward 0 by the time stackActiveSlide flips). An external,
+  // click-driven activeIndex change breaks that assumption: stackActiveSlide
+  // flips the instant the click lands, while positionX (hence
+  // distanceFromActiveLive) hasn't moved yet — for the OUTGOING card,
+  // distance is still ~0 at that exact frame, so this ceiling alone stays
+  // at its undamped, fully-active value right as liftAxis switches from 'z'
+  // to 'y', reinterpreting a real elevation number on the new axis
+  // (screenshot-reported: a visible position pop on timeline-click
+  // navigation, confirmed live via transform-matrix sampling — translateZ
+  // snapping straight to a nonzero translateY on the very next frame,
+  // then decaying smoothly). This second, time-based term closes that gap:
+  // it forces the ceiling to 0 for activationRampDurationMs immediately
+  // after ANY stackActiveSlide flip (either direction), independent of
+  // whatever distanceFromActiveLive currently reads, then ramps linearly
+  // back up — same duration useCardLiftPhysics's own internal
+  // activationRampCeiling uses, so the axis switch always lands inside a
+  // window where lift has already been driven toward zero, exactly like
+  // the drag case. Composed as a minimum, not a replacement: the existing
+  // distance-based ceiling still governs the steady state once this
+  // window elapses.
+  const liftRoleChangedAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const previousStackActiveSlideForLiftRef = useRef(stackActiveSlide);
+  if (previousStackActiveSlideForLiftRef.current !== stackActiveSlide) {
+    previousStackActiveSlideForLiftRef.current = stackActiveSlide;
+    liftRoleChangedAtRef.current = performance.now();
+  }
+  const liftCeilingRef = useRef(liftCeilingLive.get());
+  useEffect(() => {
+    const applyCeiling = () => {
+      const distanceCeiling = liftCeilingLive.get();
+      const elapsedSinceFlipMs = performance.now() - liftRoleChangedAtRef.current;
+      const flipRampCeiling = activationRampDurationMs > 0
+        ? Math.min(1, Math.max(0, elapsedSinceFlipMs / activationRampDurationMs))
+        : 1;
+      liftCeilingRef.current = Math.min(distanceCeiling, flipRampCeiling);
+    };
+    applyCeiling();
+    const unsubscribe = liftCeilingLive.on('change', applyCeiling);
+    // liftCeilingLive's own 'change' event only fires when
+    // distanceFromActiveLive itself moves — right after a click, positionX
+    // (hence that MotionValue) hasn't started animating yet, so the flip
+    // ramp above needs its own per-frame driver for the duration of the
+    // window, independent of that event.
+    let frame = 0;
+    const step = () => {
+      frame = 0;
+      applyCeiling();
+      if (performance.now() - liftRoleChangedAtRef.current < activationRampDurationMs) {
+        frame = window.requestAnimationFrame(step);
+      }
+    };
+    if (activationRampDurationMs > 0) frame = window.requestAnimationFrame(step);
+    return () => {
+      unsubscribe();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [liftCeilingLive, activationRampDurationMs, stackActiveSlide]);
   // Plays the ambient hologram sweep (below) at most once per mounted
   // instance for a given *sweep configuration* — either because it already
   // ran under that same configuration, or because a real touch drag has
@@ -956,7 +1097,11 @@ export function AbstractJournalLabHueFadeCard({
     // page background even after the fill/border fixes). Reverts to the
     // ordinary stackActiveSlide-only gate the instant the override is lifted
     // (omitted, not just falsy) at the reveal threshold.
-    shadowEnabled: stackActiveSlide && stackPresentation?.neutralSurfaceOpacityOverride === undefined,
+    // Inverted gradient ink is deliberately a flat, print-like surface: it
+    // must never acquire the physics engine's hover/elevation shadow.
+    shadowEnabled: stackActiveSlide
+      && stackPresentation?.neutralSurfaceOpacityOverride === undefined
+      && stackPresentation?.invertedGradientInkEnabled !== true,
     // The shadow's own fade in/out as a card crosses the neighbor/active
     // boundary — operator-configurable via the Card stack panel's own
     // "Shadow fade duration"/"Shadow fade easing" (stackPresentation's own
@@ -994,6 +1139,16 @@ export function AbstractJournalLabHueFadeCard({
     // activationRampDurationMs's own doc comment on HueFadeCardProps.
     activationRampActive: stackActiveSlide,
     activationRampDurationMs,
+    // PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md — see liftCeilingRef's own
+    // derivation above. Composes multiplicatively with activationRampCeiling
+    // above (useCardLiftPhysics.ts), not in place of it: this one starts
+    // damping the lift ceiling continuously *during* a live drag/settle,
+    // before stackActiveSlide ever discretely flips, so by the time
+    // liftAxis (below) actually switches from 'z' to 'y' the lift magnitude
+    // has already been at or near zero for as long as the approach to that
+    // boundary took — the axis switch becomes a non-event instead of a
+    // visible Y-position snap.
+    liftCeilingRef,
   });
   // Own copy of the same "when did stackActiveSlide last flip" bookkeeping
   // useCardLiftPhysics.ts tracks internally for its own proximity
@@ -1360,6 +1515,7 @@ export function AbstractJournalLabHueFadeCard({
     ? influencedPalette
     : basePalette;
   const inactiveStackPresentation = stackPresentation?.state === 'inactive';
+  const invertedGradientInkActive = stackPresentation?.invertedGradientInkEnabled === true;
   // Distinct from inactiveStackPresentation above: true only when this card
   // is inactive AND actually wants the neutral treatment (border/flat-fill)
   // — false for 'gradient-mesh', where an inactive card deliberately keeps
@@ -1380,7 +1536,8 @@ export function AbstractJournalLabHueFadeCard({
   // appearance prop) need this OR — every other "inactive" check in this
   // component stays on the raw inactiveStackPresentation/-NeutralPresentation.
   const neutralPresentationOverrideActive = stackPresentation?.neutralSurfaceOpacityOverride !== undefined;
-  const neutralAppearanceActive = inactiveNeutralPresentation || neutralPresentationOverrideActive;
+  const neutralAppearanceActive = !invertedGradientInkActive
+    && (inactiveNeutralPresentation || neutralPresentationOverrideActive);
   const stackAppearanceStyle = stackPresentation ? {
     '--article-card-appearance-duration': `${stackPresentation.transitionDurationMs}ms`,
     '--article-card-appearance-easing': stackPresentation.transitionEasingCss,
@@ -1413,6 +1570,9 @@ export function AbstractJournalLabHueFadeCard({
     // the module's original hardcoded values byte-for-byte.
     ...(stackPresentation.scrimOpacity !== undefined ? {
       '--article-card-scrim-color': `rgba(0, 0, 0, ${stackPresentation.scrimOpacity})`,
+    } : null),
+    ...(invertedGradientInkActive ? {
+      '--article-card-scrim-color': 'transparent',
     } : null),
     // Overrides ArticleCard.module.css's own [data-appearance='neutral']
     // block's fixed label/meta/title/excerpt/separator/CTA color and topic-
@@ -1482,6 +1642,7 @@ export function AbstractJournalLabHueFadeCard({
             isActive={stackActiveSlide}
             activationRampDurationMs={activationRampDurationMs}
             activationRampEasingCss={CTA_BUTTON_MOTION_EASINGS[ctaConfig.stateExitEasing]}
+            scaleMultiplierLive={gradientScaleMultiplierLive}
             onFirstRender={() => {
               setGradientReady(true);
               onGradientFirstRender?.();
@@ -1593,6 +1754,16 @@ export function AbstractJournalLabHueFadeCard({
               contentBlockHeight={cardContentBlockHeight}
               contentStyle={contentStyle}
               appearance={neutralAppearanceActive ? 'neutral' : 'gradient'}
+              invertedGradientInk={invertedGradientInkActive ? {
+                backgroundColor: stackPresentation?.invertedGradientInkBackgroundColor ?? '#ffffff',
+                backgroundOpacity: stackPresentation?.invertedGradientInkBackgroundOpacity ?? 1,
+                foregroundColor: stackPresentation?.invertedGradientInkForegroundColor ?? '#000000',
+                blendMode: stackPresentation?.invertedGradientInkBlendMode ?? 'screen',
+                activeBorderWidth: stackPresentation?.invertedGradientInkActiveBorderEnabled
+                  ? stackPresentation.invertedGradientInkActiveBorderWidthPx ?? '1px'
+                  : undefined,
+                activeBorderVisible: stackPresentation?.state === 'active',
+              } : undefined}
               // Only the peek-outline continuous override wants a genuinely
               // transparent root (see ArticleCard's own backgroundTransparent
               // doc comment) — the plain inactive-neighbor case

@@ -67,6 +67,32 @@ import {
   type MaxWidthWideClass,
   type MaxWidthLgClass,
 } from '../../../components/tailwindTypographyScale';
+import {
+  normalizeTailwindToken,
+  type TailwindTokenValue,
+} from '../../../components/Panel/config/tailwindFields';
+
+// The component's own OUTER container padding (paddingTopClassName etc.
+// below) — migrated to the generated Tailwind registry. Every OTHER padding
+// field in this file (rowTitle/rowDescription/rowAppendix/description) stays
+// on the legacy tailwindSpacingScale.ts catalogs above; they weren't part of
+// this migration's scope and still share those same PADDING_*_OPTIONS/
+// PADDING_*_VALUES constants, so those imports remain in place.
+type ContainerPaddingTopClass = TailwindTokenValue<'paddingTop'>;
+type ContainerPaddingTopWideClass = TailwindTokenValue<'paddingTop', 'md'>;
+type ContainerPaddingTopLgClass = TailwindTokenValue<'paddingTop', 'lg'>;
+type ContainerPaddingRightClass = TailwindTokenValue<'paddingRight'>;
+type ContainerPaddingRightWideClass = TailwindTokenValue<'paddingRight', 'md'>;
+type ContainerPaddingRightLgClass = TailwindTokenValue<'paddingRight', 'lg'>;
+type ContainerPaddingBottomClass = TailwindTokenValue<'paddingBottom'>;
+type ContainerPaddingBottomWideClass = TailwindTokenValue<'paddingBottom', 'md'>;
+type ContainerPaddingBottomLgClass = TailwindTokenValue<'paddingBottom', 'lg'>;
+type ContainerPaddingLeftClass = TailwindTokenValue<'paddingLeft'>;
+type ContainerPaddingLeftWideClass = TailwindTokenValue<'paddingLeft', 'md'>;
+type ContainerPaddingLeftLgClass = TailwindTokenValue<'paddingLeft', 'lg'>;
+type ToolbarActionFontSizeClass = TailwindTokenValue<'fontSize'>;
+type ToolbarActionFontSizeWideClass = TailwindTokenValue<'fontSize', 'md'>;
+type ToolbarActionFontSizeLgClass = TailwindTokenValue<'fontSize', 'lg'>;
 
 /** 'accent' (default): the marker's fill/outline color tracks the active
  * slide's own resolved palette accent (INT-04, unchanged). 'custom' pins it
@@ -78,10 +104,21 @@ import {
  * — one ink for both the marker and the caption text. */
 export type AboutTimelineMarkerColorMode = 'accent' | 'custom' | 'text';
 
+/** 'dot' (default): the existing hollow/filled circular bullet. 'page': a
+ * small plain-document glyph instead — a bordered 4:5 rectangle with a
+ * solid corner tab, outline while inactive, filled while active, same
+ * currentColor/opacity state signal as the dot (AboutBulletMarker.tsx's own
+ * `DocumentMarkerGlyph`). Pure CSS/HTML, no SVG or icon library involved.
+ * `markerGradientEnabled` has no effect while this is 'page' (no circle to
+ * clip a gradient canvas into). */
+export type AboutTimelineMarkerShape = 'dot' | 'page';
+
 /** Which side the marker/rule column sits on, and which way row text (and
  * the description above it) aligns. */
 export type AboutTimelineAlignment = 'left' | 'right';
-export type AboutTimelineAppendixSeparator = '·' | '⋅';
+/** Placement of the optional windowed-list controls relative to the rows. */
+export type AboutTimelineScrollWindowControlsPosition = 'top' | 'bottom';
+export type AboutTimelineAppendixSeparator = '·' | '⋅' | '';
 /** @deprecated Use `AboutTimelineAppendixSeparator`. */
 export type AboutTimelineCategorySeparator = AboutTimelineAppendixSeparator;
 /** The two intentional editorial families available to a timeline item's
@@ -209,6 +246,7 @@ export type FontWeightLgClass = typeof FONT_WEIGHT_LG_OPTIONS[number]['value'];
 export const APPENDIX_SEPARATOR_OPTIONS = [
   { label: 'MIDDLE DOT', value: '·' },
   { label: 'DOT OPERATOR', value: '⋅' },
+  { label: 'NONE', value: '' },
 ] as const;
 /** @deprecated Use `APPENDIX_SEPARATOR_OPTIONS`. */
 export const CATEGORY_SEPARATOR_OPTIONS = APPENDIX_SEPARATOR_OPTIONS;
@@ -290,11 +328,61 @@ export type AboutTimelineConfig = {
   /** Vertical gap between rows — literal Tailwind class, this repo's shared
    * spacing scale. */
   rowGap: GapClass;
+  scrollWindowVisibleCount: number;
+  scrollWindowVisibleCountWide: number;
+  scrollWindowVisibleCountLg: number;
+  toolbarPaddingTopClassName: ContainerPaddingTopClass;
+  toolbarPaddingRightClassName: ContainerPaddingRightClass;
+  toolbarPaddingBottomClassName: ContainerPaddingBottomClass;
+  toolbarPaddingLeftClassName: ContainerPaddingLeftClass;
+  toolbarPaddingTopWideClassName: ContainerPaddingTopWideClass;
+  toolbarPaddingRightWideClassName: ContainerPaddingRightWideClass;
+  toolbarPaddingBottomWideClassName: ContainerPaddingBottomWideClass;
+  toolbarPaddingLeftWideClassName: ContainerPaddingLeftWideClass;
+  toolbarPaddingTopLgClassName: ContainerPaddingTopLgClass;
+  toolbarPaddingRightLgClassName: ContainerPaddingRightLgClass;
+  toolbarPaddingBottomLgClassName: ContainerPaddingBottomLgClass;
+  toolbarPaddingLeftLgClassName: ContainerPaddingLeftLgClass;
+  toolbarActionFontSizeClassName: ToolbarActionFontSizeClass;
+  toolbarActionFontSizeWideClassName: ToolbarActionFontSizeWideClass;
+  toolbarActionFontSizeLgClassName: ToolbarActionFontSizeLgClass;
+  /** Opt-in "N of M" indicator for a windowed timeline list, below 768px. */
+  scrollWindowCounterEnabled: boolean;
+  /** Tablet-only indicator setting (768px through 1023px). */
+  scrollWindowCounterEnabledWide: boolean;
+  /** Desktop indicator setting (1024px and up). */
+  scrollWindowCounterEnabledLg: boolean;
+  /** Opt-in previous/next row buttons for a windowed list, below 768px. */
+  scrollWindowArrowsEnabled: boolean;
+  /** Tablet-only arrow setting (768px through 1023px). */
+  scrollWindowArrowsEnabledWide: boolean;
+  /** Desktop arrow setting (1024px and up). */
+  scrollWindowArrowsEnabledLg: boolean;
+  /** Makes the window arrows select adjacent articles (and thus any paired
+   * carousel) rather than only scrolling this list, below 768px. */
+  scrollWindowArrowsNavigateTimeline: boolean;
+  /** Same navigation behavior from 768px through 1023px. */
+  scrollWindowArrowsNavigateTimelineWide: boolean;
+  /** Same navigation behavior from 1024px. */
+  scrollWindowArrowsNavigateTimelineLg: boolean;
+  /** Lets synchronized arrows traverse every supplied Timeline row below
+   * 768px, rather than only the caller's currently rendered window. */
+  scrollWindowArrowsNavigateEntireList: boolean;
+  scrollWindowArrowsNavigateEntireListWide: boolean;
+  scrollWindowArrowsNavigateEntireListLg: boolean;
+  /** Where optional window controls render below 768px. */
+  scrollWindowControlsPosition: AboutTimelineScrollWindowControlsPosition;
+  /** Where optional window controls render from 768px through 1023px. */
+  scrollWindowControlsPositionWide: AboutTimelineScrollWindowControlsPosition;
+  /** Where optional window controls render from 1024px. */
+  scrollWindowControlsPositionLg: AboutTimelineScrollWindowControlsPosition;
   /** Diameter of the marker dot — literal `w-N h-N` combo class. */
   markerSizeClassName: AboutTimelineMarkerSizeClass;
   /** On (default): renders each row's circular marker. Off removes the
    * marker; when the rule is also off, the marker gutter is released too. */
   markerVisible: boolean;
+  /** See `AboutTimelineMarkerShape`'s own doc comment. */
+  markerShape: AboutTimelineMarkerShape;
   /** Maximum number of selected rows. The current selection model supports
    * zero or one: zero turns the component into a hoverable, traversable list
    * with no active row. */
@@ -379,6 +467,24 @@ export type AboutTimelineConfig = {
   /** Whether the row's optional supporting line is rendered. This affects
    * item descriptions only, never the separate lead-in timeline description. */
   rowDescriptionVisible: boolean;
+  /** Whether the row's supporting line also drops at short viewport
+   * heights (CSS `@media (max-height: 768px)`, AboutTimeline.module.css) —
+   * independent of rowDescriptionVisible above, which is a flat on/off with
+   * no viewport awareness. Default true reproduces this component's
+   * original, only behavior: the rule exists for /about's own fixed-height,
+   * overflow-hidden left column (SplitColumnPageShell's `.splitLeft`),
+   * where five rows plus the lead-in description must fit without clipping
+   * at common short-viewport phone heights — dropping the less-essential
+   * supporting line is the deliberate "captions survive, secondary detail
+   * drops" fallback that constraint calls for. A consumer whose own
+   * timeline scrolls normally instead of living inside a fixed-height box
+   * (e.g. /journal's — operator-reported, 2026-09-23: descriptions
+   * vanishing on phones with a short visible viewport even though nothing
+   * there is actually clipped) has no such constraint to protect and should
+   * set this false, so descriptions stay visible at every viewport height
+   * for that instance specifically, without touching /about's own
+   * unrelated fixed-height fallback. */
+  rowDescriptionShortViewportHideEnabled: boolean;
   /** Font family for a row's title. */
   rowTitleFontFamily: AboutTimelineItemFontFamily;
   /** Overrides `rowTitleFontFamily` starting at md/tablet width. */
@@ -478,12 +584,15 @@ export type AboutTimelineConfig = {
   rowAppendixEnabled: boolean;
   /** Separator inserted between the title and its appendix. */
   rowAppendixSeparator: AboutTimelineAppendixSeparator;
-  /** Font family used by the appendix independently of the title. */
+  /** Font family used by the appendix independently of the title — unlike
+   * the row title/description's own font-family fields, deliberately a
+   * single value applied at every breakpoint (operator ask), not tiered
+   * with `-Wide`/`-Lg` overrides. */
   rowAppendixFontFamily: AboutTimelineItemFontFamily;
-  /** Overrides `rowAppendixFontFamily` starting at md/tablet width. */
-  rowAppendixFontFamilyWide: AboutTimelineItemFontFamilyWide;
-  /** Overrides `rowAppendixFontFamilyWide` starting at lg/desktop width. */
-  rowAppendixFontFamilyLg: AboutTimelineItemFontFamilyLg;
+  /** Font weight used by the appendix independently of the title —
+   * deliberately single-value across every breakpoint, same non-tiered
+   * shape as `rowAppendixFontFamily` above (operator ask). */
+  rowAppendixFontWeightClassName: FontWeightClass;
   /** Font size used by the appendix independently of the title and row
    * description. */
   rowAppendixFontSizeClassName: FontSizeClass;
@@ -503,6 +612,44 @@ export type AboutTimelineConfig = {
    * active/inactive state" shape above, not the row title/description
    * active/inactive pairs. */
   rowAppendixOpacity: number;
+  /** Off (default) preserves the existing hover/keyboard-focus-only reveal
+   * (`AboutTimelineRow.tsx`'s own `appendixVisible` prop, driven by
+   * `AboutTimeline.tsx`'s `isHoveredRow`). On, at this tier, the appendix
+   * renders at `rowAppendixOpacity` unconditionally — no hover or focus
+   * required — a genuinely bounded per-tier override
+   * (`AboutTimeline.module.css`'s own `@media` range for this field, not a
+   * cascading one like `alignmentWide`/`alignmentLg`): each tier's own
+   * `@media` block is scoped to exactly that tier's own width range, so a
+   * force-on at one tier can never leak into a narrower or wider tier that
+   * itself leaves this off. Irrelevant while `rowAppendixEnabled` is false
+   * (nothing to force visible). Base/mobile tier. */
+  rowAppendixForceVisible: boolean;
+  /** Overrides `rowAppendixForceVisible` from md (≥ 768px) through just
+   * below lg (< 1024px) — see that field's own doc comment for why this is
+   * a bounded range, not an open-ended override. */
+  rowAppendixForceVisibleWide: boolean;
+  /** Overrides `rowAppendixForceVisibleWide` from lg (≥ 1024px) up. */
+  rowAppendixForceVisibleLg: boolean;
+  /** Off (default): the appendix stays inline after the title, as normal.
+   * On, at this tier: it renders as a block, on its own line below the
+   * title instead — same bounded-per-tier `@media` shape as
+   * `rowAppendixForceVisible` above (and independent from it: a row can be
+   * forced onto its own line while still only revealing on hover). Base/
+   * mobile tier. */
+  rowAppendixForceLineBreak: boolean;
+  /** Overrides `rowAppendixForceLineBreak` from md (≥ 768px) through just
+   * below lg (< 1024px). */
+  rowAppendixForceLineBreakWide: boolean;
+  /** Overrides `rowAppendixForceLineBreakWide` from lg (≥ 1024px) up. */
+  rowAppendixForceLineBreakLg: boolean;
+  /** Padding around the appendix — four independent literal Tailwind
+   * classes, deliberately single-value across every breakpoint (operator
+   * ask), unlike the row title/description padding fields above which are
+   * tiered. */
+  rowAppendixPaddingTopClassName: PaddingTopClass;
+  rowAppendixPaddingRightClassName: PaddingRightClass;
+  rowAppendixPaddingBottomClassName: PaddingBottomClass;
+  rowAppendixPaddingLeftClassName: PaddingLeftClass;
   /** @deprecated Compatibility aliases for copied page configs. */
   rowCategoryEnabled?: boolean;
   rowCategorySeparator?: AboutTimelineCategorySeparator;
@@ -585,23 +732,23 @@ export type AboutTimelineConfig = {
   rowDescriptionMarginBottomLgClassName: MarginBottomLgClass;
   rowDescriptionMarginLeftLgClassName: MarginLeftLgClass;
   /** Outer padding around the whole timeline block (description + rows
-   * together) — four independent literal Tailwind classes, this repo's
-   * shared per-side spacing catalogs (tailwindSpacingScale.ts), tiered by
-   * breakpoint the same way. */
-  paddingTopClassName: PaddingTopClass;
-  paddingRightClassName: PaddingRightClass;
-  paddingBottomClassName: PaddingBottomClass;
-  paddingLeftClassName: PaddingLeftClass;
+   * together) — four independent literal Tailwind classes, generated Tailwind
+   * utility families (paddingTop/paddingRight/paddingBottom/paddingLeft),
+   * tiered by breakpoint the same way. */
+  paddingTopClassName: ContainerPaddingTopClass;
+  paddingRightClassName: ContainerPaddingRightClass;
+  paddingBottomClassName: ContainerPaddingBottomClass;
+  paddingLeftClassName: ContainerPaddingLeftClass;
   /** Same four fields above, `md:`-prefixed — applied ≥ 768px. */
-  paddingTopWideClassName: PaddingTopWideClass;
-  paddingRightWideClassName: PaddingRightWideClass;
-  paddingBottomWideClassName: PaddingBottomWideClass;
-  paddingLeftWideClassName: PaddingLeftWideClass;
+  paddingTopWideClassName: ContainerPaddingTopWideClass;
+  paddingRightWideClassName: ContainerPaddingRightWideClass;
+  paddingBottomWideClassName: ContainerPaddingBottomWideClass;
+  paddingLeftWideClassName: ContainerPaddingLeftWideClass;
   /** Same four fields above, `lg:`-prefixed — applied ≥ 1024px. */
-  paddingTopLgClassName: PaddingTopLgClass;
-  paddingRightLgClassName: PaddingRightLgClass;
-  paddingBottomLgClassName: PaddingBottomLgClass;
-  paddingLeftLgClassName: PaddingLeftLgClass;
+  paddingTopLgClassName: ContainerPaddingTopLgClass;
+  paddingRightLgClassName: ContainerPaddingRightLgClass;
+  paddingBottomLgClassName: ContainerPaddingBottomLgClass;
+  paddingLeftLgClassName: ContainerPaddingLeftLgClass;
   /** Outer margin around the whole timeline block — tiered by breakpoint
    * the same way as outer padding above. */
   marginTopClassName: MarginTopClass;
@@ -665,6 +812,23 @@ export type AboutTimelineConfig = {
   descriptionFontSizeClassName: FontSizeClass;
   descriptionFontSizeWideClassName: MdFontSizeClass;
   descriptionFontSizeLgClassName: LgFontSizeClass;
+  /** Font weight of the description text, tiered the same way as its own
+   * font size above. Sourced from the auto-generated Tailwind utility
+   * catalog (components/Panel/config/tailwindUtilities.generated.ts) via
+   * TailwindTokenValue, not a hand-maintained options list — the same
+   * mechanism this file's own "Component" padding fields already use, so
+   * the full font-weight scale (thin..black) stays in sync with Tailwind's
+   * own config automatically. */
+  descriptionFontWeightClassName: TailwindTokenValue<'fontWeight'>;
+  descriptionFontWeightWideClassName: TailwindTokenValue<'fontWeight', 'md'>;
+  descriptionFontWeightLgClassName: TailwindTokenValue<'fontWeight', 'lg'>;
+  /** Font family of the description text — sans or serif, tiered the same
+   * way as rowTitleFontFamily/rowDescriptionFontFamily above (the same
+   * shared AboutTimelineItemFontFamily type, not a third, independently
+   * defined family catalog). */
+  descriptionFontFamily: AboutTimelineItemFontFamily;
+  descriptionFontFamilyWide: AboutTimelineItemFontFamilyWide;
+  descriptionFontFamilyLg: AboutTimelineItemFontFamilyLg;
   /** Lead-in copy rendered above the timeline rows. An empty string omits it. */
   description: string;
   /** Tablet copy for the lead-in description. */
@@ -679,6 +843,19 @@ export type AboutTimelineConfig = {
    * whenever text is present) unchanged. Distinct from rowDescriptionVisible
    * above, which affects item descriptions only, never this lead-in text. */
   descriptionVisible: boolean;
+  /** True (default): a left-aligned lead-in description shares the row
+   * marker lane's own left offset (--about-timeline-marker-size), so its
+   * text starts flush with row TITLES rather than row markers — the
+   * original design intent (the description reads as continuing the same
+   * left text column the rows establish). False: the description ignores
+   * that lane entirely and sits at whatever descriptionPaddingLeft(Wide/Lg)
+   * ClassName alone specifies (0 unless explicitly set) — for a consumer
+   * whose description has no marker of its own and reads better flush with
+   * the card's own edge instead of visually inheriting an indent that
+   * belongs to a different element. Right-aligned descriptions are
+   * unaffected either way (the marker lane only ever offsets the left
+   * side). */
+  descriptionIndentMatchesMarkerLane: boolean;
   /** Opacity of the lead-in description text — this element has no active/
    * inactive state of its own, so a single value (unlike the per-row title/
    * description opacity pairs above). */
@@ -717,8 +894,35 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   maxWidthWideClassName: 'md:max-w-sm',
   maxWidthLgClassName: 'lg:max-w-sm',
   rowGap: 'gap-8',
+  scrollWindowVisibleCount: 0,
+  scrollWindowVisibleCountWide: 0,
+  scrollWindowVisibleCountLg: 0,
+  toolbarPaddingTopClassName: 'pt-0', toolbarPaddingRightClassName: 'pr-0', toolbarPaddingBottomClassName: 'pb-0', toolbarPaddingLeftClassName: 'pl-0',
+  toolbarPaddingTopWideClassName: 'md:pt-0', toolbarPaddingRightWideClassName: 'md:pr-0', toolbarPaddingBottomWideClassName: 'md:pb-0', toolbarPaddingLeftWideClassName: 'md:pl-0',
+  toolbarPaddingTopLgClassName: 'lg:pt-0', toolbarPaddingRightLgClassName: 'lg:pr-0', toolbarPaddingBottomLgClassName: 'lg:pb-0', toolbarPaddingLeftLgClassName: 'lg:pl-0',
+  toolbarActionFontSizeClassName: 'text-xs',
+  toolbarActionFontSizeWideClassName: 'md:text-xs',
+  toolbarActionFontSizeLgClassName: 'lg:text-xs',
+  // Windowed-list controls are deliberately opt-in. A consumer can expose
+  // either affordance (or both) independently at each responsive tier.
+  scrollWindowCounterEnabled: false,
+  scrollWindowCounterEnabledWide: false,
+  scrollWindowCounterEnabledLg: false,
+  scrollWindowArrowsEnabled: false,
+  scrollWindowArrowsEnabledWide: false,
+  scrollWindowArrowsEnabledLg: false,
+  scrollWindowArrowsNavigateTimeline: false,
+  scrollWindowArrowsNavigateTimelineWide: false,
+  scrollWindowArrowsNavigateTimelineLg: false,
+  scrollWindowArrowsNavigateEntireList: false,
+  scrollWindowArrowsNavigateEntireListWide: false,
+  scrollWindowArrowsNavigateEntireListLg: false,
+  scrollWindowControlsPosition: 'bottom',
+  scrollWindowControlsPositionWide: 'bottom',
+  scrollWindowControlsPositionLg: 'bottom',
   markerSizeClassName: 'w-6 h-6',
   markerVisible: true,
+  markerShape: 'dot',
   maxActiveRows: 1,
   ruleVisible: false,
   ruleWeightClassName: 'w-px',
@@ -744,6 +948,7 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowDescriptionMinContrastActive: 5,
   rowDescriptionMinContrastInactive: 4,
   rowDescriptionVisible: true,
+  rowDescriptionShortViewportHideEnabled: true,
   rowTitleFontFamily: 'font-sans',
   rowTitleFontFamilyWide: 'md:font-sans',
   rowTitleFontFamilyLg: 'lg:font-sans',
@@ -785,8 +990,7 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   rowAppendixEnabled: false,
   rowAppendixSeparator: '·',
   rowAppendixFontFamily: 'font-sans',
-  rowAppendixFontFamilyWide: 'md:font-sans',
-  rowAppendixFontFamilyLg: 'lg:font-sans',
+  rowAppendixFontWeightClassName: 'font-normal',
   rowAppendixFontSizeClassName: 'text-sm',
   rowAppendixFontSizeWideClassName: 'md:text-sm',
   rowAppendixFontSizeLgClassName: 'lg:text-sm',
@@ -796,6 +1000,16 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   // this field is zero visual change for every existing page until an
   // operator tunes it.
   rowAppendixOpacity: 1,
+  rowAppendixForceVisible: false,
+  rowAppendixForceVisibleWide: false,
+  rowAppendixForceVisibleLg: false,
+  rowAppendixForceLineBreak: false,
+  rowAppendixForceLineBreakWide: false,
+  rowAppendixForceLineBreakLg: false,
+  rowAppendixPaddingTopClassName: 'pt-0',
+  rowAppendixPaddingRightClassName: 'pr-0',
+  rowAppendixPaddingBottomClassName: 'pb-0',
+  rowAppendixPaddingLeftClassName: 'pl-0',
   rowTitlePaddingTopClassName: 'pt-0',
   rowTitlePaddingRightClassName: 'pr-0',
   rowTitlePaddingBottomClassName: 'pb-0',
@@ -895,10 +1109,17 @@ export const DEFAULT_ABOUT_TIMELINE_CONFIG = {
   descriptionFontSizeClassName: 'text-base',
   descriptionFontSizeWideClassName: 'md:text-base',
   descriptionFontSizeLgClassName: 'lg:text-base',
+  descriptionFontWeightClassName: 'font-normal',
+  descriptionFontWeightWideClassName: 'md:font-normal',
+  descriptionFontWeightLgClassName: 'lg:font-normal',
+  descriptionFontFamily: 'font-sans',
+  descriptionFontFamilyWide: 'md:font-sans',
+  descriptionFontFamilyLg: 'lg:font-sans',
   description: 'More than a decade of engineering, and the deciding around it, in the order it happened.',
   descriptionWide: 'More than a decade of engineering, and the deciding around it, in the order it happened.',
   descriptionLg: 'More than a decade of engineering, and the deciding around it, in the order it happened.',
   descriptionVisible: true,
+  descriptionIndentMatchesMarkerLane: true,
   descriptionOpacity: 1,
   descriptionMinContrast: 4.5,
   transitionDurationMs: 550,
@@ -972,6 +1193,7 @@ const MOTION_EASINGS: ReadonlyArray<CtaButtonMotionEasing> = [
   'linear', 'standard', 'expressive', 'viscous', 'gentle',
 ];
 const MARKER_COLOR_MODES: ReadonlyArray<AboutTimelineMarkerColorMode> = ['accent', 'custom', 'text'];
+const MARKER_SHAPES: ReadonlyArray<AboutTimelineMarkerShape> = ['dot', 'page'];
 const ALIGNMENTS: ReadonlyArray<AboutTimelineAlignment> = ['left', 'right'];
 const APPENDIX_SEPARATORS: ReadonlyArray<AboutTimelineAppendixSeparator> =
   APPENDIX_SEPARATOR_OPTIONS.map(option => option.value);
@@ -994,8 +1216,39 @@ export function normalizeAboutTimelineConfig(
     maxWidthWideClassName: token(base.maxWidthWideClassName, MAX_WIDTH_WIDE_VALUES, D.maxWidthWideClassName),
     maxWidthLgClassName: token(base.maxWidthLgClassName, MAX_WIDTH_LG_VALUES, D.maxWidthLgClassName),
     rowGap: token(base.rowGap, GAP_VALUES, D.rowGap),
+    scrollWindowVisibleCount: clampRange(base.scrollWindowVisibleCount, 0, 50, D.scrollWindowVisibleCount),
+    scrollWindowVisibleCountWide: clampRange(base.scrollWindowVisibleCountWide, 0, 50, D.scrollWindowVisibleCountWide),
+    scrollWindowVisibleCountLg: clampRange(base.scrollWindowVisibleCountLg, 0, 50, D.scrollWindowVisibleCountLg),
+    toolbarPaddingTopClassName: normalizeTailwindToken({ utility: 'paddingTop', breakpoint: 'base', value: base.toolbarPaddingTopClassName, fallback: D.toolbarPaddingTopClassName }), toolbarPaddingRightClassName: normalizeTailwindToken({ utility: 'paddingRight', breakpoint: 'base', value: base.toolbarPaddingRightClassName, fallback: D.toolbarPaddingRightClassName }), toolbarPaddingBottomClassName: normalizeTailwindToken({ utility: 'paddingBottom', breakpoint: 'base', value: base.toolbarPaddingBottomClassName, fallback: D.toolbarPaddingBottomClassName }), toolbarPaddingLeftClassName: normalizeTailwindToken({ utility: 'paddingLeft', breakpoint: 'base', value: base.toolbarPaddingLeftClassName, fallback: D.toolbarPaddingLeftClassName }),
+    toolbarPaddingTopWideClassName: normalizeTailwindToken({ utility: 'paddingTop', breakpoint: 'md', value: base.toolbarPaddingTopWideClassName, fallback: D.toolbarPaddingTopWideClassName }), toolbarPaddingRightWideClassName: normalizeTailwindToken({ utility: 'paddingRight', breakpoint: 'md', value: base.toolbarPaddingRightWideClassName, fallback: D.toolbarPaddingRightWideClassName }), toolbarPaddingBottomWideClassName: normalizeTailwindToken({ utility: 'paddingBottom', breakpoint: 'md', value: base.toolbarPaddingBottomWideClassName, fallback: D.toolbarPaddingBottomWideClassName }), toolbarPaddingLeftWideClassName: normalizeTailwindToken({ utility: 'paddingLeft', breakpoint: 'md', value: base.toolbarPaddingLeftWideClassName, fallback: D.toolbarPaddingLeftWideClassName }),
+    toolbarPaddingTopLgClassName: normalizeTailwindToken({ utility: 'paddingTop', breakpoint: 'lg', value: base.toolbarPaddingTopLgClassName, fallback: D.toolbarPaddingTopLgClassName }), toolbarPaddingRightLgClassName: normalizeTailwindToken({ utility: 'paddingRight', breakpoint: 'lg', value: base.toolbarPaddingRightLgClassName, fallback: D.toolbarPaddingRightLgClassName }), toolbarPaddingBottomLgClassName: normalizeTailwindToken({ utility: 'paddingBottom', breakpoint: 'lg', value: base.toolbarPaddingBottomLgClassName, fallback: D.toolbarPaddingBottomLgClassName }), toolbarPaddingLeftLgClassName: normalizeTailwindToken({ utility: 'paddingLeft', breakpoint: 'lg', value: base.toolbarPaddingLeftLgClassName, fallback: D.toolbarPaddingLeftLgClassName }),
+    toolbarActionFontSizeClassName: normalizeTailwindToken({ utility: 'fontSize', breakpoint: 'base', value: base.toolbarActionFontSizeClassName, fallback: D.toolbarActionFontSizeClassName }),
+    toolbarActionFontSizeWideClassName: normalizeTailwindToken({ utility: 'fontSize', breakpoint: 'md', value: base.toolbarActionFontSizeWideClassName, fallback: D.toolbarActionFontSizeWideClassName }),
+    toolbarActionFontSizeLgClassName: normalizeTailwindToken({ utility: 'fontSize', breakpoint: 'lg', value: base.toolbarActionFontSizeLgClassName, fallback: D.toolbarActionFontSizeLgClassName }),
+    scrollWindowCounterEnabled: base.scrollWindowCounterEnabled === true,
+    scrollWindowCounterEnabledWide: base.scrollWindowCounterEnabledWide === true,
+    scrollWindowCounterEnabledLg: base.scrollWindowCounterEnabledLg === true,
+    scrollWindowArrowsEnabled: base.scrollWindowArrowsEnabled === true,
+    scrollWindowArrowsEnabledWide: base.scrollWindowArrowsEnabledWide === true,
+    scrollWindowArrowsEnabledLg: base.scrollWindowArrowsEnabledLg === true,
+    scrollWindowArrowsNavigateTimeline: base.scrollWindowArrowsNavigateTimeline === true,
+    scrollWindowArrowsNavigateTimelineWide: base.scrollWindowArrowsNavigateTimelineWide === true,
+    scrollWindowArrowsNavigateTimelineLg: base.scrollWindowArrowsNavigateTimelineLg === true,
+    scrollWindowArrowsNavigateEntireList: base.scrollWindowArrowsNavigateEntireList === true,
+    scrollWindowArrowsNavigateEntireListWide: base.scrollWindowArrowsNavigateEntireListWide === true,
+    scrollWindowArrowsNavigateEntireListLg: base.scrollWindowArrowsNavigateEntireListLg === true,
+    scrollWindowControlsPosition: token(
+      base.scrollWindowControlsPosition, ['top', 'bottom'], D.scrollWindowControlsPosition,
+    ),
+    scrollWindowControlsPositionWide: token(
+      base.scrollWindowControlsPositionWide, ['top', 'bottom'], D.scrollWindowControlsPositionWide,
+    ),
+    scrollWindowControlsPositionLg: token(
+      base.scrollWindowControlsPositionLg, ['top', 'bottom'], D.scrollWindowControlsPositionLg,
+    ),
     markerSizeClassName: token(base.markerSizeClassName, MARKER_SIZE_VALUES, D.markerSizeClassName),
     markerVisible: base.markerVisible !== false,
+    markerShape: token(base.markerShape, MARKER_SHAPES, D.markerShape),
     maxActiveRows: Number.isFinite(base.maxActiveRows)
       ? Math.min(1, Math.max(0, Math.round(base.maxActiveRows)))
       : D.maxActiveRows,
@@ -1025,6 +1278,7 @@ export function normalizeAboutTimelineConfig(
       base.rowDescriptionMinContrastInactive, 1, 21, D.rowDescriptionMinContrastInactive,
     ),
     rowDescriptionVisible: base.rowDescriptionVisible !== false,
+    rowDescriptionShortViewportHideEnabled: base.rowDescriptionShortViewportHideEnabled !== false,
     rowTitleFontFamily: token(base.rowTitleFontFamily, ITEM_FONT_FAMILIES, D.rowTitleFontFamily),
     rowTitleFontFamilyWide: token(base.rowTitleFontFamilyWide, ITEM_FONT_FAMILIES_WIDE, D.rowTitleFontFamilyWide),
     rowTitleFontFamilyLg: token(base.rowTitleFontFamilyLg, ITEM_FONT_FAMILIES_LG, D.rowTitleFontFamilyLg),
@@ -1118,11 +1372,8 @@ export function normalizeAboutTimelineConfig(
     rowAppendixFontFamily: token(
       base.rowAppendixFontFamily, ITEM_FONT_FAMILIES, D.rowAppendixFontFamily,
     ),
-    rowAppendixFontFamilyWide: token(
-      base.rowAppendixFontFamilyWide, ITEM_FONT_FAMILIES_WIDE, D.rowAppendixFontFamilyWide,
-    ),
-    rowAppendixFontFamilyLg: token(
-      base.rowAppendixFontFamilyLg, ITEM_FONT_FAMILIES_LG, D.rowAppendixFontFamilyLg,
+    rowAppendixFontWeightClassName: token(
+      base.rowAppendixFontWeightClassName, FONT_WEIGHT_VALUES, D.rowAppendixFontWeightClassName,
     ),
     rowAppendixFontSizeClassName: token(
       base.rowAppendixFontSizeClassName, FONT_SIZE_VALUES, D.rowAppendixFontSizeClassName,
@@ -1140,6 +1391,24 @@ export function normalizeAboutTimelineConfig(
       D.rowAppendixRevealDelayMs,
     ),
     rowAppendixOpacity: clampRange(base.rowAppendixOpacity, 0, 1, D.rowAppendixOpacity),
+    rowAppendixForceVisible: base.rowAppendixForceVisible === true,
+    rowAppendixForceVisibleWide: base.rowAppendixForceVisibleWide === true,
+    rowAppendixForceVisibleLg: base.rowAppendixForceVisibleLg === true,
+    rowAppendixForceLineBreak: base.rowAppendixForceLineBreak === true,
+    rowAppendixForceLineBreakWide: base.rowAppendixForceLineBreakWide === true,
+    rowAppendixForceLineBreakLg: base.rowAppendixForceLineBreakLg === true,
+    rowAppendixPaddingTopClassName: token(
+      base.rowAppendixPaddingTopClassName, PADDING_TOP_VALUES, D.rowAppendixPaddingTopClassName,
+    ),
+    rowAppendixPaddingRightClassName: token(
+      base.rowAppendixPaddingRightClassName, PADDING_RIGHT_VALUES, D.rowAppendixPaddingRightClassName,
+    ),
+    rowAppendixPaddingBottomClassName: token(
+      base.rowAppendixPaddingBottomClassName, PADDING_BOTTOM_VALUES, D.rowAppendixPaddingBottomClassName,
+    ),
+    rowAppendixPaddingLeftClassName: token(
+      base.rowAppendixPaddingLeftClassName, PADDING_LEFT_VALUES, D.rowAppendixPaddingLeftClassName,
+    ),
     rowTitlePaddingTopClassName: token(
       base.rowTitlePaddingTopClassName, PADDING_TOP_VALUES, D.rowTitlePaddingTopClassName,
     ),
@@ -1290,26 +1559,47 @@ export function normalizeAboutTimelineConfig(
     rowDescriptionMarginLeftLgClassName: token(
       base.rowDescriptionMarginLeftLgClassName, MARGIN_LEFT_LG_VALUES, D.rowDescriptionMarginLeftLgClassName,
     ),
-    paddingTopClassName: token(base.paddingTopClassName, PADDING_TOP_VALUES, D.paddingTopClassName),
-    paddingRightClassName: token(base.paddingRightClassName, PADDING_RIGHT_VALUES, D.paddingRightClassName),
-    paddingBottomClassName: token(base.paddingBottomClassName, PADDING_BOTTOM_VALUES, D.paddingBottomClassName),
-    paddingLeftClassName: token(base.paddingLeftClassName, PADDING_LEFT_VALUES, D.paddingLeftClassName),
-    paddingTopWideClassName: token(base.paddingTopWideClassName, PADDING_TOP_WIDE_VALUES, D.paddingTopWideClassName),
-    paddingRightWideClassName: token(
-      base.paddingRightWideClassName, PADDING_RIGHT_WIDE_VALUES, D.paddingRightWideClassName,
-    ),
-    paddingBottomWideClassName: token(
-      base.paddingBottomWideClassName, PADDING_BOTTOM_WIDE_VALUES, D.paddingBottomWideClassName,
-    ),
-    paddingLeftWideClassName: token(
-      base.paddingLeftWideClassName, PADDING_LEFT_WIDE_VALUES, D.paddingLeftWideClassName,
-    ),
-    paddingTopLgClassName: token(base.paddingTopLgClassName, PADDING_TOP_LG_VALUES, D.paddingTopLgClassName),
-    paddingRightLgClassName: token(base.paddingRightLgClassName, PADDING_RIGHT_LG_VALUES, D.paddingRightLgClassName),
-    paddingBottomLgClassName: token(
-      base.paddingBottomLgClassName, PADDING_BOTTOM_LG_VALUES, D.paddingBottomLgClassName,
-    ),
-    paddingLeftLgClassName: token(base.paddingLeftLgClassName, PADDING_LEFT_LG_VALUES, D.paddingLeftLgClassName),
+    paddingTopClassName: normalizeTailwindToken({
+      utility: 'paddingTop', breakpoint: 'base', value: base.paddingTopClassName, fallback: D.paddingTopClassName,
+    }),
+    paddingRightClassName: normalizeTailwindToken({
+      utility: 'paddingRight', breakpoint: 'base', value: base.paddingRightClassName, fallback: D.paddingRightClassName,
+    }),
+    paddingBottomClassName: normalizeTailwindToken({
+      utility: 'paddingBottom', breakpoint: 'base', value: base.paddingBottomClassName, fallback: D.paddingBottomClassName,
+    }),
+    paddingLeftClassName: normalizeTailwindToken({
+      utility: 'paddingLeft', breakpoint: 'base', value: base.paddingLeftClassName, fallback: D.paddingLeftClassName,
+    }),
+    paddingTopWideClassName: normalizeTailwindToken({
+      utility: 'paddingTop', breakpoint: 'md', value: base.paddingTopWideClassName, fallback: D.paddingTopWideClassName,
+    }),
+    paddingRightWideClassName: normalizeTailwindToken({
+      utility: 'paddingRight', breakpoint: 'md',
+      value: base.paddingRightWideClassName, fallback: D.paddingRightWideClassName,
+    }),
+    paddingBottomWideClassName: normalizeTailwindToken({
+      utility: 'paddingBottom', breakpoint: 'md',
+      value: base.paddingBottomWideClassName, fallback: D.paddingBottomWideClassName,
+    }),
+    paddingLeftWideClassName: normalizeTailwindToken({
+      utility: 'paddingLeft', breakpoint: 'md',
+      value: base.paddingLeftWideClassName, fallback: D.paddingLeftWideClassName,
+    }),
+    paddingTopLgClassName: normalizeTailwindToken({
+      utility: 'paddingTop', breakpoint: 'lg', value: base.paddingTopLgClassName, fallback: D.paddingTopLgClassName,
+    }),
+    paddingRightLgClassName: normalizeTailwindToken({
+      utility: 'paddingRight', breakpoint: 'lg',
+      value: base.paddingRightLgClassName, fallback: D.paddingRightLgClassName,
+    }),
+    paddingBottomLgClassName: normalizeTailwindToken({
+      utility: 'paddingBottom', breakpoint: 'lg',
+      value: base.paddingBottomLgClassName, fallback: D.paddingBottomLgClassName,
+    }),
+    paddingLeftLgClassName: normalizeTailwindToken({
+      utility: 'paddingLeft', breakpoint: 'lg', value: base.paddingLeftLgClassName, fallback: D.paddingLeftLgClassName,
+    }),
     marginTopClassName: token(base.marginTopClassName, MARGIN_TOP_VALUES, D.marginTopClassName),
     marginRightClassName: token(base.marginRightClassName, MARGIN_RIGHT_VALUES, D.marginRightClassName),
     marginBottomClassName: token(base.marginBottomClassName, MARGIN_BOTTOM_VALUES, D.marginBottomClassName),
@@ -1409,10 +1699,30 @@ export function normalizeAboutTimelineConfig(
     descriptionFontSizeLgClassName: token(
       base.descriptionFontSizeLgClassName, LG_FONT_SIZE_VALUES, D.descriptionFontSizeLgClassName,
     ),
+    descriptionFontWeightClassName: normalizeTailwindToken({
+      utility: 'fontWeight', breakpoint: 'base',
+      value: base.descriptionFontWeightClassName, fallback: D.descriptionFontWeightClassName,
+    }),
+    descriptionFontWeightWideClassName: normalizeTailwindToken({
+      utility: 'fontWeight', breakpoint: 'md',
+      value: base.descriptionFontWeightWideClassName, fallback: D.descriptionFontWeightWideClassName,
+    }),
+    descriptionFontWeightLgClassName: normalizeTailwindToken({
+      utility: 'fontWeight', breakpoint: 'lg',
+      value: base.descriptionFontWeightLgClassName, fallback: D.descriptionFontWeightLgClassName,
+    }),
+    descriptionFontFamily: token(base.descriptionFontFamily, ITEM_FONT_FAMILIES, D.descriptionFontFamily),
+    descriptionFontFamilyWide: token(
+      base.descriptionFontFamilyWide, ITEM_FONT_FAMILIES_WIDE, D.descriptionFontFamilyWide,
+    ),
+    descriptionFontFamilyLg: token(
+      base.descriptionFontFamilyLg, ITEM_FONT_FAMILIES_LG, D.descriptionFontFamilyLg,
+    ),
     description: typeof base.description === 'string' ? base.description : D.description,
     descriptionWide: typeof base.descriptionWide === 'string' ? base.descriptionWide : D.descriptionWide,
     descriptionLg: typeof base.descriptionLg === 'string' ? base.descriptionLg : D.descriptionLg,
     descriptionVisible: base.descriptionVisible !== false,
+    descriptionIndentMatchesMarkerLane: base.descriptionIndentMatchesMarkerLane !== false,
     descriptionOpacity: clampRange(base.descriptionOpacity, 0, 1, D.descriptionOpacity),
     descriptionMinContrast: clampRange(base.descriptionMinContrast, 1, 21, D.descriptionMinContrast),
     transitionDurationMs: clampRange(base.transitionDurationMs, 0, 1000, D.transitionDurationMs),

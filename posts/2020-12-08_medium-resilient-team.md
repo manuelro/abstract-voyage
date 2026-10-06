@@ -9,9 +9,8 @@ source:
     originallyPublished: "2020-12-08"
 date: "2022-03-13"
 tags:
-    - Resilient Teams
-    - Scrum
-    - Tech Lead
+    - Tech Leadership
+    - Engineering
 featured: true
 ---
 
@@ -58,6 +57,6 @@ As a set of best practices in software engineering, SOLID principles became the 
 
 By seeing a Scrum team member as a Single Responsibility Function, we can argue then that a very good way to allow for the inclusion of the Tech Lead role within the implementation of the Scrum framework is by allowing such a role to take the Coordination Function role. Then the Coordinator Function and the Tech Lead roles become analogous. All of this under the supervision of the Scrum Master.
 
-But what about the Single Responsibility Functions (non Tech Lead team members) within the team? They can become Tech Leads (Coordinator Functions) as well. **By encouraging self-organization and the implementation of the aforementioned traits that a resilient system must have for themselves and for other team members, we add resiliency to the team as a whole.** We remove an [internal virtual dependency](https://manuelro.medium.com/a-reflection-on-the-taxonomy-of-dependencies-in-software-engineering-and-their-associated-risk-864e3a4c881) (the Tech Lead) and enable the team to work well despite of not having all of its team members in place. This is resilience from theory to practice.
+But what about the Single Responsibility Functions (non Tech Lead team members) within the team? They can become Tech Leads (Coordinator Functions) as well. **By encouraging self-organization and the implementation of the aforementioned traits that a resilient system must have for themselves and for other team members, we add resiliency to the team as a whole.** We reduce an [internal dependency the team created](/posts/2020-11-05_medium-taxonomy-dependencies) when more than one person can coordinate the work. This is resilience from theory to practice.
 
 The Tech Lead role has become a very popular role to add to multiple frameworks, including Scrum. In order for the role to properly work we must pay attention to the resilience characteristics displayed by highly efficient teams and individuals, and implement them in a fractal manner.

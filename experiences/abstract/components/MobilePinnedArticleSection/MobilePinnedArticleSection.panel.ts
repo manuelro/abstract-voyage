@@ -216,8 +216,8 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       {
         kind: 'number',
         key: 'rowFadeOutDurationMs',
-        label: 'Select: row fade-out',
-        description: 'On tapping a row in the expanded list, how long each row takes to fade its opacity out. Row and panel overlap controls determine the rest of the exit timing.',
+        label: 'Collapse: row fade-out',
+        description: 'How long each expanded row fades out when the list closes by selection, Escape, or backdrop tap.',
         min: 0,
         max: 1000,
         step: 10,
@@ -227,13 +227,13 @@ export const MOBILE_PINNED_ARTICLE_SECTION_PANEL =
       {
         kind: 'select',
         key: 'rowFadeOutEasing',
-        label: 'Select: row fade-out easing',
+        label: 'Collapse: row fade-out easing',
         options: MOTION_EASING_OPTIONS,
       },
       {
         kind: 'number',
         key: 'rowFadeOutOverlapPercent',
-        label: 'Select: row-to-row overlap',
+        label: 'Collapse: row-to-row overlap',
         description: 'How much of one row exit overlaps the next. 0% is sequential; 100% starts every row together.',
         min: 0,
         max: 100,

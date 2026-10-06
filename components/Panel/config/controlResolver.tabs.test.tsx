@@ -2,7 +2,7 @@ import React from 'react';
 import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createConfigScopeBinding } from './binding';
 import { ConfigScopeRenderer } from './ConfigScopeRenderer';
 import { defineConfigScope } from './defineConfigScope';
@@ -134,6 +134,33 @@ describe('kind: "tabs" control resolver', () => {
     expect(currentValue.mobilePadding).toBe('px-4');
 
     act(() => root.unmount());
+  });
+
+  it('copies a clicked tab label and confirms the copied value', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const definition = createTabsDemoDefinition();
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    act(() => root.render(
+      <ConfigScopeRenderer binding={createConfigScopeBinding({
+        definition, value: DEFAULT_TABS_DEMO_CONFIG, onChange: () => undefined,
+      })} />,
+    ));
+
+    const mobileTab = Array.from(container.querySelectorAll('[role="tab"]'))
+      .find(tab => tab.textContent === 'MOBILE (< 768px)');
+    await act(async () => mobileTab?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+
+    expect(writeText).toHaveBeenCalledWith('MOBILE (< 768px)');
+    expect(container.textContent).toContain('Copied “MOBILE (< 768px)”');
+    act(() => root.unmount());
+    if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
+    else delete (navigator as unknown as { clipboard?: Clipboard }).clipboard;
   });
 
   it('moves focus and selection with ArrowRight/ArrowLeft/Home/End, wrapping at the ends', () => {

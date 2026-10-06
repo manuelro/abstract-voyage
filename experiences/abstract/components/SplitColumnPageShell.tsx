@@ -243,7 +243,7 @@ export type SplitColumnPageShellProps = {
  * actually produced the earlier "empty dark gap at the top" report on
  * `/abstract`, not the margin itself). Both pages now go through the exact
  * same header call with the exact same (shared, already-configurable)
- * `marginTop`/`desktopMarginTop`, properly contained — fixing both reports
+ * `marginTop`/`marginTopWide`, properly contained — fixing both reports
  * with the one change, not a new hardcoded override.
  */
 export function SplitColumnPageShell({

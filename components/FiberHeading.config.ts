@@ -70,7 +70,7 @@ export type FiberHeadingConfig = {
   // with the rest of the page's spacing scale). containerHeight applies at
   // every width unless containerHeightDesktop overrides it from md (768px)
   // up — same mobile-first base/override pairing as SiteHeaderConfig's
-  // height/desktopHeight, so a full-bleed heading tuned for a wide viewport
+  // height/heightWide, so a full-bleed heading tuned for a wide viewport
   // doesn't dwarf a narrow one.
   containerHeight: FiberHeadingHeight;
   containerHeightDesktop: FiberHeadingDesktopHeight;

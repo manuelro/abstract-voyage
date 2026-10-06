@@ -3,6 +3,7 @@
    ART-02: no serif here; the serif stays exclusive to the H1. */
 
 .list {
+  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -16,6 +17,130 @@
   display: block;
 }
 
+/* AboutTimeline.tsx's own scrollWindowVisibleCount prop — the list's own
+   overflow/scroll-snap-type and max-height are set inline (computed live
+   from real row heights, which vary with wrapped captions), this file only
+   owns the per-row snap alignment those two need to actually rest on a
+   whole row rather than a mid-scroll, partial one. Inert (no `overflow`, no
+   `scroll-snap-type` on the ancestor) for every caller that doesn't opt in,
+   same as always. */
+.list[data-scroll-windowed='true'] > .item {
+  scroll-snap-align: start;
+}
+
+/* The scroll itself must never be visible (operator ask) — the list is
+   still genuinely scrollable (via drag, the arrow buttons below, or the
+   active-row bring-into-view tween), only the native scrollbar affordance
+   is hidden. Both properties are required: Firefox honors `scrollbar-width`
+   alone, every Chromium/WebKit browser needs the pseudo-element rule
+   instead. */
+.list[data-scroll-windowed='true'] {
+  scrollbar-width: none;
+  /* Without this, the browser's own scroll anchoring silently nudges
+     scrollTop as row content settles in (font/image loads shifting row
+     heights) — exactly the kind of unrequested movement the operator's own
+     "must not alter the scroll position" ask (this feature's brief)
+     prohibits, and it isn't visible in this component's own JS since it
+     never goes through scrollListTo. */
+  overflow-anchor: none;
+}
+
+.list[data-scroll-windowed='true']::-webkit-scrollbar {
+  display: none;
+}
+
+/* Counter (left) + up/down arrows (right) — one row, directly below the
+   list. Only ever rendered at all while scrollWindowVisibleCount > 0
+   (AboutTimeline.tsx), so this never appears for a caller that hasn't
+   opted into the windowed list in the first place. */
+.scrollWindowControls {
+  display: flex;
+  /* The compact count and circular arrow group are one control cluster;
+     center their boxes vertically so neither appears to sag or float. */
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+
+/* A top control row begins at the component's padded content edge; the
+   footer-only breathing room above belongs exclusively to bottom controls. */
+.scrollWindowControls[data-position='top'] {
+  margin-top: 0;
+}
+
+/* Each control row is a bounded responsive branch, not a cascading Tailwind
+   override: mobile stays below md, tablet is md-to-below-lg, desktop begins
+   at lg. This lets an author intentionally expose different affordances at
+   every tier without a setting leaking into an adjacent one. */
+.scrollWindowControlsMobile,
+.scrollWindowControlsTablet,
+.scrollWindowControlsDesktop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .scrollWindowControlsMobile { display: flex; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .scrollWindowControlsTablet { display: flex; }
+}
+
+@media (min-width: 1024px) {
+  .scrollWindowControlsDesktop { display: flex; }
+}
+
+.scrollWindowCounter {
+  font-size: 0.75rem;
+  line-height: 1;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.scrollWindowArrows {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.scrollWindowLeadingAction {
+  margin-left: auto;
+}
+
+.scrollWindowLeadingAction > button {
+  min-width: 2rem;
+  min-height: 2rem;
+  font: inherit;
+}
+
+.scrollWindowArrowButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  background: none;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.scrollWindowArrowButton:hover:not(:disabled),
+.scrollWindowArrowButton:focus-visible {
+  opacity: 0.9;
+}
+
+.scrollWindowArrowButton:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
 .row {
   position: relative;
   display: flex;
@@ -23,7 +148,7 @@
   gap: 0.9rem;
   width: 100%;
   padding: 0;
-  padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.9rem);
+  padding-left: var(--about-timeline-marker-size, 9px);
   margin: 0;
   border: none;
   background: none;
@@ -48,6 +173,27 @@
   padding-left: 0;
   padding-right: 0;
   text-align: right;
+}
+
+/* Opt-in row "chip" look (AboutTimelineRow.tsx's own backgroundColor prop) —
+   never applies with no background color supplied, so every existing,
+   background-less row is unaffected. Adds the padding/rounding/transition a
+   real background needs to read as a chip rather than a color fill flush to
+   the row's own hit-area edges; the color value itself is set inline
+   (style.backgroundColor), same "resolve outside, paint one final value"
+   convention every other row color already uses. */
+.row[data-has-background='true'] {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  padding-right: 0.75rem;
+  padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.75rem);
+  border-radius: 0.6rem;
+  transition: background-color var(--about-timeline-transition-ms, 260ms) var(--about-timeline-transition-easing, ease);
+}
+
+.row[data-has-background='true'][data-alignment='right'] {
+  padding-left: 0.75rem;
+  padding-right: calc(var(--about-timeline-marker-size, 9px) + 0.75rem);
 }
 
 /* When both chronology affordances are off, release the marker lane rather
@@ -82,7 +228,7 @@
 @media (min-width: 768px) {
   .row[data-alignment-wide='left'] {
     flex-direction: row;
-    padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.9rem);
+    padding-left: var(--about-timeline-marker-size, 9px);
     padding-right: 0;
     text-align: left;
   }
@@ -92,6 +238,16 @@
     padding-left: 0;
     padding-right: 0;
     text-align: right;
+  }
+
+  .row[data-has-background='true'][data-alignment-wide='left'] {
+    padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.75rem);
+    padding-right: 0.75rem;
+  }
+
+  .row[data-has-background='true'][data-alignment-wide='right'] {
+    padding-left: 0.75rem;
+    padding-right: calc(var(--about-timeline-marker-size, 9px) + 0.75rem);
   }
 
   .row[data-alignment-wide='left'] .rule {
@@ -112,7 +268,7 @@
 @media (min-width: 1024px) {
   .row[data-alignment-lg='left'] {
     flex-direction: row;
-    padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.9rem);
+    padding-left: var(--about-timeline-marker-size, 9px);
     padding-right: 0;
     text-align: left;
   }
@@ -122,6 +278,16 @@
     padding-left: 0;
     padding-right: 0;
     text-align: right;
+  }
+
+  .row[data-has-background='true'][data-alignment-lg='left'] {
+    padding-left: calc(var(--about-timeline-marker-size, 9px) + 0.75rem);
+    padding-right: 0.75rem;
+  }
+
+  .row[data-has-background='true'][data-alignment-lg='right'] {
+    padding-left: 0.75rem;
+    padding-right: calc(var(--about-timeline-marker-size, 9px) + 0.75rem);
   }
 
   .row[data-alignment-lg='left'] .rule {
@@ -218,6 +384,74 @@
   transition-delay: var(--about-timeline-appendix-reveal-delay-ms, 180ms);
 }
 
+/* rowAppendixForceVisible(-Wide/-Lg) (AboutTimeline.config.ts) — forces the
+   appendix visible unconditionally, independent of hover/focus above.
+   Each rule is bounded to EXACTLY its own tier's width range via its own
+   `@media` query (max-width cap on the base/Wide rules, not the
+   open-ended min-width cascade alignment/padding tiers use) — the three
+   data-appendix-force-visible* attributes are always-present booleans
+   (never conditionally omitted, see AboutTimelineRow.tsx's own doc
+   comment), so without this bounding an "on" set at a narrower tier would
+   keep matching at every wider width too, even where that wider tier's
+   own field is off. A `max-width`-bounded reset rule was deliberately NOT
+   used instead (tried first): it would need to unconditionally force
+   opacity back to 0 outside its own tier, which — at the same selector
+   specificity and later in source order — silently overrides genuine
+   hover/focus reveals for that row at that width, not just the force-on
+   effect. Bounding the ON rule itself avoids ever writing a conflicting
+   OFF declaration. */
+@media (max-width: 767.98px) {
+  .row[data-appendix-force-visible='true'] .appendix {
+    opacity: var(--about-timeline-appendix-opacity, 1);
+    transform: translate3d(0, 0, 0);
+    transition-delay: var(--about-timeline-appendix-reveal-delay-ms, 180ms);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .row[data-appendix-force-visible-wide='true'] .appendix {
+    opacity: var(--about-timeline-appendix-opacity, 1);
+    transform: translate3d(0, 0, 0);
+    transition-delay: var(--about-timeline-appendix-reveal-delay-ms, 180ms);
+  }
+}
+
+@media (min-width: 1024px) {
+  .row[data-appendix-force-visible-lg='true'] .appendix {
+    opacity: var(--about-timeline-appendix-opacity, 1);
+    transform: translate3d(0, 0, 0);
+    transition-delay: var(--about-timeline-appendix-reveal-delay-ms, 180ms);
+  }
+}
+
+/* rowAppendixForceLineBreak(-Wide/-Lg) — forces the appendix onto its own
+   line (block) below the title instead of flowing inline after it, same
+   bounded-per-tier @media shape as rowAppendixForceVisible above and for
+   the same reason (always-present booleans, never conditionally omitted).
+   margin-left is reset to 0: it exists to separate the appendix from the
+   title on the same inline line, which is moot — and visually wrong — once
+   the appendix renders on its own line below. */
+@media (max-width: 767.98px) {
+  .row[data-appendix-force-line-break='true'] .appendix {
+    display: block;
+    margin-left: 0;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .row[data-appendix-force-line-break-wide='true'] .appendix {
+    display: block;
+    margin-left: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .row[data-appendix-force-line-break-lg='true'] .appendix {
+    display: block;
+    margin-left: 0;
+  }
+}
+
 /* Line-height owned by rowDescriptionLineHeightClassName's own Tailwind
    class — see .caption's own doc comment above for why it's not set here. */
 .line {
@@ -270,7 +504,7 @@
 
 .description[data-alignment='left'] {
   padding-left: calc(
-    var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra, 0px)
+    var(--about-timeline-marker-size, 9px) + var(--about-timeline-description-indent-extra, 0px)
   );
 }
 
@@ -282,7 +516,7 @@
 
   .description[data-alignment-wide='left'] {
     padding-left: calc(
-      var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-wide, 0px)
+      var(--about-timeline-marker-size, 9px) + var(--about-timeline-description-indent-extra-wide, 0px)
     );
     text-align: left;
   }
@@ -296,7 +530,7 @@
 
   .description[data-alignment-lg='left'] {
     padding-left: calc(
-      var(--about-timeline-marker-size, 9px) + 0.9rem + var(--about-timeline-description-indent-extra-lg, 0px)
+      var(--about-timeline-marker-size, 9px) + var(--about-timeline-description-indent-extra-lg, 0px)
     );
     text-align: left;
   }
@@ -321,9 +555,18 @@
    from 1024–1440px, so 768px still carries its own safety margin) — 900px
    was hiding the description on a wide band of real desktop viewports
    (769–900px available height, common with browser chrome) that have
-   plenty of room, with no clipping risk at the new, tighter threshold. */
+   plenty of room, with no clipping risk at the new, tighter threshold.
+   Gated on [data-short-viewport-hide='true'] (AboutTimeline.tsx's own `<ol>`,
+   rowDescriptionShortViewportHideEnabled — AboutTimeline.config.ts) — this
+   rule exists only for a fixed-height, overflow-hidden consumer like
+   /about's own left column; a consumer whose timeline scrolls normally
+   instead (e.g. /journal's) has no clipping risk to guard against and opts
+   out, so its descriptions stay visible at every viewport height
+   (operator-reported, 2026-09-23: journal's descriptions were vanishing on
+   any phone with a short visible browser viewport, even though nothing
+   there was ever actually clipping). */
 @media (max-height: 768px) {
-  .line {
+  .list[data-short-viewport-hide='true'] .line {
     display: none;
   }
 }

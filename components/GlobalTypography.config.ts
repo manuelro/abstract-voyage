@@ -62,7 +62,7 @@ export type GlobalTypographyConfig = {
 
 export const DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG = {
   headingFontFamily: 'sans',
-  titleOpacity: 0.8,
+  titleOpacity: 0.95,
   // Operator-reported (screenshot evidence): raising bodyOpacity to fix the
   // mobile article list's light-background legibility (0.42 -> 0.85, prior
   // fix) also compressed body/highlight down to a 0.07 gap — active and
@@ -73,9 +73,9 @@ export const DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG = {
   // clears 4.5:1 against the flat page surface at 0.6, so 0.65 keeps margin
   // for the worse real-background cases bodyToleranceRatio's own doc
   // comment already accounts for).
-  bodyOpacity: 0.57,
-  highlightOpacity: 0.9,
-  minContrastRatio: 4.5,
+  bodyOpacity: 0.65,
+  highlightOpacity: 1,
+  minContrastRatio: 5,
   toleranceRatio: 0.3,
   bodyToleranceRatio: 0.3,
 } satisfies GlobalTypographyConfig;

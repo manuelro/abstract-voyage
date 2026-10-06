@@ -24,21 +24,121 @@ export type CoverFlowConfig = {
   /** Desktop — >= 1024px. */
   cardDistanceRatioLg: number;
   /** Fraction of the measured container's own width the active card should
-   * occupy — Mobile (< 768px). No fixed pixel ceiling; only minCardWidthPx
-   * bounds it from below. */
+   * occupy — Mobile (< 768px). The independent height cap below may reduce
+   * the resulting width to preserve the aspect ratio. */
   cardWidthRatio: number;
   /** Card size — Tablet (>= 768px). */
   cardWidthRatioMd: number;
   /** Card size — Desktop (>= 1024px). */
   cardWidthRatioLg: number;
+  /** Maximum at-rest card height in px for each tier. 0 disables the cap.
+   * Width shrinks with height so cardAspectRatio remains authoritative. */
+  maxCardHeightPx: number;
+  maxCardHeightPxMd: number;
+  maxCardHeightPxLg: number;
   /** Fixed aspect ratio (height / width) the resolved itemHeight is derived
    * from — 4/3 matches the card's own 3:4 default. */
   cardAspectRatio: number;
-  /** stackSpacing / centerGap — the original fork's own fixed 100/250
-   * ratio, kept constant across tiers so further-out neighbours keep the
-   * same relative spacing to the first neighbour. */
+  /** stackSpacing / centerGap — Mobile (< 768px). Was one flat value shared
+   * by every tier (the original fork's own fixed 100/250 ratio); split by
+   * tier for the same reason cardDistanceRatio above already is — how
+   * tightly further-out neighbours pack relative to the first neighbour
+   * reads differently on a phone than on a wide desktop viewport. All three
+   * tiers default to the same value, so this split is byte-identical to
+   * today until an operator diverges one tier from another. */
   stackSpacingToCenterGapRatio: number;
+  /** Tablet — >= 768px. Independently tunable, same rule every other tiered
+   * field in this config already follows: a missing/invalid persisted value
+   * falls back to THIS tier's own default, never to the mobile value. */
+  stackSpacingToCenterGapRatioMd: number;
+  /** Desktop — >= 1024px. Same independence as stackSpacingToCenterGapRatioMd. */
+  stackSpacingToCenterGapRatioLg: number;
+  /** Opt-in rhythmic distribution — Mobile (< 768px): each additional step
+   * beyond the first neighbour grows stackSpacing by this percent,
+   * compounding — e.g. 38 makes the 3rd card's own gap from the 2nd 38%
+   * wider than the 2nd's gap from the 1st, the 4th wider again by the same
+   * 38%, and so on. 0 (default): every step is the same fixed stackSpacing,
+   * byte-identical to every caller before this field existed. Continuous in
+   * the card's live, fractional distance from active (not just the settled
+   * integer), so a drag/swipe still interpolates smoothly through
+   * fractional positions exactly like the flat-spacing case already does —
+   * see CoverFlow.tsx's own `x` transform for the closed-form
+   * geometric-series sum this drives. Split by tier for the same reason
+   * stackSpacingToCenterGapRatio above is — all three default to the same
+   * value, byte-identical to today until an operator diverges a tier. */
+  stackSpacingGrowthPercent: number;
+  /** Tablet — >= 768px. Independently tunable, same fallback rule as every
+   * other tiered field above. */
+  stackSpacingGrowthPercentMd: number;
+  /** Desktop — >= 1024px. Same independence as stackSpacingGrowthPercentMd. */
+  stackSpacingGrowthPercentLg: number;
+  /** Opt-in: by default (false) the active card's immediate neighbour sits
+   * a flat centerGap away — a separately-tunable value with no required
+   * relationship to stackSpacing at all, which can leave that first
+   * neighbour looking cramped right up against the active card even while
+   * stackSpacingGrowthPercent runs a perfectly even rhythm from the SECOND
+   * neighbour onward (operator-reported, screenshot). true: centerGap
+   * drops out of the resting/live position (it still governs drag/wheel
+   * sensitivity elsewhere, just not where a settled card sits); stackSpacing
+   * itself becomes the growth series' own first term instead, so the
+   * active-to-first-neighbour gap already reads as one stackSpacing unit —
+   * the exact same unit the first-to-second gap already used — and every
+   * step beyond it grows by the same (1 + stackSpacingGrowthPercent/100)
+   * ratio from there. No effect while stackSpacingGrowthPercent is 0. The
+   * active card's own approach into the center is one continuous formula
+   * with every resting neighbour in this mode — see CoverFlow.tsx's own
+   * `x` transform. */
+  stackSpacingGrowthIncludesFirstNeighbor: boolean;
   rotationDeg: number;
+  /** How rotation is distributed as cards recede. `spread` allocates a
+   * bounded rotation range across a deliberate number of neighbours, so
+   * every visible card can retain a distinct silhouette. `compounding`
+   * preserves the original geometric-growth controls below for legacy
+   * compositions. */
+  rotationDistributionMode: 'spread' | 'compounding';
+  /** `recede` (default) keeps cards near active broad and narrows each
+   * successive distance. `invert` intentionally does the opposite: the
+   * immediate neighbour is the narrowest, then cards flatten as they recede. */
+  rotationProgressionMode: 'recede' | 'invert';
+  /** Edge-on ceiling for either rotation distribution — Mobile (< 768px).
+   * Kept below 90deg so a card remains visible rather than collapsing into
+   * a line. Split by tier for the same reason cardDistanceRatio above is;
+   * all three default to the same value, byte-identical to today until an
+   * operator diverges a tier. */
+  rotationMaxDeg: number;
+  /** Tablet — >= 768px. Independently tunable, same fallback rule as every
+   * other tiered field above. */
+  rotationMaxDegMd: number;
+  /** Desktop — >= 1024px. Same independence as rotationMaxDegMd. */
+  rotationMaxDegLg: number;
+  /** Number of neighbour positions over which `rotationDeg` reaches
+   * `rotationMaxDeg` in `spread` mode. Positions beyond it hold at the
+   * ceiling, preventing an unbounded curve from exhausting its range early. */
+  rotationSpreadDepth: number;
+  /** Curve applied within `rotationSpreadDepth`: 1 is linear; values above
+   * 1 keep nearby cards more legible and accelerate foreshortening toward
+   * the tail. */
+  rotationSpreadExponent: number;
+  /** Each additional neighbour grows rotation by this percent, compounding
+   * — Mobile (< 768px). Rotation growth is intentionally non-negative: a
+   * negative value would make farther cards flatter than nearer cards,
+   * reversing the CoverFlow depth hierarchy. Split by tier for the same
+   * reason cardDistanceRatio above is; all three default to the same value,
+   * byte-identical to today until an operator diverges a tier. */
+  rotationDistanceGrowthPercent: number;
+  /** Tablet — >= 768px. Independently tunable, same fallback rule as every
+   * other tiered field above. */
+  rotationDistanceGrowthPercentMd: number;
+  /** Desktop — >= 1024px. Same independence as rotationDistanceGrowthPercentMd. */
+  rotationDistanceGrowthPercentLg: number;
+  /** When true, the immediate neighbour is the first term of the same
+   * percentage series as every farther card. This is the default because it
+   * gives every inactive index one consistent rotation rule. */
+  rotationGrowthIncludesFirstNeighbor: boolean;
+  /** Opt-in reverse-face rendering for the full rotating card plane. False
+   * culls the card's entire reverse side (shell, gradient, and content),
+   * preventing mirrored UI from appearing once the card turns away. */
+  showCardBackface: boolean;
   /** Signed-looking distance progression is intentionally represented as a
    * non-negative blend step: each inactive position *past the first* (see
    * below) adds this fraction of the remaining distance toward the caller's
@@ -97,7 +197,24 @@ export type CoverFlowConfig = {
    * as a visible snap/brighten rather than a receding, secondary element.
    * Zero preserves every card's hover ceiling on both engines exactly as
    * configured regardless of distance (opt-out, byte-identical to every
-   * caller before this field existed). */
+   * caller before this field existed).
+   *
+   * PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md: also drives a SECOND,
+   * independent taper covering exactly the region the discrete formula
+   * above exempts (distance 0-1, the active card and its immediate
+   * neighbor) — `AbstractJournalLabCollection.tsx`'s own continuous
+   * `1 - min(1, distanceFromActiveLive * step)`, which recedes
+   * `useCardLiftPhysics`'s own lift ceiling smoothly as a card's LIVE,
+   * fractional position approaches the neighbor slot (during a drag/settle,
+   * not only after the discrete role change lands). Raising this past `1`
+   * has no effect on the discrete formula above (it already saturates at
+   * `step >= 1` for every distance it applies to, `Math.min(1, ...)`
+   * clamping it to the same output regardless of how far past 1 `step`
+   * goes) — so this ceiling is safe to raise purely to make the continuous
+   * curve reach zero at a smaller fraction of the distance-to-neighbor
+   * range (more "aggressive": e.g. `step: 3` zeroes the lift ceiling by the
+   * time a card is a third of the way toward the neighbor slot, rather than
+   * needing the full distance). */
   inactiveCardHoverAmplitudeStep: number;
   /** Opt-in (default off): lets CoverFlow's own navigation drive the narrow
    * column's scroll-gradient saturation/darkness toward
@@ -338,6 +455,127 @@ export type CoverFlowConfig = {
    * pushing well past that, even up to this field's own max, only extends
    * an already-flat hold at both ends rather than adding character. */
   gaussianSettleSteepness: number;
+  /** Opt-in, default 'center' at every tier (byte-identical to today — the
+   * matching activeCardLandingXPercent* is inert while its own tier is
+   * 'center'). Decides what the REST of the stack does while the active
+   * card moves to this tier's activeCardLandingXPercent*:
+   * 'anchorShift' carries every card along by the same constant (today's
+   * spacing rhythm — centerGap/stackSpacing — preserved exactly, just
+   * recentered; since CoverFlow already renders every item unconditionally
+   * and relies on the container's own overflow-hidden edge to clip
+   * whatever doesn't fit, freed space on the side the anchor moved away
+   * from automatically reveals more neighbour cards there, no extra
+   * rendering logic required). 'activeOnly' moves just the active card
+   * (and its live transition into/out of that slot), tapering to zero by
+   * the immediate-neighbour slot (|pos| === 1) so every other card's rest
+   * position is untouched — the tradeoff being an intentionally asymmetric
+   * gap on whichever side the active card moved toward.
+   * PLAN-COVERFLOW-ACTIVE-CARD-LANDING-POSITION.md. */
+  activeCardLandingMode: 'center' | 'anchorShift' | 'activeOnly';
+  /** Tablet — >= 768px. Independent of the base value above; a missing/
+   * invalid persisted value falls back to THIS tier's own default, never to
+   * the mobile value — same rule every other tiered field in this config
+   * already follows. */
+  activeCardLandingModeMd: 'center' | 'anchorShift' | 'activeOnly';
+  /** Desktop — >= 1024px. Same independence as activeCardLandingModeMd. */
+  activeCardLandingModeLg: 'center' | 'anchorShift' | 'activeOnly';
+  /** 0-100, percent of the container's own measured width — where the
+   * active card lands, mobile tier. 50 (default) is today's exact center.
+   * Only has an effect while activeCardLandingMode (this tier) is not
+   * 'center'. */
+  activeCardLandingXPercent: number;
+  /** Tablet — >= 768px. Same 0-100/50-default shape, independently
+   * tunable, gated by activeCardLandingModeMd instead of the base mode. */
+  activeCardLandingXPercentMd: number;
+  /** Desktop — >= 1024px. Same shape, gated by activeCardLandingModeLg. */
+  activeCardLandingXPercentLg: number;
+  /** Opt-in tablet/desktop layout bridge: the active card's rendered right
+   * edge follows the real right edge of the primary navigation. This takes
+   * precedence over the percentage landing position at its tier. */
+  alignActiveCardRightToMainNavMd: boolean;
+  alignActiveCardRightToMainNavLg: boolean;
+  /** Opt-in: vertically translates the complete CoverFlow composition so its
+   * center follows the visible browser viewport rather than only its parent
+   * column's height. Card geometry itself is not recomputed. */
+  alignToVisibleViewportCenterMd: boolean;
+  alignToVisibleViewportCenterLg: boolean;
+  /** Opt-in (default false, byte-identical to today): resolve the initial
+   * active index as the LAST item — as if the list had already been fully
+   * navigated once — instead of the first. "Last" means the last position
+   * in the order the list is actually NAVIGATED in, i.e. AFTER
+   * `reverseItemOrder` below has been applied, not the caller's raw array
+   * order — see `resolveCoverFlowStartIndex` below, the one place this
+   * combination is resolved. CoverFlow.tsx itself never reads this field
+   * directly — like narrowColumnGradientOnNavigateEnabledLg above, it
+   * doesn't own the starting index at all; it's a fully-controlled
+   * `activeIndex` prop. The actual wiring lives at the caller's own
+   * initial-index resolution (pages/abstract.tsx's own
+   * useArticleListCoverFlowSync call), which resolves this flag once, at
+   * mount, via `resolveCoverFlowStartIndex` — flipping it later
+   * re-navigates like any other external activeIndex change, it does not
+   * re-trigger on every items-array change. */
+  startAtEndOfList: boolean;
+  /** Opt-in (default false, byte-identical to today): reverses the ORDER
+   * CoverFlow renders/navigates whatever `items` array its caller passes
+   * in — a purely positional flip, generic over any item shape, unlike
+   * content-aware sorting (by date, title, etc.), which stays the caller's
+   * own concern (e.g. pages/abstract.tsx's own
+   * abstractTimelineContentConfig.order) since CoverFlow itself never reads
+   * an item's fields. CoverFlow.tsx applies this at its own external
+   * boundary: `activeIndex`, `onActiveIndexChange`, `onItemClick`, and the
+   * index a `renderItem` implementation receives all stay in the CALLER's
+   * original array order regardless of this flag — only which item sits at
+   * which on-screen position (and therefore navigation direction) flips.
+   * NOT independent of `startAtEndOfList` above: "reverse the order" means
+   * exactly that — a reorder, nothing else — so the LAST item of the
+   * navigated (reversed) sequence is necessarily a DIFFERENT article than
+   * the last item of the caller's raw array (operator-reported: resolving
+   * `startAtEndOfList` against the raw array instead landed on the item
+   * that's now FIRST in the reversed order, collapsing "start at the end"
+   * into "start at the start" the moment this flag was also on — the two
+   * features fought each other instead of composing). See
+   * `resolveCoverFlowStartIndex` below for the one place that composes
+   * them correctly. */
+  reverseItemOrder: boolean;
+  /** Opt-in (default false, byte-identical to today): progressively fades out
+   * the inactive cards to the LEFT of the active card as they recede. The
+   * fade is normalized over exactly the number of inactive cards currently
+   * VISIBLE to the left of the active card (derived live from the resolved
+   * card geometry and the measured container width — see CoverFlow.tsx's own
+   * `resolveVisibleLeftCardCount`), so the opacity steps down evenly and the
+   * LEFTMOST still-visible card reaches `leftFadeMinOpacity` below exactly at
+   * the edge of the viewport, regardless of how many cards happen to fit at
+   * the current width/spacing. Only the left side is touched: the active card
+   * and every card to its right stay fully opaque. Continuous in each card's
+   * live, fractional distance from active (same `pos = index - scrollX` the
+   * x/rotateY/z transforms already derive every frame), so a drag/settle
+   * fades smoothly rather than stepping at integer positions. */
+  leftFadeEnabled: boolean;
+  /** Only meaningful while `leftFadeEnabled` above is true. The opacity the
+   * leftmost currently-visible inactive card settles at — 0 (default) fades
+   * it fully to invisible by the viewport edge; a higher value leaves the
+   * far cards partially visible. 0-1. */
+  leftFadeMinOpacity: number;
+  /** Turns the carousel into a seamless infinite loop. It is enabled in the
+   * shipped composition so card supply remains continuous at both ends;
+   * setting it false restores bounded navigation. Instead of clamping the position to
+   * `[0, itemCount - 1]`, each real card is rendered at its NEAREST wrapped
+   * copy around the current position (`wrapDelta(index - position, itemCount)`
+   * in CoverFlow.tsx), so both sides of the active card always stay populated
+   * — the same cards act as the "runway" as they wrap around, never leaving an
+   * empty edge, and there is no special end-of-list state to reach: navigating
+   * past the last card continues straight onto the first and vice versa. The
+   * reported `activeIndex` (via `onActiveIndexChange`) always stays a normal
+   * `[0, itemCount)` index, so a paired list/timeline follows a loop back to
+   * item 0 through its own existing active-index handling (e.g. AboutTimeline's
+   * bring-active-row-into-view scroll) with no extra wiring. Applies to the
+   * component's own internal navigation (drag, wheel, click-to-snap,
+   * keyboard/programmatic `activeIndex` changes); an externally-driven
+   * instance (the mobile pinned scroll-sync) is unaffected — its position is
+   * owned by the parent. Needs enough items to fill the visible runway on both
+   * sides; with very few items the same card can appear on both sides at once
+   * (inherent to wrapping a short pool). */
+  infiniteLoopEnabled: boolean;
 };
 
 const DEFAULT_CARD_WIDTH_RATIO = 0.62;
@@ -351,25 +589,61 @@ export const ACTIVATION_RAMP_REFERENCE_DURATION_MS = 800;
 
 export const DEFAULT_COVER_FLOW_CONFIG = {
   cardDistanceRatio: 1.5,
-  cardDistanceRatioMd: 1.1,
-  cardDistanceRatioLg: 1.5,
-  cardWidthRatio: 0.83,
-  cardWidthRatioMd: DEFAULT_CARD_WIDTH_RATIO,
-  cardWidthRatioLg: 0.1,
+  cardDistanceRatioMd: 1.37,
+  cardDistanceRatioLg: 0.64,
+  cardWidthRatio: 0.75,
+  cardWidthRatioMd: 0.45,
+  cardWidthRatioLg: 0.4,
+  maxCardHeightPx: 1560,
+  maxCardHeightPxMd: 520,
+  maxCardHeightPxLg: 540,
   cardAspectRatio: 4 / 3,
   stackSpacingToCenterGapRatio: 2,
-  rotationDeg: 40,
+  stackSpacingToCenterGapRatioMd: 2,
+  stackSpacingToCenterGapRatioLg: 2,
+  stackSpacingGrowthPercent: 1,
+  stackSpacingGrowthPercentMd: 59,
+  stackSpacingGrowthPercentLg: -1,
+  stackSpacingGrowthIncludesFirstNeighbor: true,
+  // Each inactive index is one term in the same positive percentage series:
+  // 12, 24, 48deg cap. The active card remains at 0deg; keeping the cap at
+  // the last reliably narrowing angle prevents far cards from widening
+  // again through perspective distortion.
+  rotationDeg: 25,
+  rotationDistributionMode: 'compounding',
+  rotationProgressionMode: 'recede',
+  rotationMaxDeg: 90,
+  rotationMaxDegMd: 90,
+  rotationMaxDegLg: 90,
+  rotationSpreadDepth: 7,
+  rotationSpreadExponent: 0.25,
+  rotationDistanceGrowthPercent: 100,
+  rotationDistanceGrowthPercentMd: 138,
+  rotationDistanceGrowthPercentLg: 200,
+  rotationGrowthIncludesFirstNeighbor: true,
+  showCardBackface: false,
   inactiveCardColumnDarkeningStep: 1,
-  inactiveCardHoverAmplitudeStep: 1,
-  narrowColumnGradientOnNavigateEnabledLg: true,
+  // Was 1 — operator-reported: even after PLAN-COVERFLOW-CONTINUOUS-LIFT-
+  // DAMPING.md, a drag-release still showed a smaller-but-visible lift
+  // pop, because at step 1 the continuous lift ceiling (see this field's
+  // own doc comment) only reaches exactly 0 once the card's live drag
+  // position has traveled the FULL distance to the neighbor slot — most
+  // real gestures (quick drags, velocity-projected snaps) release well
+  // before that. 3 zeroes the lift ceiling by a third of the way there,
+  // giving realistic gestures enough runway to already be fully damped by
+  // release. Has no effect on the discrete hologram/CTA-ceiling taper this
+  // same field also drives (already saturated at step >= 1 for the
+  // distances it applies to — see this field's own doc comment).
+  inactiveCardHoverAmplitudeStep: 3,
+  narrowColumnGradientOnNavigateEnabledLg: false,
   narrowColumnGradientSaturationOnNavigateLg: 1.3,
   narrowColumnGradientDarknessOnNavigateLg: 0.04,
-  perspectivePx: 2440,
+  perspectivePx: 1010,
   perspectiveOriginXPercent: 50,
   perspectiveOriginYPercent: 50,
-  depthPxAtReferenceWidth: 0,
+  depthPxAtReferenceWidth: 290,
   referenceWidthPx: 1000,
-  minCardWidthPx: 400,
+  minCardWidthPx: 355,
   enableClickToSnap: true,
   enableScroll: true,
   // Matches the prior accumulator model's own gap-reset constant exactly —
@@ -396,7 +670,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   cardRevealExitDurationMs: 320,
   cardRevealExitEasingCss: 'ease-out',
   settleMotionCurve: 'gaussian',
-  gaussianSettleBaseDurationMs: 1120,
+  gaussianSettleBaseDurationMs: 980,
   gaussianSettlePerStepDurationMs: 290,
   gaussianSettleMaxDurationMs: 1290,
   // Was 5 — inside the erf-saturated zone where the curve's first/last ~10%
@@ -405,22 +679,115 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   // solidly in the range where raising or lowering this value actually
   // changes what's on screen.
   gaussianSettleSteepness: 4.2,
+  activeCardLandingMode: 'center',
+  activeCardLandingModeMd: 'activeOnly',
+  activeCardLandingModeLg: 'anchorShift',
+  activeCardLandingXPercent: 50,
+  activeCardLandingXPercentMd: 74,
+  activeCardLandingXPercentLg: 72,
+  alignActiveCardRightToMainNavMd: false,
+  alignActiveCardRightToMainNavLg: true,
+  alignToVisibleViewportCenterMd: true,
+  alignToVisibleViewportCenterLg: true,
+  startAtEndOfList: true,
+  reverseItemOrder: true,
+  // A loop has no terminal edge. Fading the left runway makes the wrapped
+  // successor cards disappear precisely when the final card is selected,
+  // defeating the continuity cue the loop is meant to provide.
+  leftFadeEnabled: true,
+  leftFadeMinOpacity: 0.5,
+  // A CoverFlow has no meaningful terminal state: reaching the final story
+  // must preserve the same populated left runway as every other position.
+  infiniteLoopEnabled: false,
 } satisfies CoverFlowConfig;
 
 const CARD_DISTANCE_RATIO_MIN = 0.2;
-const CARD_DISTANCE_RATIO_MAX = 1.5;
+// Was 1.5 — too low for an operator to ever push a neighbour fully off
+// screen: a neighbour only clears the container edge once cardDistanceRatio
+// >= 0.5 + (containerWidthPx / 2) / itemWidth, which at this tier's typical
+// resolved card width (~400-450px against a ~900px container) lands around
+// 1.6-1.7, above the old ceiling. 2.5 gives comfortable headroom past that
+// threshold without disproportionately widening the range (operator ask —
+// "make both inactive cards slide out of view but respect the current
+// motion": raising this ratio only moves each card's RESTING position
+// further along the same pos * centerGap formula the spring/gaussian
+// settle already animates, so drag/click/wheel motion is unaffected).
+const CARD_DISTANCE_RATIO_MAX = 2.5;
 const CARD_WIDTH_RATIO_MIN = 0.1;
 const CARD_WIDTH_RATIO_MAX = 1;
+export const MAX_CARD_HEIGHT_PX_MIN = 0;
+export const MAX_CARD_HEIGHT_PX_MAX = 2400;
+
+/** Apply the optional height ceiling without distorting the card. This may
+ * reduce width below minCardWidthPx: an explicit max height wins over the
+ * width floor when the two constraints conflict. */
+export function capCoverFlowCardSize(
+  widthPx: number,
+  aspectRatio: number,
+  maxHeightPx: number,
+): { width: number; height: number } {
+  const heightPx = widthPx * aspectRatio;
+  return maxHeightPx > 0 && heightPx > maxHeightPx
+    ? { width: maxHeightPx / aspectRatio, height: maxHeightPx }
+    : { width: widthPx, height: heightPx };
+}
+
+/** The one place `startAtEndOfList` and `reverseItemOrder` compose. Returns
+ * an index into the CALLER's own, un-reversed `items` array (the same index
+ * space `CoverFlow`'s own `activeIndex`/`onActiveIndexChange` props already
+ * use — see `reverseItemOrder`'s own doc comment) that lands on whichever
+ * item ends up LAST once CoverFlow's internal reversal (if any) is applied.
+ * `reverseItemOrder` reorders the caller's array for navigation only — it
+ * does not change what "last" means, so the item that satisfies "the end of
+ * the list" necessarily changes too: with the order reversed, the caller's
+ * own item 0 is what now sits last. Without this, resolving
+ * `startAtEndOfList` against the caller's raw array length (today's default,
+ * `itemCount - 1`) instead lands on the item that `reverseItemOrder` just
+ * moved to the FRONT, collapsing "start at the end" into "start at the
+ * start" the moment both flags are on together (operator-reported,
+ * screenshot). */
+export function resolveCoverFlowStartIndex(
+  config: Pick<CoverFlowConfig, 'startAtEndOfList' | 'reverseItemOrder'>,
+  itemCount: number,
+): number {
+  if (itemCount <= 0 || !config.startAtEndOfList) return 0;
+  return config.reverseItemOrder ? 0 : itemCount - 1;
+}
+
 const PERSPECTIVE_PX_MIN = 200;
 const PERSPECTIVE_PX_MAX = 4000;
 const PERSPECTIVE_ORIGIN_PERCENT_MIN = -50;
 const PERSPECTIVE_ORIGIN_PERCENT_MAX = 150;
 const ROTATION_DEG_MIN = 0;
 const ROTATION_DEG_MAX = 90;
+const ROTATION_SPREAD_DEPTH_MIN = 1;
+const ROTATION_SPREAD_DEPTH_MAX = 20;
+const ROTATION_SPREAD_EXPONENT_MIN = 0.25;
+const ROTATION_SPREAD_EXPONENT_MAX = 4;
+const ROTATION_DISTRIBUTION_MODES: ReadonlyArray<CoverFlowConfig['rotationDistributionMode']> = [
+  'spread', 'compounding',
+];
+const ROTATION_PROGRESSION_MODES: ReadonlyArray<CoverFlowConfig['rotationProgressionMode']> = [
+  'recede', 'invert',
+];
+// Negative values would shrink spacing/rotation per step instead of
+// growing it (the inverse of "rhythmic distribution"), which is a coherent
+// enough request to allow rather than reject — the ceiling just keeps a
+// handful of cards from compounding into an absurd, off-screen spread.
+const DISTANCE_GROWTH_PERCENT_MIN = -90;
+const DISTANCE_GROWTH_PERCENT_MAX = 200;
+const ROTATION_GROWTH_PERCENT_MIN = 0;
+const ROTATION_GROWTH_PERCENT_MAX = 200;
 const INACTIVE_CARD_COLUMN_DARKENING_STEP_MIN = 0;
 const INACTIVE_CARD_COLUMN_DARKENING_STEP_MAX = 1;
 const INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MIN = 0;
-const INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MAX = 1;
+// Was 1 — raised so the continuous lift-damping curve this field also
+// drives (PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md) can be tuned to zero
+// out well before a card's live position reaches the neighbor slot. Safe
+// for the discrete hologram/CTA-ceiling taper this field predates: that
+// formula already saturates at step >= 1 for every distance it applies to,
+// so nothing above 1 changes its output.
+const INACTIVE_CARD_HOVER_AMPLITUDE_STEP_MAX = 4;
 // Same range PolymorphicLayout.config.ts's own
 // scrollGradientNarrowColumnSaturationLg clamps to — this is a target for
 // that exact field, not an independent scale.
@@ -468,6 +835,21 @@ const GAUSSIAN_SETTLE_STEEPNESS_MIN = 0.5;
 // field's own doc comment for why headroom this high can matter at typical
 // (sub-second) settle durations.
 const GAUSSIAN_SETTLE_STEEPNESS_MAX = 10;
+const ACTIVE_CARD_LANDING_X_PERCENT_MIN = 0;
+const ACTIVE_CARD_LANDING_X_PERCENT_MAX = 100;
+const LEFT_FADE_MIN_OPACITY_MIN = 0;
+const LEFT_FADE_MIN_OPACITY_MAX = 1;
+const ACTIVE_CARD_LANDING_MODES: ReadonlyArray<CoverFlowConfig['activeCardLandingMode']> = [
+  'center', 'anchorShift', 'activeOnly',
+];
+const landingMode = (
+  value: unknown,
+  fallback: CoverFlowConfig['activeCardLandingMode'],
+): CoverFlowConfig['activeCardLandingMode'] => (
+  ACTIVE_CARD_LANDING_MODES.includes(value as CoverFlowConfig['activeCardLandingMode'])
+    ? value as CoverFlowConfig['activeCardLandingMode']
+    : fallback
+);
 
 export function normalizeCoverFlowConfig(
   config: Partial<CoverFlowConfig> | undefined,
@@ -480,11 +862,58 @@ export function normalizeCoverFlowConfig(
     cardWidthRatio: clamp(base.cardWidthRatio, CARD_WIDTH_RATIO_MIN, CARD_WIDTH_RATIO_MAX),
     cardWidthRatioMd: clamp(base.cardWidthRatioMd, CARD_WIDTH_RATIO_MIN, CARD_WIDTH_RATIO_MAX),
     cardWidthRatioLg: clamp(base.cardWidthRatioLg, CARD_WIDTH_RATIO_MIN, CARD_WIDTH_RATIO_MAX),
+    maxCardHeightPx: clamp(base.maxCardHeightPx, MAX_CARD_HEIGHT_PX_MIN, MAX_CARD_HEIGHT_PX_MAX),
+    maxCardHeightPxMd: clamp(base.maxCardHeightPxMd, MAX_CARD_HEIGHT_PX_MIN, MAX_CARD_HEIGHT_PX_MAX),
+    maxCardHeightPxLg: clamp(base.maxCardHeightPxLg, MAX_CARD_HEIGHT_PX_MIN, MAX_CARD_HEIGHT_PX_MAX),
     cardAspectRatio: clamp(base.cardAspectRatio, CARD_ASPECT_RATIO_MIN, CARD_ASPECT_RATIO_MAX),
     stackSpacingToCenterGapRatio: clamp(
       base.stackSpacingToCenterGapRatio, STACK_SPACING_RATIO_MIN, STACK_SPACING_RATIO_MAX,
     ),
+    stackSpacingToCenterGapRatioMd: clamp(
+      base.stackSpacingToCenterGapRatioMd, STACK_SPACING_RATIO_MIN, STACK_SPACING_RATIO_MAX,
+    ),
+    stackSpacingToCenterGapRatioLg: clamp(
+      base.stackSpacingToCenterGapRatioLg, STACK_SPACING_RATIO_MIN, STACK_SPACING_RATIO_MAX,
+    ),
+    stackSpacingGrowthPercent: clamp(
+      base.stackSpacingGrowthPercent, DISTANCE_GROWTH_PERCENT_MIN, DISTANCE_GROWTH_PERCENT_MAX,
+    ),
+    stackSpacingGrowthPercentMd: clamp(
+      base.stackSpacingGrowthPercentMd, DISTANCE_GROWTH_PERCENT_MIN, DISTANCE_GROWTH_PERCENT_MAX,
+    ),
+    stackSpacingGrowthPercentLg: clamp(
+      base.stackSpacingGrowthPercentLg, DISTANCE_GROWTH_PERCENT_MIN, DISTANCE_GROWTH_PERCENT_MAX,
+    ),
+    stackSpacingGrowthIncludesFirstNeighbor: Boolean(base.stackSpacingGrowthIncludesFirstNeighbor),
     rotationDeg: clamp(base.rotationDeg, ROTATION_DEG_MIN, ROTATION_DEG_MAX),
+    rotationDistributionMode: ROTATION_DISTRIBUTION_MODES.includes(base.rotationDistributionMode)
+      ? base.rotationDistributionMode
+      : DEFAULT_COVER_FLOW_CONFIG.rotationDistributionMode,
+    rotationProgressionMode: ROTATION_PROGRESSION_MODES.includes(base.rotationProgressionMode)
+      ? base.rotationProgressionMode
+      : DEFAULT_COVER_FLOW_CONFIG.rotationProgressionMode,
+    rotationMaxDeg: clamp(base.rotationMaxDeg, ROTATION_DEG_MIN, ROTATION_DEG_MAX),
+    rotationMaxDegMd: clamp(base.rotationMaxDegMd, ROTATION_DEG_MIN, ROTATION_DEG_MAX),
+    rotationMaxDegLg: clamp(base.rotationMaxDegLg, ROTATION_DEG_MIN, ROTATION_DEG_MAX),
+    rotationSpreadDepth: Math.round(clamp(
+      base.rotationSpreadDepth, ROTATION_SPREAD_DEPTH_MIN, ROTATION_SPREAD_DEPTH_MAX,
+    )),
+    rotationSpreadExponent: clamp(
+      base.rotationSpreadExponent, ROTATION_SPREAD_EXPONENT_MIN, ROTATION_SPREAD_EXPONENT_MAX,
+    ),
+    rotationDistanceGrowthPercent: clamp(
+      base.rotationDistanceGrowthPercent, ROTATION_GROWTH_PERCENT_MIN, ROTATION_GROWTH_PERCENT_MAX,
+    ),
+    rotationDistanceGrowthPercentMd: clamp(
+      base.rotationDistanceGrowthPercentMd, ROTATION_GROWTH_PERCENT_MIN, ROTATION_GROWTH_PERCENT_MAX,
+    ),
+    rotationDistanceGrowthPercentLg: clamp(
+      base.rotationDistanceGrowthPercentLg, ROTATION_GROWTH_PERCENT_MIN, ROTATION_GROWTH_PERCENT_MAX,
+    ),
+    rotationGrowthIncludesFirstNeighbor: Boolean(base.rotationGrowthIncludesFirstNeighbor),
+    // Reverse-face rendering is deliberately an explicit opt-in: persisted
+    // truthy values do not accidentally expose a mirrored card.
+    showCardBackface: base.showCardBackface === true,
     inactiveCardColumnDarkeningStep: clamp(
       base.inactiveCardColumnDarkeningStep,
       INACTIVE_CARD_COLUMN_DARKENING_STEP_MIN,
@@ -571,5 +1000,34 @@ export function normalizeCoverFlowConfig(
     gaussianSettleSteepness: clamp(
       base.gaussianSettleSteepness, GAUSSIAN_SETTLE_STEEPNESS_MIN, GAUSSIAN_SETTLE_STEEPNESS_MAX,
     ),
+    activeCardLandingMode: landingMode(
+      base.activeCardLandingMode, DEFAULT_COVER_FLOW_CONFIG.activeCardLandingMode,
+    ),
+    activeCardLandingModeMd: landingMode(
+      base.activeCardLandingModeMd, DEFAULT_COVER_FLOW_CONFIG.activeCardLandingModeMd,
+    ),
+    activeCardLandingModeLg: landingMode(
+      base.activeCardLandingModeLg, DEFAULT_COVER_FLOW_CONFIG.activeCardLandingModeLg,
+    ),
+    activeCardLandingXPercent: clamp(
+      base.activeCardLandingXPercent, ACTIVE_CARD_LANDING_X_PERCENT_MIN, ACTIVE_CARD_LANDING_X_PERCENT_MAX,
+    ),
+    activeCardLandingXPercentMd: clamp(
+      base.activeCardLandingXPercentMd, ACTIVE_CARD_LANDING_X_PERCENT_MIN, ACTIVE_CARD_LANDING_X_PERCENT_MAX,
+    ),
+    activeCardLandingXPercentLg: clamp(
+      base.activeCardLandingXPercentLg, ACTIVE_CARD_LANDING_X_PERCENT_MIN, ACTIVE_CARD_LANDING_X_PERCENT_MAX,
+    ),
+    alignActiveCardRightToMainNavMd: base.alignActiveCardRightToMainNavMd === true,
+    alignActiveCardRightToMainNavLg: base.alignActiveCardRightToMainNavLg === true,
+    alignToVisibleViewportCenterMd: base.alignToVisibleViewportCenterMd === true,
+    alignToVisibleViewportCenterLg: base.alignToVisibleViewportCenterLg === true,
+    startAtEndOfList: base.startAtEndOfList === true,
+    reverseItemOrder: base.reverseItemOrder === true,
+    leftFadeEnabled: base.leftFadeEnabled === true,
+    leftFadeMinOpacity: clamp(
+      base.leftFadeMinOpacity, LEFT_FADE_MIN_OPACITY_MIN, LEFT_FADE_MIN_OPACITY_MAX,
+    ),
+    infiniteLoopEnabled: base.infiniteLoopEnabled === true,
   };
 }

@@ -50,11 +50,42 @@ export interface AboutBulletMarkerProps {
    * preserves `AboutTimelineRow.tsx`'s own exact original behavior. */
   overlay?: boolean;
   markerRef?: Ref<HTMLSpanElement>;
+  /** 'dot' (default): the existing hollow/filled circle. 'page': a small
+   * plain-document glyph instead (bordered rectangle + corner tab, outline
+   * while inactive and filled while active — see `DocumentMarkerGlyph`'s
+   * own doc comment) — same currentColor + opacity state signal as the dot,
+   * no icon library dependency. */
+  shape?: 'dot' | 'page';
   /** Optional gradient-fill canvas (e.g. `LiquidGradientAdapter`), rendered
    * inside the circle and clipped to it — see `.markerGradientBleed`'s own
    * doc comment (AboutBulletMarker.module.css) for why passing children at
-   * all changes the clip margin. */
+   * all changes the clip margin. Ignored while `shape` is 'page' (no circle
+   * to clip a canvas into). */
   children?: ReactNode;
+}
+
+/** The 'page' shape's own glyph — a plain document: a vertical (4:5)
+ * rectangle with a 1px outline and no fill, plus a small solid tab in its
+ * top-right corner (a minimal stand-in for a folded/dog-eared corner).
+ * Pure CSS/HTML (two `<span>`s — border + an absolutely-positioned corner
+ * block), not SVG: no icon library is installed in this repo, and this
+ * shape's geometry (a bordered box plus one small solid rectangle) needs
+ * nothing an SVG path would do more simply. Inactive: outline + corner tab
+ * only, mirroring the dot's hollow ring. Active: the whole rectangle fills
+ * solid (`background-color: currentColor`, `.documentGlyphActive`) — the
+ * corner tab is still present underneath but reads as invisible once it's
+ * the exact same solid color as the rectangle around it, so no separate
+ * "hide the corner" logic is needed. Same "fill alone carries the state"
+ * signal the dot marker already uses (A11Y-04), not a second color. */
+function DocumentMarkerGlyph({ active }: { active: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`${styles.documentGlyph} ${active ? styles.documentGlyphActive : ''}`}
+    >
+      <span className={styles.documentGlyphCorner} />
+    </span>
+  );
 }
 
 /**
@@ -67,15 +98,16 @@ export interface AboutBulletMarkerProps {
  */
 export function AboutBulletMarker({
   active, sizePx, color, opacity, transitionMs, transitionEasingCss, transitionDelayMs, scale,
-  className, overlay, markerRef, children,
+  className, overlay, markerRef, shape = 'dot', children,
 }: AboutBulletMarkerProps) {
+  const isPage = shape === 'page';
   return (
     <span
       ref={markerRef}
       aria-hidden="true"
       className={
-        `${styles.marker} ${active ? styles.markerActive : ''} `
-        + `${children ? styles.markerGradientBleed : ''} ${className ?? ''}`
+        `${isPage ? styles.markerPage : styles.marker} ${active ? styles.markerActive : ''} `
+        + `${!isPage && children ? styles.markerGradientBleed : ''} ${className ?? ''}`
       }
       style={{
         color,
@@ -88,7 +120,7 @@ export function AboutBulletMarker({
         ...(overlay ? { position: 'absolute', inset: 0, margin: 'auto' } : {}),
       } as CSSProperties}
     >
-      {children}
+      {isPage ? <DocumentMarkerGlyph active={active} /> : children}
     </span>
   );
 }

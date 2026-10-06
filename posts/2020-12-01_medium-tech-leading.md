@@ -1,6 +1,6 @@
 ---
-title: Five years of tech leading, unfiltered
-excerpt: "The recognition and the freedom, alongside the noise absorbed, the accountability carried, and the time given up. Worth it anyway."
+title: "Five years as a tech lead: accountability and team ownership"
+excerpt: "A candid retrospective on the role's rewards (influence, exposure, recognition) and its costs (absorbing stakeholder pressure, taking the blame), with the recurring lesson being to distribute ownership across the team."
 author: "Manu"
 url: https://abstractvoyage.medium.com/the-technical-leads-path-a-retrospective-to-my-first-5-years-leading-people-21e44e690aff
 source:
@@ -8,9 +8,8 @@ source:
     url: https://abstractvoyage.medium.com/the-technical-leads-path-a-retrospective-to-my-first-5-years-leading-people-21e44e690aff
     originallyPublished: "2020-12-01"
 tags:
-    - Career Growth
-    - Engineering Management
-    - Technical Leadership
+    - Tech Leadership
+    - Engineering
 featured: true
 ---
 

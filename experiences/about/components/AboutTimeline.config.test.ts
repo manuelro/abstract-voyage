@@ -28,4 +28,34 @@ describe('AboutTimeline introduction config', () => {
       introItemOverlapMs: 2_000,
     });
   });
+
+  it('keeps window controls opt-in and normalizes each responsive tier independently', () => {
+    expect(DEFAULT_ABOUT_TIMELINE_CONFIG).toMatchObject({
+      scrollWindowCounterEnabled: false,
+      scrollWindowCounterEnabledWide: false,
+      scrollWindowCounterEnabledLg: false,
+      scrollWindowArrowsEnabled: false,
+      scrollWindowArrowsEnabledWide: false,
+      scrollWindowArrowsEnabledLg: false,
+    });
+
+    const normalized = normalizeAboutTimelineConfig({
+      scrollWindowCounterEnabled: true,
+      scrollWindowArrowsEnabledWide: true,
+      scrollWindowControlsPositionLg: 'top',
+      scrollWindowControlsPositionWide: 'not-a-position' as never,
+    });
+
+    expect(normalized).toMatchObject({
+      scrollWindowCounterEnabled: true,
+      scrollWindowCounterEnabledWide: false,
+      scrollWindowCounterEnabledLg: false,
+      scrollWindowArrowsEnabled: false,
+      scrollWindowArrowsEnabledWide: true,
+      scrollWindowArrowsEnabledLg: false,
+      scrollWindowControlsPosition: 'bottom',
+      scrollWindowControlsPositionWide: 'bottom',
+      scrollWindowControlsPositionLg: 'top',
+    });
+  });
 });

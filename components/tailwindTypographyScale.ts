@@ -1,4 +1,5 @@
 /** Literal Tailwind typography tokens shared by referential config scopes. */
+/** @deprecated New config fields must use the global `fontSize` utility via `createTailwindFieldFactory`. */
 export const FONT_SIZE_OPTIONS = [
   { label: 'text-xs', value: 'text-xs' }, { label: 'text-sm', value: 'text-sm' },
   { label: 'text-base', value: 'text-base' }, { label: 'text-lg', value: 'text-lg' },
@@ -6,6 +7,7 @@ export const FONT_SIZE_OPTIONS = [
   { label: 'text-3xl', value: 'text-3xl' }, { label: 'text-4xl', value: 'text-4xl' },
   { label: 'text-5xl', value: 'text-5xl' }, { label: 'text-6xl', value: 'text-6xl' },
 ] as const;
+/** @deprecated Use `TailwindTokenValue<'fontSize'>` for new or migrated config fields. */
 export type FontSizeClass = typeof FONT_SIZE_OPTIONS[number]['value'];
 
 /** `inherit` deliberately emits no class; the remaining values are literal
@@ -35,12 +37,14 @@ export const LG_FONT_SIZE_OPTIONS = [
 ] as const;
 export type LgFontSizeClass = typeof LG_FONT_SIZE_OPTIONS[number]['value'];
 
+/** @deprecated New config fields must use the global `fontWeight` utility via `createTailwindFieldFactory`. */
 export const FONT_WEIGHT_OPTIONS = [
   { label: 'font-normal', value: 'font-normal' },
   { label: 'font-medium', value: 'font-medium' },
   { label: 'font-semibold', value: 'font-semibold' },
   { label: 'font-bold', value: 'font-bold' },
 ] as const;
+/** @deprecated Use `TailwindTokenValue<'fontWeight'>` for new or migrated config fields. */
 export type FontWeightClass = typeof FONT_WEIGHT_OPTIONS[number]['value'];
 
 export const LEADING_OPTIONS = [

@@ -13,8 +13,7 @@ source:
     originallyPublished: "2017-01-15"
 tags:
     - Web Performance
-    - Compression
-    - Minification
+    - Frontend
 ---
 
 > Gzipping and minification are regarded by some as two alternative solutions for the same problem, but in reality, each one of these two processes do a very different task.

@@ -1,5 +1,4 @@
 import {
-  GAP_OPTIONS,
   MARGIN_LEFT_OPTIONS,
   MARGIN_TOP_OPTIONS,
   PADDING_LEFT_OPTIONS,
@@ -7,7 +6,6 @@ import {
   PADDING_Y_OPTIONS,
   MIN_HEIGHT_OPTIONS,
   tailwindSpacingTokenToPx,
-  type GapClass,
   type MarginLeftClass,
   type MarginTopClass,
   type MinHeightClass,
@@ -15,6 +13,11 @@ import {
   type PaddingXClass,
   type PaddingYClass,
 } from '../../../../../components/tailwindSpacingScale'
+import {
+  normalizeTailwindToken,
+  tailwindTokenCssValue,
+  type TailwindTokenValue,
+} from '../../../../../components/Panel/config/tailwindFields'
 import {
   FONT_WEIGHT_OPTIONS,
   FONT_SIZE_OPTIONS,
@@ -31,11 +34,21 @@ import type { CtaButtonMotionEasing } from '../../../../../components/CtaButton/
 import type { MarkdownContentFontFamily, MarkdownContentTextColorMode } from '../../MarkdownContent/config/registered'
 
 /** `resting` preserves the base link recipe while letting hover/current
- * states change only their contrast target or background treatment. */
+ * states change only their contrast target or background treatment. This is
+ * the preferred state source: one configured ToC ink remains the visual
+ * identity of every item, while each state is re-resolved for contrast
+ * against its own derived or custom surface. */
 export type TableOfContentsStateTextColorMode = 'resting' | MarkdownContentTextColorMode
 export type TableOfContentsStateBackgroundMode = 'transparent' | 'derived' | 'custom'
 
 export type TableOfContentsConfig = {
+  /** Responsive visibility. Each tier controls only its own viewport range. */
+  visibleBase: boolean
+  visibleSm: boolean
+  visibleMd: boolean
+  visibleLg: boolean
+  visibleXl: boolean
+  visibleXxl: boolean
   stickyBreathingGap: MarginTopClass
   maxWidth: MaxWidthClass
   labelFontFamily: MarkdownContentFontFamily
@@ -55,15 +68,33 @@ export type TableOfContentsConfig = {
   itemPaddingX: PaddingXClass
   itemPaddingY: PaddingYClass
   itemIndent: MarginLeftClass
-  itemGap: GapClass
+  /** Visual separation between rows. It is painted inside contiguous row hit
+   * targets, so moving the pointer through the gap immediately enters the
+   * adjacent item instead of passing through an uninteractive dead zone. */
+  itemGap: TailwindTokenValue<'gap'>
   coarsePointerMinHeight: MinHeightClass
   groupMarginTop: MarginTopClass
+  /**
+   * The single ink source for ToC items. Hover and current-section states
+   * default to `resting`, so this is passed through their contrast recipes
+   * instead of silently switching to a second, column-derived color.
+   */
   textColorMode: MarkdownContentTextColorMode
   textColor: string
   textMinContrast: number
   originalHueRetention: number
   hueShiftDegrees: number
   pigmentIntensity: number
+  /** Resting (inactive) item fill. Hover and current-section fills remain
+   * independent below, so each interaction state has its own recipe. */
+  defaultBackgroundMode: TableOfContentsStateBackgroundMode
+  defaultBackgroundColor: string
+  defaultBackgroundDarkSurfaceLightenAmount: number
+  defaultBackgroundLightSurfaceDarkenAmount: number
+  defaultBackgroundOriginalHueRetention: number
+  defaultBackgroundHueShiftDegrees: number
+  defaultBackgroundPigmentIntensity: number
+  defaultBackgroundOpacity: number
   hoverStateEnabled: boolean
   hoverTextColorMode: TableOfContentsStateTextColorMode
   hoverTextColor: string
@@ -131,6 +162,12 @@ export type TableOfContentsConfig = {
 }
 
 export const DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG = {
+  visibleBase: false,
+  visibleSm: false,
+  visibleMd: false,
+  visibleLg: true,
+  visibleXl: true,
+  visibleXxl: true,
   stickyBreathingGap: 'mt-0',
   maxWidth: 'max-w-xs',
   labelFontFamily: 'font-serif',
@@ -140,76 +177,89 @@ export const DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG = {
   labelIndent: 'pl-0',
   labelTextColorMode: 'column',
   labelTextColor: '#f5f5f5',
-  labelTextMinContrast: 7.5,
-  labelTextOriginalHueRetention: 0.3,
+  labelTextMinContrast: 14.5,
+  labelTextOriginalHueRetention: 0.26,
   labelTextHueShiftDegrees: 0,
-  labelTextPigmentIntensity: 0.72,
+  labelTextPigmentIntensity: 1.72,
   itemFontFamily: 'font-sans',
   itemFontSize: 'text-xs',
   itemLeading: 'leading-relaxed',
   itemPaddingX: 'px-3',
   itemPaddingY: 'py-2.5',
   itemIndent: 'ml-3',
-  itemGap: 'gap-0',
+  itemGap: 'gap-1',
   coarsePointerMinHeight: 'min-h-11',
   groupMarginTop: 'mt-5',
   textColorMode: 'column',
   textColor: '#f5f5f5',
-  textMinContrast: 3.2,
-  originalHueRetention: 0.23,
+  textMinContrast: 13.9,
+  originalHueRetention: 0.67,
   hueShiftDegrees: 0,
-  pigmentIntensity: 0.72,
+  pigmentIntensity: 1.22,
+  // The inactive default starts transparent, but retains a complete,
+  // independently configurable fill recipe rather than borrowing hover.
+  defaultBackgroundMode: 'transparent',
+  defaultBackgroundColor: '#402626',
+  defaultBackgroundDarkSurfaceLightenAmount: 0,
+  defaultBackgroundLightSurfaceDarkenAmount: 0,
+  defaultBackgroundOriginalHueRetention: 1,
+  defaultBackgroundHueShiftDegrees: 0,
+  defaultBackgroundPigmentIntensity: 1,
+  defaultBackgroundOpacity: 0,
   hoverStateEnabled: true,
-  hoverTextColorMode: 'column',
+  // Keep hover coupled to the same base ink as resting/current items. The
+  // hover recipe below still resolves it against the lifted hover surface,
+  // preserving contrast without introducing a second visual color.
+  hoverTextColorMode: 'resting',
   hoverTextColor: '#f5f5f5',
-  hoverTextMinContrast: 5.5,
-  hoverTextOriginalHueRetention: 0.15,
-  hoverTextHueShiftDegrees: 0,
-  hoverTextPigmentIntensity: 1.59,
+  hoverTextMinContrast: 7.8,
+  hoverTextOriginalHueRetention: 0.3,
+  hoverTextHueShiftDegrees: 20,
+  hoverTextPigmentIntensity: 1.15,
   hoverBackgroundMode: 'derived',
-  hoverBackgroundColor: '#f5f5f5',
-  hoverBackgroundDarkSurfaceLightenAmount: 0.55,
-  hoverBackgroundLightSurfaceDarkenAmount: 0.04,
-  hoverBackgroundOriginalHueRetention: 0.22,
+  hoverBackgroundColor: '#ffffff',
+  hoverBackgroundDarkSurfaceLightenAmount: 0.37,
+  hoverBackgroundLightSurfaceDarkenAmount: 0.23,
+  hoverBackgroundOriginalHueRetention: 0.41,
   hoverBackgroundHueShiftDegrees: 0,
-  hoverBackgroundPigmentIntensity: 1.65,
-  hoverBackgroundOpacity: 0.35,
+  hoverBackgroundPigmentIntensity: 1.21,
+  hoverBackgroundOpacity: 0.23,
   motionEnabled: true,
-  hoverEnterDelayMs: 150,
-  hoverEnterDurationMs: 550,
+  hoverEnterDelayMs: 50,
+  hoverEnterDurationMs: 70,
   hoverEnterEasing: 'gentle',
-  hoverExitHoldMs: 50,
+  hoverExitHoldMs: 40,
   hoverExitDelayMs: 40,
-  hoverExitDurationMs: 280,
-  hoverExitEasing: 'viscous',
+  hoverExitDurationMs: 90,
+  hoverExitEasing: 'gentle',
   hoverExitDamping: 0.9,
-  hoverStateOverlapMs: 20,
-  hoverExitInitialOpacity: 0.05,
+  hoverStateOverlapMs: 0,
+  hoverExitInitialOpacity: 0.11,
   activeSectionTrackingEnabled: true,
   activeSectionTrackingOffset: 'mt-4',
   activeSectionTrackingSettleMs: 140,
   activeEnterDurationMs: 500,
-  activeEnterEasing: 'viscous',
+  activeEnterEasing: 'gentle',
   activeTransitionOverlapMs: 100,
   activeExitDelayMs: 110,
   activeExitDurationMs: 680,
-  activeExitEasing: 'viscous',
+  activeExitEasing: 'gentle',
   activeExitOpacity: 0.35,
   colorTransitionRatio: 0.55,
   activeTextColorMode: 'resting',
   activeTextColor: '#f5f5f5',
-  activeTextMinContrast: 13.7,
-  activeTextOriginalHueRetention: 0.25,
+  activeTextMinContrast: 3,
+  activeTextOriginalHueRetention: 0.26,
   activeTextHueShiftDegrees: 0,
-  activeTextPigmentIntensity: 1.33,
+  activeTextPigmentIntensity: 1.49,
   activeBackgroundMode: 'derived',
   activeBackgroundColor: '#f5f5f5',
   activeBackgroundDarkSurfaceLightenAmount: 0.74,
-  activeBackgroundLightSurfaceDarkenAmount: 0.55,
-  activeBackgroundOriginalHueRetention: 0.42,
+  activeBackgroundLightSurfaceDarkenAmount: 0.31,
+  activeBackgroundOriginalHueRetention: 0.54,
   activeBackgroundHueShiftDegrees: 0,
-  activeBackgroundPigmentIntensity: 1.86,
-  activeBackgroundOpacity: 0.62,
+  activeBackgroundPigmentIntensity: 1.09,
+  activeBackgroundOpacity: 0.37,
   activeFontWeightEnabled: false,
   activeFontWeight: 'font-semibold',
   activeIndicatorEnabled: false,
@@ -247,6 +297,12 @@ const borderWidthValues = ['border-l', 'border-l-2', 'border-l-4', 'border-l-8']
 export function normalizePostLabArticleTocConfig(config: Partial<TableOfContentsConfig> | undefined): TableOfContentsConfig {
   const base = { ...DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG, ...(config ?? {}) }
   return {
+    visibleBase: base.visibleBase !== false,
+    visibleSm: base.visibleSm !== false,
+    visibleMd: base.visibleMd !== false,
+    visibleLg: base.visibleLg !== false,
+    visibleXl: base.visibleXl !== false,
+    visibleXxl: base.visibleXxl !== false,
     stickyBreathingGap: token(base.stickyBreathingGap, values(MARGIN_TOP_OPTIONS), DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.stickyBreathingGap),
     maxWidth: token(base.maxWidth, values(MAX_WIDTH_OPTIONS), DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.maxWidth),
     labelFontFamily: family(base.labelFontFamily, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.labelFontFamily),
@@ -266,7 +322,7 @@ export function normalizePostLabArticleTocConfig(config: Partial<TableOfContents
     itemPaddingX: token(base.itemPaddingX, values(PADDING_X_OPTIONS), DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.itemPaddingX),
     itemPaddingY: token(base.itemPaddingY, values(PADDING_Y_OPTIONS), DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.itemPaddingY),
     itemIndent: token(base.itemIndent, values(MARGIN_LEFT_OPTIONS), DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.itemIndent),
-    itemGap: token(base.itemGap, values(GAP_OPTIONS), DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.itemGap),
+    itemGap: normalizeTailwindToken({ utility: 'gap', breakpoint: 'base', value: base.itemGap, fallback: DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.itemGap }),
     coarsePointerMinHeight: token(base.coarsePointerMinHeight, values(MIN_HEIGHT_OPTIONS), DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.coarsePointerMinHeight),
     groupMarginTop: token(base.groupMarginTop, values(MARGIN_TOP_OPTIONS), DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.groupMarginTop),
     textColorMode: colorMode(base.textColorMode),
@@ -275,6 +331,14 @@ export function normalizePostLabArticleTocConfig(config: Partial<TableOfContents
     originalHueRetention: clamp(base.originalHueRetention, 0, 1, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.originalHueRetention),
     hueShiftDegrees: clamp(base.hueShiftDegrees, -180, 180, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.hueShiftDegrees),
     pigmentIntensity: clamp(base.pigmentIntensity, 0, 2, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.pigmentIntensity),
+    defaultBackgroundMode: stateBackgroundMode(base.defaultBackgroundMode),
+    defaultBackgroundColor: typeof base.defaultBackgroundColor === 'string' && base.defaultBackgroundColor.trim() ? base.defaultBackgroundColor.trim() : DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.defaultBackgroundColor,
+    defaultBackgroundDarkSurfaceLightenAmount: clamp(base.defaultBackgroundDarkSurfaceLightenAmount, 0, 1, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.defaultBackgroundDarkSurfaceLightenAmount),
+    defaultBackgroundLightSurfaceDarkenAmount: clamp(base.defaultBackgroundLightSurfaceDarkenAmount, 0, 1, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.defaultBackgroundLightSurfaceDarkenAmount),
+    defaultBackgroundOriginalHueRetention: clamp(base.defaultBackgroundOriginalHueRetention, 0, 1, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.defaultBackgroundOriginalHueRetention),
+    defaultBackgroundHueShiftDegrees: clamp(base.defaultBackgroundHueShiftDegrees, -180, 180, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.defaultBackgroundHueShiftDegrees),
+    defaultBackgroundPigmentIntensity: clamp(base.defaultBackgroundPigmentIntensity, 0, 2, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.defaultBackgroundPigmentIntensity),
+    defaultBackgroundOpacity: clamp(base.defaultBackgroundOpacity, 0, 1, DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.defaultBackgroundOpacity),
     hoverStateEnabled: base.hoverStateEnabled !== false,
     hoverTextColorMode: stateTextColorMode(base.hoverTextColorMode),
     hoverTextColor: typeof base.hoverTextColor === 'string' && base.hoverTextColor.trim() ? base.hoverTextColor.trim() : DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG.hoverTextColor,
@@ -335,6 +399,28 @@ export function normalizePostLabArticleTocConfig(config: Partial<TableOfContents
   }
 }
 
+/** Literal utility choices keep every responsive display class visible to Tailwind's scanner. */
+export function resolvePostLabTocDisplayClasses(config: TableOfContentsConfig): string {
+  return [
+    config.visibleBase ? 'block' : 'hidden',
+    config.visibleSm ? 'sm:block' : 'sm:hidden',
+    config.visibleMd ? 'md:block' : 'md:hidden',
+    config.visibleLg ? 'lg:block' : 'lg:hidden',
+    config.visibleXl ? 'xl:block' : 'xl:hidden',
+    config.visibleXxl ? '2xl:block' : '2xl:hidden',
+  ].join(' ')
+}
+
+/** When a split-layout ToC is hidden, let the reading column use both tracks. */
+export function resolvePostLabTocReadingSpanClasses(config: TableOfContentsConfig): string {
+  return [
+    config.visibleMd ? 'md:col-span-1' : 'md:col-span-full',
+    config.visibleLg ? 'lg:col-span-1' : 'lg:col-span-full',
+    config.visibleXl ? 'xl:col-span-1' : 'xl:col-span-full',
+    config.visibleXxl ? '2xl:col-span-1' : '2xl:col-span-full',
+  ].join(' ')
+}
+
 /** The sticky header is measured in pixels at runtime; the operator-facing
  * additive gap remains a literal Tailwind token and is resolved here only for
  * that arithmetic. */
@@ -346,4 +432,10 @@ export function resolvePostLabTocStickyGapPx(config: TableOfContentsConfig) {
  * this literal Tailwind spacing token as its additional reading offset. */
 export function resolvePostLabTocActiveTrackingOffsetPx(config: TableOfContentsConfig) {
   return tailwindSpacingTokenToPx(config.activeSectionTrackingOffset, 0)
+}
+
+/** The list's rows remain physically adjacent; this value only insets each
+ * row's fill. This preserves a continuous pointer path between item targets. */
+export function resolvePostLabTocItemVisualGapCss(config: TableOfContentsConfig) {
+  return tailwindTokenCssValue('gap', 'base', config.itemGap)
 }

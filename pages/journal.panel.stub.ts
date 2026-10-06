@@ -15,7 +15,56 @@
 // Each export below is its own anonymous, self-contained IIFE, not a call
 // to a shared named helper — see this function's own doc comment in
 // generate-panel-stubs.js for why that distinction matters here.
+export const JOURNAL_INTRO_ACCORDION_ITEM_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_INTRO_ACCORDION_ITEM_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_ARTICLE_ACCORDION_ITEM_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_ARTICLE_ACCORDION_ITEM_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_NARROW_COLUMN_CONTENT_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_NARROW_COLUMN_CONTENT_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
 export const JOURNAL_TIMELINE_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_CHRONOLOGY_PANEL: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
     apply() { return undefined },
@@ -37,6 +86,34 @@ export const JOURNAL_CARD_APPEARANCE_SCOPE_ID: any = (() => {
   return p
 })()
 export const JOURNAL_CARD_APPEARANCE_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_ARTICLE_FILTER_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_ARTICLE_FILTER_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_CHIP_APPEARANCE_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const JOURNAL_CHIP_APPEARANCE_PANEL: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
     apply() { return undefined },

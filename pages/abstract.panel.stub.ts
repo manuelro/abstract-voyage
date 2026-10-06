@@ -57,6 +57,34 @@ export const ABSTRACT_NARROW_COLUMN_STACK_PANEL: any = (() => {
   })
   return p
 })()
+export const ABSTRACT_COVER_FLOW_TIMELINE_SLOT_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const ABSTRACT_COVER_FLOW_TIMELINE_SLOT_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const ABSTRACT_TIMELINE_LINK_COLOR_SCOPE_ID: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
+export const ABSTRACT_TIMELINE_LINK_COLOR_PANEL: any = (() => {
+  const p: any = new Proxy(() => undefined, {
+    get(t, prop) { return prop in t ? (t as any)[prop] : p },
+    apply() { return undefined },
+  })
+  return p
+})()
 export const ABSTRACT_FOOTER_PANEL: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },

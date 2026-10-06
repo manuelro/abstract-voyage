@@ -146,6 +146,11 @@
   position: relative;
   width: 100%;
   height: 100%;
+  /* The live WebGL gradient is nested beneath this 3D/fade wrapper. Clip at
+     * this first rounded surface as well as the ArticleCard root below: on
+     * mobile WebKit, relying on only the descendant's overflow clip lets a
+     * composited canvas paint square pixels into the parent corners. */
+  overflow: hidden;
   opacity: var(--fade-opacity, 1);
   transform-style: preserve-3d;
   transition:

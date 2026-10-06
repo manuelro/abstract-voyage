@@ -115,28 +115,6 @@ export const HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN_LG: Record
   'lg:justify-end': 'lg:!text-right',
 };
 
-// AboutMobileAccordionItem's own header button also hardcodes `gap-3`
-// between its two flex children (the excerpt text and a trailing
-// `affordanceDimensionPx`-square wrapper that centers the open-indicator
-// bullet/chevron) — real, layout-consuming space reserved on whichever edge
-// horizontal placement clusters both children against, even while
-// accordionItemOpenIndicatorEnabled is off and neither the bullet nor the
-// (opacity-0-while-expanded) chevron is visibly painted there. Against a
-// right-aligned headline sitting directly above a paragraph that carries no
-// such reservation, that dead ~22px (gap-3's 12px + the wrapper's own 10px
-// floor — AFFORDANCE_DIMENSION_OPTIONS' own smallest catalog entry,
-// tailwindSpacingScale.ts — there is no narrower/zero option on that scale)
-// reads as unexplained right-edge padding the headline text can't actually
-// reach past. Collapsed here via `headerClassName`'s own arbitrary-variant
-// support (`[&>span:last-child]:...` targets that exact trailing wrapper by
-// DOM position — the header button always renders exactly two direct
-// children, text then wrapper, per that component's own doc comment) rather
-// than in AboutMobileAccordionItem.tsx itself, and gated on
-// accordionItemOpenIndicatorEnabled being OFF specifically: an instance that
-// turns the indicator on wants that reserved space back for its own bullet/
-// chevron, same as /about's own real accordion always has.
-export const ACCORDION_HEADER_AFFORDANCE_COLLAPSED_CLASSNAME =
-  '!gap-0 [&>span:last-child]:!w-0 [&>span:last-child]:!h-0';
 /** Full Tailwind default font-size scale (theme.fontSize is unmodified in
  * tailwind.config.js) — the single source every heading/body size field
  * below derives its per-breakpoint options from, so all three breakpoints

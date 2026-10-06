@@ -33,20 +33,34 @@ function formatTsValue(value: ComponentConfigUpdateScalar): string {
   return `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 }
 
-// `export const NAME = {...}` and `export const NAME: Type = {...}` are both
-// common in this codebase (some scopes carry an explicit type annotation,
-// e.g. PolymorphicLayout.pageConfigs.ts's own page-level constants; most
+// `export const NAME = {...}`, `export const NAME: Type = {...}`, and
+// `export const NAME: Type = normalizeXConfig({...})` are all common in this
+// codebase (some scopes carry an explicit type annotation, e.g.
+// PolymorphicLayout.pageConfigs.ts's own page-level constants; most
 // DEFAULT_*_CONFIG constants instead rely on `satisfies Type` for the same
-// checking without widening the literal type) — unwrapped here so both
-// shapes resolve to the same underlying ObjectLiteralExpression.
+// checking without widening the literal type; a page-local DEFAULT_*_CONFIG
+// that itself spreads a shared component's own default — e.g.
+// pages/journal.config.ts's own DEFAULT_JOURNAL_TIMELINE_CONFIG/
+// DEFAULT_JOURNAL_CARD_APPEARANCE_CONFIG — additionally routes through that
+// component's normalizer so the merged/spread result is validated the same
+// way a live panel value already is) — unwrapped here so all three shapes
+// resolve to the same underlying ObjectLiteralExpression. The one-argument
+// CallExpression case (confirmed via bug repro, 2026-09-23: "Update diff"
+// failing with "Could not find ... an object literal" on journal.tsx's own
+// panel, whose two page-local DEFAULT_*_CONFIG scopes both use this
+// normalizer-wrapped shape) is safe to unwrap the exact same way as
+// satisfies/as/parens: every downstream edit only ever reads/splices the
+// unwrapped object literal's own property nodes, never the call expression
+// itself, so the normalizer call is left completely untouched either way.
 function unwrapToObjectLiteral(expression: ts.Expression): ts.ObjectLiteralExpression | undefined {
   let current = expression;
   while (
     ts.isSatisfiesExpression(current)
     || ts.isAsExpression(current)
     || ts.isParenthesizedExpression(current)
+    || (ts.isCallExpression(current) && current.arguments.length === 1)
   ) {
-    current = current.expression;
+    current = ts.isCallExpression(current) ? current.arguments[0] : current.expression;
   }
   return ts.isObjectLiteralExpression(current) ? current : undefined;
 }

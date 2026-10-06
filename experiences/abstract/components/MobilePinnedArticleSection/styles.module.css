@@ -7,9 +7,22 @@
 .stickyViewport {
   position: sticky;
   top: 0;
-  height: 100svh;
+  height: var(--mobile-pinned-viewport-height, 100svh);
   overflow: hidden;
   background: var(--mobile-pinned-carousel-color);
+}
+
+/* The stacked tablet/desktop arrangement normally clips CoverFlow to its
+ * local row allocation. This opt-in plane deliberately owns the browser's
+ * visible viewport instead, so CoverFlow can genuinely center its complete
+ * geometry against that viewport rather than a shorter section fragment. */
+.stickyViewport[data-viewport-carousel-plane='true'] {
+  position: fixed;
+  z-index: 1;
+  top: var(--mobile-pinned-carousel-viewport-top, 0px);
+  right: 0;
+  left: 0;
+  height: var(--mobile-pinned-carousel-viewport-height, 100svh);
 }
 
 /* Body locking removes the document's scroll container while the article

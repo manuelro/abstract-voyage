@@ -12,8 +12,7 @@ source:
     url: https://abstractvoyage.medium.com/understanding-the-dom-basics-1c0b35970d90
     originallyPublished: "2017-02-11"
 tags:
-    - DOM
-    - Web Development
+    - Frontend
     - JavaScript
 ---
 

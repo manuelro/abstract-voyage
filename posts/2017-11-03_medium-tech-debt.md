@@ -13,8 +13,7 @@ source:
     originallyPublished: "2017-11-03"
 tags:
     - Technical Debt
-    - Software Engineering
-    - Best Practices
+    - Engineering
 featured: true
 ---
 

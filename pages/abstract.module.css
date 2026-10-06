@@ -122,6 +122,13 @@
   }
 }
 
+@media (min-width: 1024px) {
+  .heroZone[data-layout-mode="editorial"] .gradientSourceViewport,
+  .heroZone[data-layout-mode="editorial"] .gradientOutputViewport {
+    height: var(--hero-header-height-lg);
+  }
+}
+
 .heroZone[data-sky-mode="static"],
 .heroZone[data-sky-mode="living"] {
   background-image: radial-gradient(
@@ -296,6 +303,14 @@
   transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* The current destination retains the same underline revealed on hover.
+   `aria-current` makes the visual cue semantic as well as persistent for
+   keyboard and touch users, where hover is unavailable. */
+.navLink[aria-current='page'] .navLabel::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
 .contactLink .navLabel::after {
   display: none;
 }
@@ -408,6 +423,15 @@
     height: 100dvh;
     overflow-y: hidden;
   }
+
+  /* The viewport lock is valid only for an overlaid header and a split
+     row. Stacked columns need document flow for the carousel, and a static
+     header needs it even if an operator switches the tablet grid to split;
+     otherwise flex shrinks its wrapper to zero and clips the header. */
+  .flowingHeaderViewport {
+    height: auto;
+    overflow-y: visible;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -467,8 +491,9 @@
   .heroZone[data-layout-mode="editorial"] .siteHeader[data-color-mode="surface"] .primaryNav .navLink {
     color: var(--hero-header-nav-text);
   }
+}
 
-  /* ABSTRACT-01 fix (2026-08-20-139d957), same root-cause shape as
+/* ABSTRACT-01 fix (2026-08-20-139d957), same root-cause shape as
      pages/about.module.css's own `.splitRight { margin-top: 0 !important }`
      mobile-stacked fix (see scripts/responsiveness-agentic-feedback.md's
      2026-08-19 entry for that precedent): pages/abstract.tsx sets
@@ -476,11 +501,9 @@
      wideColumnRowMinHeightCss/narrowColumnRowMinHeightCss, which both
      resolve to '100dvh' below the pushDown-header case (this page's own
      shipped default, wideColumnHeaderBehavior/narrowColumnHeaderBehavior:
-     'float') — correct at >=768px, where SplitColumnLayout's own
-     md:grid-cols-[...] puts both columns in the same row and each needs a
-     full-viewport-height floor to look intentional side by side. Below
-     768px the grid collapses to grid-cols-1 (SplitColumnLayout.tsx's own
-     unconditional base), turning the columns into separate stacked rows —
+     'float') — correct only while SplitColumnLayout actually places both
+     columns side by side, when each needs a viewport-height floor. In a
+     stacked tier the grid uses one column, putting these in separate rows —
      confirmed via live computed-style inspection: the narrow column's own
      row was rendering at 100dvh (568px) tall even though its actual
      headline+paragraph content only needed ~682px including padding
@@ -490,15 +513,14 @@
      visible defect once the card is no longer a position:fixed layer
      floating over the whole page regardless of this gap (see CardStack.tsx/
      useCardStackLayout.ts's own `stacked` mechanism, this same run).
-     !important is required because these are inline styles (React's own
-     style prop), which an external stylesheet rule cannot outrank by
-     specificity alone. */
+   !important is required because these are inline styles (React's own
+   style prop), which an external stylesheet rule cannot outrank by
+   specificity alone. The same reset applies when tablet is configured as
+   stacked, and the page only adds these classes while columns are stacked. */
+
+@media (max-width: 1023px) {
   .abstractStackedRow {
     min-height: auto !important;
-  }
-
-  .mobilePinnedWideColumn {
-    padding: 0 !important;
   }
 
   .mobileHeroColumn {

@@ -1,0 +1,246 @@
+{
+  "architecture": [
+    {
+      "file": "components/BodyText.config.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["FONT_SIZE_MID", "FONT_SIZE_NARROW", "FONT_SIZE_WIDE"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/BodyText.config.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["BodyTextFontSizeMid", "BodyTextFontSizeNarrow", "BodyTextFontSizeWide"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/CtaButton/config/panel.ts",
+      "kind": "inline-tailwind-options",
+      "symbols": ["borderWidth", "composerFontSize", "composerFontSizeDesktop", "fontSize", "fontSizeDesktop", "iconSize"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/CtaButton/config/registered.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["BORDER_WIDTHS", "DESKTOP_FONT_SIZES", "DESKTOP_PADDING_X", "DESKTOP_PADDING_Y", "FONT_SIZES", "PADDING_X", "PADDING_Y"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/CtaButton/config/registered.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["CtaButtonBorderWidth", "CtaButtonDesktopFontSize", "CtaButtonDesktopPaddingX", "CtaButtonDesktopPaddingY", "CtaButtonFontSize", "CtaButtonPaddingX", "CtaButtonPaddingY"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/FiberHeading.config.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["DESKTOP_FONT_SIZES", "DESKTOP_HEIGHTS", "FONT_SIZES", "HEIGHTS"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/FiberHeading.config.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["FiberHeadingDesktopFontSize", "FiberHeadingDesktopHeight", "FiberHeadingFontSize", "FiberHeadingHeight"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/FiberHeading.panel.ts",
+      "kind": "inline-tailwind-options",
+      "symbols": ["containerHeight", "containerHeightDesktop", "fontSize", "fontSizeDesktop"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/LayoutDebug.tsx",
+      "kind": "normalizer-allowlist",
+      "symbols": ["LABEL_CLASSES"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/PageTitle.config.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["FONT_SIZE_MID", "FONT_SIZE_NARROW", "FONT_SIZE_WIDE"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/PageTitle.config.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["PageTitleFontSizeMid", "PageTitleFontSizeNarrow", "PageTitleFontSizeWide"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/SectionHeading.config.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["DESKTOP_FONT_SIZES", "FONT_SIZES"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/SectionHeading.config.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["SectionHeadingDesktopFontSize", "SectionHeadingFontSize"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "components/SectionHeading.panel.ts",
+      "kind": "inline-tailwind-options",
+      "symbols": ["fontSize", "fontSizeDesktop"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/about/components/AboutTimeline.config.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["FONT_WEIGHT_LG_OPTIONS", "FONT_WEIGHT_WIDE_OPTIONS", "ITEM_FONT_FAMILIES", "ITEM_FONT_FAMILIES_LG", "ITEM_FONT_FAMILIES_WIDE", "RULE_WEIGHT_OPTIONS"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/about/components/AboutTimeline.config.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["AboutTimelineItemFontFamily", "AboutTimelineItemFontFamilyLg", "AboutTimelineItemFontFamilyWide"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/about/components/AboutTimeline.panel.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["ITEM_FONT_FAMILY_LG_OPTIONS", "ITEM_FONT_FAMILY_OPTIONS", "ITEM_FONT_FAMILY_WIDE_OPTIONS"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/AbstractEditorialHero.config.ts",
+      "kind": "dynamic-tailwind-class",
+      "symbols": ["template:lg:text-", "template:md:text-", "template:text-"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/AbstractEditorialHero.config.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["EMPHASIS_FONT_WEIGHTS"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/AbstractEditorialHero.config.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["AbstractEditorialHeroEmphasisFontWeight"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/AbstractEditorialHero.panel.ts",
+      "kind": "dynamic-tailwind-class",
+      "symbols": ["template:lg:text-", "template:md:text-", "template:text-"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/AbstractEditorialHero.panel.ts",
+      "kind": "inline-tailwind-options",
+      "symbols": ["emphasisFontWeight", "headlineFontWeight"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/AbstractPostDock/config/panel.ts",
+      "kind": "inline-tailwind-options",
+      "symbols": ["minimalModeFontSize", "minimalModeFontSizeLg", "minimalModeFontSizeWide", "minimalModeTextMaxWidth"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/AbstractPostDock/config/registered.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["AbstractPostDockMinimalTextMaxWidth", "AbstractPostDockMinimalTextSize", "AbstractPostDockMinimalTextSizeLg", "AbstractPostDockMinimalTextSizeWide"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/MarkdownContent.tsx",
+      "kind": "dynamic-tailwind-class",
+      "symbols": ["template:p-"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/PolymorphicLayout.config.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["CENTERED_CONTENT_PADDING_VALUES", "TEXT_ALIGN_LG_VALUES", "TEXT_ALIGN_VALUES", "TEXT_ALIGN_WIDE_VALUES"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/PolymorphicLayout.config.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["PolymorphicLayoutContentTextAlign", "PolymorphicLayoutContentTextAlignLg", "PolymorphicLayoutContentTextAlignWide"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/PolymorphicLayout.panel.ts",
+      "kind": "inline-tailwind-options",
+      "symbols": ["narrowColumnTextAlign", "narrowColumnTextAlignLg", "narrowColumnTextAlignWide", "wideColumnTextAlign", "wideColumnTextAlignLg", "wideColumnTextAlignWide"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/PolymorphicLayout.panel.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["CENTERED_CONTENT_PADDING_OPTIONS", "CONTENT_ALIGNMENT_FIELDS", "POLYMORPHIC_LAYOUT_FIELDS"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/TableOfContents/config/panel.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["markerWidths"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/abstract/components/TableOfContents/config/registered.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["borderWidthValues"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/contact/ContactExperience.config.ts",
+      "kind": "tailwind-string-type",
+      "symbols": ["ContactMandatoryActionsFontSize", "ContactMandatoryActionsPaddingBottom", "ContactMandatoryActionsPaddingLeft", "ContactMandatoryActionsPaddingRight", "ContactMandatoryActionsTopGap"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/contact/ContactExperience.config.ts",
+      "kind": "tailwind-option-array",
+      "symbols": ["CONTACT_BUTTON_FONT_WEIGHT_LG_OPTIONS", "CONTACT_BUTTON_FONT_WEIGHT_WIDE_OPTIONS"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    },
+    {
+      "file": "experiences/contact/ContactExperience.panel.ts",
+      "kind": "inline-tailwind-options",
+      "symbols": ["mandatoryActionsFontSize", "mandatoryActionsPaddingBottom", "mandatoryActionsPaddingLeft", "mandatoryActionsPaddingRight", "mandatoryActionsTopGap"],
+      "rationale": "Pre-existing Tailwind declaration awaiting migration."
+    }
+  ],
+  "oversizedEnums": [
+    {
+      "scopeId": "FiberHeading/appearance",
+      "fieldKey": "containerHeight",
+      "optionCount": 10,
+      "rationale": "Existing field awaiting a dedicated FiberHeading migration."
+    },
+    {
+      "scopeId": "FiberHeading/appearance",
+      "fieldKey": "containerHeightDesktop",
+      "optionCount": 10,
+      "rationale": "Existing field awaiting a dedicated FiberHeading migration."
+    },
+    {
+      "scopeId": "FiberHeading/appearance",
+      "fieldKey": "fontSize",
+      "optionCount": 9,
+      "rationale": "Existing field awaiting a dedicated FiberHeading migration."
+    },
+    {
+      "scopeId": "FiberHeading/appearance",
+      "fieldKey": "fontSizeDesktop",
+      "optionCount": 9,
+      "rationale": "Existing field awaiting a dedicated FiberHeading migration."
+    },
+    {
+      "scopeId": "SiteHeader/colors",
+      "fieldKey": "height",
+      "optionCount": 10,
+      "rationale": "Existing field covered by the subsequent SiteHeader migration plan."
+    },
+    {
+      "scopeId": "SiteHeader/colors",
+      "fieldKey": "desktopHeight",
+      "optionCount": 10,
+      "rationale": "Existing field covered by the subsequent SiteHeader migration plan."
+    }
+  ]
+}

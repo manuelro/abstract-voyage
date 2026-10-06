@@ -1,16 +1,13 @@
-import { defineConfigScope } from '../../../components/Panel/config';
+import { createTailwindFieldFactory, defineConfigScope } from '../../../components/Panel/config';
 import type { ConfigScopeEntry } from '../../../components/Panel/config';
 import {
   MIN_HEIGHT_OPTIONS,
-  PADDING_X_OPTIONS,
-  PADDING_Y_OPTIONS,
   AFFORDANCE_BORDER_THICKNESS_OPTIONS,
   AFFORDANCE_CORNER_RADIUS_OPTIONS,
   AFFORDANCE_DIMENSION_OPTIONS,
   OUTER_BORDER_WIDTH_OPTIONS,
   INNER_BORDER_WIDTH_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
-import { FONT_SIZE_OPTIONS } from '../../../components/tailwindTypographyScale';
 import { MARKER_SIZE_OPTIONS } from './AboutTimeline.config';
 import {
   DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
@@ -18,6 +15,8 @@ import {
 } from './AboutMobileAccordion.config';
 
 export const ABOUT_MOBILE_ACCORDION_SCOPE_ID = 'AboutMobileAccordion/appearance' as const;
+
+const tailwindAccordionField = createTailwindFieldFactory<AboutMobileAccordionConfig>();
 
 // Local to this scope, same "each panel.ts keeps its own copy" convention
 // pages/about.panel.ts and every other panel recipe in this repo already
@@ -85,21 +84,19 @@ const ALL_SIZES_FIELDS = [
  * Extracted (not duplicated) so a caller reusing `AboutMobileAccordionItem`
  * standalone — today, `AbstractEditorialHero`'s own
  * `accordionItemPresentationEnabled` (pages/abstract.tsx) — can expose the
- * exact same font-size/spacing controls in its own panel, bound to its own
- * page-owned config instance, without hand-retyping these five field
+ * exact same mobile font-size/spacing controls in its own panel, bound to its
+ * own page-owned config instance, without hand-retyping these four field
  * definitions a second time. Each `visibleWhen` below reads `config.enabled`
  * — every reuser of this array (this scope's own MOBILE_ONLY_FIELDS below,
  * and pages/abstract.panel.ts's own page-owned scope) shares the same
  * `AboutMobileAccordionConfig` type, so that field always exists. */
 export const ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS = [
-  {
-    kind: 'select',
+  tailwindAccordionField('fontSize', {
     key: 'contentFontSizeClassName',
     label: 'Content font size',
     description: 'Font size shared by both the collapsed preview text and the expanded paragraph — the two always render at the same size so they read as one continuous voice.',
-    options: FONT_SIZE_OPTIONS,
     visibleWhen: config => config.enabled,
-  },
+  }),
   {
     kind: 'boolean',
     key: 'headerTextWrapEnabled',
@@ -107,22 +104,68 @@ export const ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS = [
     description: 'Off (default): the collapsed preview/header text clips to a single line. On: it wraps across as many lines as its own content needs, so long text is never cut off.',
     visibleWhen: config => config.enabled,
   },
-  {
-    kind: 'select',
+  tailwindAccordionField('paddingX', {
     key: 'affordancePaddingX',
     label: 'Preview tab padding (horizontal)',
     description: 'Left + right padding on the preview tab — independent of the vertical value below.',
-    options: PADDING_X_OPTIONS,
     visibleWhen: config => config.enabled,
-  },
-  {
-    kind: 'select',
+  }),
+  tailwindAccordionField('paddingY', {
     key: 'affordancePaddingY',
     label: 'Preview tab padding (vertical)',
     description: 'Top + bottom padding on the preview tab — independent of the horizontal value above. The expanded paragraph below the header reuses this same value for its own bottom spacing.',
-    options: PADDING_Y_OPTIONS,
     visibleWhen: config => config.enabled,
-  },
+  }),
+] as const satisfies ReadonlyArray<ConfigScopeEntry<AboutMobileAccordionConfig>>;
+
+const MOBILE_ITEM_CONTENT_PADDING_FIELDS = [
+  tailwindAccordionField('paddingTop', {
+    key: 'itemContentPaddingTop',
+    label: 'Item content padding — top',
+    visibleWhen: config => config.enabled,
+  }),
+  tailwindAccordionField('paddingRight', {
+    key: 'itemContentPaddingRight',
+    label: 'Item content padding — right',
+    visibleWhen: config => config.enabled,
+  }),
+  tailwindAccordionField('paddingBottom', {
+    key: 'itemContentPaddingBottom',
+    label: 'Item content padding — bottom',
+    visibleWhen: config => config.enabled,
+  }),
+  tailwindAccordionField('paddingLeft', {
+    key: 'itemContentPaddingLeft',
+    label: 'Item content padding — left',
+    visibleWhen: config => config.enabled,
+  }),
+] as const satisfies ReadonlyArray<ConfigScopeEntry<AboutMobileAccordionConfig>>;
+
+const TABLET_ITEM_CONTENT_PADDING_FIELDS = [
+  tailwindAccordionField('paddingTop', {
+    key: 'itemContentPaddingTopWide',
+    label: 'Item content padding — top',
+    breakpoint: 'md',
+    visibleWhen: config => config.enabled,
+  }),
+  tailwindAccordionField('paddingRight', {
+    key: 'itemContentPaddingRightWide',
+    label: 'Item content padding — right',
+    breakpoint: 'md',
+    visibleWhen: config => config.enabled,
+  }),
+  tailwindAccordionField('paddingBottom', {
+    key: 'itemContentPaddingBottomWide',
+    label: 'Item content padding — bottom',
+    breakpoint: 'md',
+    visibleWhen: config => config.enabled,
+  }),
+  tailwindAccordionField('paddingLeft', {
+    key: 'itemContentPaddingLeftWide',
+    label: 'Item content padding — left',
+    breakpoint: 'md',
+    visibleWhen: config => config.enabled,
+  }),
 ] as const satisfies ReadonlyArray<ConfigScopeEntry<AboutMobileAccordionConfig>>;
 
 const MOBILE_ONLY_FIELDS = [
@@ -233,6 +276,7 @@ const MOBILE_ONLY_FIELDS = [
     // ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS above so pages/abstract.panel.ts
     // can expose the identical controls without retyping them.
     ...ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS,
+    ...MOBILE_ITEM_CONTENT_PADDING_FIELDS,
     {
       kind: 'number',
       key: 'affordanceRotateCollapsedDeg',
@@ -469,8 +513,20 @@ export const ABOUT_MOBILE_ACCORDION_PANEL = defineConfigScope<AboutMobileAccordi
           label: 'MOBILE (< 768px)',
           fields: MOBILE_ONLY_FIELDS,
         },
+        {
+          id: 'tablet',
+          label: 'TABLET (≥ 768px)',
+          fields: TABLET_ITEM_CONTENT_PADDING_FIELDS,
+        },
       ],
     },
+  ],
+  // The desktop Hero owns its own responsive preview-tab overrides. Keep
+  // those shared-item-only values out of this page-level accordion panel.
+  hiddenKeys: [
+    'contentFontSizeClassNameWide', 'contentFontSizeClassNameLg',
+    'affordancePaddingXWide', 'affordancePaddingXLg',
+    'affordancePaddingYWide', 'affordancePaddingYLg',
   ],
   copy: {
     targetFile: 'experiences/about/components/AboutMobileAccordion.config.ts',

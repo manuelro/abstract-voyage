@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { readAboutAccordionSelection, writeAboutAccordionSelection } from './components/aboutAccordionNavigationState';
 
 /**
  * Owns /about's own slide-navigation state — extracted out of about.tsx's
@@ -35,6 +36,16 @@ export function AboutSlidesProvider({
   children: ReactNode;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [selectionRestored, setSelectionRestored] = useState(false);
+  useLayoutEffect(() => {
+    const saved = readAboutAccordionSelection().activeIndex;
+    if (saved !== undefined && saved < slideCount) setActiveIndex(saved);
+    setSelectionRestored(true);
+  }, [slideCount]);
+  useLayoutEffect(() => {
+    if (!selectionRestored) return;
+    writeAboutAccordionSelection({ activeIndex });
+  }, [activeIndex, selectionRestored]);
   const goToPrevious = useCallback(() => {
     setActiveIndex(index => Math.max(0, index - 1));
   }, []);

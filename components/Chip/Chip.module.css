@@ -1,0 +1,25 @@
+/*
+ * Hover/press read from CSS custom properties Chip.tsx sets inline per
+ * render (already-resolved colors, never recomputed on interaction) — real
+ * `:hover`/`:active` pseudo-classes so the state change costs zero
+ * re-renders and works for touch via `:active` natively. Only applies when
+ * Chip.tsx actually sets these properties (the `appearance` prop path);
+ * the legacy, appearance-less path never gets this class.
+ */
+.chip {
+  background-color: var(--chip-bg);
+  color: var(--chip-text);
+  border-color: var(--chip-border);
+}
+
+.chip:hover {
+  background-color: var(--chip-bg-hover);
+  color: var(--chip-text-hover);
+  border-color: var(--chip-border-hover);
+}
+
+.chip:active {
+  background-color: var(--chip-bg-press);
+  color: var(--chip-text-press);
+  border-color: var(--chip-border-press);
+}

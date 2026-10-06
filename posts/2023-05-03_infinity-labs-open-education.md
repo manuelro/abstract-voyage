@@ -1,12 +1,11 @@
 ---
 title: 'Infinity Labs, and why engineering education should be free'
-excerpt: "A free open education channel for software engineers, built on the premise that access to learning is a right rather than a privilege."
+excerpt: "An open YouTube channel offering lessons on software architecture, design patterns, languages, and frameworks for engineers from junior to senior level."
 author: "Manu"
 featured: false
 tags:
     - Open Education
-    - Software Engineering
-    - Learning
+    - Engineering
 ---
 I am excited to announce the launch of [Infinity Labs](https://www.youtube.com/@infinity-labs-edu/videos), an **open education initiative** that aims to provide **high-quality educational resources** for software engineering professionals, from junior to senior developers.  
 

@@ -59,6 +59,8 @@ import { POST_LAB_ARTICLE_READING_SCOPE_ID } from '../../experiences/abstract/co
 import {
   DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG,
   normalizePostLabArticleTocConfig,
+  resolvePostLabTocDisplayClasses,
+  resolvePostLabTocReadingSpanClasses,
   resolvePostLabTocActiveTrackingOffsetPx,
   resolvePostLabTocStickyGapPx,
   type TableOfContentsConfig,
@@ -196,6 +198,26 @@ export default function PostLab({
   // paletteColorResolver is never needed on this page.
   const colors = usePolymorphicLayoutColors(postLabLayoutConfig, pageSurfaceConfig.color)
 
+  // Keep the post's ToC as a masthead-aligned navigational index at desktop.
+  // This is deliberately independent of the post column's configurable
+  // width: only the ToC's outer edge borrows the real rendered wordmark
+  // anchor, matching About's timeline treatment without changing article
+  // measure or tablet/mobile placement.
+  const { ref: postWordmarkAnchorRef, rect: postWordmarkAnchorRect } =
+    useMeasuredElementRect<HTMLAnchorElement>([colors.breakpointTier, colors.viewportWidthPx])
+  const desktopTocStartPx = colors.breakpointTier === 'lg'
+    ? postWordmarkAnchorRect?.left
+    : undefined
+  const tocContentBoxProps = {
+    ...narrowColumnContentBoxProps(postLabLayoutConfig),
+    // About's desktop timeline starts at its wordmark anchor. Give this
+    // navigational index the same full narrow-column track before its own
+    // measured inset is applied; the post's other narrow-column content and
+    // all base/tablet config remain independently configured.
+    alignLg: 'items-start' as PostLabPageLayoutConfig['narrowColumnContentAlignLg'],
+    widthLg: 'lg:max-w-[100%]' as PostLabPageLayoutConfig['narrowColumnContentWidthLg'],
+  }
+
   // Merges the shared siteHeaderConfig with this page's own color override —
   // the exact same call pages/abstract.tsx makes at its own
   // normalizedSiteHeaderConfig computation (pages/abstract.tsx:1820-1826).
@@ -222,6 +244,25 @@ export default function PostLab({
   const pageSiteHeaderConfig = buildSplitAlignedSiteHeaderConfig(
     normalizedSiteHeaderConfig, { navAlignedToPageContainer: false },
   )
+  // Mirror the About/Abstract masthead at tablet and desktop without
+  // changing the post's independently-configurable content columns.
+  const headerLayoutConfig = useMemo(() => ({
+    ...postLabLayoutConfig,
+    headerLeftSegmentAlignWide: 'md:justify-start' as PostLabPageLayoutConfig['headerLeftSegmentAlignWide'],
+    headerLeftSegmentAlignLg: 'lg:justify-start' as PostLabPageLayoutConfig['headerLeftSegmentAlignLg'],
+    headerLeftInnerAlignWide: 'md:justify-start' as PostLabPageLayoutConfig['headerLeftInnerAlignWide'],
+    headerLeftInnerAlignLg: 'lg:justify-start' as PostLabPageLayoutConfig['headerLeftInnerAlignLg'],
+    // The post header shares Journal's narrower tablet track. Preserve the
+    // full shared wordmark width by using that track's complete width.
+    headerLeftContentWidthWide: 'md:max-w-percent-100' as PostLabPageLayoutConfig['headerLeftContentWidthWide'],
+    headerLeftContentWidthLg: 'lg:max-w-percent-90' as PostLabPageLayoutConfig['headerLeftContentWidthLg'],
+    headerLeftContentPaddingRightWide: 'md:pr-0' as PostLabPageLayoutConfig['headerLeftContentPaddingRightWide'],
+    headerLeftContentPaddingRightLg: 'lg:pr-0' as PostLabPageLayoutConfig['headerLeftContentPaddingRightLg'],
+    headerRightSegmentAlignWide: 'md:justify-end' as PostLabPageLayoutConfig['headerRightSegmentAlignWide'],
+    headerRightSegmentAlignLg: 'lg:justify-end' as PostLabPageLayoutConfig['headerRightSegmentAlignLg'],
+    headerRightInnerAlignWide: 'md:justify-end' as PostLabPageLayoutConfig['headerRightInnerAlignWide'],
+    headerRightInnerAlignLg: 'lg:justify-end' as PostLabPageLayoutConfig['headerRightInnerAlignLg'],
+  }), [postLabLayoutConfig])
 
   // Bug fix (operator-reported, screenshot evidence: nav text reading in a
   // flat, mismatched tan/beige — the exact same class of bug
@@ -250,6 +291,16 @@ export default function PostLab({
   const narrowColumnTypography = resolvePolymorphicNarrowColumnTypography(
     colors, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG,
   )
+  // Adaptive ink should follow a column only while its gradient is actually
+  // visible and changes with scroll. The page-level gradient can remain
+  // active when one column is opaque or scroll darkening is disabled.
+  const scrollDarkeningActive = colors.scrollGradientResolved.maxDarken > 0
+  const narrowColumnInkAdapts = scrollDarkeningActive
+    && colors.scrollGradientNarrowColumnActive
+    && colors.narrowColumnPaintColor === 'transparent'
+  const wideColumnInkAdapts = scrollDarkeningActive
+    && colors.scrollGradientWideColumnActive
+    && colors.wideColumnPaintColor === 'transparent'
   // Bug fix (operator-reported, screenshot evidence — header nav/wordmark
   // washed out/stuck at a stale color, and the article body never lightened
   // as the background darkened on scroll, both live). Root cause, confirmed
@@ -280,7 +331,7 @@ export default function PostLab({
   }, [])
   const headerInkColorResolved = usePolymorphicColumnAdaptiveInk({
     ref: pageInkRootRef,
-    baseColor: narrowColumnTypography.titleColor,
+    baseColor: narrowColumnInkAdapts ? narrowColumnTypography.titleColor : undefined,
     config: postLabLayoutConfig,
     colors,
   })
@@ -303,7 +354,7 @@ export default function PostLab({
   )
   const articleInkColorResolved = usePolymorphicColumnAdaptiveInk({
     ref: pageInkRootRef,
-    baseColor: wideColumnTypography.titleColor,
+    baseColor: wideColumnInkAdapts ? wideColumnTypography.titleColor : undefined,
     config: postLabLayoutConfig,
     colors,
   })
@@ -437,16 +488,9 @@ export default function PostLab({
   // noticeably lighter/muted via opacity, not a second hue). The first pass
   // here flattened every role to `wideColumnTypography.ink` at full opacity
   // — that value IS the correct at-rest ink, but /abstract never renders it
-  // at flat 100% opacity for every role; DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG's
-  // own titleOpacity (0.8) / bodyOpacity (0.57) / highlightOpacity (0.9) are
-  // what carry the role hierarchy — the same three opacities
-  // narrowColumnTypography/wideColumnTypography already resolve and return
-  // (titleOpacity/bodyOpacity/highlightOpacity), just never read here.
-  // Heading maps to the title role, body/muted to the body role — muted
-  // intentionally shares bodyOpacity rather than inventing a fourth opacity
-  // level this page's own config has no field for. metadata/divider/figure-
-  // border keep their own existing per-field opacities from articleConfig,
-  // unchanged — those were already correct.
+  // at flat 100% opacity for every role. Headings keep the global title
+  // opacity; body and muted text share the article's bodyInkOpacity control.
+  // Metadata, dividers, and figure borders keep their own article settings.
   //
   // Also now sourced from articleInkColor/headerInkColor (LIVE, scroll-
   // adaptive — see those refs' own doc comment above) instead of the static
@@ -479,8 +523,8 @@ export default function PostLab({
     return {
       ...base,
       headingInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.titleOpacity),
-      bodyInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
-      mutedInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
+      bodyInk: withLiveAlpha(articleInkColor, articleConfig.bodyInkOpacity),
+      mutedInk: withLiveAlpha(articleInkColor, articleConfig.bodyInkOpacity),
       // strongInk was left on `base.strongInk` (resolvePostLabArticlePresentation's
       // own static deriveReadableInk output, pinned to articleColumnColor at
       // render time) while bodyInk above was switched to the LIVE scroll-
@@ -491,7 +535,7 @@ export default function PostLab({
       // around it (strongOpacity: 1 in DEFAULT_POST_LAB_ARTICLE_CONFIG
       // already makes them the same color at rest; this is what keeps them
       // the same color as the live ink itself changes on scroll).
-      strongInk: withLiveAlpha(articleInkColor, DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG.bodyOpacity),
+      strongInk: withLiveAlpha(articleInkColor, articleConfig.bodyInkOpacity),
       metadataInk: withLiveAlpha(articleInkColor, articleConfig.metadataOpacity),
       dividerInk: withLiveAlpha(articleInkColor, articleConfig.tableDividerOpacity),
       figureBorderInk: withLiveAlpha(articleInkColor, articleConfig.figureBorderOpacity),
@@ -639,7 +683,7 @@ export default function PostLab({
         header={(slotProps) => (
           <SiteHeader
             {...slotProps}
-            config={buildEffectiveSiteHeaderConfig(scrollGradientAdaptiveHeaderConfig, postLabLayoutConfig)}
+            config={buildEffectiveSiteHeaderConfig(scrollGradientAdaptiveHeaderConfig, headerLayoutConfig)}
             // The same shared, cross-page Wordmark config /about, /abstract,
             // and /contact already bind (AbstractDesignConfigProvider) —
             // this page previously rendered its logo via SiteHeader.tsx's
@@ -676,6 +720,7 @@ export default function PostLab({
             logoStops={narrowColumnGradientBackedPostLab
               ? [{ color: headerInkColor, at: 0 }, { color: headerInkColor, at: 100 }]
               : colors.wordmarkGradientStops}
+            logoAnchorRef={postWordmarkAnchorRef}
             physicalLeftColumnColor={colors.actualLeftSegmentColor}
             pageSurfaceConfig={pageSurfaceConfig}
             splitBandActive={postLabLayoutConfig.headerSplitBandEnabled}
@@ -747,8 +792,8 @@ export default function PostLab({
         // this page's own remaining "own chrome" class for the outer grid
         // cell (a forced full-viewport minimum height so that sticky
         // wrapper has real room to follow the viewport).
-        wideColumnClassName="min-h-[100dvh] flex flex-col"
-        narrowColumnClassName={narrowColumnMinHeightClassName}
+        wideColumnClassName={['min-h-[100dvh] flex flex-col', resolvePostLabTocReadingSpanClasses(articleTocConfig)].join(' ')}
+        narrowColumnClassName={[narrowColumnMinHeightClassName, resolvePostLabTocDisplayClasses(articleTocConfig)].filter(Boolean).join(' ')}
         wideColumn={(
           <article className={styles.article} style={articleStyle}>
             {/* WideColumnContent (components/PolymorphicLayout.tsx) is the
@@ -834,6 +879,8 @@ export default function PostLab({
                 articleConfig.bodyFontSize,
                 articleConfig.bodyFontSizeDesktop,
                 articleConfig.bodyLeading,
+                articleConfig.bodyLeadingMd,
+                articleConfig.bodyLeadingLg,
                 articleConfig.bodyTracking,
                 articleConfig.bodyFontFamily === 'inherit' ? '' : articleConfig.bodyFontFamily,
               ].join(' ')}
@@ -970,19 +1017,27 @@ export default function PostLab({
                 level further out; minHeight gives it real slack to
                 distribute when the TOC itself is short. */}
             <NarrowColumnContent
-              {...narrowColumnContentBoxProps(postLabLayoutConfig)}
+              {...tocContentBoxProps}
               debugLabel="TABLE OF CONTENTS"
             >
-              <TableOfContentsDisclosure
-                headings={headings}
-                figures={figures}
-                presentation={tocPresentation}
-                presentationConfig={articleTocConfig}
-                currentSectionLinePx={tocCurrentSectionLinePx}
-                splitBreakpointPrefix={tocSplitBreakpointPrefix}
-                collapsedByDefaultWhenStacked={articleTocConfig.collapsedByDefaultWhenStacked}
-                autoExpandOnActiveSection={articleTocConfig.autoExpandOnActiveSection}
-              />
+              <div
+                data-post-toc-anchor="true"
+                style={desktopTocStartPx != null ? {
+                  marginLeft: `${desktopTocStartPx}px`,
+                  width: `calc(100% - ${desktopTocStartPx}px)`,
+                } : undefined}
+              >
+                <TableOfContentsDisclosure
+                  headings={headings}
+                  figures={figures}
+                  presentation={tocPresentation}
+                  presentationConfig={articleTocConfig}
+                  currentSectionLinePx={tocCurrentSectionLinePx}
+                  splitBreakpointPrefix={tocSplitBreakpointPrefix}
+                  collapsedByDefaultWhenStacked={articleTocConfig.collapsedByDefaultWhenStacked}
+                  autoExpandOnActiveSection={articleTocConfig.autoExpandOnActiveSection}
+                />
+              </div>
             </NarrowColumnContent>
           </div>
         )}

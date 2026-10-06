@@ -1,5 +1,7 @@
 import type { CtaButtonMotionEasing } from '../components/CtaButton/config/registered';
 import { DEFAULT_LIQUID_SLIDER_CONFIG } from '../experiences/abstract/components/AbstractPostDock';
+import type { PolymorphicLayoutConfig } from '../experiences/abstract/components/PolymorphicLayout.config';
+import { ABOUT_POLYMORPHIC_LAYOUT_CONFIG as SHARED_ABOUT_POLYMORPHIC_LAYOUT_CONFIG } from '../experiences/abstract/components/PolymorphicLayout.pageConfigs';
 import {
   DEFAULT_ABSTRACT_POST_DOCK_LAYOUT_CONFIG,
   type AbstractPostDockPaletteConfig,
@@ -168,9 +170,9 @@ export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
   markerIdleOpacity: 0,
   markerActiveOpacity: 1,
   markerGradientEnabled: false,
-  rowTitleFontSizeClassName: 'text-xs',
+  rowTitleFontSizeClassName: 'text-sm',
   rowTitleFontSizeWideClassName: 'md:text-xs',
-  rowTitleFontSizeLgClassName: 'lg:text-xs',
+  rowTitleFontSizeLgClassName: 'lg:text-sm',
   rowTitleFontWeightClassName: 'font-normal',
   rowTitleFontWeightWideClassName: 'md:font-normal',
   rowTitleFontWeightLgClassName: 'lg:font-normal',
@@ -178,21 +180,21 @@ export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
   rowTitleFontWeightActiveWideClassName: 'md:font-normal',
   rowTitleFontWeightActiveLgClassName: 'lg:font-normal',
   rowTitleMinContrastActive: 21,
-  rowDescriptionMinContrastActive: 8.3,
-  rowTitleOpacityInactive: 0.6,
-  rowDescriptionOpacityActive: 0.57,
-  rowDescriptionOpacityInactive: 0.4,
-  hoverDescriptionOpacity: 0.4,
-  rowDescriptionMinContrastInactive: 3,
+  rowDescriptionMinContrastActive: 21,
+  rowTitleOpacityInactive: 0.72,
+  rowDescriptionOpacityActive: 0.9,
+  rowDescriptionOpacityInactive: 0.55,
+  hoverDescriptionOpacity: 0.77,
+  rowDescriptionMinContrastInactive: 21,
   descriptionVisible: false,
   descriptionFontSizeClassName: 'text-sm',
   rowDescriptionFontSizeClassName: 'text-xs',
   rowDescriptionFontSizeWideClassName: 'md:text-xs',
-  rowDescriptionFontSizeLgClassName: 'lg:text-xs',
+  rowDescriptionFontSizeLgClassName: 'lg:text-sm',
   alignment: 'right',
   alignmentWide: 'right',
-  alignmentLg: 'right',
-  descriptionOpacity: 0.61,
+  alignmentLg: 'left',
+  descriptionOpacity: 0.74,
   descriptionPaddingBottomLgClassName: 'lg:pb-7',
   rowAppendixEnabled: false,
   rowAppendixRevealDelayMs: 340,
@@ -207,6 +209,9 @@ export const DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG: AboutTimelineConfig = {
   introEasing: 'linear',
   introItemStaggerMs: 0,
   introItemOverlapMs: 80,
+
+  rowTitleMinContrastInactive: 21,
+  descriptionMinContrast: 11.6,
 };
 
 export const DEFAULT_ABOUT_PAGE_LAYOUT_CONFIG = {
@@ -467,6 +472,10 @@ export const ABOUT_DEFAULT_DOCK_PALETTE_CONFIG: AbstractPostDockPaletteConfig = 
   gradientNoiseWide: 0,
   gradientScaleLg: 0.8,
   gradientNoiseLg: 0,
+  inactiveGradientScaleDistanceEnabled: false,
+  inactiveGradientScaleDistancePercent: 38,
+  inactiveGradientScaleDistancePercentWide: 38,
+  inactiveGradientScaleDistancePercentLg: 38,
   gradientScaleX: 1,
   gradientScaleY: 1.1,
   distanceDimmingEnabled: true,
@@ -530,6 +539,108 @@ export const ABOUT_DEFAULT_DOCK_LAYOUT_CONFIG: AbstractPostDockLayoutConfig = {
 // with /abstract's and /posts-lab's own instances next to the shared type
 // they're all instances of (PLAN-CONFIG-SCOPE-PAGE-OWNERSHIP.md's own
 // "Round 1" ruling — see that file's own doc comment for the full per-field
-// reasoning). Re-exported here unchanged so no other consumer of this file's
-// own ABOUT_POLYMORPHIC_LAYOUT_CONFIG import needs to change.
-export { ABOUT_POLYMORPHIC_LAYOUT_CONFIG } from '../experiences/abstract/components/PolymorphicLayout.pageConfigs';
+// reasoning).
+//
+// No longer a bare re-export (operator ask, 2026-09-23: journal's mobile/
+// tablet gradient recipe copied onto this page too — pages/journal.config.ts's
+// own matching comment, pages/posts/postLab.config.ts's own matching
+// instance). Own page-owned object literal now, spreading the shared
+// SHARED_ABOUT_POLYMORPHIC_LAYOUT_CONFIG and overriding only the base
+// (mobile) and Wide (tablet) gradient fields — About's own desktop (Lg)
+// recipe (a distinct red/warm treatment, scrollGradientBaseHueLg: 360 et
+// al.) is untouched. pages/about.panel.ts's own ABOUT_POLYMORPHIC_LAYOUT_PANEL
+// targetFile/targetSymbol were re-pointed at this literal to match — see
+// that scope's own doc comment for why a stale target silently breaks
+// Update diff (the exact bug PolymorphicLayout.pageConfigs.test.ts's own
+// guard now catches for any page in this family).
+export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
+  ...SHARED_ABOUT_POLYMORPHIC_LAYOUT_CONFIG,
+  scrollGradientBaseHue: 200,
+  scrollGradientBaseHueWide: 200,
+  // /about's own shared baseline (unlike /journal's and /abstract's, which
+  // already matched here) diverges base 'dual-complementary' vs Wide 'mono'
+  // — left as a genuinely different field the journal/postLab override
+  // block never needed to touch. Matched here for the same "mobile and
+  // tablet render the identical gradient recipe" reason as every other
+  // field below (live-verified: without this, About's tablet-tier radial-
+  // gradient stop colors differed from mobile's despite every other field
+  // matching).
+  scrollGradientHueScheme: 'dual-complementary',
+  scrollGradientHueSchemeWide: 'dual-complementary',
+  scrollGradientLightnessMin: 77,
+  scrollGradientLightnessMinWide: 77,
+  scrollGradientChromaMin: 70,
+  scrollGradientChromaMinWide: 70,
+  scrollGradientMode: 'center-bright',
+  scrollGradientModeWide: 'center-bright',
+  scrollGradientCenterStretch: 0.8,
+  scrollGradientCenterStretchWide: 0.8,
+  scrollGradientInterpolation: 'srgb',
+  scrollGradientInterpolationWide: 'srgb',
+  scrollGradientCompositor: 'enhanced',
+  scrollGradientCompositorWide: 'enhanced',
+  scrollGradientLightRadiusPercent: 60,
+  scrollGradientLightRadiusPercentWide: 60,
+  scrollGradientLightAspectRatio: 4,
+  scrollGradientLightAspectRatioWide: 4,
+  scrollGradientExtentPercent: 400,
+  scrollGradientExtentPercentWide: 400,
+  scrollGradientSmoothness: 4,
+  scrollGradientSmoothnessWide: 4,
+  scrollGradientDitherAmount: 0.051,
+  scrollGradientDitherAmountWide: 0.051,
+  scrollGradientDitherScale: 2.2,
+  scrollGradientDitherScaleWide: 2.2,
+  scrollGradientInkColor: '#c68080',
+  scrollGradientInkColorWide: '#c68080',
+  scrollGradientViewportRangeVh: 10,
+  scrollGradientViewportRangeVhWide: 10,
+  scrollGradientMaxDarken: 0,
+  scrollGradientMaxDarkenWide: 0,
+  scrollGradientLegibilityTargetRatio: 3,
+  scrollGradientLegibilityTargetRatioWide: 3,
+  scrollGradientDarkInkSaturation: 2,
+  scrollGradientDarkInkSaturationWide: 2,
+  scrollGradientDarkInkOpacityMultiplier: 0.9,
+  scrollGradientDarkInkOpacityMultiplierWide: 0.9,
+  scrollGradientFocalHorizontal: 'center',
+  scrollGradientFocalHorizontalWide: 'center',
+  scrollGradientLightHiddenPercent: 60,
+  scrollGradientLightHiddenPercentWide: 60,
+  scrollGradientLightFalloff: 1.1,
+  scrollGradientLightFalloffWide: 1.1,
+
+  scrollGradientDarkInkSaturationLg: 0.16,
+  scrollGradientMaxDarkenLg: 0.18,
+  scrollGradientAdaptiveInkMaxAmount: 0.85,
+  scrollGradientAdaptiveInkTargetContrastRatio: 12,
+  scrollGradientAdaptiveInkReturnToLightRangeVh: 0.1,
+  wordmarkUsesScrollGradient: false,
+  wordmarkGradientLightnessMax: 100,
+
+  scrollGradientLightnessMinLg: 30,
+  scrollGradientModeLg: 'side-bright',
+  scrollGradientViewportRangeVhLg: 1.7,
+
+  scrollGradientDarkInkOpacityMultiplierLg: 0.8,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 1,
+  scrollGradientChromaMinLg: 0,
+  scrollGradientLightHiddenPercentLg: 80,
+  scrollGradientLightFalloffLg: 1.85,
+  scrollGradientInterpolationLg: 'oklab',
+  scrollGradientExtentPercentLg: 29,
+
+  scrollGradientNarrowColumnVariantEnabledLg: false,
+  scrollGradientLightRadiusPercentLg: 212,
+  scrollGradientLightAspectRatioLg: 2.25,
+  scrollGradientDitherAmountLg: 0.064,
+  scrollGradientDitherSeedLg: 66800,
+  scrollGradientLegibilityTargetRatioLg: 5,
+
+  scrollGradientCenterStretchLg: 0.37,
+  scrollGradientSeedLg: 11405,
+
+  wideColumnTransparentWide: true,
+
+  narrowColumnContentAlignLg: 'items-end',
+};

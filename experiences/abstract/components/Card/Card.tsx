@@ -1,6 +1,7 @@
 import type { HueFadeCardProps } from '../AbstractJournalLabCollection';
 import { AbstractJournalLabHueFadeCard } from '../AbstractJournalLabCollection';
 import type { CardAppearanceConfig } from './config/appearance';
+import { tailwindTokenCssValue } from '../../../../components/Panel/config/tailwindFields';
 
 /** Central card surface used by Abstract's CoverFlow. The underlying
  * ArticleCard remains the shared information-card primitive; this adapter
@@ -31,6 +32,17 @@ export function Card({ appearanceConfig, stackPresentation, ...props }: CardProp
       ctaHoverEasingCss: stackPresentation.ctaHoverEasingCss,
       ctaHoverDelayMs: appearanceConfig.ctaHoverDelayMs,
       frameMode: appearanceConfig.neighborFrameMode,
+      invertedGradientInkEnabled: appearanceConfig.invertedGradientInkEnabled,
+      invertedGradientInkBackgroundColor: appearanceConfig.invertedGradientInkBackgroundColor,
+      invertedGradientInkBackgroundOpacity: appearanceConfig.invertedGradientInkBackgroundOpacity,
+      invertedGradientInkForegroundColor: appearanceConfig.invertedGradientInkForegroundColor,
+      invertedGradientInkBlendMode: appearanceConfig.invertedGradientInkBlendMode,
+      invertedGradientInkActiveBorderEnabled: appearanceConfig.invertedGradientInkActiveBorderEnabled,
+      invertedGradientInkActiveBorderWidthPx: tailwindTokenCssValue(
+        'borderWidth',
+        'base',
+        appearanceConfig.invertedGradientInkActiveBorderWidth,
+      ),
     }
     : stackPresentation;
 

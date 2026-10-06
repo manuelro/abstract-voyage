@@ -266,7 +266,7 @@ export const DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG = {
   expandedListBackgroundOpacity: 0,
   expandedListBackdropBlurPx: 40,
   expandedCarouselBehindOpacity: 0.72,
-  expandedForcesMaxBackgroundDarken: true,
+  expandedForcesMaxBackgroundDarken: false,
   // The persistent surface's top edge travels from the compact-list boundary
   // to the expanded boundary. A symmetric curve makes this read as one object
   // growing upward rather than a fast reveal.

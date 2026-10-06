@@ -20,6 +20,7 @@
  * "choose a Tailwind class" rather than "drag a slider."
  */
 
+/** @deprecated New config fields must use the global `paddingX` utility via `createTailwindFieldFactory`. */
 export const PADDING_X_OPTIONS = [
   { label: 'px-0', value: 'px-0' },
   { label: 'px-0.5', value: 'px-0.5' },
@@ -57,6 +58,7 @@ export const PADDING_X_OPTIONS = [
   { label: 'px-96', value: 'px-96' },
 ] as const;
 
+/** @deprecated Use `TailwindTokenValue<'paddingX'>` for new or migrated config fields. */
 export type PaddingXClass = typeof PADDING_X_OPTIONS[number]['value'];
 
 /**
@@ -108,6 +110,7 @@ export const PADDING_X_WIDE_OPTIONS = [
 
 export type PaddingXWideClass = typeof PADDING_X_WIDE_OPTIONS[number]['value'];
 
+/** @deprecated New config fields must use the global `paddingY` utility via `createTailwindFieldFactory`. */
 export const PADDING_Y_OPTIONS = [
   { label: 'py-0', value: 'py-0' },
   { label: 'py-0.5', value: 'py-0.5' },
@@ -145,6 +148,7 @@ export const PADDING_Y_OPTIONS = [
   { label: 'py-96', value: 'py-96' },
 ] as const;
 
+/** @deprecated Use `TailwindTokenValue<'paddingY'>` for new or migrated config fields. */
 export type PaddingYClass = typeof PADDING_Y_OPTIONS[number]['value'];
 
 export const PADDING_OPTIONS = [
@@ -186,6 +190,7 @@ export const PADDING_OPTIONS = [
 
 export type PaddingClass = typeof PADDING_OPTIONS[number]['value'];
 
+/** @deprecated New config fields must use the global `marginTop` utility via `createTailwindFieldFactory`. */
 export const MARGIN_TOP_OPTIONS = [
   { label: 'mt-0', value: 'mt-0' },
   { label: 'mt-0.5', value: 'mt-0.5' },
@@ -223,6 +228,7 @@ export const MARGIN_TOP_OPTIONS = [
   { label: 'mt-96', value: 'mt-96' },
 ] as const;
 
+/** @deprecated Use `TailwindTokenValue<'marginTop'>` for new or migrated config fields. */
 export type MarginTopClass = typeof MARGIN_TOP_OPTIONS[number]['value'];
 
 export const MARGIN_BOTTOM_OPTIONS = [
@@ -264,6 +270,7 @@ export const MARGIN_BOTTOM_OPTIONS = [
 
 export type MarginBottomClass = typeof MARGIN_BOTTOM_OPTIONS[number]['value'];
 
+/** @deprecated New config fields must use the global `paddingBottom` utility via `createTailwindFieldFactory`. */
 export const PADDING_BOTTOM_OPTIONS = [
   { label: 'pb-0', value: 'pb-0' },
   { label: 'pb-0.5', value: 'pb-0.5' },
@@ -301,6 +308,7 @@ export const PADDING_BOTTOM_OPTIONS = [
   { label: 'pb-96', value: 'pb-96' },
 ] as const;
 
+/** @deprecated Use `TailwindTokenValue<'paddingBottom'>` for new or migrated config fields. */
 export type PaddingBottomClass = typeof PADDING_BOTTOM_OPTIONS[number]['value'];
 
 export const INDENT_OPTIONS = [
@@ -342,6 +350,7 @@ export const INDENT_OPTIONS = [
 
 export type IndentClass = typeof INDENT_OPTIONS[number]['value'];
 
+/** @deprecated New config fields must use the global `gap` utility via `createTailwindFieldFactory`. */
 export const GAP_OPTIONS = [
   { label: 'gap-0', value: 'gap-0' },
   { label: 'gap-0.5', value: 'gap-0.5' },
@@ -379,6 +388,7 @@ export const GAP_OPTIONS = [
   { label: 'gap-96', value: 'gap-96' },
 ] as const;
 
+/** @deprecated Use `TailwindTokenValue<'gap'>` for new or migrated config fields. */
 export type GapClass = typeof GAP_OPTIONS[number]['value'];
 
 export const WIDTH_OPTIONS = [
@@ -512,6 +522,7 @@ export type MarginLeftClass = typeof MARGIN_LEFT_OPTIONS[number]['value'];
  * content boxes' full 4-side margin) — same pattern as PADDING_LEFT_OPTIONS/
  * MARGIN_LEFT_OPTIONS above, additive only.
  */
+/** @deprecated New config fields must use the global `paddingTop` utility via `createTailwindFieldFactory`. */
 export const PADDING_TOP_OPTIONS = [
   { label: 'pt-0', value: 'pt-0' }, { label: 'pt-0.5', value: 'pt-0.5' },
   { label: 'pt-1', value: 'pt-1' }, { label: 'pt-1.5', value: 'pt-1.5' },
@@ -532,6 +543,7 @@ export const PADDING_TOP_OPTIONS = [
   { label: 'pt-80', value: 'pt-80' }, { label: 'pt-96', value: 'pt-96' },
 ] as const;
 
+/** @deprecated Use `TailwindTokenValue<'paddingTop'>` for new or migrated config fields. */
 export type PaddingTopClass = typeof PADDING_TOP_OPTIONS[number]['value'];
 
 export const PADDING_TOP_WIDE_OPTIONS = [
@@ -993,6 +1005,7 @@ export const OUTER_BORDER_WIDTH_OPTIONS = [
 
 export type OuterBorderWidthClass = typeof OUTER_BORDER_WIDTH_OPTIONS[number]['value'];
 
+/** @deprecated New config fields must use the global `borderTopWidth` utility via `createTailwindFieldFactory`. */
 export const BORDER_TOP_WIDTH_OPTIONS = [
   { label: '0px (none)', value: 'border-t-0' },
   { label: '1px', value: 'border-t' },
@@ -1001,6 +1014,7 @@ export const BORDER_TOP_WIDTH_OPTIONS = [
   { label: '8px', value: 'border-t-8' },
 ] as const;
 
+/** @deprecated Use `TailwindTokenValue<'borderTopWidth'>` for new or migrated config fields. */
 export type BorderTopWidthClass = typeof BORDER_TOP_WIDTH_OPTIONS[number]['value'];
 
 /** A divider line between stacked siblings, Tailwind's own `divide-y-*`

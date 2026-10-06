@@ -19,6 +19,33 @@ config system.
 When in doubt, count the options first, then pick the kind — don't default
 to `enum` because it's simpler to write and fix it later once it looks bad.
 
+## Tailwind-backed config fields
+
+For new Tailwind-backed config fields, and whenever an existing Tailwind-
+backed field is materially changed, use the generated shared system in
+`components/Panel/config/tailwindFields.ts`:
+
+- Type values with `TailwindTokenValue`.
+- Build panel definitions with `createTailwindFieldFactory`.
+- Normalize untrusted or partial values with `normalizeTailwindToken`.
+- Reference one global utility and pass `base`, `md`, or `lg` as the
+  breakpoint. Keep field keys, labels, descriptions, defaults, grouping,
+  visibility, and breakpoint placement in the consumer.
+- Leave token membership, option construction, and `enum`/`select`
+  presentation in the generated shared infrastructure.
+
+Do not add local Tailwind `{ label, value }` arrays, Tailwind class-string
+unions, normalizer allowlists, separate token lists per breakpoint,
+component/page token profiles, inline exposure policies, dynamically built
+Tailwind class names, manual edits to generated registries, or consumer
+overrides of generated `options` or `kind`. Change the utility manifest and
+regenerate when a genuinely new global utility family is needed.
+
+This rule does not turn an unrelated task into a repository-wide migration.
+Existing untouched fields may remain until their own migration. Continuous
+numbers, measurements, timing, colors, booleans, alignments, and other values
+that are not Tailwind utility tokens retain their appropriate controls.
+
 ## Visual verification is mandatory for visual changes
 
 For any UI, layout, typography, color, gradient, opacity, responsive, or

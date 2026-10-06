@@ -513,6 +513,10 @@ export const ABSTRACT_POST_DOCK_PALETTE_PANEL =
           },
         ],
       },
+      { kind: 'boolean', key: 'inactiveGradientScaleDistanceEnabled', label: 'Inactive gradient scale by distance' },
+      { kind: 'number', key: 'inactiveGradientScaleDistancePercent', label: 'Inactive scale increase (mobile)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleDistanceEnabled },
+      { kind: 'number', key: 'inactiveGradientScaleDistancePercentWide', label: 'Inactive scale increase (tablet)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleDistanceEnabled },
+      { kind: 'number', key: 'inactiveGradientScaleDistancePercentLg', label: 'Inactive scale increase (desktop)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleDistanceEnabled },
       {
         kind: 'number',
         key: 'gradientScaleX',

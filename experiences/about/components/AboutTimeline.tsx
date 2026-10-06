@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, KeyboardEvent } from 'react';
-import { CTA_BUTTON_MOTION_EASINGS } from '../../../components/CtaButton/config/registered';
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
+import { CTA_BUTTON_MOTION_EASINGS, type CtaButtonMotionEasing } from '../../../components/CtaButton/config/registered';
 import { tailwindSpacingTokenToPx } from '../../../components/tailwindSpacingScale';
 import { resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDerivation';
+import { createCssEasingFunction } from '../../../helpers/cubicBezierEasing';
 import { AboutTimelineRow } from './AboutTimelineRow';
 import { LINE_HEIGHT_OPTIONS, type AboutTimelineConfig } from './AboutTimeline.config';
 import styles from './AboutTimeline.module.css';
@@ -116,6 +117,19 @@ export interface AboutTimelineProps {
    * Active/hoverDescriptionOpacity (hover and active share one role/override,
    * same as the color pair above). */
   highlightOpacityOverride?: number;
+  /** Opt-in row "chip" background for the idle/default state — omitted
+   * (every existing caller): no background is ever painted, this component
+   * renders exactly as it always has. Hover and active/selected share ONE
+   * state (rowBackgroundColorActiveOverride below), the same convention
+   * this component's own title/description colors already use
+   * (`isHoveredRow || selected`). Passed straight through to
+   * `AboutTimelineRow`'s own `backgroundColor` prop, per-row, resolved here
+   * rather than in that shared component so this stays additive and
+   * page-scoped like every other *Override prop above. */
+  rowBackgroundColorOverride?: string;
+  /** Same contract as rowBackgroundColorOverride above, for the hover/
+   * active state. */
+  rowBackgroundColorActiveOverride?: string;
   /** Plain lead-in text rendered above the rows, no heading semantics —
    * describes the timeline itself. Indented to start at the same x-position
    * a row's own caption text starts at (the marker/rule column's own
@@ -158,6 +172,55 @@ export interface AboutTimelineProps {
    * arrow keys move focus without activating a destination. */
   navigationMode?: boolean;
   ariaLabel?: string;
+  /** Opt-in "windowed" row list — omitted/0 (every existing caller): the
+   * list renders every row at its own natural height, unclipped, exactly as
+   * today. A positive count instead caps the row list's own scrollable
+   * height to exactly the combined height of that many rows (measured live
+   * from the real, rendered `<li>` boxes — row heights vary with wrapped
+   * captions, so this isn't a fixed estimate), with the remainder reachable
+   * by scrolling. Snaps one row at a time (`scroll-snap-type`/`-align`,
+   * AboutTimeline.module.css) so the list always rests showing exactly this
+   * many whole rows, never a partial one. */
+  scrollWindowVisibleCount?: number;
+  /** Only meaningful alongside scrollWindowVisibleCount above — when the
+   * active row changes (drag/swipe navigation on the paired CoverFlow just
+   * as much as a click on the row itself) and that row now sits outside the
+   * list's own visible window, the list smoothly scrolls it back into view
+   * instead of leaving it clipped, hidden below/above the scrollable
+   * viewport until the operator notices and scrolls manually. A real,
+   * configurable-duration/easing tween (this codebase's own
+   * createCssEasingFunction, the same primitive AboutTimelineRow.tsx's own
+   * reveal animation uses) — not the browser's native `scrollIntoView`
+   * smoothing, which has no duration/easing controls of its own. Already
+   * fully visible: no scroll happens at all (checked against both the top
+   * and bottom edge of the current scroll window), so clicking a row
+   * that's already on screen never moves anything. 0 duration (or reduced
+   * motion): jumps instantly instead of tweening. */
+  scrollWindowActiveScrollDurationMs?: number;
+  scrollWindowActiveScrollEasing?: CtaButtonMotionEasing;
+  /** Holds the bring-into-view scroll above until this many ms after
+   * activeIndex changes — the CoverFlow card's own settle glide (drag/swipe
+   * navigation) keeps animating for a while after activeIndex itself
+   * updates (that prop commits at release, not once the visual glide
+   * finishes), so scrolling the list immediately reads as two independent
+   * things moving on screen at once. 0 (default): scrolls immediately,
+   * exactly as before this prop existed. */
+  scrollWindowActiveScrollDelayMs?: number;
+  /** Stretches this component's own root to fill its parent's height and
+   * pushes the scrollWindowVisibleCount counter/arrows row (via
+   * margin-top: auto) down to the bottom of that space, instead of the row
+   * sitting directly under the row list wherever that list happens to end.
+   * Opt-in (default false, today's plain in-flow layout, unaffected) — only
+   * meaningful for a caller whose parent gives this component a real,
+   * bounded height to fill (AbstractCoverFlowTimelineSlot.tsx's own
+   * fixed-aspect-ratio figure); a caller with no such parent (About/Journal's
+   * plain in-page placement) would just see this collapse back to the
+   * in-flow position anyway, since `height: 100%` has no effect without a
+   * sized ancestor — but only the coverflow-track figure opts in today. */
+  fillContainerHeight?: boolean;
+  /** Optional action rendered between the count and navigation arrows in
+   * the Timeline toolbar. */
+  toolbarLeadingAction?: ReactNode;
 }
 
 const TAB_ID_PREFIX = 'about-timeline-tab';
@@ -182,6 +245,8 @@ export function AboutTimeline({
   inkOpacityMultiplier = 1,
   bodyOpacityOverride,
   highlightOpacityOverride,
+  rowBackgroundColorOverride,
+  rowBackgroundColorActiveOverride,
   description,
   descriptionWide,
   descriptionLg,
@@ -194,9 +259,172 @@ export function AboutTimeline({
   gradientConfig,
   navigationMode = false,
   ariaLabel = 'Career timeline',
+  scrollWindowVisibleCount = 0,
+  scrollWindowActiveScrollDurationMs = 420,
+  scrollWindowActiveScrollEasing = 'standard',
+  scrollWindowActiveScrollDelayMs = 0,
+  fillContainerHeight = false,
+  toolbarLeadingAction,
 }: AboutTimelineProps) {
   const { introStartAt } = usePageCapabilityRuntime();
   const rowRefs = useRef<Array<HTMLButtonElement | HTMLAnchorElement | null>>([]);
+  const listRef = useRef<HTMLOListElement | null>(null);
+  // scrollWindowVisibleCount own state: which row currently sits at the
+  // list's own top edge (1-based, for the "N of N" counter) and whether
+  // there's more to reach in either direction (for the up/down arrows' own
+  // disabled state). Recomputed on scroll (rAF-throttled) and whenever the
+  // window itself is re-measured (resize, row count/content change).
+  const [scrollWindowTopRowNumber, setScrollWindowTopRowNumber] = useState(1);
+  const [scrollWindowCanScrollUp, setScrollWindowCanScrollUp] = useState(false);
+  const [scrollWindowCanScrollDown, setScrollWindowCanScrollDown] = useState(false);
+  const scrollWindowFrameRef = useRef(0);
+  const pendingTimelineNavigationRef = useRef<number | null>(null);
+
+  const updateScrollWindowPosition = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const items = Array.from(list.children) as HTMLElement[];
+    if (items.length === 0) return;
+    const scrollTop = list.scrollTop;
+    let topIndex = 0;
+    for (let index = 0; index < items.length; index += 1) {
+      if (items[index].offsetTop <= scrollTop + 1) topIndex = index;
+      else break;
+    }
+    setScrollWindowTopRowNumber(topIndex + 1);
+    setScrollWindowCanScrollUp(scrollTop > 1);
+    setScrollWindowCanScrollDown(scrollTop < list.scrollHeight - list.clientHeight - 1);
+  }, []);
+
+  // Shared smooth-scroll primitive — the active-row bring-into-view effect
+  // and the up/down arrow buttons below both animate the exact same way
+  // (this codebase's own createCssEasingFunction tween, snap suspended for
+  // its duration — see that effect's own doc comment for why), so there is
+  // only ever one scroll feel for this list, never two independently-tuned
+  // ones.
+  const scrollListTo = useCallback((target: number) => {
+    const list = listRef.current;
+    if (!list) return;
+    const from = list.scrollTop;
+    const distance = target - from;
+    if (Math.abs(distance) < 1) return;
+
+    const durationMs = prefersReducedMotion ? 0 : scrollWindowActiveScrollDurationMs;
+    if (durationMs <= 0) {
+      list.scrollTop = target;
+      updateScrollWindowPosition();
+      return;
+    }
+
+    const previousScrollSnapType = list.style.scrollSnapType;
+    list.style.scrollSnapType = 'none';
+    const ease = createCssEasingFunction(CTA_BUTTON_MOTION_EASINGS[scrollWindowActiveScrollEasing]);
+    let startTimestamp = 0;
+    const step = (now: number) => {
+      if (!startTimestamp) startTimestamp = now;
+      const progress = Math.min(1, (now - startTimestamp) / durationMs);
+      list.scrollTop = from + distance * ease(progress);
+      updateScrollWindowPosition();
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      } else {
+        list.style.scrollSnapType = previousScrollSnapType;
+      }
+    };
+    window.requestAnimationFrame(step);
+  }, [
+    prefersReducedMotion, scrollWindowActiveScrollDurationMs, scrollWindowActiveScrollEasing,
+    updateScrollWindowPosition,
+  ]);
+
+  // Up/down arrow controls — step exactly one row at a time (the row
+  // currently crossing the relevant edge), respecting each row's own real
+  // height rather than assuming a fixed one, same principle the windowing
+  // measurement above already follows.
+  const scrollListByOneRow = useCallback((direction: 1 | -1) => {
+    const list = listRef.current;
+    if (!list) return;
+    const items = Array.from(list.children) as HTMLElement[];
+    const scrollTop = list.scrollTop;
+    let target: number | undefined;
+    if (direction > 0) {
+      target = items.find(item => item.offsetTop > scrollTop + 1)?.offsetTop;
+    } else {
+      for (let index = items.length - 1; index >= 0; index -= 1) {
+        if (items[index].offsetTop < scrollTop - 1) {
+          target = items[index].offsetTop;
+          break;
+        }
+      }
+    }
+    if (target === undefined) return;
+    scrollListTo(target);
+  }, [scrollListTo]);
+
+  const navigateTimelineByOneRow = useCallback((direction: 1 | -1) => {
+    const currentRowIndex = rows.findIndex(row => row.slideIndex === activeIndex);
+    if (currentRowIndex === -1) return;
+    const nextRow = rows[currentRowIndex + direction];
+    if (!nextRow) return;
+
+    const list = listRef.current;
+    const target = list?.children[currentRowIndex + direction] as HTMLElement | undefined;
+    if (!list || !target || scrollWindowVisibleCount <= 0) {
+      onSelect(nextRow.slideIndex);
+      return;
+    }
+    const viewTop = list.scrollTop;
+    const viewBottom = viewTop + list.clientHeight;
+    const targetTop = target.offsetTop;
+    const targetBottom = targetTop + target.offsetHeight;
+    const scrollTarget = targetTop < viewTop
+      ? targetTop
+      : targetBottom > viewBottom
+        ? targetBottom - list.clientHeight
+        : null;
+    if (scrollTarget === null) {
+      onSelect(nextRow.slideIndex);
+      return;
+    }
+
+    // Do not let CoverFlow leave the currently visible list item until the
+    // next item has physically arrived in this list's window. The same
+    // scroll primitive/curve is used for active-row restoration, so the
+    // hand-off remains one coherent motion rather than two competing jumps.
+    scrollListTo(scrollTarget);
+    if (pendingTimelineNavigationRef.current !== null) {
+      window.clearTimeout(pendingTimelineNavigationRef.current);
+    }
+    const waitMs = prefersReducedMotion ? 0 : scrollWindowActiveScrollDurationMs;
+    pendingTimelineNavigationRef.current = window.setTimeout(() => {
+      pendingTimelineNavigationRef.current = null;
+      onSelect(nextRow.slideIndex);
+    }, waitMs);
+  }, [
+    activeIndex, onSelect, prefersReducedMotion, rows, scrollListTo,
+    scrollWindowActiveScrollDurationMs, scrollWindowVisibleCount,
+  ]);
+
+  useEffect(() => () => {
+    if (pendingTimelineNavigationRef.current !== null) {
+      window.clearTimeout(pendingTimelineNavigationRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || scrollWindowVisibleCount <= 0) return undefined;
+    const onScroll = () => {
+      if (scrollWindowFrameRef.current) return;
+      scrollWindowFrameRef.current = window.requestAnimationFrame(() => {
+        scrollWindowFrameRef.current = 0;
+        updateScrollWindowPosition();
+      });
+    };
+    list.addEventListener('scroll', onScroll, { passive: true });
+    return () => list.removeEventListener('scroll', onScroll);
+  }, [scrollWindowVisibleCount, updateScrollWindowPosition]);
+
   const transitionEasingCss = CTA_BUTTON_MOTION_EASINGS[config.transitionEasing];
   const transitionDurationMs = prefersReducedMotion ? 0 : config.transitionDurationMs;
   const timelineIntroActive = config.introEnabled
@@ -296,12 +524,25 @@ export function AboutTimeline({
   // 'text' mode matches the row title's own ACTIVE color specifically — the
   // marker's own fill state already means "this row is active," so it reads
   // as one ink with the row's own most-prominent text in that same state.
-  const resolvedMarkerColor = inkColorOverride
-    ?? (config.markerColorMode === 'custom'
+  // inkColorOverride only ever wins for 'accent' mode (the config's own
+  // zero-opinion default) — 'custom'/'text' are an operator's explicit,
+  // deliberate choice made right here in the panel (see markerColorMode's
+  // own MARKER COLOR SOURCE control) and must render exactly that choice,
+  // not be silently discarded. Before this, inkColorOverride short-circuited
+  // ALL THREE modes unconditionally, so any page wiring that prop (e.g.
+  // journal.tsx's own scroll-gradient-adaptive ink) made Custom/Text
+  // indistinguishable from Accent — confirmed live, operator-reported,
+  // 2026-09-23: picking Custom + a bright red swatch left the marker
+  // unchanged. 'text' still naturally lands on the same ink inkColorOverride
+  // would have supplied (resolvedRowTitleColorActive is itself already
+  // inkColorOverride-driven above), so a page wanting that original
+  // single-ink-everywhere behavior gets it by explicitly setting
+  // markerColorMode: 'text' rather than having it forced unconditionally.
+  const resolvedMarkerColor = config.markerColorMode === 'custom'
     ? config.markerCustomColor
     : config.markerColorMode === 'text'
       ? resolvedRowTitleColorActive
-      : accentColor);
+      : (inkColorOverride ?? accentColor);
   const resolvedDescriptionColor = useMemo(
     () => inkColorOverride
       ?? bodyColorOverride
@@ -419,11 +660,19 @@ export function AboutTimeline({
         appendix={config.rowAppendixEnabled ? (row.appendix ?? row.category) : undefined}
         appendixSeparator={config.rowAppendixSeparator}
         appendixClassName={[
-          config.rowAppendixFontFamily, config.rowAppendixFontFamilyWide, config.rowAppendixFontFamilyLg,
+          config.rowAppendixFontFamily, config.rowAppendixFontWeightClassName,
           config.rowAppendixFontSizeClassName, config.rowAppendixFontSizeWideClassName,
           config.rowAppendixFontSizeLgClassName,
+          config.rowAppendixPaddingTopClassName, config.rowAppendixPaddingRightClassName,
+          config.rowAppendixPaddingBottomClassName, config.rowAppendixPaddingLeftClassName,
         ].join(' ')}
         appendixVisible={isHoveredRow}
+        appendixForceVisible={config.rowAppendixForceVisible}
+        appendixForceVisibleWide={config.rowAppendixForceVisibleWide}
+        appendixForceVisibleLg={config.rowAppendixForceVisibleLg}
+        appendixForceLineBreak={config.rowAppendixForceLineBreak}
+        appendixForceLineBreakWide={config.rowAppendixForceLineBreakWide}
+        appendixForceLineBreakLg={config.rowAppendixForceLineBreakLg}
         appendixOpacity={config.rowAppendixOpacity}
         active={selected}
         selectionEnabled={selectionEnabled}
@@ -431,6 +680,10 @@ export function AboutTimeline({
         href={row.href}
         markerColor={resolvedMarkerColor}
         markerSizePx={markerSizePx}
+        markerShape={config.markerShape}
+        backgroundColor={isHoveredRow || selected
+          ? rowBackgroundColorActiveOverride
+          : rowBackgroundColorOverride}
         titleColor={isHoveredRow || selected ? resolvedRowTitleColorActive : resolvedRowTitleColorInactive}
         descriptionColor={isHoveredRow || selected ? resolvedRowDescriptionColorActive : resolvedRowDescriptionColorInactive}
         descriptionOpacity={isHoveredRow
@@ -462,7 +715,10 @@ export function AboutTimeline({
         onPointerEnter={() => handleRowPointerEnter(row.slideIndex)}
         onPointerLeave={() => handleRowPointerLeave(row.slideIndex)}
         rowRef={element => { rowRefs.current[index] = element; }}
-        itemStyle={introStyle ? { ...row.itemStyle, ...introStyle } : row.itemStyle}
+        // The page intro is a fallback. Callers such as the mobile expanded
+        // list explicitly animate row entry/exit through itemStyle; those
+        // opacity and transition values must win after the intro has begun.
+        itemStyle={introStyle ? { ...introStyle, ...row.itemStyle } : row.itemStyle}
         gradientEnabled={config.markerGradientEnabled}
         gradientSlide={gradientSlides?.[row.slideIndex]}
         gradientPalette={gradientPaletteStates?.[row.slideIndex]}
@@ -475,17 +731,22 @@ export function AboutTimeline({
     resolvedRowTitleColorActive, resolvedRowTitleColorInactive,
     resolvedRowDescriptionColorActive, resolvedRowDescriptionColorInactive,
     config.rowDescriptionOpacityActive, config.rowDescriptionOpacityInactive,
-    config.markerVisible, config.rowDescriptionVisible,
+    config.markerVisible, config.markerShape, config.rowDescriptionVisible,
     config.ruleVisible, config.alignment, config.alignmentWide, config.alignmentLg,
     config.rowTitleOpacityActive, config.rowTitleOpacityInactive,
     config.hoverTitleOpacity, config.hoverMarkerOpacity, config.hoverDescriptionOpacity,
     bodyOpacityOverride, highlightOpacityOverride,
+    rowBackgroundColorOverride, rowBackgroundColorActiveOverride,
     inkColorOverride,
     inkOpacityMultiplier,
     config.rowAppendixEnabled, config.rowAppendixSeparator,
-    config.rowAppendixFontFamily, config.rowAppendixFontFamilyWide, config.rowAppendixFontFamilyLg,
+    config.rowAppendixForceVisible, config.rowAppendixForceVisibleWide, config.rowAppendixForceVisibleLg,
+    config.rowAppendixForceLineBreak, config.rowAppendixForceLineBreakWide, config.rowAppendixForceLineBreakLg,
+    config.rowAppendixFontFamily, config.rowAppendixFontWeightClassName,
     config.rowAppendixFontSizeClassName, config.rowAppendixFontSizeWideClassName,
     config.rowAppendixFontSizeLgClassName,
+    config.rowAppendixPaddingTopClassName, config.rowAppendixPaddingRightClassName,
+    config.rowAppendixPaddingBottomClassName, config.rowAppendixPaddingLeftClassName,
     config.rowAppendixRevealDelayMs, config.rowAppendixOpacity,
     titleClassNameActive, titleClassNameInactive, rowDescriptionClassName,
     config.markerIdleOpacity, config.markerActiveOpacity,
@@ -513,18 +774,29 @@ export function AboutTimeline({
   // opposite side has no structural offset at any tier, so it's applied as
   // a plain Tailwind class per tier alongside the other padding/margin
   // sides instead (see the <p>'s own className below).
+  // config.descriptionIndentMatchesMarkerLane === false cancels the marker-
+  // size term the CSS module's own `.description[data-alignment='left']`
+  // rule always adds (this component's own doc comment on that config field
+  // explains why a consumer would want that) by subtracting it back out of
+  // the "extra" custom property the calc() formula also adds it to — the
+  // formula itself stays the same at every tier, only ever fed a negative
+  // offset instead of a new conditional rule. Only meaningful while that
+  // tier's own alignment is 'left': the marker-size term never applies to
+  // 'right' in the first place (see the doc comment above), so there is
+  // nothing to cancel there.
+  const markerLaneCancelPx = config.descriptionIndentMatchesMarkerLane ? 0 : markerSizePx;
   const descriptionIndentExtraPx = tailwindSpacingTokenToPx(
     config.alignment === 'right' ? config.descriptionPaddingRightClassName : config.descriptionPaddingLeftClassName,
     0,
-  );
+  ) - (config.alignment === 'left' ? markerLaneCancelPx : 0);
   const descriptionIndentExtraWidePx = tailwindSpacingTokenToPx(
     config.alignmentWide === 'right' ? config.descriptionPaddingRightWideClassName : config.descriptionPaddingLeftWideClassName,
     0,
-  );
+  ) - (config.alignmentWide === 'left' ? markerLaneCancelPx : 0);
   const descriptionIndentExtraLgPx = tailwindSpacingTokenToPx(
     config.alignmentLg === 'right' ? config.descriptionPaddingRightLgClassName : config.descriptionPaddingLeftLgClassName,
     0,
-  );
+  ) - (config.alignmentLg === 'left' ? markerLaneCancelPx : 0);
 
   const descriptionByBreakpoint = {
     mobile: description ?? config.description,
@@ -535,6 +807,200 @@ export function AboutTimeline({
     && descriptionByBreakpoint.mobile === descriptionByBreakpoint.desktop
     ? descriptionByBreakpoint.mobile
     : null;
+
+  // scrollWindowVisibleCount (own doc comment above) — measures the real,
+  // rendered first N `<li>` boxes (including the row-gap between them) and
+  // caps the list to exactly that height, rather than assuming a fixed
+  // per-row height: captions wrap to a different number of lines depending
+  // on their own text and the column's current width, so any fixed estimate
+  // would either clip a short row's own descender or leave visible slack
+  // under a row shorter than the estimate. Re-measures on resize (a column
+  // width change can reflow captions onto a different number of lines,
+  // changing every row's own height) and whenever the row count/order
+  // changes. 0 (default): no listener attached, no inline height/overflow
+  // ever set — byte-identical to every caller before this prop existed.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || scrollWindowVisibleCount <= 0) return undefined;
+
+    const applyWindow = () => {
+      const items = Array.from(list.children).slice(0, scrollWindowVisibleCount) as HTMLElement[];
+      if (items.length === 0) return;
+      // fillContainerHeight (AbstractCoverFlowTimelineSlot's own fixed-height
+      // figure) — the list fills all remaining vertical space between the
+      // description and the toolbar via flex:1 (set inline on the <ol> below),
+      // so the N-row height cap must NOT also apply here: capping to N rows'
+      // height would leave the list short of the toolbar, reintroducing the
+      // very gap this mode exists to close. The list still scrolls (overflowY)
+      // and snaps exactly as the capped mode does; only where its own height
+      // comes from differs (the flex parent vs. a measured N-row max-height).
+      if (!fillContainerHeight) {
+        const last = items[items.length - 1];
+        const windowHeight = last.offsetTop + last.offsetHeight - items[0].offsetTop;
+        list.style.maxHeight = `${windowHeight}px`;
+      } else {
+        list.style.maxHeight = '';
+      }
+      list.style.overflowY = 'auto';
+      list.style.scrollSnapType = 'y mandatory';
+      updateScrollWindowPosition();
+    };
+
+    applyWindow();
+    const observer = new ResizeObserver(applyWindow);
+    observer.observe(list);
+    Array.from(list.children).forEach(item => observer.observe(item));
+    return () => observer.disconnect();
+  }, [scrollWindowVisibleCount, rows.length, config.rowGap, fillContainerHeight, updateScrollWindowPosition]);
+
+  // scrollWindowActiveScrollDurationMs/-Easing/-DelayMs (own doc comments
+  // above) — brings the newly-active row back into the visible window
+  // whenever it falls outside it, on ANY activeIndex change (drag/swipe
+  // navigation on a paired CoverFlow just as much as a click on the row
+  // itself). Checks both edges independently (nearest-edge scroll, not
+  // "always pin to the top") so a row that's already visible — e.g. the
+  // second row landing active while it's already the second VISIBLE row —
+  // is left completely alone: no scroll happens at all. The delay (and the
+  // re-measurement inside it, not before it) means this only ever fires
+  // once the CoverFlow's own settle glide has actually finished, not
+  // whatever was true the instant activeIndex itself changed.
+  useEffect(() => {
+    if (scrollWindowVisibleCount <= 0) return undefined;
+    const delayMs = prefersReducedMotion ? 0 : scrollWindowActiveScrollDelayMs;
+
+    const bringActiveIntoView = () => {
+      const list = listRef.current;
+      if (!list) return;
+      const activeRowIndex = rows.findIndex(row => row.slideIndex === activeIndex);
+      if (activeRowIndex === -1) return;
+      const activeElement = list.children[activeRowIndex] as HTMLElement | undefined;
+      if (!activeElement) return;
+
+      const viewTop = list.scrollTop;
+      const viewBottom = viewTop + list.clientHeight;
+      const rowTop = activeElement.offsetTop;
+      const rowBottom = rowTop + activeElement.offsetHeight;
+
+      const target = rowTop < viewTop
+        ? rowTop
+        : rowBottom > viewBottom
+          ? rowBottom - list.clientHeight
+          : null;
+      if (target === null) return;
+      scrollListTo(target);
+    };
+
+    if (delayMs <= 0) {
+      bringActiveIntoView();
+      return undefined;
+    }
+    const timer = window.setTimeout(bringActiveIntoView, delayMs);
+    return () => window.clearTimeout(timer);
+  }, [
+    activeIndex, scrollWindowVisibleCount, scrollWindowActiveScrollDelayMs,
+    rows, prefersReducedMotion, scrollListTo,
+  ]);
+
+  // Windowed-list affordances are independently opt-in per responsive tier.
+  // Render one bounded-range control row per tier so a tablet choice never
+  // cascades into desktop (or vice versa); CSS owns which one is exposed.
+  const renderScrollWindowControls = (
+    tier: 'mobile' | 'tablet' | 'desktop',
+    position: 'top' | 'bottom',
+  ) => {
+    const tierConfig = tier === 'mobile'
+      ? {
+        counterEnabled: config.scrollWindowCounterEnabled,
+        arrowsEnabled: config.scrollWindowArrowsEnabled,
+        arrowsNavigateTimeline: config.scrollWindowArrowsNavigateTimeline,
+        arrowsNavigateEntireList: config.scrollWindowArrowsNavigateEntireList,
+        position: config.scrollWindowControlsPosition,
+        className: styles.scrollWindowControlsMobile,
+      }
+      : tier === 'tablet'
+        ? {
+          counterEnabled: config.scrollWindowCounterEnabledWide,
+          arrowsEnabled: config.scrollWindowArrowsEnabledWide,
+          arrowsNavigateTimeline: config.scrollWindowArrowsNavigateTimelineWide,
+          arrowsNavigateEntireList: config.scrollWindowArrowsNavigateEntireListWide,
+          position: config.scrollWindowControlsPositionWide,
+          className: styles.scrollWindowControlsTablet,
+        }
+        : {
+          counterEnabled: config.scrollWindowCounterEnabledLg,
+          arrowsEnabled: config.scrollWindowArrowsEnabledLg,
+          arrowsNavigateTimeline: config.scrollWindowArrowsNavigateTimelineLg,
+          arrowsNavigateEntireList: config.scrollWindowArrowsNavigateEntireListLg,
+          position: config.scrollWindowControlsPositionLg,
+          className: styles.scrollWindowControlsDesktop,
+        };
+    if (
+      scrollWindowVisibleCount <= 0
+      || tierConfig.position !== position
+      || (!tierConfig.counterEnabled && !tierConfig.arrowsEnabled)
+    ) return null;
+    const activeRowIndex = rows.findIndex(row => row.slideIndex === activeIndex);
+    const canNavigatePrevious = activeRowIndex > 0;
+    const canNavigateNext = activeRowIndex >= 0 && activeRowIndex < rows.length - 1;
+    const previousDisabled = tierConfig.arrowsNavigateTimeline
+      ? !canNavigatePrevious
+      : !scrollWindowCanScrollUp;
+    const nextDisabled = tierConfig.arrowsNavigateTimeline
+      ? !canNavigateNext
+      : !scrollWindowCanScrollDown;
+    const activeItemNumber = activeRowIndex >= 0 ? activeRowIndex + 1 : 1;
+    return (
+      <div
+        key={`${tier}-${position}`}
+        className={`${styles.scrollWindowControls} ${tierConfig.className} ${config.toolbarPaddingTopClassName} ${config.toolbarPaddingRightClassName} ${config.toolbarPaddingBottomClassName} ${config.toolbarPaddingLeftClassName} ${config.toolbarPaddingTopWideClassName} ${config.toolbarPaddingRightWideClassName} ${config.toolbarPaddingBottomWideClassName} ${config.toolbarPaddingLeftWideClassName} ${config.toolbarPaddingTopLgClassName} ${config.toolbarPaddingRightLgClassName} ${config.toolbarPaddingBottomLgClassName} ${config.toolbarPaddingLeftLgClassName}`}
+        data-position={position}
+        style={{
+          // Same resolved ink the timeline's own lead-in description text
+          // uses, so the counter text and the arrow buttons' `currentColor`
+          // border (AboutTimeline.module.css's own .scrollWindowArrowButton)
+          // both read as the same tint as the timeline's own text rather
+          // than an unrelated inherited/default color.
+          color: resolvedDescriptionColor,
+          ...(position === 'bottom' && fillContainerHeight ? { marginTop: 'auto' } : null),
+        }}
+      >
+        {tierConfig.counterEnabled ? (
+          <span className={styles.scrollWindowCounter}>
+            {tierConfig.arrowsNavigateEntireList ? activeItemNumber : scrollWindowTopRowNumber} of {rows.length}
+          </span>
+        ) : null}
+        {toolbarLeadingAction ? (
+          <div className={`${styles.scrollWindowLeadingAction} ${config.toolbarActionFontSizeClassName} ${config.toolbarActionFontSizeWideClassName} ${config.toolbarActionFontSizeLgClassName}`}>{toolbarLeadingAction}</div>
+        ) : null}
+        {tierConfig.arrowsEnabled ? (
+          <div className={styles.scrollWindowArrows}>
+            <button
+              type="button"
+              className={styles.scrollWindowArrowButton}
+              onClick={() => (tierConfig.arrowsNavigateTimeline ? navigateTimelineByOneRow(-1) : scrollListByOneRow(-1))}
+              disabled={previousDisabled}
+              aria-label={tierConfig.arrowsNavigateTimeline ? 'Show previous article' : 'Scroll timeline list up'}
+            >
+              <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                <path d="M2 10.5 L8 4.5 L14 10.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={styles.scrollWindowArrowButton}
+              onClick={() => (tierConfig.arrowsNavigateTimeline ? navigateTimelineByOneRow(1) : scrollListByOneRow(1))}
+              disabled={nextDisabled}
+              aria-label={tierConfig.arrowsNavigateTimeline ? 'Show next article' : 'Scroll timeline list down'}
+            >
+              <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                <path d="M2 5.5 L8 11.5 L14 5.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -557,8 +1023,14 @@ export function AboutTimeline({
         '--about-timeline-marker-size': `${markerSizePx}px`,
         '--about-timeline-rule-weight': `${ruleWeightPx}px`,
         '--about-timeline-title-line-height': `${titleFontSizeRem * titleLineHeightMultiplier}rem`,
+        ...(fillContainerHeight ? { height: '100%', display: 'flex', flexDirection: 'column' } : null),
       } as CSSProperties}
     >
+      {/* Top controls deliberately lead the component: they sit inside this
+          padded root, before the optional description and row list. */}
+      {renderScrollWindowControls('mobile', 'top')}
+      {renderScrollWindowControls('tablet', 'top')}
+      {renderScrollWindowControls('desktop', 'top')}
       {config.descriptionVisible
         && (descriptionByBreakpoint.mobile || descriptionByBreakpoint.tablet || descriptionByBreakpoint.desktop) ? (
         <p
@@ -587,6 +1059,12 @@ export function AboutTimeline({
             config.descriptionFontSizeClassName,
             config.descriptionFontSizeWideClassName,
             config.descriptionFontSizeLgClassName,
+            config.descriptionFontWeightClassName,
+            config.descriptionFontWeightWideClassName,
+            config.descriptionFontWeightLgClassName,
+            config.descriptionFontFamily,
+            config.descriptionFontFamilyWide,
+            config.descriptionFontFamilyLg,
           ].join(' ')}
           data-alignment={config.alignment}
           data-alignment-wide={config.alignmentWide}
@@ -611,16 +1089,36 @@ export function AboutTimeline({
         </p>
       ) : null}
       <ol
+        ref={listRef}
         role={!navigationMode && config.maxActiveRows > 0 ? 'tablist' : 'list'}
         aria-orientation={!navigationMode && config.maxActiveRows > 0 ? 'vertical' : undefined}
         aria-label={ariaLabel}
+        // See AboutTimeline.module.css's own `.list[data-short-viewport-hide]`
+        // rule and rowDescriptionShortViewportHideEnabled's own doc comment
+        // (AboutTimeline.config.ts) — only ever attached (not just toggled
+        // false) so the media query's own selector never matches at all for
+        // a consumer that opted out, rather than relying on an attribute
+        // value check.
+        data-short-viewport-hide={config.rowDescriptionShortViewportHideEnabled ? 'true' : undefined}
+        data-scroll-windowed={scrollWindowVisibleCount > 0 ? 'true' : undefined}
         className={`${styles.list} ${config.rowGap}`}
         style={{
           '--about-timeline-row-gap-px': `${tailwindSpacingTokenToPx(config.rowGap, 40)}px`,
+          // fillContainerHeight — the root is a flex column (see the root's
+          // own style below); flex:1 makes this list consume all the space
+          // between the description and the bottom toolbar (or the full
+          // remaining space when the toolbar sits at the top), rather than
+          // resting at its natural/N-row-capped height and leaving a gap.
+          // min-height:0 lets it actually shrink-to-scroll inside that flex
+          // parent instead of overflowing it.
+          ...(fillContainerHeight ? { flex: '1 1 auto', minHeight: 0 } : null),
         } as CSSProperties}
       >
         {rowElements}
       </ol>
+      {renderScrollWindowControls('mobile', 'bottom')}
+      {renderScrollWindowControls('tablet', 'bottom')}
+      {renderScrollWindowControls('desktop', 'bottom')}
     </div>
   );
 }

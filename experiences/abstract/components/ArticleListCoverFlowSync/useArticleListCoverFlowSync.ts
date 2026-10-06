@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { readCoverFlowSelection, writeCoverFlowSelection } from './coverFlowNavigationState';
 
 export type ArticleListCoverFlowSyncOrigin = 'coverflow' | 'list' | 'external';
 
@@ -34,10 +35,29 @@ const SYNC_SUPPRESS_WINDOW_MS = 400;
 export function useArticleListCoverFlowSync(
   itemCount: number,
   initialIndex = 0,
+  itemSlugs?: readonly string[],
 ): ArticleListCoverFlowSyncValue {
   const [activeIndex, setActiveIndexRaw] = useState(() => Math.min(Math.max(initialIndex, 0), Math.max(itemCount - 1, 0)));
   const activeIndexRef = useRef(activeIndex);
   activeIndexRef.current = activeIndex;
+  const [selectionRestored, setSelectionRestored] = useState(false);
+  const restorationDoneRef = useRef(false);
+  useLayoutEffect(() => {
+    if (restorationDoneRef.current || !itemSlugs?.length) return;
+    restorationDoneRef.current = true;
+    const saved = readCoverFlowSelection();
+    const index = saved === undefined ? -1 : itemSlugs.indexOf(saved);
+    if (index >= 0) {
+      activeIndexRef.current = index;
+      setActiveIndexRaw(index);
+    }
+    setSelectionRestored(true);
+  }, [itemSlugs]);
+  useLayoutEffect(() => {
+    if (!selectionRestored) return;
+    const slug = itemSlugs?.[activeIndex];
+    if (slug) writeCoverFlowSelection(slug);
+  }, [activeIndex, itemSlugs, selectionRestored]);
   const lastOriginRef = useRef<ArticleListCoverFlowSyncOrigin>('external');
   const suppressUntilRef = useRef(0);
 

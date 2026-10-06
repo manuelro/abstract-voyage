@@ -2,16 +2,12 @@ import type { CtaButtonMotionEasing } from '../../../components/CtaButton/config
 import type { AbstractPostDockEasingPreset } from '../../abstract/components/AbstractPostDock/config/registered';
 import {
   MIN_HEIGHT_OPTIONS,
-  PADDING_X_OPTIONS,
-  PADDING_Y_OPTIONS,
   AFFORDANCE_BORDER_THICKNESS_OPTIONS,
   AFFORDANCE_CORNER_RADIUS_OPTIONS,
   AFFORDANCE_DIMENSION_OPTIONS,
   OUTER_BORDER_WIDTH_OPTIONS,
   INNER_BORDER_WIDTH_OPTIONS,
   type MinHeightClass,
-  type PaddingXClass,
-  type PaddingYClass,
   type AffordanceBorderThicknessClass,
   type AffordanceCornerRadiusClass,
   type AffordanceDimensionClass,
@@ -22,7 +18,28 @@ import {
   MARKER_SIZE_OPTIONS,
   type AboutTimelineMarkerSizeClass,
 } from './AboutTimeline.config';
-import { FONT_SIZE_OPTIONS, type FontSizeClass } from '../../../components/tailwindTypographyScale';
+import {
+  normalizeTailwindToken,
+  type TailwindTokenValue,
+} from '../../../components/Panel/config/tailwindFields';
+
+type FontSizeClass = TailwindTokenValue<'fontSize'>;
+type FontSizeWideClass = TailwindTokenValue<'fontSize', 'md'>;
+type FontSizeLgClass = TailwindTokenValue<'fontSize', 'lg'>;
+type PaddingXClass = TailwindTokenValue<'paddingX'>;
+type PaddingXWideClass = TailwindTokenValue<'paddingX', 'md'>;
+type PaddingXLgClass = TailwindTokenValue<'paddingX', 'lg'>;
+type PaddingYClass = TailwindTokenValue<'paddingY'>;
+type PaddingYWideClass = TailwindTokenValue<'paddingY', 'md'>;
+type PaddingYLgClass = TailwindTokenValue<'paddingY', 'lg'>;
+type PaddingTopClass = TailwindTokenValue<'paddingTop'>;
+type PaddingTopWideClass = TailwindTokenValue<'paddingTop', 'md'>;
+type PaddingRightClass = TailwindTokenValue<'paddingRight'>;
+type PaddingRightWideClass = TailwindTokenValue<'paddingRight', 'md'>;
+type PaddingBottomClass = TailwindTokenValue<'paddingBottom'>;
+type PaddingBottomWideClass = TailwindTokenValue<'paddingBottom', 'md'>;
+type PaddingLeftClass = TailwindTokenValue<'paddingLeft'>;
+type PaddingLeftWideClass = TailwindTokenValue<'paddingLeft', 'md'>;
 
 /** 'accent' derives the affordance's border color from the row's own
  * resolved accent/text color (the same "derive, don't invent a new color"
@@ -96,10 +113,12 @@ export type AboutMobileAccordionConfig = {
    * — the two always render at the same size so they read as one
    * continuous voice, never a smaller "label" treatment for the collapsed
    * state). Was a hardcoded `text-lg` before this field existed — default
-   * unchanged. Reuses `tailwindTypographyScale.ts`'s own `FONT_SIZE_OPTIONS`
-   * catalog, the same one `AboutTimelineConfig`'s `rowTitleFontSizeClassName`/
-   * `rowDescriptionFontSizeClassName` already draw from. */
+   * unchanged. Uses the generated `fontSize` utility family, so its accepted
+   * values stay aligned with the resolved Tailwind theme. */
   contentFontSizeClassName: FontSizeClass;
+  /** Tablet and desktop overrides of the shared content font size. */
+  contentFontSizeClassNameWide: FontSizeWideClass;
+  contentFontSizeClassNameLg: FontSizeLgClass;
   /** Off (default): the collapsed header/preview text clips to a single
    * line (`line-clamp-1`) — unchanged from this component's original
    * behavior. On: that text wraps across as many lines as its own content
@@ -205,6 +224,8 @@ export type AboutMobileAccordionConfig = {
    * as the last child of a `flex items-center` row, so vertical centering
    * is automatic regardless of either axis's own value. */
   affordancePaddingX: PaddingXClass;
+  affordancePaddingXWide: PaddingXWideClass;
+  affordancePaddingXLg: PaddingXLgClass;
   /** Vertical padding (top + bottom) on the preview tab — independent of
    * `affordancePaddingX` above. The expanded paragraph below reuses this
    * same value for its own bottom spacing (its own top is always `pt-0`,
@@ -212,6 +233,19 @@ export type AboutMobileAccordionConfig = {
    * controls a row's vertical breathing room whether collapsed or
    * expanded. */
   affordancePaddingY: PaddingYClass;
+  affordancePaddingYWide: PaddingYWideClass;
+  affordancePaddingYLg: PaddingYLgClass;
+  /** Expanded item body padding is intentionally independent from its
+   * preview-tab padding: a body can breathe without moving its affordance,
+   * and every side can be tuned independently at mobile and tablet. */
+  itemContentPaddingTop: PaddingTopClass;
+  itemContentPaddingTopWide: PaddingTopWideClass;
+  itemContentPaddingRight: PaddingRightClass;
+  itemContentPaddingRightWide: PaddingRightWideClass;
+  itemContentPaddingBottom: PaddingBottomClass;
+  itemContentPaddingBottomWide: PaddingBottomWideClass;
+  itemContentPaddingLeft: PaddingLeftClass;
+  itemContentPaddingLeftWide: PaddingLeftWideClass;
   /** Rotation while collapsed — points down (invites opening). */
   affordanceRotateCollapsedDeg: number;
   /** Rotation while expanded — points up (invites closing), a 180° flip
@@ -337,6 +371,8 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   enabled: true,
   previewMinHeight: 'min-h-14',
   contentFontSizeClassName: 'text-lg',
+  contentFontSizeClassNameWide: 'md:text-lg',
+  contentFontSizeClassNameLg: 'lg:text-lg',
   headerTextWrapEnabled: false,
   maxExpandedItems: 1,
   // Simultaneous close+open — safe now that AboutMobileAccordion.tsx
@@ -353,7 +389,21 @@ export const DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG = {
   affordanceCornerRadiusClassName: 'rounded-tr-sm',
   affordanceDimensionClassName: 'w-2.5 h-2.5',
   affordancePaddingX: 'px-7',
+  affordancePaddingXWide: 'md:px-7',
+  affordancePaddingXLg: 'lg:px-7',
   affordancePaddingY: 'py-5',
+  affordancePaddingYWide: 'md:py-5',
+  affordancePaddingYLg: 'lg:py-5',
+  // Preserve the previous expanded-content geometry while decoupling it
+  // from the preview tab: 0 top, 7 horizontal, 5 bottom.
+  itemContentPaddingTop: 'pt-0',
+  itemContentPaddingTopWide: 'md:pt-0',
+  itemContentPaddingRight: 'pr-7',
+  itemContentPaddingRightWide: 'md:pr-7',
+  itemContentPaddingBottom: 'pb-5',
+  itemContentPaddingBottomWide: 'md:pb-5',
+  itemContentPaddingLeft: 'pl-7',
+  itemContentPaddingLeftWide: 'md:pl-7',
   affordanceRotateCollapsedDeg: 135,
   // 135 + 180 (operator fix — this field's own doc comment already
   // documented "a 180° flip from the collapsed angle" as the intent; the
@@ -399,9 +449,6 @@ const TRANSITION_EASINGS: ReadonlyArray<AbstractPostDockEasingPreset> = [
   'standard', 'soft-expo', 'viscous', 'settle', 'luxury',
 ];
 const MIN_HEIGHT_VALUES = MIN_HEIGHT_OPTIONS.map(option => option.value);
-const FONT_SIZE_VALUES: ReadonlyArray<FontSizeClass> = FONT_SIZE_OPTIONS.map(option => option.value);
-const PADDING_X_VALUES: ReadonlyArray<PaddingXClass> = PADDING_X_OPTIONS.map(option => option.value);
-const PADDING_Y_VALUES: ReadonlyArray<PaddingYClass> = PADDING_Y_OPTIONS.map(option => option.value);
 const AFFORDANCE_BORDER_THICKNESS_VALUES = AFFORDANCE_BORDER_THICKNESS_OPTIONS.map(option => option.value);
 const AFFORDANCE_CORNER_RADIUS_VALUES = AFFORDANCE_CORNER_RADIUS_OPTIONS.map(option => option.value);
 const AFFORDANCE_DIMENSION_VALUES = AFFORDANCE_DIMENSION_OPTIONS.map(option => option.value);
@@ -427,7 +474,18 @@ export function normalizeAboutMobileAccordionConfig(
   return {
     enabled: Boolean(base.enabled),
     previewMinHeight: token(base.previewMinHeight, MIN_HEIGHT_VALUES, D.previewMinHeight),
-    contentFontSizeClassName: token(base.contentFontSizeClassName, FONT_SIZE_VALUES, D.contentFontSizeClassName),
+    contentFontSizeClassName: normalizeTailwindToken({
+      utility: 'fontSize', breakpoint: 'base', value: base.contentFontSizeClassName,
+      fallback: D.contentFontSizeClassName,
+    }),
+    contentFontSizeClassNameWide: normalizeTailwindToken({
+      utility: 'fontSize', breakpoint: 'md', value: base.contentFontSizeClassNameWide,
+      fallback: D.contentFontSizeClassNameWide,
+    }),
+    contentFontSizeClassNameLg: normalizeTailwindToken({
+      utility: 'fontSize', breakpoint: 'lg', value: base.contentFontSizeClassNameLg,
+      fallback: D.contentFontSizeClassNameLg,
+    }),
     headerTextWrapEnabled: base.headerTextWrapEnabled === true,
     maxExpandedItems: Number.isFinite(base.maxExpandedItems)
       ? Math.max(0, Math.round(base.maxExpandedItems))
@@ -451,8 +509,62 @@ export function normalizeAboutMobileAccordionConfig(
     affordanceDimensionClassName: token(
       base.affordanceDimensionClassName, AFFORDANCE_DIMENSION_VALUES, D.affordanceDimensionClassName,
     ),
-    affordancePaddingX: token(base.affordancePaddingX, PADDING_X_VALUES, D.affordancePaddingX),
-    affordancePaddingY: token(base.affordancePaddingY, PADDING_Y_VALUES, D.affordancePaddingY),
+    affordancePaddingX: normalizeTailwindToken({
+      utility: 'paddingX', breakpoint: 'base', value: base.affordancePaddingX,
+      fallback: D.affordancePaddingX,
+    }),
+    affordancePaddingXWide: normalizeTailwindToken({
+      utility: 'paddingX', breakpoint: 'md', value: base.affordancePaddingXWide,
+      fallback: D.affordancePaddingXWide,
+    }),
+    affordancePaddingXLg: normalizeTailwindToken({
+      utility: 'paddingX', breakpoint: 'lg', value: base.affordancePaddingXLg,
+      fallback: D.affordancePaddingXLg,
+    }),
+    affordancePaddingY: normalizeTailwindToken({
+      utility: 'paddingY', breakpoint: 'base', value: base.affordancePaddingY,
+      fallback: D.affordancePaddingY,
+    }),
+    affordancePaddingYWide: normalizeTailwindToken({
+      utility: 'paddingY', breakpoint: 'md', value: base.affordancePaddingYWide,
+      fallback: D.affordancePaddingYWide,
+    }),
+    affordancePaddingYLg: normalizeTailwindToken({
+      utility: 'paddingY', breakpoint: 'lg', value: base.affordancePaddingYLg,
+      fallback: D.affordancePaddingYLg,
+    }),
+    itemContentPaddingTop: normalizeTailwindToken({
+      utility: 'paddingTop', breakpoint: 'base', value: base.itemContentPaddingTop,
+      fallback: D.itemContentPaddingTop,
+    }),
+    itemContentPaddingTopWide: normalizeTailwindToken({
+      utility: 'paddingTop', breakpoint: 'md', value: base.itemContentPaddingTopWide,
+      fallback: D.itemContentPaddingTopWide,
+    }),
+    itemContentPaddingRight: normalizeTailwindToken({
+      utility: 'paddingRight', breakpoint: 'base', value: base.itemContentPaddingRight,
+      fallback: D.itemContentPaddingRight,
+    }),
+    itemContentPaddingRightWide: normalizeTailwindToken({
+      utility: 'paddingRight', breakpoint: 'md', value: base.itemContentPaddingRightWide,
+      fallback: D.itemContentPaddingRightWide,
+    }),
+    itemContentPaddingBottom: normalizeTailwindToken({
+      utility: 'paddingBottom', breakpoint: 'base', value: base.itemContentPaddingBottom,
+      fallback: D.itemContentPaddingBottom,
+    }),
+    itemContentPaddingBottomWide: normalizeTailwindToken({
+      utility: 'paddingBottom', breakpoint: 'md', value: base.itemContentPaddingBottomWide,
+      fallback: D.itemContentPaddingBottomWide,
+    }),
+    itemContentPaddingLeft: normalizeTailwindToken({
+      utility: 'paddingLeft', breakpoint: 'base', value: base.itemContentPaddingLeft,
+      fallback: D.itemContentPaddingLeft,
+    }),
+    itemContentPaddingLeftWide: normalizeTailwindToken({
+      utility: 'paddingLeft', breakpoint: 'md', value: base.itemContentPaddingLeftWide,
+      fallback: D.itemContentPaddingLeftWide,
+    }),
     affordanceRotateCollapsedDeg: Number.isFinite(base.affordanceRotateCollapsedDeg)
       ? base.affordanceRotateCollapsedDeg
       : D.affordanceRotateCollapsedDeg,

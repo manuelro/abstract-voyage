@@ -54,6 +54,38 @@ const SPRING_SETTLE_VELOCITY_PX_PER_S = 4;
 const SPRING_MAX_STEP_SECONDS = 0.032;
 
 /**
+ * Returns the smallest offset correction that puts a rendered floating shell
+ * back inside its safe viewport inset. This deliberately uses the *measured*
+ * frame rather than its persisted launcher offset: an expanded shell is much
+ * wider/taller than its launcher and resize can change both dimensions.
+ */
+export function recoverPanelOffsetIntoViewport(
+  offset: PanelPosition,
+  rect: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom' | 'width' | 'height'>,
+  viewport: { width: number; height: number },
+): PanelPosition {
+  const safeLeft = VISIBLE_MARGIN_PX;
+  const safeTop = VISIBLE_MARGIN_PX;
+  const safeRight = Math.max(safeLeft, viewport.width - VISIBLE_MARGIN_PX);
+  const safeBottom = Math.max(safeTop, viewport.height - VISIBLE_MARGIN_PX);
+  let shiftX = 0;
+  let shiftY = 0;
+
+  // A shell can never be wider than the viewport in its current CSS, but
+  // retain an explicit oversized branch so a future width config cannot make
+  // this recovery oscillate between two impossible edges.
+  if (rect.width > safeRight - safeLeft) shiftX = safeLeft - rect.left;
+  else if (rect.left < safeLeft) shiftX = safeLeft - rect.left;
+  else if (rect.right > safeRight) shiftX = safeRight - rect.right;
+
+  if (rect.height > safeBottom - safeTop) shiftY = safeTop - rect.top;
+  else if (rect.top < safeTop) shiftY = safeTop - rect.top;
+  else if (rect.bottom > safeBottom) shiftY = safeBottom - rect.bottom;
+
+  return { x: offset.x + shiftX, y: offset.y + shiftY };
+}
+
+/**
  * `strict: false` (the collapsed launcher's own behavior, unchanged) only
  * guarantees a small `VISIBLE_MARGIN_PX` sliver of the box stays reachable
  * — most of it can sit off-screen above/below/beside an edge, matching a
@@ -265,37 +297,36 @@ export function usePanelDrag({
     if (clamped.x !== persisted.x || clamped.y !== persisted.y) setPersisted(clamped);
   }, [persisted, setPersisted]);
 
-  // Shrinking the viewport (resizing the browser window, rotating a device)
-  // after a position was dragged out near an edge can push that same fixed
-  // offset entirely off the new, smaller viewport — unlike the mount-time
-  // reclamp above, which only ever runs once on load, this keeps recovering
-  // that as the window keeps changing size. Deliberately narrower than
-  // clampOffset's own "keep a VISIBLE_MARGIN_PX sliver reachable" guarantee:
-  // only steps in once the frame has *zero* overlap with the viewport (fully
-  // unreachable), not merely a tight corner — an operator who deliberately
-  // dragged the panel most of the way off-screen shouldn't have it yanked
-  // back just for resizing their window a little.
+  // A viewport resize can turn a perfectly valid parked panel into a partly
+  // or wholly unreachable one. Recover the *whole visible shell* after the
+  // resize settles — not only a fully vanished launcher — so users never
+  // need to hunt for a 24px sliver after rotating a device or narrowing a
+  // desktop window. The existing damped spring makes that correction read as
+  // a gentle nudge in whichever direction has room.
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    const recoverIfFullyOffscreen = () => {
+    let resizeTimeout = 0;
+    const recoverIntoViewport = () => {
       const frame = frameRef.current;
       if (!frame) return;
       const rect = frame.getBoundingClientRect();
-      const fullyOffscreen = rect.right <= 0
-        || rect.bottom <= 0
-        || rect.left >= window.innerWidth
-        || rect.top >= window.innerHeight;
-      if (!fullyOffscreen) return;
-      const corrected = clampOffset(offsetRef.current, frame, isOpenRef.current);
+      const corrected = recoverPanelOffsetIntoViewport(offsetRef.current, rect, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+      if (corrected.x === offsetRef.current.x && corrected.y === offsetRef.current.y) return;
       setPersisted(corrected);
-      // The same damped-spring release a drag end already uses, not an
-      // instant snap — this recovery can fire while the panel is fully
-      // visible on screen mid-resize, so sliding it back reads as a
-      // deliberate correction rather than a jarring teleport.
       startSettleSpring(corrected);
     };
-    window.addEventListener('resize', recoverIfFullyOffscreen);
-    return () => window.removeEventListener('resize', recoverIfFullyOffscreen);
+    const scheduleRecovery = () => {
+      window.clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(recoverIntoViewport, 140);
+    };
+    window.addEventListener('resize', scheduleRecovery);
+    return () => {
+      window.removeEventListener('resize', scheduleRecovery);
+      window.clearTimeout(resizeTimeout);
+    };
   }, [setPersisted, startSettleSpring]);
 
   // Dragging the panel over ordinary page text (headings, paragraphs) would

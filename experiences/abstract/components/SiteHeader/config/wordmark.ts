@@ -68,7 +68,7 @@ export type WordmarkConfig = {
 
   // --- Layout ---
   /** Max rendered width (px) of the wordmark, applied on top of the
-   * responsive `logoWidth`/`desktopLogoWidth` sizing (SiteHeaderConfig,
+   * responsive `logoWidth`/`logoWidthWide` sizing (SiteHeaderConfig,
    * registered.ts) as a hard cap — same `<Link>` wrapper, every page, since
    * SiteHeader is the sole global mount point (renderLogo, SiteHeader.tsx). */
   maxWidthPx: number;
@@ -119,8 +119,8 @@ export const DEFAULT_WORDMARK_CONFIG: WordmarkConfig = {
   colorMode: 'column',
   color: '#f5f5f5',
   surfaceOffset: 0,
-  columnTextMinContrast: 4.5,
-  maxWidthPx: 300,
+  columnTextMinContrast: 6.2,
+  maxWidthPx: 243,
   introEnabled: true,
   introInitialDelayS: 0.01,
   introStepDelayS: 0.02,

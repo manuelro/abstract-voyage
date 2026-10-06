@@ -1,5 +1,6 @@
 import type { ConfigScopeEntry } from '../../../components/Panel/config';
 import type { ConfigFieldAction, ConfigFieldDefinition } from '../../../components/Panel/config/types';
+import { createTailwindFieldFactory } from '../../../components/Panel/config/tailwindFields';
 import {
   CONTENT_WIDTH_PERCENT_OPTIONS,
   CONTENT_WIDTH_PERCENT_WIDE_OPTIONS,
@@ -38,6 +39,8 @@ import {
   MARGIN_LEFT_LG_OPTIONS,
 } from '../../../components/tailwindSpacingScale';
 import type { PolymorphicLayoutConfig } from './PolymorphicLayout.config';
+
+const tailwindPolyField = createTailwindFieldFactory<PolymorphicLayoutConfig>();
 
 // Promoted from pages/posts-lab/postLab.panel.ts (PLAN-SPLIT-COLUMN-LAYOUT-
 // ENRICHMENT-EXTRACTION.md Stage 1) — the entire field structure (HEADER/
@@ -225,7 +228,7 @@ export const POLYMORPHIC_LAYOUT_BASE_FIELDS: ReadonlyArray<NonTabsEntry<Polymorp
     options: LAYOUT_MODE_OPTIONS as any,
   } as unknown as ConfigFieldDefinition<PolymorphicLayoutConfig>),
   ({
-    kind: 'enum',
+    kind: 'select',
     key: 'centeredContentMaxWidth',
     label: 'Centered content max width',
     visibleWhen: (config: Readonly<PolymorphicLayoutConfig>) => config.layoutMode === 'centered',
@@ -326,6 +329,55 @@ export const POLYMORPHIC_LAYOUT_BASE_FIELDS: ReadonlyArray<NonTabsEntry<Polymorp
   },
   {
     kind: 'enum',
+    key: 'stackedColumnOrderWide',
+    debugHighlightIds: ['WIDE COLUMN', 'NARROW COLUMN'],
+    label: 'Tablet stacked order',
+    description: 'Which column appears first from 768px to 1023px when the tablet layout remains stacked. This does not alter the mobile or desktop order.',
+    options: [
+      { label: 'NARROW FIRST', value: 'narrowFirst' },
+      { label: 'WIDE FIRST', value: 'wideFirst' },
+    ],
+  },
+  {
+    kind: 'boolean',
+    key: 'stackedViewportPartitionEnabledWide',
+    debugHighlightIds: ['WIDE COLUMN', 'NARROW COLUMN'],
+    label: 'Tablet stacked viewport partition',
+    description: 'When the tablet layout is stacked, constrain the wide and narrow rows to complementary shares of the visible viewport after the in-flow header. Mobile and desktop remain unchanged.',
+  },
+  {
+    kind: 'number',
+    key: 'stackedWideColumnViewportPercentWide',
+    debugHighlightIds: ['WIDE COLUMN', 'NARROW COLUMN'],
+    label: 'Tablet wide viewport share',
+    description: 'Wide/CoverFlow share of the tablet viewport budget. The narrow Hero–Timeline row receives the remaining percentage automatically.',
+    min: 10,
+    max: 90,
+    step: 1,
+    unit: '%',
+    visibleWhen: config => config.stackedViewportPartitionEnabledWide === true,
+  },
+  {
+    kind: 'boolean',
+    key: 'stackedViewportPartitionEnabledLg',
+    debugHighlightIds: ['WIDE COLUMN', 'NARROW COLUMN'],
+    label: 'Desktop stacked viewport partition',
+    description: 'Same as the tablet field above, for whenever "Column split (≥ desktop)" is itself set to Stacked — independent of the tablet setting, since a page may want a partition on one tier but not the other.',
+  },
+  {
+    kind: 'number',
+    key: 'stackedWideColumnViewportPercentLg',
+    debugHighlightIds: ['WIDE COLUMN', 'NARROW COLUMN'],
+    label: 'Desktop wide viewport share',
+    description: 'Wide/CoverFlow share of the desktop viewport budget while stacked. The narrow Hero–Timeline row receives the remaining percentage automatically.',
+    min: 10,
+    max: 90,
+    step: 1,
+    unit: '%',
+    visibleWhen: config => config.stackedViewportPartitionEnabledLg === true,
+  },
+  {
+    kind: 'enum',
     key: 'wideColumnHeaderBehavior',
     label: 'Wide column · header',
     description: 'Push down: this column reserves space below the fixed header, same as before it became fixed. Float: no reserved space — this column starts at the true viewport top and the header floats over it.',
@@ -402,7 +454,7 @@ export const POLYMORPHIC_LAYOUT_BASE_FIELDS: ReadonlyArray<NonTabsEntry<Polymorp
     kind: 'enum',
     key: 'colorSource',
     label: 'Color source',
-    description: 'None: no background, the page surface shows through. Palette: derived from the card coloring engine\'s ramp. Custom: the two fixed colors below. Surface: derived from the page surface color, offset by the amounts below.',
+    description: 'Controls the non-gradient Wide and Narrow column background/fallback for this breakpoint. None: no background, the page surface shows through. Palette: derived from the card coloring engine\'s ramp. Custom: the two fixed colors below. Surface: derived from the page surface color, offset by the amounts below. To customize the actual Narrow column gradient on Abstract, use Polymorphic Layout → BACKGROUND → Mobile → Scroll gradient. Timeline-in-CoverFlow colors only paint its figure.',
     options: [
       { label: 'NONE', value: 'none' },
       { label: 'PALETTE', value: 'palette' },
@@ -420,6 +472,7 @@ export const POLYMORPHIC_LAYOUT_BASE_FIELDS: ReadonlyArray<NonTabsEntry<Polymorp
     kind: 'color',
     key: 'narrowColumnCustomColor',
     label: 'Narrow column custom color',
+    description: 'Sets the non-gradient Narrow column fallback when Color source is CUSTOM. It does not customize the live Narrow column gradient; on Abstract use Polymorphic Layout → BACKGROUND → Mobile → Scroll gradient. Timeline-in-CoverFlow colors only paint that figure, not the column behind it.',
     visibleWhen: config => config.colorSource === 'custom',
   },
   {
@@ -678,6 +731,100 @@ const SYNC_COLORS_FROM_DESKTOP_ACTION: ConfigFieldAction<PolymorphicLayoutConfig
   }),
 };
 
+// PLAN-POLYMORPHIC-GRADIENT-SYNC.md (operator ask, 2026-09-28): a
+// per-tier "Sync gradient across breakpoints" button — same self-clearing,
+// three-source-buttons shape as the SYNC_COLORS_* actions above, but for the
+// scroll-gradient background's own look. Deliberately scoped to three of the
+// six gradient clusters (AUDIT-POLYMORPHIC-GRADIENT-SYNC.md): A2 palette
+// generation, A3 compositor & light shaping, A6 ink & legibility. The enable
+// toggles (A1), dither (A4), and scroll-darken (A5) are left per-tier on
+// purpose — an operator commonly wants those to differ across breakpoints, so
+// syncing them here would clobber that intent. Every key below is fully tiered
+// (base + Wide + Lg), so a single flat list + one suffix helper covers all
+// three directions with no partial-tier special-casing. The A2/A3/A6 comment
+// bands are an organizing device only (they mirror the panel groups' own
+// visual order) — the button treats all 24 as one atomic appearance.
+const GRADIENT_SYNC_BASE_KEYS = [
+  // A2 — palette generation (harmonic gradient)
+  'scrollGradientBaseHue', 'scrollGradientHueScheme', 'scrollGradientLightnessMin',
+  'scrollGradientChromaMin', 'scrollGradientMode', 'scrollGradientStops',
+  'scrollGradientVariance', 'scrollGradientCenterStretch', 'scrollGradientSeed',
+  // A3 — compositor & light shaping
+  'scrollGradientCompositor', 'scrollGradientFocalHorizontal',
+  'scrollGradientLightHiddenPercent', 'scrollGradientLightRadiusPercent',
+  'scrollGradientLightAspectRatio', 'scrollGradientLightFalloff',
+  'scrollGradientMixSamples', 'scrollGradientInterpolation',
+  'scrollGradientExtentPercent', 'scrollGradientSmoothness',
+  // A6 — ink & legibility
+  'scrollGradientInkColor', 'scrollGradientLegibilityTargetRatio',
+  'scrollGradientDarkInkSaturation', 'scrollGradientDarkInkOpacityMultiplier',
+  'scrollGradientLightInkOnLightBackgroundContrastTolerance',
+] as const satisfies ReadonlyArray<keyof PolymorphicLayoutConfig>;
+
+const gradientSuffixKey = (base: string, tier: '' | 'Wide' | 'Lg') => (
+  `${base}${tier}` as keyof PolymorphicLayoutConfig
+);
+
+// Copies every in-scope key from the `from` tier onto each `to` tier, applied
+// as one patch (one updateFields call, one render) — same contract the
+// SYNC_COLORS_* onClicks return. Record<string, unknown> + the boundary cast
+// sidesteps the key-discriminated union's representable-size ceiling this file
+// already works around elsewhere (see gateByHeaderScrollBehavior's own
+// type-suppression directive); the `satisfies` on GRADIENT_SYNC_BASE_KEYS still
+// catches a renamed/removed knob at compile time.
+function buildGradientSyncPatch(
+  config: Readonly<PolymorphicLayoutConfig>,
+  from: '' | 'Wide' | 'Lg',
+  targets: ReadonlyArray<'' | 'Wide' | 'Lg'>,
+): Partial<PolymorphicLayoutConfig> {
+  const patch: Record<string, unknown> = {};
+  for (const base of GRADIENT_SYNC_BASE_KEYS) {
+    const value = config[gradientSuffixKey(base, from)];
+    for (const to of targets) patch[gradientSuffixKey(base, to)] = value;
+  }
+  return patch as Partial<PolymorphicLayoutConfig>;
+}
+
+// True while every in-scope gradient key already matches across all three
+// tiers — each button is visible only while they disagree and hides itself the
+// moment they don't (including right after its own sync lands), same
+// pure-function-of-live-config approach as colorTiersInSync above. Only reads
+// A2/A3/A6 keys, so a difference confined to A1/A4/A5 (or Groups B/C/D) never
+// shows these buttons.
+const gradientTiersInSync = (config: PolymorphicLayoutConfig) => (
+  GRADIENT_SYNC_BASE_KEYS.every(base => (
+    config[gradientSuffixKey(base, '')] === config[gradientSuffixKey(base, 'Wide')]
+    && config[gradientSuffixKey(base, '')] === config[gradientSuffixKey(base, 'Lg')]
+  ))
+);
+
+const SYNC_GRADIENT_FROM_MOBILE_ACTION: ConfigFieldAction<PolymorphicLayoutConfig> = {
+  kind: 'action',
+  key: 'syncGradientTiersFromMobile',
+  label: 'Sync gradient across breakpoints',
+  description: 'Applies this tier\'s gradient palette, light shaping, and ink/legibility settings to the Tablet and Desktop tiers. Leaves the enable toggles, dither, and scroll-darken per-tier.',
+  visibleWhen: config => !gradientTiersInSync(config),
+  onClick: config => buildGradientSyncPatch(config, '', ['Wide', 'Lg']),
+};
+
+const SYNC_GRADIENT_FROM_TABLET_ACTION: ConfigFieldAction<PolymorphicLayoutConfig> = {
+  kind: 'action',
+  key: 'syncGradientTiersFromTablet',
+  label: 'Sync gradient across breakpoints',
+  description: 'Applies this tier\'s gradient palette, light shaping, and ink/legibility settings to the Mobile and Desktop tiers. Leaves the enable toggles, dither, and scroll-darken per-tier.',
+  visibleWhen: config => !gradientTiersInSync(config),
+  onClick: config => buildGradientSyncPatch(config, 'Wide', ['', 'Lg']),
+};
+
+const SYNC_GRADIENT_FROM_DESKTOP_ACTION: ConfigFieldAction<PolymorphicLayoutConfig> = {
+  kind: 'action',
+  key: 'syncGradientTiersFromDesktop',
+  label: 'Sync gradient across breakpoints',
+  description: 'Applies this tier\'s gradient palette, light shaping, and ink/legibility settings to the Mobile and Tablet tiers. Leaves the enable toggles, dither, and scroll-darken per-tier.',
+  visibleWhen: config => !gradientTiersInSync(config),
+  onClick: config => buildGradientSyncPatch(config, 'Lg', ['', 'Wide']),
+};
+
 const FLOATING_HEADER_CLEARANCE_BASE_KEYS = new Set<keyof PolymorphicLayoutConfig>([
   'wideColumnClearsFloatingHeader',
   'narrowColumnClearsFloatingHeader',
@@ -809,7 +956,7 @@ const CONTENT_ALIGNMENT_FIELDS: NonTabsEntry<PolymorphicLayoutConfig>[] = [
     key: 'narrowColumnContentVerticalAlign',
     debugHighlightIds: ['TABLE OF CONTENTS'],
     label: 'Narrow column content vertical align',
-    description: 'Where the table-of-contents content container sits across the narrow column\'s own height. Applies at every width — the column itself always has real vertical space (min-h-[100dvh]), even in stacked/mobile mode. Pair with the content container\'s own min-height below for center/bottom to have real room to work with. See the Tablet/Desktop tabs to override starting at those widths.',
+    description: 'Where the narrow content sits vertically. Changing this mobile value also sets tablet and desktop; those tabs can then be tuned independently. Pair with content min-height so center/bottom have room to work.',
     options: VERTICAL_ALIGN_OPTIONS,
   },
   {
@@ -817,7 +964,7 @@ const CONTENT_ALIGNMENT_FIELDS: NonTabsEntry<PolymorphicLayoutConfig>[] = [
     key: 'wideColumnContentVerticalAlign',
     debugHighlightIds: ['WIDE COLUMN'],
     label: 'Wide column content vertical align',
-    description: 'Same as the narrow column\'s own vertical-align field, applied to the wide column\'s reading content container instead.',
+    description: 'Where the wide content sits vertically. Changing this mobile value also sets tablet and desktop; those tabs can then be tuned independently.',
     options: VERTICAL_ALIGN_OPTIONS,
   },
 ];
@@ -947,22 +1094,8 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'subgroup',
                           label: 'Width',
                           fields: [
-                            {
-                              kind: 'select',
-                              key: 'headerLeftContentWidth',
-                              debugHighlightIds: ['HEADER · LEFT CONTENT'],
-                              label: 'Left segment content width',
-                              description: 'Width of the logo content container as a percentage of the left split segment, below tablet width. AUTO (default) keeps shrink-to-fit behavior — only visibly changes anything once paired with a non-default align above.',
-                              options: HEADER_CONTENT_WIDTH_OPTIONS_BASE,
-                            },
-                            {
-                              kind: 'select',
-                              key: 'headerRightContentWidth',
-                              debugHighlightIds: ['HEADER · RIGHT CONTENT'],
-                              label: 'Right segment content width',
-                              description: 'Same as the left segment\'s own width field, applied to the nav content container instead.',
-                              options: HEADER_CONTENT_WIDTH_OPTIONS_BASE,
-                            },
+                            tailwindPolyField('maxWidth', { breakpoint: 'base', key: 'headerLeftContentWidth', label: 'Left segment content width', debugHighlightIds: ['HEADER · LEFT CONTENT'] }),
+                            tailwindPolyField('maxWidth', { breakpoint: 'base', key: 'headerRightContentWidth', label: 'Right segment content width', debugHighlightIds: ['HEADER · RIGHT CONTENT'] }),
                           ],
                         },
                         {
@@ -1166,22 +1299,8 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'subgroup',
                           label: 'Width',
                           fields: [
-                            {
-                              kind: 'select',
-                              key: 'headerLeftContentWidthWide',
-                              debugHighlightIds: ['HEADER · LEFT CONTENT'],
-                              label: 'Left segment content width (≥ tablet)',
-                              description: 'Width of the logo content container as a percentage of the left split segment. AUTO (default) keeps today\'s shrink-to-fit behavior — only visibly changes anything once paired with a non-default align above.',
-                              options: HEADER_CONTENT_WIDTH_OPTIONS,
-                            },
-                            {
-                              kind: 'select',
-                              key: 'headerRightContentWidthWide',
-                              debugHighlightIds: ['HEADER · RIGHT CONTENT'],
-                              label: 'Right segment content width (≥ tablet)',
-                              description: 'Same as the left segment\'s own width field, applied to the nav content container instead.',
-                              options: HEADER_CONTENT_WIDTH_OPTIONS,
-                            },
+                            tailwindPolyField('maxWidth', { breakpoint: 'md', key: 'headerLeftContentWidthWide', label: 'Left segment content width', debugHighlightIds: ['HEADER · LEFT CONTENT'] }),
+                            tailwindPolyField('maxWidth', { breakpoint: 'md', key: 'headerRightContentWidthWide', label: 'Right segment content width', debugHighlightIds: ['HEADER · RIGHT CONTENT'] }),
                           ],
                         },
                         {
@@ -1444,22 +1563,8 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'subgroup',
                           label: 'Width',
                           fields: [
-                            {
-                              kind: 'select',
-                              key: 'headerLeftContentWidthLg',
-                              debugHighlightIds: ['HEADER · LEFT CONTENT'],
-                              label: 'Left segment content width (≥ desktop)',
-                              description: 'Width of the logo content container as a percentage of the left split segment, at desktop width — independent of the Tablet tab\'s own value. AUTO (default) keeps shrink-to-fit behavior.',
-                              options: HEADER_CONTENT_WIDTH_OPTIONS_LG,
-                            },
-                            {
-                              kind: 'select',
-                              key: 'headerRightContentWidthLg',
-                              debugHighlightIds: ['HEADER · RIGHT CONTENT'],
-                              label: 'Right segment content width (≥ desktop)',
-                              description: 'Same as the left segment\'s own width field, applied to the nav content container instead.',
-                              options: HEADER_CONTENT_WIDTH_OPTIONS_LG,
-                            },
+                            tailwindPolyField('maxWidth', { breakpoint: 'lg', key: 'headerLeftContentWidthLg', label: 'Left segment content width', debugHighlightIds: ['HEADER · LEFT CONTENT'] }),
+                            tailwindPolyField('maxWidth', { breakpoint: 'lg', key: 'headerRightContentWidthLg', label: 'Right segment content width', debugHighlightIds: ['HEADER · RIGHT CONTENT'] }),
                           ],
                         },
                         {
@@ -2110,6 +2215,13 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           visibleWhen: config => config.scrollGradientEnabled,
                         },
                         {
+                          kind: 'boolean',
+                          key: 'scrollGradientDarkenOnScrollEnabled',
+                          label: 'Darken gradient on scroll',
+                          description: 'On by default. Turn off to keep the gradient exactly as generated at every scroll position, with no black overlay ever mixed in — Max darken and Guaranteed contrast ratio below stay inert (and keep their own tuned values) while this is off.',
+                          visibleWhen: config => config.scrollGradientEnabled,
+                        },
+                        {
                           kind: 'number',
                           key: 'scrollGradientMaxDarken',
                           label: 'Max darken',
@@ -2117,7 +2229,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           min: 0,
                           max: 1,
                           step: 0.01,
-                          visibleWhen: config => config.scrollGradientEnabled,
+                          visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientDarkenOnScrollEnabled,
                         },
                         {
                           kind: 'number',
@@ -2127,8 +2239,9 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           min: 0,
                           max: 21,
                           step: 0.5,
-                          visibleWhen: config => config.scrollGradientEnabled,
+                          visibleWhen: config => config.scrollGradientEnabled && config.scrollGradientDarkenOnScrollEnabled,
                         },
+                        SYNC_GRADIENT_FROM_MOBILE_ACTION,
                       ],
                     },
                   ],
@@ -2245,6 +2358,29 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           key: 'scrollGradientNarrowColumnEnabledWide',
                           label: 'Narrow column (≥ tablet)',
                           description: 'Reveal the exact mobile scroll-gradient recipe behind the narrow column from md upward.',
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientNarrowColumnGlassOpacityWide',
+                          label: 'Narrow gradient glass opacity',
+                          description: 'Translucent tint over the live narrow-column gradient. The alpha is composited into the glass paint, so text remains opaque and backdrop blur works correctly.',
+                          min: 0,
+                          max: 1,
+                          step: 0.05,
+                          visibleWhen: config => config.scrollGradientEnabledWide
+                            && config.scrollGradientNarrowColumnEnabledWide === true,
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientNarrowColumnBackdropBlurPxWide',
+                          label: 'Narrow gradient backdrop blur',
+                          description: 'Blur applied to the live gradient behind the narrow-column glass surface. 0 disables it.',
+                          min: 0,
+                          max: 64,
+                          step: 1,
+                          unit: 'px',
+                          visibleWhen: config => config.scrollGradientEnabledWide
+                            && config.scrollGradientNarrowColumnEnabledWide === true,
                         },
                         {
                           kind: 'boolean',
@@ -2402,13 +2538,20 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           visibleWhen: config => config.scrollGradientEnabledWide,
                         },
                         {
+                          kind: 'boolean',
+                          key: 'scrollGradientDarkenOnScrollEnabledWide',
+                          label: 'Darken gradient on scroll (≥ tablet)',
+                          description: 'On by default. Turn off to keep the gradient exactly as generated at every scroll position, with no black overlay ever mixed in — Max darken and Guaranteed contrast ratio below stay inert (and keep their own tuned values) while this is off.',
+                          visibleWhen: config => config.scrollGradientEnabledWide,
+                        },
+                        {
                           kind: 'number',
                           key: 'scrollGradientMaxDarkenWide',
                           label: 'Max darken (≥ tablet)',
                           min: 0,
                           max: 1,
                           step: 0.01,
-                          visibleWhen: config => config.scrollGradientEnabledWide,
+                          visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientDarkenOnScrollEnabledWide,
                         },
                         {
                           kind: 'number',
@@ -2417,8 +2560,9 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           min: 0,
                           max: 21,
                           step: 0.5,
-                          visibleWhen: config => config.scrollGradientEnabledWide,
+                          visibleWhen: config => config.scrollGradientEnabledWide && config.scrollGradientDarkenOnScrollEnabledWide,
                         },
+                        SYNC_GRADIENT_FROM_TABLET_ACTION,
                       ],
                     },
                   ],
@@ -2535,6 +2679,29 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           key: 'scrollGradientNarrowColumnEnabledLg',
                           label: 'Narrow column (≥ desktop)',
                           description: 'Reveal the exact mobile scroll-gradient recipe behind the narrow column from 1024px upward.',
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientNarrowColumnGlassOpacityLg',
+                          label: 'Narrow gradient glass opacity',
+                          description: 'Translucent tint over the live narrow-column gradient. The alpha is composited into the glass paint, so text remains opaque and backdrop blur works correctly.',
+                          min: 0,
+                          max: 1,
+                          step: 0.05,
+                          visibleWhen: config => config.scrollGradientEnabledLg
+                            && config.scrollGradientNarrowColumnEnabledLg === true,
+                        },
+                        {
+                          kind: 'number',
+                          key: 'scrollGradientNarrowColumnBackdropBlurPxLg',
+                          label: 'Narrow gradient backdrop blur',
+                          description: 'Blur applied to the live gradient behind the narrow-column glass surface. 0 disables it.',
+                          min: 0,
+                          max: 64,
+                          step: 1,
+                          unit: 'px',
+                          visibleWhen: config => config.scrollGradientEnabledLg
+                            && config.scrollGradientNarrowColumnEnabledLg === true,
                         },
                         {
                           kind: 'boolean',
@@ -2724,13 +2891,20 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           visibleWhen: config => config.scrollGradientEnabledLg,
                         },
                         {
+                          kind: 'boolean',
+                          key: 'scrollGradientDarkenOnScrollEnabledLg',
+                          label: 'Darken gradient on scroll (≥ desktop)',
+                          description: 'On by default. Turn off to keep the gradient exactly as generated at every scroll position, with no black overlay ever mixed in — Max darken and Guaranteed contrast ratio below stay inert (and keep their own tuned values) while this is off.',
+                          visibleWhen: config => config.scrollGradientEnabledLg,
+                        },
+                        {
                           kind: 'number',
                           key: 'scrollGradientMaxDarkenLg',
                           label: 'Max darken (≥ desktop)',
                           min: 0,
                           max: 1,
                           step: 0.01,
-                          visibleWhen: config => config.scrollGradientEnabledLg,
+                          visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientDarkenOnScrollEnabledLg,
                         },
                         {
                           kind: 'number',
@@ -2739,8 +2913,9 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           min: 0,
                           max: 21,
                           step: 0.5,
-                          visibleWhen: config => config.scrollGradientEnabledLg,
+                          visibleWhen: config => config.scrollGradientEnabledLg && config.scrollGradientDarkenOnScrollEnabledLg,
                         },
+                        SYNC_GRADIENT_FROM_DESKTOP_ACTION,
                       ],
                     },
                   ],
@@ -2845,9 +3020,10 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                       // these values still act as the real, cascading fallback
                       // Tablet/Desktop fall back to whenever their own Wide/Lg
                       // override is unset — grouping under MOBILE describes
-                      // "what an operator changes to affect only mobile
-                      // without already having diverged Tablet/Desktop," not
-                      // "the only breakpoint this value can ever reach."
+                      // "what an operator changes at the base breakpoint," not
+                      // "the only breakpoint this value can ever reach." The
+                      // two vertical-align controls deliberately cascade to
+                      // Tablet/Desktop through the shared state updater.
                       fields: CONTENT_ALIGNMENT_FIELDS as ConfigFieldDefinition<PolymorphicLayoutConfig>[],
                     },
                     {
@@ -3045,7 +3221,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'enum',
                           key: 'colorSourceWide',
                           label: 'Color source (≥ tablet)',
-                          description: 'Overrides the Mobile tab\'s own "Color source" starting at md — a genuinely independent source for this tier, not just a different color within whichever source the Mobile tab picked. None: no background, the page surface shows through. Palette: derived from the card coloring engine\'s ramp. Custom: the two fixed colors below. Surface: derived from the page surface color, offset by the amounts below.',
+                          description: 'Controls the non-gradient Wide and Narrow column background/fallback at tablet, overriding the Mobile tab\'s own source starting at md. None: no background, the page surface shows through. Palette: derived from the card coloring engine\'s ramp. Custom: the two fixed colors below. Surface: derived from the page surface color, offset by the amounts below. To customize the actual Narrow column gradient on Abstract, use Polymorphic Layout → BACKGROUND → Tablet → Scroll gradient. Timeline-in-CoverFlow colors only paint its figure.',
                           options: [
                             { label: 'NONE', value: 'none' },
                             { label: 'PALETTE', value: 'palette' },
@@ -3066,7 +3242,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           key: 'narrowColumnCustomColorWide',
                           debugHighlightIds: ['TABLE OF CONTENTS'],
                           label: 'Narrow column custom color (≥ tablet)',
-                          description: 'Used only when this tier\'s own "Color source (≥ tablet)" above is set to Custom.',
+                          description: 'Sets the non-gradient Narrow column fallback at tablet when this tier\'s own "Color source (≥ tablet)" above is set to Custom. It does not customize the live Narrow column gradient; on Abstract use Polymorphic Layout → BACKGROUND → Tablet → Scroll gradient. Timeline-in-CoverFlow colors only paint the Timeline figure.',
                           visibleWhen: config => config.colorSourceWide === 'custom',
                         },
                         {
@@ -3399,7 +3575,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           kind: 'enum',
                           key: 'colorSourceLg',
                           label: 'Color source (≥ desktop)',
-                          description: 'Overrides the Tablet tab\'s own "Color source (≥ tablet)" starting at 1024px — a genuinely independent source for this tier. None: no background, the page surface shows through. Palette: derived from the card coloring engine\'s ramp. Custom: the two fixed colors below. Surface: derived from the page surface color, offset by the amounts below.',
+                          description: 'Controls the non-gradient Wide and Narrow column background/fallback at desktop, overriding the Tablet tab\'s own source starting at 1024px. None: no background, the page surface shows through. Palette: derived from the card coloring engine\'s ramp. Custom: the two fixed colors below. Surface: derived from the page surface color, offset by the amounts below. To customize the actual Narrow column gradient on Abstract, use Polymorphic Layout → BACKGROUND → Desktop → Scroll gradient. Timeline-in-CoverFlow colors only paint its figure.',
                           options: [
                             { label: 'NONE', value: 'none' },
                             { label: 'PALETTE', value: 'palette' },
@@ -3420,7 +3596,7 @@ export const POLYMORPHIC_LAYOUT_FIELDS: ReadonlyArray<ConfigScopeEntry<Polymorph
                           key: 'narrowColumnCustomColorLg',
                           debugHighlightIds: ['TABLE OF CONTENTS'],
                           label: 'Narrow column custom color (≥ desktop)',
-                          description: 'Used only when this tier\'s own "Color source (≥ desktop)" above is set to Custom.',
+                          description: 'Sets the non-gradient Narrow column fallback at desktop when this tier\'s own "Color source (≥ desktop)" above is set to Custom. It does not customize the live Narrow column gradient; on Abstract use Polymorphic Layout → BACKGROUND → Desktop → Scroll gradient. Timeline-in-CoverFlow colors only paint the Timeline figure.',
                           visibleWhen: config => config.colorSourceLg === 'custom',
                         },
                         {

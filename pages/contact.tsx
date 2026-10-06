@@ -1,6 +1,8 @@
 import SeoHead from '../components/SeoHead'
 import { siteSans } from './_app'
 import { buildSiteTitle } from '../helpers/siteMetadata'
+import { SiteContentProvider } from '../helpers/content/SiteContentProvider'
+import { formatContentTemplate, type ContactPageContent, type SiteContent } from '../helpers/content/pageContent.schema'
 import {
   useEffect, useMemo, useRef, useState,
   type CSSProperties,
@@ -223,6 +225,9 @@ type ChatTurn = {
   // second copy instead of amending the first (PLAN-CONTACT-CHAT-HISTORY-
   // REFINEMENT.md Stage 1/2). Absent for every non-editable-answer turn.
   field?: 'reply-route' | 'name'
+  // Agent prompts carry the same stable slot, so edits never identify an
+  // exchange by mutable display copy.
+  questionField?: 'reply-route' | 'name'
   // Marks a turn that records a visitor *decision* (e.g. "Staying
   // anonymous" from skipping the name step) rather than typed prose — lets
   // rendering style a choice distinctly from an answer the visitor actually
@@ -297,6 +302,7 @@ const isValidChatTurn = (value: unknown): value is ChatTurn => {
   ) return false
   if (turn.recapQuestion !== undefined && typeof turn.recapQuestion !== 'string') return false
   if (turn.field !== undefined && turn.field !== 'reply-route' && turn.field !== 'name') return false
+  if (turn.questionField !== undefined && turn.questionField !== 'reply-route' && turn.questionField !== 'name') return false
   if (turn.kind !== undefined && turn.kind !== 'choice') return false
   return true
 }
@@ -446,14 +452,6 @@ export type UpsertAnswerTurnOutcome = 'inserted' | 'updated' | 'unchanged'
  * never a second append for the same field. An edit is a mutation of one
  * prior record, not a new one; a same-value re-submission is a history
  * no-op. */
-// The fixed agent-question text each editable field's answer follows —
-// never duplicated in `turns` (see submitReplyRoute's own nameAlreadyAsked
-// reuse-check), so a plain text match reliably finds it.
-const ANSWER_FIELD_QUESTION_TEXT: Record<NonNullable<ChatTurn['field']>, string> = {
-  'reply-route': REPLY_ROUTE_QUESTION,
-  name: NAME_QUESTION,
-}
-
 export const upsertAnswerTurnInList = (
   turns: ChatTurn[],
   field: NonNullable<ChatTurn['field']>,
@@ -481,8 +479,7 @@ export const upsertAnswerTurnInList = (
   // moved reply-route/name to the end; upsertRecapTurnInList below now
   // applies this exact same move-to-end contract to the note too, so
   // every editable field resolves "where does an edit land" the same way).
-  const questionText = ANSWER_FIELD_QUESTION_TEXT[field]
-  const questionIndex = turns.findIndex(turn => turn.role === 'agent' && turn.text === questionText)
+  const questionIndex = turns.findIndex(turn => turn.role === 'agent' && turn.questionField === field)
   const blockStart = questionIndex !== -1 && questionIndex < existingIndex ? questionIndex : existingIndex
   const updatedBlock = turns
     .slice(blockStart, existingIndex + 1)
@@ -514,8 +511,9 @@ export const upsertRecapTurnInList = (
   turns: ChatTurn[],
   text: string,
   isUpdate: boolean,
+  introOverride?: string,
 ): { turns: ChatTurn[]; outcome: UpsertAnswerTurnOutcome } => {
-  const introText = isUpdate ? RECAP_UPDATE_INTRO : RECAP_INTRO
+  const introText = introOverride ?? (isUpdate ? RECAP_UPDATE_INTRO : RECAP_INTRO)
   const nextText = `${introText}\n\n${text}`
   const recapIndex = turns.map(turn => turn.variant).lastIndexOf('recap')
   if (recapIndex === -1) {
@@ -618,6 +616,60 @@ const simulateNetworkDelay = (ms: number, signal?: AbortSignal) =>
       reject(new DOMException('Aborted', 'AbortError'))
     }, { once: true })
   })
+
+/**
+ * How many px of the layout viewport's bottom edge are currently hidden by
+ * the on-screen keyboard (0 when it's closed / on desktop). Computed from
+ * `window.visualViewport`, the only browser API that reflects the software
+ * keyboard: overlap = innerHeight − (visualViewport.height +
+ * visualViewport.offsetTop). Starts at 0 (SSR-safe — matches the server
+ * HTML's keyboard-less layout on first paint, then patches on the client).
+ *
+ * Why this exists / the regression it fixes: the contact column fills the
+ * space below the header so the composer sits at its bottom edge. `100dvh`
+ * (the JS-free approach from PLAN-CONTACT-VIEWPORT-SIMPLIFICATION.md) tracks
+ * only the browser's OWN expanding/collapsing chrome, NOT the keyboard — on
+ * iOS Safari/Chrome `dvh`/`vh` resolve against the *layout* viewport, which
+ * does not shrink when the keyboard opens, so a `100dvh` column keeps full
+ * height and its bottom-anchored composer is pushed behind the keyboard
+ * (real-device evidence: composer invisible while typing).
+ *
+ * The column height itself stays `calc(100dvh - header)`: it must remain
+ * FULL height so it fills — and therefore top-anchors within — the shared
+ * PolymorphicLayout narrow-column slot, which vertically CENTERS its content
+ * (`items-center`). Sizing the column *down* to the visual viewport instead
+ * would leave a shorter box floating in the middle of that still-tall slot,
+ * dropping the composer partly back behind the keyboard. So keyboard
+ * avoidance is done with bottom padding equal to this inset, lifting the
+ * composer above the keyboard while the column stays full-height and the
+ * centering never floats it. This deliberately does NOT reintroduce the old
+ * `position: fixed` + `visualViewport.offsetTop` sync the simplification
+ * removed (whose fragility was a scroll-into-view timing race): padding a
+ * normal-flow column never fights the OS, because the content already fits.
+ */
+function useKeyboardInsetPx(): number {
+  const [insetPx, setInsetPx] = useState(0)
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const vv = window.visualViewport
+    const measure = () => {
+      if (!vv) { setInsetPx(0); return }
+      setInsetPx(Math.max(0, window.innerHeight - vv.height - vv.offsetTop))
+    }
+    measure()
+    // visualViewport resize/scroll cover the keyboard open/close and any
+    // pinch-zoom pan; the plain window resize covers rotation.
+    vv?.addEventListener('resize', measure)
+    vv?.addEventListener('scroll', measure)
+    window.addEventListener('resize', measure)
+    return () => {
+      vv?.removeEventListener('resize', measure)
+      vv?.removeEventListener('scroll', measure)
+      window.removeEventListener('resize', measure)
+    }
+  }, [])
+  return insetPx
+}
 
 function EmailFallback({ emphasized = false }: { emphasized?: boolean }) {
   return (
@@ -728,13 +780,49 @@ function ConversationResumeNotice({
 }
 
 function GuidedIntake({
-  config, ctaButtonConfig, surfaceColor, devModeConfig,
+  config, ctaButtonConfig, surfaceColor, devModeConfig, content,
 }: {
   config: ContactExperienceConfig
   ctaButtonConfig: CtaButtonConfig
   surfaceColor: string
   devModeConfig: ContactDevModeConfig
+  content: ContactPageContent['conversation']
 }) {
+  // Page copy arrives as static build data, rather than as module-owned UI
+  // strings. Environment settings may only refine the optional reply window.
+  const agentName = process.env.NEXT_PUBLIC_AGENT_NAME || content.agentName
+  const ENTRY_MESSAGE = formatContentTemplate(content.entryMessage, { agentName })
+  const DEGRADED_ENTRY_MESSAGE = content.degradedEntryMessage
+  const RECAP_INTRO = content.recapIntro
+  const RECAP_UPDATE_INTRO = content.recapUpdateIntro
+  const REPLY_ROUTE_QUESTION = content.replyRouteQuestion
+  const REPLY_ROUTE_ERROR_MESSAGE = content.replyRouteErrorMessage
+  const NAME_QUESTION = content.nameQuestion
+  const CLOSE_MESSAGE = REPLY_WINDOW_TEXT
+    ? formatContentTemplate(content.closeMessageWithReplyWindow, { replyWindow: REPLY_WINDOW_TEXT })
+    : content.closeMessage
+  const ENTRY_PLACEHOLDER = content.entryPlaceholder
+  const REPLY_ROUTE_PLACEHOLDER = content.replyRoutePlaceholder
+  const NAME_PLACEHOLDER = content.namePlaceholder
+  const NAME_PLACEHOLDER_NARROW = content.namePlaceholderNarrow
+  const SKIP_NAME_LABEL_NARROW = content.skipNameLabelNarrow
+  const SKIP_NAME_LABEL = content.skipNameLabel
+  const NAME_SKIPPED_LABEL = content.nameSkippedLabel
+  const NOTE_EDIT_PLACEHOLDER = content.noteEditPlaceholder
+  const DEGRADED_ADDENDUM_PLACEHOLDER = content.degradedAddendumPlaceholder
+  const CONFIRM_CORRECT_LABEL = content.confirmCorrectLabel
+  const CONFIRM_ACCEPT_LABEL = content.confirmAcceptLabel
+  const DEGRADED_CONFIRM_CORRECT_LABEL = content.degradedConfirmCorrectLabel
+  const DEGRADED_CONFIRM_ACCEPT_LABEL = content.degradedConfirmAcceptLabel
+  const EDIT_IDENTITY_LINK_LABEL = content.editIdentityLinkLabel
+  const SEND_AS_IS_LABEL = content.sendAsIsLabel
+  const CONTINUE_AS_WRITTEN_LABEL = content.continueAsWrittenLabel
+  const DELIVERY_GIVE_UP_MESSAGE = content.deliveryGiveUpMessage
+  const STARTER_STEMS = content.starterStems
+  const deliveryRetryMessage = (retryDelaySeconds: number) => formatContentTemplate(
+    content.deliveryRetryMessage,
+    { retryDelaySeconds },
+  )
   // The "contract is still valid" load-time gates (schema version, TTL,
   // phase coercion, structural shape) all live inside
   // validateConversationSnapshot — see its own doc comment and
@@ -1017,7 +1105,7 @@ function GuidedIntake({
           const withoutDegradedMessage = prev.filter(turn => !(
             turn.role === 'agent' && turn.variant === undefined && turn.text === DEGRADED_ENTRY_MESSAGE
           ))
-          return upsertRecapTurnInList(withoutDegradedMessage, recap, false).turns
+          return upsertRecapTurnInList(withoutDegradedMessage, recap, false, RECAP_INTRO).turns
         })
         if (applied) {
           recapRef.current = recap
@@ -1483,7 +1571,7 @@ function GuidedIntake({
   // than via setTurns's functional updater).
   const upsertRecapTurn = (text: string, isUpdate: boolean) => {
     recapRef.current = text
-    const result = upsertRecapTurnInList(turns, text, isUpdate)
+    const result = upsertRecapTurnInList(turns, text, isUpdate, isUpdate ? RECAP_UPDATE_INTRO : RECAP_INTRO)
     if (result.outcome === 'unchanged') return
     setTurns(result.turns)
   }
@@ -1495,7 +1583,7 @@ function GuidedIntake({
     if (isUpdate) {
       setPhase('confirm')
     } else {
-      setTurns(prev => [...prev, { role: 'agent', text: REPLY_ROUTE_QUESTION }])
+      setTurns(prev => [...prev, { role: 'agent', text: REPLY_ROUTE_QUESTION, questionField: 'reply-route' }])
       setPlaceholder(REPLY_ROUTE_PLACEHOLDER)
       setStep('reply-route')
       setPhase('writing')
@@ -1509,7 +1597,7 @@ function GuidedIntake({
   // are already visible above as their own bubbles; asking for identity is
   // the only thing left to say.
   const askForReplyRoute = () => {
-    setTurns(prev => [...prev, { role: 'agent', text: REPLY_ROUTE_QUESTION }])
+    setTurns(prev => [...prev, { role: 'agent', text: REPLY_ROUTE_QUESTION, questionField: 'reply-route' }])
     setPlaceholder(REPLY_ROUTE_PLACEHOLDER)
     setStep('reply-route')
     setPhase('writing')
@@ -1692,8 +1780,8 @@ function GuidedIntake({
     // F10c "one accurate trace" guarantee stays intact, it just now governs
     // the QUESTION turn's own idempotency instead of skipping the whole step.
     const { turns: afterAnswer } = upsertAnswerTurnInList(turns, 'reply-route', text)
-    const nameAlreadyAsked = afterAnswer.some(turn => turn.role === 'agent' && turn.text === NAME_QUESTION)
-    setTurns(nameAlreadyAsked ? afterAnswer : [...afterAnswer, { role: 'agent', text: NAME_QUESTION }])
+    const nameAlreadyAsked = afterAnswer.some(turn => turn.role === 'agent' && turn.questionField === 'name')
+    setTurns(nameAlreadyAsked ? afterAnswer : [...afterAnswer, { role: 'agent', text: NAME_QUESTION, questionField: 'name' }])
     // Pre-fills with whatever name was already given (empty if the visitor
     // chose to stay anonymous) — same "show the existing answer, don't make
     // them start over" precedent as handleRequestIdentityEdit's own
@@ -2031,7 +2119,15 @@ function GuidedIntake({
   // ctaButtonConfig prop (see composerPillBackgroundColor's own doc comment,
   // ContactExperience.config.ts). Derived from the raw shared ctaButtonConfig
   // (not primaryCtaButtonConfig) — the pill and the confirm buttons are
-  // independently colored, just via the same technique.
+  // independently colored, just via the same technique. Sizing (font/
+  // padding/min-height) no longer needs a local override here at all —
+  // ComposerPill.tsx now reads its own independent composerFontSize/
+  // composerPaddingX/composerMinHeightPx/etc bundle (registered.ts's own
+  // composerSize doc comment), which already floors mobile font-size at
+  // 16px to prevent iOS/Android's auto-zoom-on-focus. That floor now lives
+  // in the shared config itself rather than as a page-local patch, so it
+  // protects every ComposerPill consumer (e.g. the Abstract hero composer
+  // too), not just this page.
   const composerCtaButtonConfig = useMemo(
     () => ({
       ...ctaButtonConfig,
@@ -2658,7 +2754,14 @@ function GuidedIntake({
   )
 }
 
-export default function ContactPage() {
+type ContactPageProps = { pageContent: ContactPageContent; siteContent: SiteContent }
+
+export async function getStaticProps() {
+  const { loadContactPageContent, loadSiteContent } = await import('../helpers/content/pageContent.build')
+  return { props: { pageContent: loadContactPageContent(), siteContent: loadSiteContent() } }
+}
+
+export default function ContactPage({ pageContent, siteContent }: ContactPageProps) {
   const [contactConfig, setContactConfig] = useState<ContactExperienceConfig>(() => ({
     ...DEFAULT_CONTACT_EXPERIENCE_CONFIG,
   }))
@@ -2708,6 +2811,13 @@ export default function ContactPage() {
   const colors = usePolymorphicLayoutColors(
     contactPolymorphicLayoutConfig, normalizedPageSurfaceConfig.color,
   )
+  // Contact's stacked tablet header track is slightly narrower than
+  // Abstract's. Give its wordmark container the complete track at md so the
+  // shared md:w-80 mark retains Abstract's 243px rendered width.
+  const contactHeaderLayoutConfig = useMemo(() => ({
+    ...contactPolymorphicLayoutConfig,
+    headerLeftContentWidthWide: 'md:max-w-percent-100' as PolymorphicLayoutConfig['headerLeftContentWidthWide'],
+  }), [contactPolymorphicLayoutConfig])
   // The real, physically-painted background reference for /contact's own
   // content column (all of it lives in narrowColumn — see
   // CONTACT_POLYMORPHIC_LAYOUT_CONFIG's own doc comment) — NEVER the flat
@@ -2844,6 +2954,10 @@ export default function ContactPage() {
   // page-local hand-rolled ResizeObserver+resize effect before that hook
   // existed.
   const { ref: headerWrapperRef, rect: headerWrapperRect } = useMeasuredElementRect<HTMLDivElement>()
+  // Keyboard overlap (px hidden by the iOS software keyboard, 0 otherwise) —
+  // see useKeyboardInsetPx's own doc comment for why it's applied as bottom
+  // padding rather than by shrinking the column height.
+  const keyboardInsetPx = useKeyboardInsetPx()
 
   const sharedConfigBindings = useAbstractDesignConfigBindings(
     ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE.contact,
@@ -2918,10 +3032,11 @@ export default function ContactPage() {
     // below (via PolymorphicLayout/SplitColumnPageShell/SplitColumnLayout/
     // SiteHeader) and the settings panel itself still share the
     // same context — now app-wide, not just page-wide.
+    <SiteContentProvider site={siteContent} page={pageContent}>
     <>
       <SeoHead
-        title={buildSiteTitle('Contact')}
-        description="Reach Manuel at Abstract Voyage. An agent listens first, then relays what you said to him directly."
+        title={buildSiteTitle(pageContent.meta.title)}
+        description={pageContent.meta.description}
         canonicalPath="/contact"
       />
       <PolymorphicLayout
@@ -2961,7 +3076,7 @@ export default function ContactPage() {
               buildSplitAlignedSiteHeaderConfig(
                 normalizedSiteHeaderConfig, { navAlignedToPageContainer: false },
               ),
-              contactPolymorphicLayoutConfig,
+              contactHeaderLayoutConfig,
             )}
             // The same shared, cross-page Wordmark config /about and
             // /abstract already bind (AbstractDesignConfigProvider) —
@@ -2987,32 +3102,42 @@ export default function ContactPage() {
         wideColumn={undefined}
         narrowColumn={(
           <section aria-label="Contact" style={contactStyle}>
-            {/* height: calc(100dvh - headerHeightPx) — a plain CSS bound
-                reactively fed by the SAME headerWrapperRect measurement this
-                page already takes for its header (nothing new to measure),
-                rather than the old FixedViewportColumnContent's
-                position:fixed box, whose top/height were kept in sync with
-                window.visualViewport via JS event listeners
-                (useFixedViewportColumnLayout). That JS-measured approach is
-                exactly what PLAN-CONTACT-VIEWPORT-SIMPLIFICATION.md's own
-                real-device evidence (2026-09-21) traced this whole session's
-                composer-hidden-by-the-keyboard bug to: visualViewport
-                resize/scroll firing promptly, before the OS's own native
-                "scroll input into view" behavior runs, is a cross-browser
-                timing race, not a guarantee — Chrome-iOS in particular is a
-                documented source of exactly this inconsistency. dvh is
-                resolved natively by the browser's own layout engine against
-                the CURRENT visual viewport (keyboard included), with zero
-                JS and zero race — the standard, robust fix for this exact,
-                extremely common problem. overflow-hidden here (not auto):
-                this box is not itself meant to scroll — GuidedIntake's own
-                message feed below is the one designated scroller now (see
-                its own doc comment) — anything that doesn't fit here is a
-                sizing bug to fix, not something to paper over with a second
-                scroll container. */}
+            {/* Column height = calc(100dvh - headerHeight): full height so it
+                fills — and thus top-anchors within — the shared
+                PolymorphicLayout narrow-column slot, which vertically centers
+                its content (a shorter box would float to the middle). The
+                composer sits at this column's bottom edge. Keyboard avoidance
+                is the bottom padding, NOT a shorter height: `100dvh`/`dvh`
+                does not shrink for the iOS software keyboard (it tracks only
+                the browser's own chrome), so without extra padding the
+                bottom-anchored composer is pushed behind the keyboard — the
+                real-device regression this fixes. See useKeyboardInsetPx's
+                own doc comment and PLAN-CONTACT-VIEWPORT-SIMPLIFICATION.md
+                for the full history (including why this is padding, not the
+                removed position:fixed + offsetTop sync).
+                max(5rem, keyboardInset), NOT 5rem + keyboardInset: the 5rem
+                base (mirrors the former `pb-20` class, now inline so the
+                keyboard inset can override it) is breathing room for the
+                keyboard-LESS bottom of the screen — once the keyboard is
+                open it IS that space, so the padding should just clear the
+                keyboard (composer flush against it, matching this
+                composer's own pre-regression docked look), not stack an
+                extra 5rem of gap on top of the keyboard as a naive sum does
+                (operator-reported: composer floating detached above the
+                keyboard instead of docked to it). max() also keeps the
+                keyboard-closed case byte-identical to the original pb-20 —
+                keyboardInset is 0 there, so max(5rem, 0) = 5rem.
+                overflow-hidden here (not auto): this box is not itself meant
+                to scroll — GuidedIntake's own message feed below is the one
+                designated scroller now (see its own doc comment) — anything
+                that doesn't fit here is a sizing bug to fix, not something to
+                paper over with a second scroll container. */}
             <div
-              className={`flex h-full min-h-0 w-full flex-col gap-6 overflow-hidden pb-20 pt-4 font-sans text-[color:var(--contact-primary)] lg:translate-y-[var(--contact-optical-y)] lg:py-10 ${PAGE_CONTENT_GUTTER_CLASSNAME}`}
-              style={{ height: `calc(100dvh - ${headerWrapperRect?.height ?? 0}px)` }}
+              className={`flex h-full min-h-0 w-full flex-col gap-6 overflow-hidden pb-[max(5rem,var(--contact-kbd-inset))] pt-4 font-sans text-[color:var(--contact-primary)] lg:translate-y-[var(--contact-optical-y)] lg:py-10 ${PAGE_CONTENT_GUTTER_CLASSNAME}`}
+              style={{
+                height: `calc(100dvh - ${headerWrapperRect?.height ?? 0}px)`,
+                '--contact-kbd-inset': `${keyboardInsetPx}px`,
+              } as CSSProperties}
             >
               <div className="mx-auto flex h-full min-h-0 w-full max-w-[var(--contact-conversation-max)] flex-col pt-6">
                 <GuidedIntake
@@ -3029,6 +3154,7 @@ export default function ContactPage() {
                   ctaButtonConfig={normalizedCtaButtonConfig}
                   devModeConfig={contactDevModeConfig}
                   surfaceColor={normalizedPageSurfaceConfig.color}
+                  content={pageContent.conversation}
                 />
               </div>
             </div>
@@ -3140,5 +3266,6 @@ export default function ContactPage() {
       ) : null}
       </PolymorphicLayout>
     </>
+    </SiteContentProvider>
   )
 }

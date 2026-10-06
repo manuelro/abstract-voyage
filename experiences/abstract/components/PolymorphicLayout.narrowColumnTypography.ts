@@ -1,4 +1,5 @@
-import { colord } from 'colord';
+import { colord, extend } from 'colord';
+import mixPlugin from 'colord/plugins/mix';
 import {
   type GlobalTypographyConfig,
   resolveTypographyColors,
@@ -6,7 +7,9 @@ import {
 import { resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDerivation';
 import type { PolymorphicLayoutResolvedColors } from './PolymorphicLayout';
 
-type GradientColumnTypography = {
+extend([mixPlugin]);
+
+export type GradientColumnTypography = {
   ink: string;
   titleColor: string; titleOpacity: number;
   bodyColor: string; bodyOpacity: number;
@@ -89,7 +92,7 @@ export function resolvePolymorphicColumnBackgroundReference(
  * globalTypographyConfig)` — byte-identical to every page's own
  * pre-gradient column typography.
  */
-function resolveGradientColumnTypography(
+export function resolveGradientColumnTypography(
   gradientReferenceColor: string | undefined,
   fallbackColor: string,
   darkInkSaturationInput: number,

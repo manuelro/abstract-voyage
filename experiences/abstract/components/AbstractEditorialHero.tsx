@@ -10,11 +10,8 @@ import { useElevationShadow } from '../../../components/proximity/useElevationSh
 import { useSharedDesignConfig } from '../../../components/SharedDesignConfigProvider';
 import { renderEmphasisText } from '../../../helpers/textEmphasis';
 import { deriveSurfaceColor, resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDerivation';
-import { usePrefersReducedMotion } from '../../../helpers/usePrefersReducedMotion';
 import type { SvgStop } from '../../../helpers/gradientMath';
-import type { SliderContentSlide } from '../../../helpers/postContent';
 import {
-  ACCORDION_HEADER_AFFORDANCE_COLLAPSED_CLASSNAME,
   HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY,
   HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_LG,
   HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_WIDE,
@@ -32,8 +29,6 @@ import {
   normalizeAbstractHeroCtaComposerConfig,
   type AbstractHeroCtaComposerConfig,
 } from './AbstractHeroCtaComposer/config/registered';
-import { DEFAULT_LIQUID_SLIDER_CONFIG } from './AbstractPostDock';
-import { useLiquidSliderMotion } from './AbstractPostDock/hooks/motion';
 import {
   buildScrollAdaptiveInkColor,
   SCROLL_ADAPTIVE_INK_PROGRESS_VAR,
@@ -43,7 +38,7 @@ import {
 // .config.ts's own doc comment) — the same header-row/expandable-paragraph/
 // open-indicator-bullet item /about's own mobile accordion uses per row,
 // mounted here standalone (no AboutMobileAccordion parent, no toggle state).
-import { AboutMobileAccordionItem } from '../../about/components/AboutMobileAccordionItem';
+import { EditorialAccordionItem, resolveEditorialAccordionInk } from '../../about/components/EditorialAccordionItem';
 import {
   DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
   type AboutMobileAccordionConfig,
@@ -405,63 +400,9 @@ export function AbstractEditorialHero({
       )
       : normalized.eyebrowColor);
 
-  // accordionItemPresentationEnabled (AbstractEditorialHero.config.ts's own
-  // doc comment) — always called (Rules of Hooks), inert whenever the
-  // opt-in is off. useLiquidSliderMotion/DEFAULT_LIQUID_SLIDER_CONFIG and
-  // `palette: null` below are only ever passed through to
-  // AboutMobileAccordionItem's own gradientConfig/motion/palette props,
-  // which that component accepts for API parity with its usual
-  // AboutMobileAccordion-orchestrated usage but never actually reads in its
-  // render (confirmed: no gradient canvas mounts inside the item itself) —
-  // real values here would be no more correct than these placeholders.
-  const accordionItemMotion = useLiquidSliderMotion(DEFAULT_LIQUID_SLIDER_CONFIG);
-  const accordionItemPrefersReducedMotion = usePrefersReducedMotion();
-  // One synthetic SliderContentSlide standing in for this hero's own
-  // headline (-> excerpt, the item's collapsed-preview text — irrelevant
-  // here since the item is always expanded, but still the field
-  // AboutMobileAccordionItem reads its header row from) and paragraphs
-  // (-> title, the expandable body `renderEmphasisText` renders — same
-  // `**word**` emphasis markup both this component's own paragraphs and
-  // that helper already share, so joining them changes no markup meaning).
-  const accordionItemSlide: SliderContentSlide = useMemo(() => ({
-    id: 0,
-    slug: 'abstract-editorial-hero',
-    label: '',
-    title: paragraphs.join(' '),
-    excerpt: headline,
-    topic: '',
-    date: '',
-    readingTime: '',
-    href: '#',
-    externalUrl: null,
-    forceExternalNavigation: false,
-    seed: 0,
-    hueOffset: 0,
-    variationBias: 0,
-    offsetX: 0,
-    offsetY: 0,
-    accent: resolvedColumnBackgroundColor,
-  }), [headline, paragraphs, resolvedColumnBackgroundColor]);
-  // Caller-supplied (pages/abstract.tsx's own page-owned instance) or this
-  // shared default — see accordionItemConfig's own doc comment above for
-  // why a page opting in should supply its own instance rather than
-  // /about's live state.
+  // Page-owned config remains independent; the shared editorial wrapper
+  // owns the static expansion and its inert disclosure treatment.
   const resolvedAccordionItemConfig = accordionItemConfig ?? DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG;
-  // accordionItemOpenIndicatorEnabled (AbstractEditorialHero.config.ts's own
-  // doc comment) — narrows, never widens: this presentation's own bullet
-  // only ever shows if BOTH the supplied config's own openIndicatorEnabled
-  // AND this hero-local override are true.
-  const effectiveAccordionItemConfig = useMemo(() => ({
-    ...resolvedAccordionItemConfig,
-    // The hero reuses the accordion item's expanded presentation as static
-    // introductory copy. Disable the accordion height/content reveal here so
-    // it appears in place on page load; /about's interactive accordion keeps
-    // the shared config timing unchanged.
-    transitionMs: 0,
-    contentSettleMs: 0,
-    openIndicatorEnabled: resolvedAccordionItemConfig.openIndicatorEnabled
-      && normalized.accordionItemOpenIndicatorEnabled,
-  }), [resolvedAccordionItemConfig, normalized.accordionItemOpenIndicatorEnabled]);
   // Operator fix: this presentation reuses effectiveAccordionItemConfig for
   // every other aspect of the item's own look (border/marker/timing) — its
   // text color should come from that SAME config's own derivation, not this
@@ -476,7 +417,7 @@ export function AbstractEditorialHero({
   const accordionItemBaseTextColor = accordionItemTextColorOverride
     ?? (resolvedAccordionItemConfig.textColorMode === 'custom'
     ? resolvedAccordionItemConfig.textCustomColor
-    : deriveSurfaceColor(resolvedColumnBackgroundColor, resolvedAccordionItemConfig.textSurfaceOffset));
+    : resolveEditorialAccordionInk(resolvedAccordionItemConfig, resolvedColumnBackgroundColor));
   useScrollAdaptiveInk({
     ref: heroCopyContentRef,
     enabled: scrollLightenActive || accordionItemScrollLightenActive,
@@ -671,29 +612,8 @@ export function AbstractEditorialHero({
     } : {}),
   } as CSSProperties;
 
-  // AboutMobileAccordionItem's own header button hardcodes `justify-between`
-  // (positions its text at the row's start regardless of container) and
-  // `text-left` — both tuned for /about's own always-left-aligned mobile
-  // accordion, neither aware of this hero's own horizontalPlacement props.
-  // Resolved via the literal lookup tables in AbstractEditorialHero.config.ts
-  // (NOT a runtime string transform of horizontalPlacement — Tailwind's own
-  // JIT scanner only generates CSS for class names that appear verbatim
-  // somewhere in a file its content globs cover; a computed string that
-  // exists only at runtime compiles to no rule at all, even though it still
-  // shows up harmlessly in the rendered DOM's className — see those
-  // tables' own doc comment for the full explanation) so both the
-  // `justify-between` and `text-left` hardcodes are reliably overridden by
-  // whatever this hero's own horizontalPlacement/-Wide/-Lg props resolve to.
-  // The same header button also hardcodes `gap-3` between its two flex
-  // children (excerpt text, and a trailing wrapper reserved for the open-
-  // indicator bullet/chevron) — real layout space that stays reserved even
-  // while accordionItemOpenIndicatorEnabled is off and nothing paints
-  // there, pushing the headline text away from the true column edge that
-  // the paragraph below (no such reservation) actually reaches. Collapsed
-  // via the same headerClassName override channel, only while the operator
-  // has that indicator turned off (an instance that turns it on wants the
-  // space back for its own bullet/chevron) — see that constant's own doc
-  // comment (AbstractEditorialHero.config.ts) for the full mechanism.
+  // Preserve the hero's responsive alignment when it uses the shared
+  // static editorial item instead of the ordinary copy branch.
   const accordionHeaderJustifyClassName = [
     HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY[horizontalPlacement],
     horizontalPlacementWide
@@ -702,7 +622,6 @@ export function AbstractEditorialHero({
     horizontalPlacementLg
       ? HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_JUSTIFY_LG[horizontalPlacementLg]
       : '',
-    normalized.accordionItemOpenIndicatorEnabled ? '' : ACCORDION_HEADER_AFFORDANCE_COLLAPSED_CLASSNAME,
   ].filter(Boolean).join(' ');
   const accordionHeaderTextAlignClassName = [
     HERO_HORIZONTAL_PLACEMENT_TO_ACCORDION_HEADER_TEXT_ALIGN[horizontalPlacement],
@@ -794,49 +713,17 @@ export function AbstractEditorialHero({
       <div className={`${styles.copyColumn} pointer-events-auto relative min-w-0 ${contentWidthClassName}`}>
         <div className="min-w-0" ref={heroCopyContentRef}>
           {normalized.accordionItemPresentationEnabled ? (
-            <AboutMobileAccordionItem
-              slide={accordionItemSlide}
-              palette={null}
-              motion={accordionItemMotion}
-              gradientConfig={DEFAULT_LIQUID_SLIDER_CONFIG}
-              config={effectiveAccordionItemConfig}
+            <EditorialAccordionItem
+              headline={headline}
+              description={paragraphs.join(' ')}
+              config={resolvedAccordionItemConfig}
               textColor={accordionItemTextColor}
-              // Always the open/"active" one (operator ask) — no toggle, no
-              // sibling items, so no divide-y/outer-border chrome to worry
-              // about either (that chrome lives entirely on
-              // AboutMobileAccordion's own wrapping element, never mounted
-              // here).
-              expanded
-              onToggle={() => {}}
-              // bodyOpacityOverride/highlightOpacityOverride (same page-
-              // resolved typography-role opacities the non-accordion branch
-              // below already threads through bodyOpacityOverride ??
-              // normalized.emphasisDimOpacity / highlightOpacityOverride ??
-              // normalized.emphasisWordOpacity) — this branch was reading
-              // only the component's own hardcoded defaults, silently
-              // dropping both overrides. Since AboutMobileAccordionItem's
-              // own previewTextOpacity is `expanded ? emphasisOpacity :
-              // dimOpacity` and this item is always `expanded` above, the
-              // header/excerpt (this hero's own headline) renders at
-              // emphasisOpacity too, not a separate title opacity — there is
-              // no third opacity knob this reused component exposes, so
-              // titleOpacityOverride has no applicable slot on this branch.
+              openIndicatorEnabled={normalized.accordionItemOpenIndicatorEnabled}
               dimOpacity={bodyOpacityOverride ?? normalized.emphasisDimOpacity}
               emphasisOpacity={highlightOpacityOverride ?? normalized.emphasisWordOpacity}
-              prefersReducedMotion={accordionItemPrefersReducedMotion}
-              // AboutMobileAccordionItem's own header button hardcodes
-              // `justify-between`/`text-left` (tuned for /about's own
-              // always-left mobile accordion) — neither responds to this
-              // hero's own horizontalPlacement props, so the headline
-              // silently stayed flush-left/flush-start even when
-              // PolymorphicLayout's narrowColumnTextAlign/-ContentAlign put
-              // every other row (paragraph, eyebrow) on the right. `!`
-              // forces these to win regardless of Tailwind's own generated
-              // source-order tie-break against the hardcoded classes; the
-              // responsive prefixes still only take effect at their own
-              // breakpoint like any Tailwind variant.
               headerClassName={accordionHeaderJustifyClassName}
               headerTextClassName={accordionHeaderTextAlignClassName}
+              headingLevel={1}
             />
           ) : (
             <>

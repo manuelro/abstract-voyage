@@ -11,7 +11,11 @@ import {
   prefersReducedMotion,
   scrollToElementTarget,
 } from '../../../helpers/cancellableScroll'
-import type { TableOfContentsConfig } from './TableOfContents/config/registered'
+import {
+  resolvePostLabTocDisplayClasses,
+  resolvePostLabTocItemVisualGapCss,
+  type TableOfContentsConfig,
+} from './TableOfContents/config/registered'
 import type { TableOfContentsPresentation } from './TableOfContents/types'
 
 type TableOfContentsProps = {
@@ -143,8 +147,11 @@ const TocRow = ({
     : isHoverVisual
       ? presentation?.hoverBackground
       : isHoverSettling
-        ? presentation?.hoverSettlingBackground
-        : 'transparent'
+      ? presentation?.hoverSettlingBackground
+      : 'transparent'
+  const visualGap = presentationConfig
+    ? resolvePostLabTocItemVisualGapCss(presentationConfig)
+    : '0px'
 
   return (
     <li
@@ -180,7 +187,16 @@ const TocRow = ({
         onBlur={onBlur}
         style={presentation && presentationConfig ? {
           color: ink,
+          // Each anchor still occupies its complete, edge-to-edge row. The
+          // transparent top/bottom borders reserve the visual gap while
+          // remaining part of the anchor's hit target. `padding-box` keeps
+          // the fill out of those borders and preserves its color transition.
           backgroundColor: background,
+          backgroundClip: 'padding-box',
+          borderTopWidth: `calc(${visualGap} / 2)`,
+          borderBottomWidth: `calc(${visualGap} / 2)`,
+          borderTopColor: 'transparent',
+          borderBottomColor: 'transparent',
           '--toc-active-ink': presentation.activeInk,
           ...transitionStyleFor(visualState, presentationConfig, motionAllowed),
         } as CSSProperties : undefined}
@@ -619,7 +635,7 @@ export default function TableOfContents({
             >On this page</div>
           ) : null}
           <ul
-            className={presentationConfig ? ['mt-3 flex flex-col', presentationConfig.itemGap].join(' ') : 'mt-3 space-y-1'}
+            className={presentationConfig ? 'mt-3 flex flex-col' : 'mt-3 space-y-1'}
           >
             {headings.map((item) => (
               <TocRow
@@ -659,7 +675,7 @@ export default function TableOfContents({
               } : undefined}
           >Figures</div>
           <ul
-            className={presentationConfig ? ['mt-3 flex flex-col', presentationConfig.itemGap].join(' ') : 'mt-3 space-y-1'}
+            className={presentationConfig ? 'mt-3 flex flex-col' : 'mt-3 space-y-1'}
           >
             {figures.map((figure) => (
               <TocRow
@@ -772,7 +788,7 @@ export function TableOfContentsDisclosure({
     <details
       open={open}
       onToggle={event => setOpen(event.currentTarget.open)}
-      className="group"
+      className={['group', tocProps.presentationConfig ? resolvePostLabTocDisplayClasses(tocProps.presentationConfig) : ''].filter(Boolean).join(' ')}
     >
       <summary
         data-toc-summary="true"

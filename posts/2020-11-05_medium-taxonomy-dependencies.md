@@ -1,6 +1,6 @@
 ---
 title: Four kinds of dependency, and which ones carry real risk
-excerpt: "Sorted by whether a dependency is inherent or imposed, and whether it sits inside the system or outside it. Only one of the four combinations is hard to undo."
+excerpt: "A two-axis way to examine software dependencies by origin and whether they are inherent or introduced, with examples of the risks each can create."
 author: "Manu"
 url: https://abstractvoyage.medium.com/a-reflection-on-the-taxonomy-of-dependencies-in-software-engineering-and-their-associated-risk-864e3a4c881
 source:
@@ -10,9 +10,8 @@ source:
 heroAlt: "Taxonomy of dependencies cover illustration"
 date: "2022-03-13"
 tags:
-    - Dependencies
-    - Risk Management
-    - Software Architecture
+    - Architecture
+    - Engineering
 featured: true
 ---
 

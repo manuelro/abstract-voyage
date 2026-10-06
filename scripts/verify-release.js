@@ -153,19 +153,12 @@ function run() {
   }
 
   section('6. Stripped panel-identifier leak check')
-  // Union of the hand-curated engine-level list (release-manifest.json —
-  // PanelShell, useAuthoringToolsVisibility, etc., the fixed API surface
-  // that doesn't change per scope) and every real export name the panel
-  // -stub generator is actually tracking right now (panel-stub-manifest.json
-  // — PAGE_SURFACE_APPEARANCE_PANEL, ContactConfigPanel, etc., which grows
-  // every time a new panel file is added). A hand-curated list alone would
-  // silently stop catching leaks the moment a new scope's own uniquely-named
-  // export isn't in it — this makes the check grow automatically with the
-  // same manifest that drives the webpack aliasing itself.
-  const scopeExportNames = fs.existsSync(panelManifestPath)
-    ? JSON.parse(fs.readFileSync(panelManifestPath, 'utf8')).scopes.flatMap((s) => s.exports)
-    : []
-  const forbidden = [...new Set([...(manifest.forbiddenIdentifiers || []), ...scopeExportNames])]
+  // Only scan for the structurally panel-specific markers curated in the
+  // release manifest. Stubbed source files keep their export names so their
+  // imports remain valid, and those names can also be legitimate production
+  // component/config APIs (for example `Card` or `normalizeSiteHeaderConfig`).
+  // Treating every stub export as forbidden therefore reports false leaks.
+  const forbidden = [...new Set(manifest.forbiddenIdentifiers || [])]
   const allOutputFiles = walk(OUT_DIR).filter((f) => f.endsWith('.html') || f.endsWith('.js'))
   let leakCount = 0
   for (const file of allOutputFiles) {

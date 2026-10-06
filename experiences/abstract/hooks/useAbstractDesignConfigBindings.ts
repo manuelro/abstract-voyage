@@ -10,6 +10,8 @@ import {
   normalizeCtaButtonConfig,
   withCtaButtonSize,
   withCtaButtonSizeDesktop,
+  withComposerSize,
+  withComposerSizeDesktop,
   type CtaButtonConfig,
 } from '../../../components/CtaButton/config/registered';
 import { GLOBAL_TYPOGRAPHY_APPEARANCE_PANEL } from '../../../components/GlobalTypography.panel';
@@ -49,6 +51,15 @@ export const ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE = {
   about: ['pageSurface', 'siteHeader', 'layoutDebug', 'wordmark'],
   contact: ['pageSurface', 'ctaButton', 'siteHeader', 'layoutDebug', 'wordmark'],
   postsLab: ['siteHeader', 'layoutDebug', 'wordmark'],
+  // PLAN-CHIP-FILL-TEXT-INTERACTION-STATES.md Part A — journal.tsx already
+  // reads pageSurfaceConfig (useSharedDesignConfig directly) and siteHeader/
+  // wordmark (useAbstractDesignConfig, a separate context); globalTypography
+  // was the one scope it never adopted, importing the static
+  // DEFAULT_GLOBAL_TYPOGRAPHY_CONFIG instead of this live value — meaning
+  // tuning "Global typography" from any other page never reached journal's
+  // own narrow/wide column ink. Scoped to exactly this one key; the other
+  // two reads are pre-existing and not a known gap.
+  journal: ['globalTypography'],
 } as const satisfies Record<string, ReadonlyArray<AbstractDesignConfigBindingKey>>;
 
 /**
@@ -98,22 +109,32 @@ export function useAbstractDesignConfigBindings(
             // updateField/updateFields (binding.ts) spread the change onto
             // the already-fully-materialized ctaButtonConfig, so every
             // size-bound key (fontSize/paddingX/.../minWidthPx, and their
-            // sizeDesktop/*Desktop tier counterparts) is always "explicitly
-            // present" from normalizeCtaButtonConfig's point of view even
-            // though nobody but the Size preset actually set it — picking a
-            // new Button size (either tab) would otherwise silently keep
-            // the old size's stale values. withCtaButtonSize/
-            // withCtaButtonSizeDesktop strip exactly the changed tier's own
-            // keys so its preset can resolve them again; both can fire in
-            // the same change if a caller ever sets both at once via
-            // updateFields.
+            // sizeDesktop/*Desktop tier counterparts — plus the composer's
+            // own parallel composerSize/composerFontSize/... bundle) is
+            // always "explicitly present" from normalizeCtaButtonConfig's
+            // point of view even though nobody but the Size preset actually
+            // set it — picking a new Button size OR Composer size (either
+            // tab, either bundle) would otherwise silently keep the old
+            // size's stale values. withCtaButtonSize/withCtaButtonSizeDesktop/
+            // withComposerSize/withComposerSizeDesktop each strip exactly
+            // their own changed tier's keys so its preset can resolve them
+            // again; any combination can fire in the same change if a caller
+            // ever sets more than one at once via updateFields.
             onChange: next => setCtaButtonConfig((prev) => {
               const sizeChanged = next.size !== prev.size;
               const sizeDesktopChanged = next.sizeDesktop !== prev.sizeDesktop;
-              if (!sizeChanged && !sizeDesktopChanged) return next;
+              const composerSizeChanged = next.composerSize !== prev.composerSize;
+              const composerSizeDesktopChanged = next.composerSizeDesktop !== prev.composerSizeDesktop;
+              if (!sizeChanged && !sizeDesktopChanged && !composerSizeChanged && !composerSizeDesktopChanged) {
+                return next;
+              }
               let patched: Partial<CtaButtonConfig> = next;
               if (sizeChanged) patched = withCtaButtonSize(patched, next.size);
               if (sizeDesktopChanged) patched = withCtaButtonSizeDesktop(patched, next.sizeDesktop);
+              if (composerSizeChanged) patched = withComposerSize(patched, next.composerSize);
+              if (composerSizeDesktopChanged) {
+                patched = withComposerSizeDesktop(patched, next.composerSizeDesktop);
+              }
               return normalizeCtaButtonConfig(patched);
             }),
             global: true,

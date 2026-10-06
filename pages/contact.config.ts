@@ -24,6 +24,11 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   narrowColumnWidthTierMd: 'stacked',
   narrowColumnWidthTierLg: 'stacked',
   stackedColumnOrder: 'narrowFirst',
+  stackedColumnOrderWide: 'narrowFirst',
+  stackedViewportPartitionEnabledWide: false,
+  stackedWideColumnViewportPercentWide: 60,
+  stackedViewportPartitionEnabledLg: false,
+  stackedWideColumnViewportPercentLg: 60,
   // Inert: headerScrollBehavior: 'static' below forces both
   // *ColumnHeaderBehavior and legibilityScrimEnabled inert internally
   // (components/SplitColumnPageShell.tsx's own headerPositionMode !== 'static'
@@ -76,10 +81,10 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   // background.
   scrollGradientDarkInkSaturation: 0.71,
   scrollGradientDarkInkSaturationWide: 0.31,
-  scrollGradientDarkInkSaturationLg: 0.31,
+  scrollGradientDarkInkSaturationLg: 0.36,
   scrollGradientDarkInkOpacityMultiplier: 0.26,
   scrollGradientDarkInkOpacityMultiplierWide: 0.23,
-  scrollGradientDarkInkOpacityMultiplierLg: 0.23,
+  scrollGradientDarkInkOpacityMultiplierLg: 0.48,
   // /contact's own bright, "center-bright"/lightnessMin: 80 gradient
   // recipe samples a near-white narrowColumnGradientReferenceColor at its
   // core — a HIGH tolerance here tells the resolver a light-on-light ink
@@ -139,12 +144,12 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientSeedWide: 50,
   scrollGradientBaseHueLg: 215,
   scrollGradientHueSchemeLg: 'dual-complementary',
-  scrollGradientLightnessMinLg: 87,
+  scrollGradientLightnessMinLg: 90,
   scrollGradientChromaMinLg: 100,
   scrollGradientModeLg: 'center-bright',
   scrollGradientStopsLg: 22,
   scrollGradientVarianceLg: 1,
-  scrollGradientCenterStretchLg: 0.3,
+  scrollGradientCenterStretchLg: 1,
   scrollGradientSeedLg: 50,
   scrollGradientInkColor: '#f8fafc',
   scrollGradientInkColorWide: '#f8fafc',
@@ -155,6 +160,18 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientMaxDarken: 0.65,
   scrollGradientMaxDarkenWide: 0.65,
   scrollGradientMaxDarkenLg: 0.65,
+  // Deliberately off at every tier (operator ask, 2026-09-23) — /contact
+  // keeps its scroll gradient exactly as generated regardless of scroll
+  // position, unlike every other PolymorphicLayout-consuming page, which
+  // keeps the shared default (darkening on) untouched. The
+  // scrollGradientMaxDarken*/scrollGradientLegibilityTargetRatio* values
+  // above stay as-is rather than being zeroed out — both are already inert
+  // while this is off (PolymorphicLayoutConfig's own doc comment on this
+  // field), so they're preserved in case a future ask re-enables darkening
+  // on this page without wanting to re-tune those from scratch.
+  scrollGradientDarkenOnScrollEnabled: false,
+  scrollGradientDarkenOnScrollEnabledWide: false,
+  scrollGradientDarkenOnScrollEnabledLg: false,
   scrollGradientLegibilityTargetRatio: 0,
   scrollGradientLegibilityTargetRatioWide: 0,
   scrollGradientLegibilityTargetRatioLg: 0,
@@ -345,11 +362,26 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   // page's) — exactly the class of bug this shared constant exists to make
   // structurally impossible going forward.
   ...POLYMORPHIC_LAYOUT_HEADER_SEGMENT_DEFAULTS,
+  // Keep the tablet and desktop header in the same edge-aligned
+  // wordmark/navigation composition as /abstract: the wordmark begins at
+  // the left edge of its header segment and the primary nav ends at the
+  // right edge. The shared defaults intentionally point inward for split
+  // layouts, which is not the composition used by either stacked page.
+  headerLeftSegmentAlignWide: 'md:justify-start',
+  headerLeftSegmentAlignLg: 'lg:justify-start',
+  headerRightSegmentAlignWide: 'md:justify-end',
+  headerRightSegmentAlignLg: 'lg:justify-end',
+  headerLeftContentWidthWide: 'md:max-w-percent-90',
+  headerLeftContentWidthLg: 'lg:max-w-percent-90',
+  headerRightContentWidthWide: 'md:max-w-percent-80',
+  headerRightContentWidthLg: 'lg:max-w-percent-80',
+  headerLeftInnerAlignWide: 'md:justify-start',
+  headerLeftInnerAlignLg: 'lg:justify-start',
+  headerRightInnerAlignWide: 'md:justify-end',
+  headerRightInnerAlignLg: 'lg:justify-end',
   // pt-8 (32px) at the base/mobile tier — matches ABSTRACT_POLYMORPHIC_LAYOUT_
   // CONFIG and ABOUT_POLYMORPHIC_LAYOUT_CONFIG (PolymorphicLayout.pageConfigs.ts)
-  // exactly. Previously pt-0 here, an undocumented divergence (not one of
-  // this file's own explained "deliberate operator override" cases, unlike
-  // headerLeftContentPaddingRightWide/-Lg below) — confirmed via live
+  // exactly. Previously pt-0 here, an undocumented divergence — confirmed via live
   // measurement (operator-reported 2026-09-21): at 390px the wordmark/nav
   // block sat 32px higher on /contact than on /about and /abstract, both of
   // which are otherwise pixel-identical to /contact at every desktop width
@@ -361,18 +393,10 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   headerLeftContentPaddingTopWide: 'md:pt-0',
   headerLeftContentPaddingTopLg: 'lg:pt-0',
   headerLeftContentPaddingRight: 'pr-0',
-  // Substitutes for the logo↔nav gap that navContentGapPx
-  // (SPLIT_ALIGNED_NAV_CONTENT_GAP_PX, = 32) used to produce via a now-
-  // permanently-disabled legacy inline-style mechanism
-  // (PolymorphicLayout.tsx's own unconditional logoContentGapPaddingEnabled:
-  // false). md:pr-8 (32px) reproduces the pre-migration gap exactly at
-  // tablet width — verified via live DOM measurement against the
-  // pre-migration baseline. lg:pr-14 (56px) is a deliberate operator
-  // override at desktop width (COPY'd from the live panel, 2026-08-17),
-  // wider than the pre-migration 32px baseline — not a bug, a live tuning
-  // decision.
-  headerLeftContentPaddingRightWide: 'md:pr-8',
-  headerLeftContentPaddingRightLg: 'lg:pr-14',
+  // No compensating inter-column gap is needed once the two header groups
+  // are edge-aligned, matching /abstract's tablet and desktop placement.
+  headerLeftContentPaddingRightWide: 'md:pr-0',
+  headerLeftContentPaddingRightLg: 'lg:pr-0',
   headerLeftContentPaddingBottom: 'pb-0',
   headerLeftContentPaddingBottomWide: 'md:pb-0',
   headerLeftContentPaddingBottomLg: 'lg:pb-0',
@@ -401,8 +425,8 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   headerRightContentPaddingBottomWide: 'md:pb-0',
   headerRightContentPaddingBottomLg: 'lg:pb-0',
   headerRightContentPaddingLeft: 'pl-0',
-  headerRightContentPaddingLeftWide: 'md:pl-7',
-  headerRightContentPaddingLeftLg: 'lg:pl-14',
+  headerRightContentPaddingLeftWide: 'md:pl-0',
+  headerRightContentPaddingLeftLg: 'lg:pl-0',
   headerRightContentMarginTop: 'mt-0',
   headerRightContentMarginTopWide: 'md:mt-0',
   headerRightContentMarginTopLg: 'lg:mt-0',
@@ -463,14 +487,14 @@ export const CONTACT_POLYMORPHIC_LAYOUT_CONFIG = {
   // above.
   scrollGradientLightRadiusPercent: 139,
   scrollGradientLightRadiusPercentWide: 139,
-  scrollGradientLightRadiusPercentLg: 139,
+  scrollGradientLightRadiusPercentLg: 113,
   scrollGradientLightAspectRatio: 1.55,
   scrollGradientLightAspectRatioWide: 1.55,
-  scrollGradientLightAspectRatioLg: 1.55,
+  scrollGradientLightAspectRatioLg: 0.9,
   scrollGradientLightFalloff: 0.85,
   scrollGradientLightFalloffWide: 0.85,
-  scrollGradientLightFalloffLg: 0.85,
+  scrollGradientLightFalloffLg: 0.5,
   scrollGradientExtentPercent: 95,
   scrollGradientExtentPercentWide: 95,
-  scrollGradientExtentPercentLg: 95,
+  scrollGradientExtentPercentLg: 93,
 } satisfies PolymorphicLayoutConfig

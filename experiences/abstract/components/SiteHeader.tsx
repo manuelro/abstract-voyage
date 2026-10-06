@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, MutableRefObject, ReactNode, Ref, RefObject } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { PageContainer } from '../../../components/PageContainer';
+import { tailwindTokenCssValue } from '../../../components/Panel/config/tailwindFields';
 import type { PageSurfaceConfig } from '../../../components/PageSurface.config';
 import type { SvgStop } from '../../../helpers/gradientMath';
 import { deriveSurfaceColor, resolveContrastAwareTextColor } from '../../../helpers/surfaceColorDerivation';
@@ -14,10 +16,6 @@ import {
   normalizeSiteHeaderConfig,
   type SiteHeaderConfig,
   type SiteHeaderContentAlign,
-  type SiteHeaderDesktopHeight,
-  type SiteHeaderDesktopMarginTop,
-  type SiteHeaderHeight,
-  type SiteHeaderMarginTop,
 } from './SiteHeader/config/registered';
 import { DEFAULT_WORDMARK_CONFIG, type WordmarkConfig } from './SiteHeader/config/wordmark';
 import styles from '../../../pages/abstract.module.css';
@@ -26,116 +24,10 @@ import styles from '../../../pages/abstract.module.css';
 // inset-0 (as the split band below is) starts only where the header itself
 // starts — after the margin already pushed it down — leaving the page's own
 // background color showing through above it. Bleeding the split band
-// upward by the header's own marginTop (negative top, one literal class per
-// token so Tailwind's scanner still sees a complete string) closes that gap
+// upward by the header's own marginTop (the generated token's resolved CSS
+// value in a custom property) closes that gap
 // without touching the margin itself, which every other page still relies
 // on for its own spacing.
-const NEGATIVE_TOP_BY_MARGIN_TOP: Record<SiteHeaderMarginTop, string> = {
-  'mt-0': '-top-0',
-  'mt-2': '-top-2',
-  'mt-4': '-top-4',
-  'mt-6': '-top-6',
-  'mt-8': '-top-8',
-};
-const NEGATIVE_TOP_BY_DESKTOP_MARGIN_TOP: Record<SiteHeaderDesktopMarginTop, string> = {
-  'md:mt-0': 'md:-top-0',
-  'md:mt-2': 'md:-top-2',
-  'md:mt-4': 'md:-top-4',
-  'md:mt-6': 'md:-top-6',
-  'md:mt-8': 'md:-top-8',
-};
-// h-* on <header> itself is a hard cap, not a floor: headerLeftContentPaddingTop/
-// headerRightContentPaddingTop (page-authored, fed through
-// buildEffectiveSiteHeaderConfig.ts into headerLeftContentClassName/
-// headerRightContentClassName below) can grow the left/right content cells
-// taller than this fixed box, especially once the inner grid collapses to a
-// single stacked column below md (MD_SPLIT_BAND_GRID_COLS_BY_SIDE) and both
-// cells' padding stacks on top of each other. Because <header> only ever
-// gets `isolate` (not `overflow-hidden`) outside of navBandActive — see this
-// component's own className array below — that overflow was never clipped,
-// it just rendered past the header's own bottom edge and visually collided
-// with whatever the page renders next (confirmed live: PolymorphicLayout's
-// own NARROW COLUMN/BODY debug-overlay boxes overlapping HEADER · RIGHT
-// CONTENT after headerLeftContentPaddingTop/headerRightContentPaddingTop
-// were raised from their 'pt-0' defaults).
-//
-// min-h-* alone (h-12..h-40 mapped to min-h-12..min-h-40 below) turns the
-// cap into a floor, but that alone does NOT fix the overlap above: the
-// header's real content (logo/nav) never renders inside <header>'s own
-// normal-flow box at all — it renders in navSplitOverlay below, which is
-// `position: absolute; inset: 0`, deliberately taken out of flow so it can
-// layer above the decorative split-band background via z-index rather than
-// DOM order. An absolutely positioned descendant contributes NOTHING to an
-// ancestor's intrinsic/min-content height, regardless of whether that
-// ancestor's own height is a fixed token, a min-height, or auto — so
-// min-h-* alone renders identically to h-* whenever (as here) nothing else
-// inside <header> is in normal flow. 'h-auto'/'md:h-auto' below is the real
-// fix: HEIGHT_IS_AUTO/DESKTOP_HEIGHT_IS_AUTO further down switch <header>
-// from `flex` (row) to `block` and navSplitOverlay from `absolute inset-0`
-// to `relative` for that breakpoint, putting the real content back into
-// normal flow so the box's height comes from actual document flow instead
-// of any token at all — this is opt-in (existing h-12..h-40 configs are
-// completely unaffected) since it also changes how the split-band/
-// legibility-scrim decorative backgrounds size (they still auto-match via
-// their own inset-x-0/top/bottom pins against whatever <header>'s real
-// height ends up being, fixed or auto, so this is safe either way).
-//
-// One literal token per key (never interpolated) in both maps below, same
-// reasoning as NEGATIVE_TOP_BY_MARGIN_TOP above — Tailwind's JIT scanner
-// only picks up complete class strings it can find verbatim in source.
-const MIN_HEIGHT_BY_HEIGHT: Record<SiteHeaderHeight, string> = {
-  'h-auto': 'h-auto',
-  'h-12': 'min-h-12',
-  'h-14': 'min-h-14',
-  'h-16': 'min-h-16',
-  'h-20': 'min-h-20',
-  'h-24': 'min-h-24',
-  'h-28': 'min-h-28',
-  'h-32': 'min-h-32',
-  'h-36': 'min-h-36',
-  'h-40': 'min-h-40',
-};
-const MIN_HEIGHT_BY_DESKTOP_HEIGHT: Record<SiteHeaderDesktopHeight, string> = {
-  'md:h-auto': 'md:h-auto',
-  'md:h-12': 'md:min-h-12',
-  'md:h-14': 'md:min-h-14',
-  'md:h-16': 'md:min-h-16',
-  'md:h-20': 'md:min-h-20',
-  'md:h-24': 'md:min-h-24',
-  'md:h-28': 'md:min-h-28',
-  'md:h-32': 'md:min-h-32',
-  'md:h-36': 'md:min-h-36',
-  'md:h-40': 'md:min-h-40',
-};
-// Header display + navSplitOverlay position both key off the same two
-// booleans — 'block'+'relative' (in-flow) for whichever breakpoint(s) are
-// 'h-auto', 'flex'+'absolute' (today's behavior, unchanged) otherwise. Kept
-// as literal, mutually-exclusive per-breakpoint pairs (never both 'flex'
-// and 'block' unprefixed on the same element) so there's no ambiguity about
-// which `display` rule wins — 'items-center'/'justify-center' stay in
-// <header>'s className unconditionally either way; they're valid-but-inert
-// CSS on a `display: block` box, so no separate block/flex variant of those
-// is needed.
-const HEADER_DISPLAY_BY_HEIGHT: Record<SiteHeaderHeight, string> = {
-  'h-auto': 'block',
-  'h-12': 'flex', 'h-14': 'flex', 'h-16': 'flex', 'h-20': 'flex', 'h-24': 'flex',
-  'h-28': 'flex', 'h-32': 'flex', 'h-36': 'flex', 'h-40': 'flex',
-};
-const HEADER_DISPLAY_BY_DESKTOP_HEIGHT: Record<SiteHeaderDesktopHeight, string> = {
-  'md:h-auto': 'md:block',
-  'md:h-12': 'md:flex', 'md:h-14': 'md:flex', 'md:h-16': 'md:flex', 'md:h-20': 'md:flex',
-  'md:h-24': 'md:flex', 'md:h-28': 'md:flex', 'md:h-32': 'md:flex', 'md:h-36': 'md:flex', 'md:h-40': 'md:flex',
-};
-const OVERLAY_POSITION_BY_HEIGHT: Record<SiteHeaderHeight, string> = {
-  'h-auto': 'relative',
-  'h-12': 'absolute', 'h-14': 'absolute', 'h-16': 'absolute', 'h-20': 'absolute', 'h-24': 'absolute',
-  'h-28': 'absolute', 'h-32': 'absolute', 'h-36': 'absolute', 'h-40': 'absolute',
-};
-const OVERLAY_POSITION_BY_DESKTOP_HEIGHT: Record<SiteHeaderDesktopHeight, string> = {
-  'md:h-auto': 'md:relative',
-  'md:h-12': 'md:absolute', 'md:h-14': 'md:absolute', 'md:h-16': 'md:absolute', 'md:h-20': 'md:absolute',
-  'md:h-24': 'md:absolute', 'md:h-28': 'md:absolute', 'md:h-32': 'md:absolute', 'md:h-36': 'md:absolute', 'md:h-40': 'md:absolute',
-};
 // Literal per direction — never interpolated — so Tailwind's JIT scanner
 // still sees both complete class strings regardless of which one is active.
 // Shared by the decorative split-band/legibility-scrim grids below (both
@@ -199,6 +91,9 @@ const FLEX_JUSTIFY_CLASS_MD: Record<SiteHeaderContentAlign, string> = {
   center: 'md:justify-center',
   end: 'md:justify-end',
 };
+const FLEX_JUSTIFY_CLASS_LG: Record<SiteHeaderContentAlign, string> = {
+  start: 'lg:justify-start', center: 'lg:justify-center', end: 'lg:justify-end',
+};
 // FLEX_ITEMS_CLASS (vertical align) has no md:-prefixed sibling —
 // headerLeftContentVerticalAlign/headerRightContentVerticalAlign apply
 // unprefixed at every breakpoint, matching the body's own
@@ -208,6 +103,12 @@ const FLEX_ITEMS_CLASS: Record<SiteHeaderContentAlign, string> = {
   start: 'items-start',
   center: 'items-center',
   end: 'items-end',
+};
+const FLEX_ITEMS_CLASS_MD: Record<SiteHeaderContentAlign, string> = {
+  start: 'md:items-start', center: 'md:items-center', end: 'md:items-end',
+};
+const FLEX_ITEMS_CLASS_LG: Record<SiteHeaderContentAlign, string> = {
+  start: 'lg:items-start', center: 'lg:items-center', end: 'lg:items-end',
 };
 
 // Standard merge-refs idiom — lets this component measure the logo anchor
@@ -494,6 +395,12 @@ export function SiteHeader({
   legibilityScrimLeftEnabled = false,
   legibilityScrimRightEnabled = false,
 }: SiteHeaderProps) {
+  const { pathname } = useRouter();
+  // Articles are children of Journal even though their canonical URLs live
+  // under /posts. Keep the parent navigation item current throughout the
+  // reader journey, rather than dropping the user's location cue once they
+  // leave the Journal index.
+  const isJournalCurrent = pathname === '/journal' || pathname.startsWith('/posts/');
   const { introStartAt } = usePageCapabilityRuntime();
   const normalized = normalizeSiteHeaderConfig(config);
   // See SiteHeaderProps.wordmarkConfig's own doc comment — a caller that
@@ -592,7 +499,7 @@ export function SiteHeader({
   // navAlignedToSplitEnabled's separator height tracks the logo's own real
   // rendered height (never a guessed constant — see this field's own doc
   // comment in SiteHeader.config.ts) rather than measuring only
-  // when the flag flips, so a later logoWidth/desktopLogoWidth panel edit
+  // when the flag flips, so a later logoWidth/logoWidthWide panel edit
   // stays correct too.
   const internalLogoRef = useRef<HTMLAnchorElement | null>(null);
   // Memoized — a fresh function identity on every render would make React
@@ -777,7 +684,7 @@ export function SiteHeader({
     <Link
       aria-label="Abstract Voyage home"
       data-site-wordmark-anchor="true"
-      className={`${styles.synthAffordance} ${normalized.logoWidth} ${normalized.desktopLogoWidth} pointer-events-auto relative flex min-h-[2.75rem] max-w-full shrink-0 items-center justify-center md:justify-start ${extraClassName}`}
+      className={`${styles.synthAffordance} ${normalized.logoWidth} ${normalized.logoWidthWide} ${normalized.logoWidthLg} pointer-events-auto relative flex min-h-[2.75rem] max-w-full shrink-0 items-center justify-center md:justify-start ${extraClassName}`}
       // '/' (Next.js's own index route), not '/abstract' — pages/index.tsx
       // re-exports this exact page as the site's real homepage, so
       // '/abstract' is a duplicate route of the canonical '/', never the
@@ -787,7 +694,10 @@ export function SiteHeader({
       href="/"
       ref={ref}
       style={{
-        maxWidth: `${effectiveWordmarkConfig.maxWidthPx}px`,
+        // The inline pixel cap otherwise overrides max-w-full on the anchor.
+        // At the 768px split, the 38% logo segment can be narrower than
+        // the configured wordmark width; keep the whole mark inside it.
+        maxWidth: `min(100%, ${effectiveWordmarkConfig.maxWidthPx}px)`,
         opacity: titleOpacityOverride,
       } as CSSProperties}
     >
@@ -846,7 +756,7 @@ export function SiteHeader({
     background: navGradientCss,
   } : undefined;
 
-  const navItemClassName = `${styles.navLink} relative inline-flex min-h-[2.75rem] w-full items-center justify-center p-0 md:w-auto ${normalized.navFontSizeNarrow} ${normalized.navFontSizeDesktop} ${normalized.navUppercase ? 'uppercase' : 'normal-case'} ${normalized.navFontWeight}`;
+  const navItemClassName = `${styles.navLink} relative inline-flex min-h-[2.75rem] w-full items-center justify-center p-0 md:w-auto ${normalized.navFontSize} ${normalized.navFontSizeWide} ${normalized.navFontSizeLg} ${normalized.navUppercase ? 'uppercase' : 'normal-case'} ${normalized.navFontWeight}`;
   // md:px-0 md:py-0 md:border-0 md:rounded-none: literal reset fragments
   // (never interpolated) that zero contactPaddingX/contactPaddingY/
   // contactBorderWidth back out from md upward — navSplitOverlay's own
@@ -874,27 +784,31 @@ export function SiteHeader({
     mobileNavFlexActive
       ? ['flex', normalized.mobileNavDistribution].join(' ')
       : 'grid grid-cols-3',
-    mobileNavFlexActive ? normalized.mobileNavItemGap : normalized.mobileNavGap,
-    normalized.navGap,
+    mobileNavFlexActive ? normalized.mobileNavItemGap : normalized.navGap,
+    normalized.navGapWide,
+    normalized.navGapLg,
   ].join(' ');
   const navItemWrapperClassName = [
     'min-w-0',
     mobileNavFlexActive && normalized.mobileNavEqualItemWidth ? 'flex-1' : '',
   ].filter(Boolean).join(' ');
   const renderMobileNavDivider = (key: string) => (
-    mobileNavFlexActive && normalized.mobileNavDivider !== 'hidden' ? (
+    mobileNavFlexActive && normalized.mobileNavDivider !== 'none' ? (
       <li
         key={key}
         aria-hidden="true"
         className={`${styles.navDivider} pointer-events-none flex flex-none select-none items-center opacity-50 md:hidden`}
       >
-        {normalized.mobileNavDivider === 'border-l' ? (
+        {normalized.mobileNavDivider === 'rule' ? (
           <span
             className={`${normalized.mobileNavDividerHeight} ${normalized.mobileNavDividerWidth} bg-current`}
             style={navDividerRuleGradientStyle}
           />
         ) : (
-          <span className={normalized.mobileNavDivider} style={navLabelGradientStyle} />
+          <span
+            className={normalized.mobileNavDivider === 'pipe' ? "before:content-['|']" : "before:content-['⋅']"}
+            style={navLabelGradientStyle}
+          />
         )}
       </li>
     ) : null
@@ -902,19 +816,19 @@ export function SiteHeader({
   const renderNavItems = (contactPlain: boolean) => (
     <>
       <li className={navItemWrapperClassName} style={navItemIntroStyle(0)}>
-        <Link className={navItemClassName} href="/about">
+        <Link className={navItemClassName} href="/about" aria-current={pathname === '/about' ? 'page' : undefined}>
           <span className={styles.navLabel} style={navLabelGradientStyle}>About</span>
         </Link>
       </li>
       {renderMobileNavDivider('about-journal-divider')}
       <li className={navItemWrapperClassName} style={navItemIntroStyle(1)}>
-        <Link className={navItemClassName} href="/journal">
+        <Link className={navItemClassName} href="/journal" aria-current={isJournalCurrent ? 'page' : undefined}>
           <span className={styles.navLabel} style={navLabelGradientStyle}>Journal</span>
         </Link>
       </li>
       {renderMobileNavDivider('journal-contact-divider')}
       <li className={navItemWrapperClassName} style={navItemIntroStyle(2)}>
-        <Link className={contactPlain ? navItemClassName : contactItemClassName} href="/contact">
+        <Link className={contactPlain ? navItemClassName : contactItemClassName} href="/contact" aria-current={pathname === '/contact' ? 'page' : undefined}>
           <span className={styles.navLabel} style={navLabelGradientStyle}>Contact</span>
         </Link>
       </li>
@@ -987,6 +901,12 @@ export function SiteHeader({
       ? 'var(--site-font-serif)'
       : 'var(--hero-sans, var(--site-font-sans))',
     '--nav-letter-spacing': `${normalized.navLetterSpacingEm}em`,
+    '--header-min-height': tailwindTokenCssValue('height', 'base', normalized.height),
+    '--header-min-height-md': tailwindTokenCssValue('height', 'md', normalized.heightWide),
+    '--header-min-height-lg': tailwindTokenCssValue('height', 'lg', normalized.heightLg),
+    '--header-margin-top': tailwindTokenCssValue('marginTop', 'base', normalized.marginTop),
+    '--header-margin-top-md': tailwindTokenCssValue('marginTop', 'md', normalized.marginTopWide),
+    '--header-margin-top-lg': tailwindTokenCssValue('marginTop', 'lg', normalized.marginTopLg),
   } as CSSProperties;
   // Degrades whatever's behind the header (a bleeding card/slider) without
   // hiding it outright — see legibilityScrimLeftEnabled/-RightEnabled's own
@@ -1037,7 +957,7 @@ export function SiteHeader({
   // True only in the unmeasured, percentage-split fallback with
   // navAlignedToPageContainer on (no page currently sets that combination,
   // but the panel can still toggle it live) — the one state where the grid
-  // below already carries paddingX/desktopPaddingX directly on itself, per
+  // below already carries paddingX/paddingXWide directly on itself, per
   // its own doc comment. Shared between that grid and the PageContainer
   // wrapping it below so the "apply the gutter exactly once, never twice"
   // invariant can't drift between the two independently-written class lists.
@@ -1063,11 +983,12 @@ export function SiteHeader({
       // harmless no-op there and still exactly right for the absolute case.
       className={[
         'pointer-events-none inset-0 z-[2] box-border',
-        OVERLAY_POSITION_BY_HEIGHT[normalized.height],
-        OVERLAY_POSITION_BY_DESKTOP_HEIGHT[normalized.desktopHeight],
+        normalized.height === 'h-auto' ? 'relative' : 'absolute',
+        normalized.heightWide === 'md:h-auto' ? 'md:relative' : 'md:absolute',
+        normalized.heightLg === 'lg:h-auto' ? 'lg:relative' : 'lg:absolute',
       ].join(' ')}
     >
-      {/* paddingX/desktopPaddingX here (not further down on the grid —
+      {/* paddingX/paddingXWide here (not further down on the grid —
           see that div's own doc comment on why its own conditional
           padding must stay exactly as-is) is what gives this PageContainer
           the *same* gutter the body's own PageContainer already applies
@@ -1087,7 +1008,8 @@ export function SiteHeader({
         className={[
           'h-full',
           innerGridHasOwnPadding ? '' : normalized.paddingX,
-          innerGridHasOwnPadding ? '' : normalized.desktopPaddingX,
+          innerGridHasOwnPadding ? '' : normalized.paddingXWide,
+          innerGridHasOwnPadding ? '' : normalized.paddingXLg,
         ].filter(Boolean).join(' ')}
       >
         {/* No container-level items-center anymore (was hardcoded here
@@ -1113,7 +1035,8 @@ export function SiteHeader({
           className={[
             'grid-cols-1 h-full grid box-border',
             innerGridHasOwnPadding ? normalized.paddingX : '',
-            innerGridHasOwnPadding ? normalized.desktopPaddingX : '',
+            innerGridHasOwnPadding ? normalized.paddingXWide : '',
+            innerGridHasOwnPadding ? normalized.paddingXLg : '',
             !hasMeasuredNavBoundary ? MD_SPLIT_BAND_GRID_COLS_BY_SIDE[normalized.splitBandSide] : '',
           ].filter(Boolean).join(' ')}
           style={hasMeasuredNavBoundary
@@ -1147,9 +1070,12 @@ export function SiteHeader({
           // own single Tablet-only value. See that field's own doc comment
           // in SiteHeader.config.ts.
           normalized.headerContentLayoutOwnedByPage ? '' : [
-            'justify-center',
-            FLEX_JUSTIFY_CLASS_MD[normalized.headerLeftContentAlign],
+            FLEX_JUSTIFY_CLASS[normalized.headerLeftContentAlign],
+            FLEX_JUSTIFY_CLASS_MD[normalized.headerLeftContentAlignWide],
+            FLEX_JUSTIFY_CLASS_LG[normalized.headerLeftContentAlignLg],
             FLEX_ITEMS_CLASS[normalized.headerLeftContentVerticalAlign],
+            FLEX_ITEMS_CLASS_MD[normalized.headerLeftContentVerticalAlignWide],
+            FLEX_ITEMS_CLASS_LG[normalized.headerLeftContentVerticalAlignLg],
           ].join(' '),
           normalized.headerLeftSegmentClassName,
         ].filter(Boolean).join(' ')}
@@ -1208,12 +1134,18 @@ export function SiteHeader({
             // instead, computed page-side with real per-breakpoint tiers.
             normalized.headerContentLayoutOwnedByPage
               ? ''
-              : FLEX_JUSTIFY_CLASS[normalized.headerLeftContentInnerAlignWide],
+              : [
+                FLEX_JUSTIFY_CLASS[normalized.headerLeftContentInnerAlign],
+                FLEX_JUSTIFY_CLASS_MD[normalized.headerLeftContentInnerAlignWide],
+                FLEX_JUSTIFY_CLASS_LG[normalized.headerLeftContentInnerAlignLg],
+              ].join(' '),
             normalized.headerContentLayoutOwnedByPage
               ? ''
-              : (normalized.headerLeftContentWidthWide !== 'auto'
-                ? ['w-full', normalized.headerLeftContentWidthWide].join(' ')
-                : ''),
+              : [
+                normalized.headerLeftContentWidth !== 'auto' ? `w-full ${normalized.headerLeftContentWidth}` : '',
+                normalized.headerLeftContentWidthWide !== 'auto' ? `md:w-full ${normalized.headerLeftContentWidthWide}` : 'md:w-auto md:max-w-none',
+                normalized.headerLeftContentWidthLg !== 'auto' ? `lg:w-full ${normalized.headerLeftContentWidthLg}` : 'lg:w-auto lg:max-w-none',
+              ].filter(Boolean).join(' '),
             normalized.headerLeftContentClassName,
           ].filter(Boolean).join(' ')}
           style={normalized.logoAlignedToSplitEnabled && normalized.logoContentGapPaddingEnabled
@@ -1242,9 +1174,12 @@ export function SiteHeader({
           // headerContentLayoutOwnedByPage: same skip as the left segment
           // above — headerRightSegmentClassName becomes the sole source.
           normalized.headerContentLayoutOwnedByPage ? '' : [
-            'justify-center',
-            FLEX_JUSTIFY_CLASS_MD[normalized.headerRightContentAlign],
+            FLEX_JUSTIFY_CLASS[normalized.headerRightContentAlign],
+            FLEX_JUSTIFY_CLASS_MD[normalized.headerRightContentAlignWide],
+            FLEX_JUSTIFY_CLASS_LG[normalized.headerRightContentAlignLg],
             FLEX_ITEMS_CLASS[normalized.headerRightContentVerticalAlign],
+            FLEX_ITEMS_CLASS_MD[normalized.headerRightContentVerticalAlignWide],
+            FLEX_ITEMS_CLASS_LG[normalized.headerRightContentVerticalAlignLg],
           ].join(' '),
           normalized.headerRightSegmentClassName,
         ].filter(Boolean).join(' ')}
@@ -1298,12 +1233,18 @@ export function SiteHeader({
             // doc comment), unrelated to who owns alignment/width.
             normalized.headerContentLayoutOwnedByPage
               ? ''
-              : FLEX_JUSTIFY_CLASS[normalized.headerRightContentInnerAlignWide],
+              : [
+                FLEX_JUSTIFY_CLASS[normalized.headerRightContentInnerAlign],
+                FLEX_JUSTIFY_CLASS_MD[normalized.headerRightContentInnerAlignWide],
+                FLEX_JUSTIFY_CLASS_LG[normalized.headerRightContentInnerAlignLg],
+              ].join(' '),
             normalized.headerContentLayoutOwnedByPage
               ? ''
-              : (normalized.headerRightContentWidthWide !== 'auto'
-                ? normalized.headerRightContentWidthWide
-                : 'md:w-auto'),
+              : [
+                normalized.headerRightContentWidth !== 'auto' ? normalized.headerRightContentWidth : '',
+                normalized.headerRightContentWidthWide !== 'auto' ? `md:w-full ${normalized.headerRightContentWidthWide}` : 'md:w-auto md:max-w-none',
+                normalized.headerRightContentWidthLg !== 'auto' ? `lg:w-full ${normalized.headerRightContentWidthLg}` : 'lg:w-auto lg:max-w-none',
+              ].filter(Boolean).join(' '),
             normalized.headerRightContentClassName,
           ].filter(Boolean).join(' ')}
           style={navIntroStyle}
@@ -1353,16 +1294,19 @@ export function SiteHeader({
         // just above); the header's own box was the one piece still
         // claiming pointer-events-auto wholesale at desktop.
         'relative z-[1000] w-full shrink-0 items-center justify-center pointer-events-none',
-        HEADER_DISPLAY_BY_HEIGHT[normalized.height],
-        HEADER_DISPLAY_BY_DESKTOP_HEIGHT[normalized.desktopHeight],
-        MIN_HEIGHT_BY_HEIGHT[normalized.height],
-        MIN_HEIGHT_BY_DESKTOP_HEIGHT[normalized.desktopHeight],
+        normalized.height === 'h-auto' ? 'block' : 'flex',
+        normalized.heightWide === 'md:h-auto' ? 'md:block' : 'md:flex',
+        normalized.heightLg === 'lg:h-auto' ? 'lg:block' : 'lg:flex',
+        'min-h-[var(--header-min-height)] md:min-h-[var(--header-min-height-md)] lg:min-h-[var(--header-min-height-lg)]',
         normalized.paddingY,
-        normalized.desktopPaddingY,
+        normalized.paddingYWide,
+        normalized.paddingYLg,
         normalized.marginTop,
         normalized.marginBottom,
-        normalized.desktopMarginTop,
-        normalized.desktopMarginBottom,
+        normalized.marginTopWide,
+        normalized.marginBottomWide,
+        normalized.marginTopLg,
+        normalized.marginBottomLg,
         // overflow-hidden clips to the header's own box — right for the nav
         // band (its canvas should never bleed past the header), wrong for
         // the split band and legibility scrim overlays (both deliberately
@@ -1409,8 +1353,7 @@ export function SiteHeader({
             splitBandStacked
               ? SPLIT_BAND_STACKED_GRID_CLASS
               : (!hasMeasuredSplitBandBoundary ? SPLIT_BAND_GRID_COLS_BY_SIDE[normalized.splitBandSide] : ''),
-            NEGATIVE_TOP_BY_MARGIN_TOP[normalized.marginTop],
-            NEGATIVE_TOP_BY_DESKTOP_MARGIN_TOP[normalized.desktopMarginTop],
+            'top-[calc(-1*var(--header-margin-top))] md:top-[calc(-1*var(--header-margin-top-md))] lg:top-[calc(-1*var(--header-margin-top-lg))]',
           ].filter(Boolean).join(' ')}
           style={!splitBandStacked && hasMeasuredSplitBandBoundary ? { gridTemplateColumns: `${resolvedSplitBandBoundaryPx}px 1fr` } : undefined}
         >
@@ -1453,8 +1396,7 @@ export function SiteHeader({
           className={[
             'pointer-events-none absolute inset-x-0 bottom-0 z-0 grid',
             !hasMeasuredNavBoundary ? SPLIT_BAND_GRID_COLS_BY_SIDE[normalized.splitBandSide] : '',
-            NEGATIVE_TOP_BY_MARGIN_TOP[normalized.marginTop],
-            NEGATIVE_TOP_BY_DESKTOP_MARGIN_TOP[normalized.desktopMarginTop],
+            'top-[calc(-1*var(--header-margin-top))] md:top-[calc(-1*var(--header-margin-top-md))] lg:top-[calc(-1*var(--header-margin-top-lg))]',
           ].filter(Boolean).join(' ')}
           style={hasMeasuredNavBoundary ? { gridTemplateColumns: `${resolvedNavBoundaryPx}px 1fr` } : undefined}
         >
@@ -1466,9 +1408,11 @@ export function SiteHeader({
         className={[
           'relative z-[1] flex flex-col items-center justify-center',
           normalized.paddingX,
-          normalized.desktopPaddingX,
+          normalized.paddingXWide,
+          normalized.paddingXLg,
           normalized.gap,
-          normalized.desktopGap,
+          normalized.gapWide,
+          normalized.gapLg,
           'md:flex-row md:items-center md:justify-between',
         ].filter(Boolean).join(' ')}
         config={pageSurfaceConfig}

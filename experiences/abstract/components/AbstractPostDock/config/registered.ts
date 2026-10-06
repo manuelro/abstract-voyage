@@ -678,6 +678,10 @@ export type AbstractPostDockPaletteConfig = {
   /** Same two fields, ≥ desktop width (1024px). */
   gradientScaleLg: number;
   gradientNoiseLg: number;
+  inactiveGradientScaleDistanceEnabled: boolean;
+  inactiveGradientScaleDistancePercent: number;
+  inactiveGradientScaleDistancePercentWide: number;
+  inactiveGradientScaleDistancePercentLg: number;
   /** Independent horizontal/vertical stretch multipliers layered on top of
    * `gradientScale` above (1..5, default 1 = no added stretch) — maps
    * straight through to `SliderGradientConfig`'s own `shaderColorScaleX`/
@@ -736,31 +740,35 @@ export type AbstractPostDockPaletteConfig = {
 export const DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG = {
   enabled: true,
   mode: 'window',
-  windowStep: 0.26,
-  hueSpread: 0.1,
+  windowStep: 0,
+  hueSpread: 0.36,
   windowPanCurve: 'gaussian',
-  gaussianPeakIndex: 0,
+  gaussianPeakIndex: -4,
   gaussianSigma: 6,
-  gaussianAmplitude: 0.42,
+  gaussianAmplitude: 1,
   gaussianFloor: 0,
   gaussianVisualTestModeEnabled: false,
   gaussianProximityMorphEnabled: false,
   gaussianProximityResponseMs: 220,
   gaussianProximityStaggerMsPerBand: 60,
   gaussianProximityEasing: 'smootherstep',
-  fieldKinship: 0,
-  inactiveChromaDuck: 0.2,
-  valueRigAmount: 0.1,
-  masterSaturation: 0.91,
-  masterBrightness: 1.08,
-  masterContrast: 1.12,
+  fieldKinship: 0.4,
+  inactiveChromaDuck: 0,
+  valueRigAmount: 0.18,
+  masterSaturation: 0.9,
+  masterBrightness: 1.3,
+  masterContrast: 1.11,
   masterSoftness: 1,
   gradientScale: 0.5,
   gradientNoise: 0,
   gradientScaleWide: 0.5,
   gradientNoiseWide: 0,
-  gradientScaleLg: 0.55,
+  gradientScaleLg: 0.5,
   gradientNoiseLg: 0,
+  inactiveGradientScaleDistanceEnabled: true,
+  inactiveGradientScaleDistancePercent: 38,
+  inactiveGradientScaleDistancePercentWide: 38,
+  inactiveGradientScaleDistancePercentLg: 62,
   gradientScaleX: 1,
   gradientScaleY: 1,
   distanceDimmingEnabled: false,
@@ -834,6 +842,10 @@ export function normalizeAbstractPostDockPaletteConfig(
     gradientNoiseWide: clamp01(base.gradientNoiseWide),
     gradientScaleLg: clampRange(base.gradientScaleLg, 0.5, 4),
     gradientNoiseLg: clamp01(base.gradientNoiseLg),
+    inactiveGradientScaleDistanceEnabled: Boolean(base.inactiveGradientScaleDistanceEnabled),
+    inactiveGradientScaleDistancePercent: clampRange(base.inactiveGradientScaleDistancePercent, 0, 200),
+    inactiveGradientScaleDistancePercentWide: clampRange(base.inactiveGradientScaleDistancePercentWide, 0, 200),
+    inactiveGradientScaleDistancePercentLg: clampRange(base.inactiveGradientScaleDistancePercentLg, 0, 200),
     gradientScaleX: clampRange(base.gradientScaleX, 1, 5),
     gradientScaleY: clampRange(base.gradientScaleY, 1, 5),
     distanceDimmingEnabled: Boolean(base.distanceDimmingEnabled),

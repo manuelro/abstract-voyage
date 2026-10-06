@@ -1,6 +1,5 @@
-import { defineConfigScope } from '../../../../../components/Panel/config'
+import { createTailwindFieldFactory, defineConfigScope } from '../../../../../components/Panel/config'
 import {
-  GAP_OPTIONS,
   MARGIN_LEFT_OPTIONS,
   MARGIN_TOP_OPTIONS,
   MIN_HEIGHT_OPTIONS,
@@ -47,6 +46,7 @@ const motionEasingOptions = [
 ] as const
 
 export const POST_LAB_ARTICLE_TOC_SCOPE_ID = 'PostLabArticle/toc' as const
+const tailwindTocField = createTailwindFieldFactory<TableOfContentsConfig>()
 
 export const POST_LAB_ARTICLE_TOC_PANEL = defineConfigScope<TableOfContentsConfig>({
   id: POST_LAB_ARTICLE_TOC_SCOPE_ID,
@@ -58,6 +58,18 @@ export const POST_LAB_ARTICLE_TOC_PANEL = defineConfigScope<TableOfContentsConfi
   summary: 'Sticky navigation · column-aware color states · layered hover settling and current-section motion',
   defaultValue: DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG,
   fields: [
+    {
+      kind: 'group',
+      label: 'Display by viewport',
+      fields: [
+        { kind: 'boolean', key: 'visibleBase', label: 'Show below 640px' },
+        { kind: 'boolean', key: 'visibleSm', label: 'Show at 640–767px' },
+        { kind: 'boolean', key: 'visibleMd', label: 'Show at 768–1023px' },
+        { kind: 'boolean', key: 'visibleLg', label: 'Show at 1024–1279px' },
+        { kind: 'boolean', key: 'visibleXl', label: 'Show at 1280–1535px' },
+        { kind: 'boolean', key: 'visibleXxl', label: 'Show at 1536px and wider' },
+      ],
+    },
     {
       kind: 'group',
       label: 'Small-viewport disclosure',
@@ -90,8 +102,8 @@ export const POST_LAB_ARTICLE_TOC_PANEL = defineConfigScope<TableOfContentsConfi
         { kind: 'select', key: 'itemPaddingX', label: 'Item inline padding', options: PADDING_X_OPTIONS },
         { kind: 'select', key: 'itemPaddingY', label: 'Item block padding', options: PADDING_Y_OPTIONS },
         { kind: 'select', key: 'itemIndent', label: 'Item left indent', options: MARGIN_LEFT_OPTIONS },
-        { kind: 'select', key: 'itemGap', label: 'Item gap', options: GAP_OPTIONS },
-        { kind: 'enum', key: 'coarsePointerMinHeight', label: 'Touch target minimum', options: MIN_HEIGHT_OPTIONS },
+        tailwindTocField('gap', { key: 'itemGap', label: 'Item visual gap', description: 'Separates row fills while keeping every row hit area edge-to-edge, so hover passes directly between adjacent items.' }),
+        { kind: 'select', key: 'coarsePointerMinHeight', label: 'Touch target minimum', options: MIN_HEIGHT_OPTIONS },
       ],
     },
     {
@@ -116,6 +128,20 @@ export const POST_LAB_ARTICLE_TOC_PANEL = defineConfigScope<TableOfContentsConfi
         { kind: 'number', key: 'originalHueRetention', label: 'Original hue retention', min: 0, max: 1, step: 0.01 },
         { kind: 'number', key: 'hueShiftDegrees', label: 'Hue shift', min: -180, max: 180, step: 1, unit: '°', integer: true },
         { kind: 'number', key: 'pigmentIntensity', label: 'Text pigment intensity', min: 0, max: 2, step: 0.01 },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Resting link fill',
+      fields: [
+        { kind: 'enum', key: 'defaultBackgroundMode', label: 'Background source', options: stateBackgroundModes },
+        { kind: 'color', key: 'defaultBackgroundColor', label: 'Custom background color', visibleWhen: config => config.defaultBackgroundMode === 'custom' },
+        { kind: 'number', key: 'defaultBackgroundDarkSurfaceLightenAmount', label: 'Dark column lighten', description: 'Derived resting background lift when the ToC column is dark.', min: 0, max: 1, step: 0.01, visibleWhen: config => config.defaultBackgroundMode === 'derived' },
+        { kind: 'number', key: 'defaultBackgroundLightSurfaceDarkenAmount', label: 'Light column darken', description: 'Derived resting background shade when the ToC column is light.', min: 0, max: 1, step: 0.01, visibleWhen: config => config.defaultBackgroundMode === 'derived' },
+        { kind: 'number', key: 'defaultBackgroundOriginalHueRetention', label: 'Background hue retention', min: 0, max: 1, step: 0.01, visibleWhen: config => config.defaultBackgroundMode === 'derived' },
+        { kind: 'number', key: 'defaultBackgroundHueShiftDegrees', label: 'Background hue shift', min: -180, max: 180, step: 1, unit: '°', integer: true, visibleWhen: config => config.defaultBackgroundMode === 'derived' },
+        { kind: 'number', key: 'defaultBackgroundPigmentIntensity', label: 'Background pigment intensity', min: 0, max: 2, step: 0.01, visibleWhen: config => config.defaultBackgroundMode === 'derived' },
+        { kind: 'number', key: 'defaultBackgroundOpacity', label: 'Background opacity', min: 0, max: 1, step: 0.01, visibleWhen: config => config.defaultBackgroundMode !== 'transparent' },
       ],
     },
     {

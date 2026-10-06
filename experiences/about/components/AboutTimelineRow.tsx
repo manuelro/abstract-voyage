@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import Link from 'next/link';
-import type { AboutTimelineAlignment } from './AboutTimeline.config';
+import type { AboutTimelineAlignment, AboutTimelineMarkerShape } from './AboutTimeline.config';
 import styles from './AboutTimeline.module.css';
 import { AboutBulletMarker } from './AboutBulletMarker';
 import {
@@ -37,6 +37,29 @@ export interface AboutTimelineRowProps {
   /** Pointer reveal becomes true only after the timeline's hover activation
    * delay. Keyboard focus remains an independent accessible reveal path. */
   appendixVisible: boolean;
+  /** `config.rowAppendixForceVisible(-Wide/-Lg)` — when true at the current
+   * tier, `AboutTimeline.module.css`'s own `[data-appendix-force-visible*]`
+   * rules force the appendix visible unconditionally at that tier's own
+   * bounded width range, independent of `appendixVisible`/hover/focus
+   * above. Each of the three is a plain, always-present boolean (never
+   * conditionally omitted) so CSS can resolve "off" as a real, bounded
+   * per-tier state rather than a lower tier's "on" leaking into a wider
+   * one that never opted in — see that field's own doc comment
+   * (AboutTimeline.config.ts) for why this can't just cascade the way
+   * alignment/padding tiers do. */
+  appendixForceVisible: boolean;
+  appendixForceVisibleWide: boolean;
+  appendixForceVisibleLg: boolean;
+  /** `config.rowAppendixForceLineBreak(-Wide/-Lg)` — same always-present,
+   * bounded-per-tier boolean shape as `appendixForceVisible` above, but
+   * drives `AboutTimeline.module.css`'s own `[data-appendix-force-line-
+   * break*]` rules instead: forces the appendix onto its own line (block)
+   * below the title rather than flowing inline after it. Independent of
+   * `appendixForceVisible` — a row can be forced onto its own line while
+   * still only revealing on hover. */
+  appendixForceLineBreak: boolean;
+  appendixForceLineBreakWide: boolean;
+  appendixForceLineBreakLg: boolean;
   /** Opacity the appendix renders at once revealed — `config.rowAppendixOpacity`,
    * independent of `descriptionOpacity` below (that prop only ever
    * describes the row's own supporting line). */
@@ -68,6 +91,17 @@ export interface AboutTimelineRowProps {
    * threaded through as a prop now that `AboutBulletMarker` takes a resolved
    * number rather than reading an inherited CSS custom property. */
   markerSizePx: number;
+  /** See `AboutTimelineMarkerShape`'s own doc comment. */
+  markerShape: AboutTimelineMarkerShape;
+  /** Opt-in row "chip" background — already resolved (default vs. hover/
+   * active state) by `AboutTimeline.tsx`, same "resolve outside, pass one
+   * final color in" convention `titleColor`/`markerColor` below already
+   * use. `undefined` (every existing caller): no background painted, this
+   * row renders exactly as before this prop existed — the padding/radius
+   * that make a background actually read as a chip
+   * (`AboutTimeline.module.css`'s own `.row[data-has-background='true']`)
+   * only ever apply once a real color is supplied. */
+  backgroundColor?: string;
   /** Opacity of the marker — already resolved by `AboutTimeline.tsx`:
    * `config.hoverMarkerOpacity` while this row is the hovered one, else
    * `markerActiveOpacity`/`-IdleOpacity` per `active` — hovering a row never
@@ -164,6 +198,12 @@ export function AboutTimelineRow({
   appendixSeparator,
   appendixClassName,
   appendixVisible,
+  appendixForceVisible,
+  appendixForceVisibleWide,
+  appendixForceVisibleLg,
+  appendixForceLineBreak,
+  appendixForceLineBreakWide,
+  appendixForceLineBreakLg,
   appendixOpacity,
   active,
   selectionEnabled,
@@ -171,6 +211,8 @@ export function AboutTimelineRow({
   href,
   markerColor,
   markerSizePx,
+  markerShape,
+  backgroundColor,
   markerOpacity,
   titleColor,
   titleOpacity,
@@ -210,7 +252,7 @@ export function AboutTimelineRow({
   // canvas nobody can see (fill is 0 while inactive), so this is never more
   // than one concurrent WebGL instance across all five rows, not one per
   // row.
-  const showMarkerGradient = markerVisible && gradientEnabled && active && Boolean(gradientSlide) && Boolean(gradientMotion) && Boolean(gradientConfig);
+  const showMarkerGradient = markerVisible && markerShape === 'dot' && gradientEnabled && active && Boolean(gradientSlide) && Boolean(gradientMotion) && Boolean(gradientConfig);
   const normalizedLine = typeof line === 'string' ? line.trim() : '';
   const normalizedAppendix = typeof appendix === 'string' ? appendix.trim() : '';
   const markerGradientActivity = resolveAbstractPostDockGradientActivity({
@@ -227,6 +269,7 @@ export function AboutTimelineRow({
           markerRef={markerRef}
           active={active}
           sizePx={markerSizePx}
+          shape={markerShape}
           color={markerColor}
           opacity={markerOpacity}
           transitionMs={transitionDurationMs}
@@ -260,9 +303,17 @@ export function AboutTimelineRow({
               style={{
                 color: descriptionColor,
                 '--about-timeline-appendix-opacity': appendixOpacity,
+                // .appendix's own base marginLeft (AboutTimeline.module.css)
+                // exists to separate the separator glyph from the title
+                // before it — with no separator (rowAppendixSeparator
+                // 'none') that space is just a stray gap before the
+                // appendix text itself, so it's zeroed here instead.
+                ...(appendixSeparator ? null : { marginLeft: 0 }),
               } as CSSProperties}
             >
-              <span className={styles.appendixSeparator}>{appendixSeparator}</span>
+              {appendixSeparator ? (
+                <span className={styles.appendixSeparator}>{appendixSeparator}</span>
+              ) : null}
               {normalizedAppendix}
             </span>
           ) : null}
@@ -298,11 +349,19 @@ export function AboutTimelineRow({
     'data-marker-visible': markerVisible,
     'data-rule-visible': ruleVisible,
     'data-appendix-visible': appendixVisible,
+    'data-appendix-force-visible': appendixForceVisible,
+    'data-appendix-force-visible-wide': appendixForceVisibleWide,
+    'data-appendix-force-visible-lg': appendixForceVisibleLg,
+    'data-appendix-force-line-break': appendixForceLineBreak,
+    'data-appendix-force-line-break-wide': appendixForceLineBreakWide,
+    'data-appendix-force-line-break-lg': appendixForceLineBreakLg,
+    'data-has-background': backgroundColor ? 'true' : 'false',
     className: styles.row,
     style: {
       '--about-timeline-transition-ms': `${transitionDurationMs}ms`,
       '--about-timeline-transition-easing': transitionEasingCss,
       '--about-timeline-appendix-reveal-delay-ms': `${appendixRevealDelayMs}ms`,
+      ...(backgroundColor ? { backgroundColor } : null),
     } as CSSProperties,
   };
 

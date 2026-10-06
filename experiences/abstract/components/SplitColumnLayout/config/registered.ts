@@ -101,6 +101,8 @@ export type SplitColumnLayoutConfig = {
    * reproduces today's real DOM order for every existing consumer exactly —
    * a no-op default. */
   stackedColumnOrder: SplitColumnStackedOrder;
+  /** Tablet-only stacked order; legacy values inherit stackedColumnOrder. */
+  stackedColumnOrderWide?: SplitColumnStackedOrder;
   /** Independent per-column choice between reserving space for the fixed
    * header ('pushDown') and letting it float over this column's own content
    * ('float') — see SplitColumnLayoutHeaderBehavior's own doc comment.
@@ -171,6 +173,7 @@ export const DEFAULT_SPLIT_COLUMN_LAYOUT_CONFIG = {
   narrowColumnWidthTierMd: '38/62',
   narrowColumnWidthTierLg: '38/62',
   stackedColumnOrder: 'narrowFirst',
+  stackedColumnOrderWide: 'narrowFirst',
   wideColumnHeaderBehavior: 'pushDown',
   narrowColumnHeaderBehavior: 'pushDown',
   legibilityScrimEnabled: false,
@@ -205,6 +208,7 @@ export const ABSTRACT_SPLIT_COLUMN_LAYOUT_CONFIG = {
   narrowColumnWidthTierMd: '38/62',
   narrowColumnWidthTierLg: '38/62',
   stackedColumnOrder: 'narrowFirst',
+  stackedColumnOrderWide: 'narrowFirst',
   wideColumnHeaderBehavior: 'float',
   narrowColumnHeaderBehavior: 'float',
   legibilityScrimEnabled: false,
@@ -225,6 +229,7 @@ export const ABOUT_SPLIT_COLUMN_LAYOUT_CONFIG = {
   narrowColumnWidthTierMd: '38/62',
   narrowColumnWidthTierLg: '38/62',
   stackedColumnOrder: 'narrowFirst',
+  stackedColumnOrderWide: 'narrowFirst',
   wideColumnHeaderBehavior: 'pushDown',
   narrowColumnHeaderBehavior: 'pushDown',
   legibilityScrimEnabled: false,
@@ -283,6 +288,7 @@ export const POSTS_LAB_SPLIT_COLUMN_LAYOUT_CONFIG = {
   // PLAN-SPLIT-COLUMN-RESPONSIVE-NARROW-COLUMN.md §2.2 for the original
   // (now superseded) reasoning.
   stackedColumnOrder: 'narrowFirst',
+  stackedColumnOrderWide: 'narrowFirst',
   wideColumnHeaderBehavior: 'pushDown',
   narrowColumnHeaderBehavior: 'pushDown',
   legibilityScrimEnabled: true,
@@ -338,6 +344,11 @@ export function normalizeSplitColumnLayoutConfig(
     ),
     stackedColumnOrder: token(
       base.stackedColumnOrder, STACKED_ORDERS, DEFAULT_SPLIT_COLUMN_LAYOUT_CONFIG.stackedColumnOrder,
+    ),
+    stackedColumnOrderWide: token(
+      base.stackedColumnOrderWide ?? base.stackedColumnOrder,
+      STACKED_ORDERS,
+      DEFAULT_SPLIT_COLUMN_LAYOUT_CONFIG.stackedColumnOrderWide,
     ),
     wideColumnHeaderBehavior: token(
       base.wideColumnHeaderBehavior,

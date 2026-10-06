@@ -41,6 +41,72 @@
   background-color: currentColor;
 }
 
+/* 'page' shape sibling of .marker above — same size/transition timing, no
+   circle geometry (border-radius/border/background): the glyph itself
+   (DocumentMarkerGlyph, AboutBulletMarker.tsx) carries the hollow/filled
+   state instead of this element's own background-color. Still a square
+   footprint (width/height both the one size var) — every layout rule that
+   reads --about-timeline-marker-size (AboutTimeline.module.css's own
+   padding-left/rule offsets) assumes one square number for this marker's
+   whole box, dot or page alike. align-items/justify-content center the
+   glyph inside that square: unlike the dot (a circle, same aspect as its
+   own square box) or the former SVG page glyph (width/height 100%, so it
+   filled the square by definition), .documentGlyph below is deliberately
+   NOT square (aspect-ratio 4/5) — centering here is what letterboxes that
+   narrower rectangle inside the square marker box instead of it silently
+   stretching to fill it. */
+.markerPage {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--about-bullet-marker-size, 9px);
+  height: var(--about-bullet-marker-size, 9px);
+  transition:
+    opacity var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease) var(--about-bullet-marker-transition-delay, 0ms),
+    transform var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease) var(--about-bullet-marker-transition-delay, 0ms);
+}
+
+/* DocumentMarkerGlyph's own two elements (AboutBulletMarker.tsx) — a plain
+   document: bordered rectangle, no fill, with one small solid corner tab.
+   height: 100% + aspect-ratio (not width/height 100%, unlike the marker
+   dot/former SVG glyph) is what actually produces a 4:5 rectangle rather
+   than stretching to the square .markerPage box around it — width resolves
+   from the aspect-ratio against that 100% height automatically. */
+.documentGlyph {
+  position: relative;
+  box-sizing: border-box;
+  width: auto;
+  height: 100%;
+  aspect-ratio: 4 / 5;
+  border: 1px solid currentColor;
+  background-color: transparent;
+  transition: background-color var(--about-bullet-marker-transition-ms, 260ms) var(--about-bullet-marker-transition-easing, ease) var(--about-bullet-marker-transition-delay, 0ms);
+}
+
+.documentGlyphActive {
+  background-color: currentColor;
+}
+
+/* The "folded corner" stand-in — a small solid rectangle overlaid on the
+   document's own top-right corner, always filled regardless of active
+   state (DocumentMarkerGlyph's own doc comment covers why active needs no
+   separate visibility rule: it becomes indistinguishable against
+   .documentGlyphActive's own identical fill once that's on). Sized as a
+   fraction of the parent rather than a fixed px value so it scales
+   correctly across every configured marker size, from the compact ~9px
+   default up through a hero-level pick. */
+.documentGlyphCorner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40%;
+  height: 30%;
+  background-color: currentColor;
+}
+
 /* Only applied while a gradient-fill child is passed in — lets that canvas
    paint over the border's own 1.5px ring too, instead of stopping at the
    padding edge the way the flat-fill path still does. See
@@ -51,7 +117,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .marker {
+  .marker,
+  .markerPage,
+  .documentGlyph {
     transition-duration: 0ms !important;
   }
 }

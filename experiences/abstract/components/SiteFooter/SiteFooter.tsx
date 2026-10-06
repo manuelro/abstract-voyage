@@ -8,7 +8,7 @@ import type { PageSurfaceConfig } from '../../../../components/PageSurface.confi
 import Logo from '../Logo';
 import type { WordmarkConfig } from '../SiteHeader/config/wordmark';
 import type {
-  SiteHeaderDesktopLogoWidth,
+  SiteHeaderLogoWidthWide,
   SiteHeaderLogoWidth,
 } from '../SiteHeader/config/registered';
 import type { AboutMobileAccordionConfig } from '../../../about/components/AboutMobileAccordion.config';
@@ -34,7 +34,7 @@ export type SiteFooterProps = {
   wordmarkConfig: WordmarkConfig;
   wordmarkStops: SvgStop[];
   wordmarkWidthClassName: SiteHeaderLogoWidth;
-  wordmarkDesktopWidthClassName: SiteHeaderDesktopLogoWidth;
+  wordmarkDesktopWidthClassName: SiteHeaderLogoWidthWide;
   scrollGradientDarkenViewportRangeVh?: number;
   scrollGradientDarkenTauMs?: number;
   scrollGradientOriginColor?: string;

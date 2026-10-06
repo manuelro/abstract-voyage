@@ -197,6 +197,26 @@ export type UseCardLiftPhysicsOptions = {
    * Uses `config.stateExitEasing` for both directions (symmetry is the
    * point) rather than a second, independently-tunable easing field. */
   activationRampDurationMs?: number;
+  /** Opt-in: PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md — an externally-
+   * resolved, continuous 0-1 ceiling read imperatively (never a React
+   * dependency — a plain ref, exactly like every other live-per-frame input
+   * this hook already reads: `latestInteractionRef`, `elevationRef`)
+   * multiplied into `lift` alone (not `scale`/`tiltX`/`tiltY`) inside
+   * `composeAndApply`, composed alongside `activationRampCeiling` above, not
+   * in place of it. Exists because `activationRampCeiling` only starts
+   * moving *after* `activationRampActive` flips — it cannot prevent a
+   * discontinuity that happens at the instant of that flip itself if the
+   * live `lift` value is still non-trivial then (a caller whose lift can
+   * render on a different axis depending on active/inactive role — e.g.
+   * translateZ while active, translateY while inactive — sees exactly that
+   * as a visible position snap). A caller supplying this ref is expected to
+   * keep it already trending toward 0 *before* its own active/inactive role
+   * changes (e.g. driven by a live drag/settle position, not by the
+   * discrete role itself), so the lift magnitude has already receded by the
+   * time any axis or role change actually lands. Undefined (default):
+   * every existing caller sees zero behavior change — treated as a
+   * constant ceiling of 1, exactly as if this didn't exist. */
+  liftCeilingRef?: MutableRefObject<number>;
 };
 
 /**
@@ -230,6 +250,7 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
   centeredShadow = false,
   activationRampActive = false,
   activationRampDurationMs = 0,
+  liftCeilingRef,
 }: UseCardLiftPhysicsOptions) {
   const elementRef = useRef<TElement | null>(null);
   const pressedRef = useRef(false);
@@ -355,7 +376,14 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
       const easedProgress = activationRampEasingCacheRef.current.fn(rawProgress);
       activationRampCeiling = activationRampActive ? easedProgress : 1 - easedProgress;
     }
-    const lift = elevationPx * liftGain * activationRampCeiling;
+    // PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md — liftCeilingRef's own doc
+    // comment above. Composes multiplicatively with activationRampCeiling
+    // (both default to 1, i.e. inert, for every caller that doesn't opt in)
+    // and is applied to `lift` only — scale/tilt below are unaffected,
+    // since only the lift axis is what visibly snaps when it switches
+    // between translateZ and translateY.
+    const liftCeiling = liftCeilingRef ? liftCeilingRef.current : 1;
+    const lift = elevationPx * liftGain * activationRampCeiling * liftCeiling;
     const scale = 1 + elevationPx * scaleGain * activationRampCeiling;
     const tiltX = config.tiltEnabled && config.tiltYEnabled
       ? -y * proximity * config.tiltMaxDegrees * activationRampCeiling
@@ -375,12 +403,42 @@ export function useCardLiftPhysics<TElement extends HTMLElement>({
       `rotateY(${tiltY.toFixed(3)}deg)`,
       `scale(${scale.toFixed(5)})`,
     ].filter(Boolean).join(' ');
-    applyElevationShadow(elevationPx, shadowVisibilityRef.current);
+    // The shadow used to read raw elevationPx directly — fully orthogonal to
+    // activationRampCeiling above, by original design (see that variable's
+    // own comment). That was invisible as long as a receding card's own
+    // proximity ceiling was hard-zeroed upstream (this hook never got a live
+    // elevationPx to react to in the first place). Once that upstream
+    // suppression was removed (PLAN-COVERFLOW-NEIGHBOR-HOLOGRAM-RAMP-
+    // DOUBLE-TAPER-FIX.md), this hook's own live proximity subscription can
+    // stay enabled — and its elevationPx can keep tracking the cursor — for
+    // longer than activationRampCeiling takes to reach 0 (that ceiling is
+    // driven by activationRampActive/-DurationMs alone, not by whatever
+    // separately-timed signal eventually disables this hook's own proximity
+    // subscription), so the shadow could keep growing/shrinking with the
+    // live cursor well after the card's own lift/scale/tilt had already
+    // settled flat — read as the shadow snapping/moving independently of a
+    // card that had already stopped visibly moving (screenshot-reported).
+    // Blending toward the same resting baseline this hook already uses
+    // elsewhere (config.shadowElevationRestingPx — the same floor
+    // elevationRef/disabledElevationPx default to) on the SAME
+    // activationRampCeiling curve the transform above already uses closes
+    // that gap with no new duration/easing to keep in sync: at ceiling 1
+    // (fully active) the shadow reads the exact same live elevationPx as
+    // before (no behavior change for the active card); at ceiling 0 (fully
+    // receded) it's pinned to the resting baseline regardless of whatever
+    // the live cursor is doing, exactly mirroring how ceiling 0 already
+    // zeroes the transform's own lift/scale/tilt.
+    const shadowElevationPx = activationRampDurationEffectiveMs > 0
+      ? config.shadowElevationRestingPx
+        + (elevationPx - config.shadowElevationRestingPx) * activationRampCeiling
+      : elevationPx;
+    applyElevationShadow(shadowElevationPx, shadowVisibilityRef.current);
   }, [
     applyElevationShadow,
     config.proximityLiftPx,
     config.proximityScale,
     config.shadowElevationHoverPx,
+    config.shadowElevationRestingPx,
     config.tiltEnabled,
     config.tiltYEnabled,
     config.tiltMaxDegrees,

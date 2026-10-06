@@ -10,9 +10,8 @@ source:
 date: "2022-03-13"
 tags:
     - Feature Flags
+    - Frontend
     - React
-    - LaunchDarkly
-    - Continuous Delivery
 ---
 
 ![Real time feature toggles with React and Launch Darkly](/posts/medium-feature-toggles-react/hero.png)

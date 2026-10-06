@@ -94,6 +94,16 @@ export type ArticleCardProps = {
    * `neutral` uses dark ink and light borders for a quiet surface while
    * retaining the same content and layout. */
   appearance?: ArticleCardAppearance;
+  /** Opt-in composition that retains the live background gradient while a
+   * solid surface and multiply-blended black content reveal it as ink. */
+  invertedGradientInk?: {
+    backgroundColor: string;
+    backgroundOpacity: number;
+    foregroundColor: string;
+    blendMode: 'screen' | 'multiply';
+    activeBorderWidth?: string;
+    activeBorderVisible?: boolean;
+  };
   /** Opt-in (default false): drops the card root's own unconditional
    * `bg-black` fill, leaving the root genuinely transparent behind whatever
    * `background`/`backgroundImage` layer the caller supplies (or, if none is
@@ -246,6 +256,7 @@ export function ArticleCard({
   contentBlockHeight,
   contentStyle,
   appearance = 'gradient',
+  invertedGradientInk,
   backgroundTransparent = false,
   physics = 'none',
   physicsConfig,
@@ -315,6 +326,15 @@ export function ArticleCard({
   const cardStyle: CSSProperties = {
     ...(aspectRatio === 'fill' ? {} : { aspectRatio: aspectRatio === '16:9' ? '16 / 9' : '3 / 4' }),
     isolation: 'isolate',
+    ...(invertedGradientInk ? {
+      '--article-card-inverted-surface-color': invertedGradientInk.backgroundColor,
+      '--article-card-inverted-surface-opacity': invertedGradientInk.backgroundOpacity,
+      '--article-card-inverted-foreground-color': invertedGradientInk.foregroundColor,
+      '--article-card-inverted-blend-mode': invertedGradientInk.blendMode,
+      ...(invertedGradientInk.activeBorderWidth ? {
+        '--article-card-inverted-border-width': invertedGradientInk.activeBorderWidth,
+      } : {}),
+    } : {}),
     ...style,
   };
   // Font-size stays fluid (container-query cqmin, in the CSS module) since a
@@ -410,8 +430,29 @@ export function ArticleCard({
               // step with the rest of the meta row's own reveal. Inert
               // (opacity stays 1) for every caller that never sets
               // detailsVisible false, exactly like the rest of this gate.
+              // Bug fix (operator-reported, screenshot evidence, CoverFlow):
+              // PostMetaRow's topic tag renders via the shared Chip
+              // component (components/Chip/Chip.tsx), which — independent
+              // of this gate — always sets its own inline `opacity` (1 by
+              // default, since Chip's own `active` prop defaults to true
+              // when not supplied here). An inline style always wins over
+              // the `.detailFade` CSS class's own opacity rule above,
+              // regardless of data-details-visible, which is exactly why
+              // the topic tag kept showing on every inactive CoverFlow card.
+              // `opacity: undefined` below is NOT a no-op: Chip spreads its
+              // caller-supplied `style` after its own default opacity
+              // (`{ opacity: resolvedOpacity, ...style }`), and React omits
+              // a style property entirely when its value is `undefined` —
+              // so this removes Chip's own inline opacity from the
+              // rendered DOM node, letting `.detailFade`'s CSS-driven
+              // opacity (and therefore data-details-visible) actually
+              // govern the topic tag again, same as every other element in
+              // this reveal gate.
               topicClassName={`articleCardTopic rounded-full border uppercase ${styles.detailFade}`}
-              topicStyle={{ '--reveal-enter-delay': `${staggerRevealDelaysMs?.topic ?? 0}ms` } as CSSProperties}
+              topicStyle={{
+                opacity: undefined,
+                '--reveal-enter-delay': `${staggerRevealDelaysMs?.topic ?? 0}ms`,
+              } as CSSProperties}
               dateClassName={`articleCardDate ${styles.detailFade}`}
               dateStyle={{ '--reveal-enter-delay': `${staggerRevealDelaysMs?.date ?? 80}ms` } as CSSProperties}
               readingTimeClassName={`articleCardReadingTime ${styles.detailFade}`}
@@ -511,6 +552,9 @@ export function ArticleCard({
   const appearanceProps = {
     'data-appearance': appearance,
     'data-typography-scale': typographyScale,
+    'data-gradient-ink': invertedGradientInk ? 'multiply' : undefined,
+    'data-gradient-ink-active-border': invertedGradientInk?.activeBorderWidth ? 'true' : undefined,
+    'data-gradient-ink-active-border-visible': invertedGradientInk?.activeBorderVisible ? 'true' : 'false',
   } as const;
 
   if (wholeCardIsLink) {

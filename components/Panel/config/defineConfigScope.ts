@@ -10,6 +10,17 @@ import type {
   RuntimeConfigFieldTabs,
   RuntimeConfigScopeDefinition,
 } from './types';
+import tailwindFieldLegacyAllowlist from '../../../scripts/tailwind-field-legacy-allowlist.json';
+
+const MAX_ENUM_OPTIONS = 8;
+
+function isAllowlistedOversizedEnum(scopeId: string, fieldKey: string, optionCount: number) {
+  return tailwindFieldLegacyAllowlist.oversizedEnums.some(entry => (
+    entry.scopeId === scopeId
+    && entry.fieldKey === fieldKey
+    && entry.optionCount === optionCount
+  ));
+}
 
 function fail(definition: Pick<RuntimeConfigScopeDefinition, 'id'>, message: string): never {
   throw new Error(`Invalid config scope "${definition.id}": ${message}`);
@@ -154,6 +165,16 @@ function validateField(
     }
     if (!optionValues.includes(defaultValue)) {
       fail(definition, `${field.kind} field "${field.key}" does not include its default value`);
+    }
+    if (
+      field.kind === 'enum'
+      && optionValues.length > MAX_ENUM_OPTIONS
+      && !isAllowlistedOversizedEnum(definition.id, field.key, optionValues.length)
+    ) {
+      fail(
+        definition,
+        `enum field "${field.key}" has ${optionValues.length} options; use kind "select" above ${MAX_ENUM_OPTIONS}`,
+      );
     }
   }
 }

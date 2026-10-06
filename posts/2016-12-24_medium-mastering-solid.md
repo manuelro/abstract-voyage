@@ -9,9 +9,8 @@ source:
     originallyPublished: "2016-12-24"
 date: "2022-03-13"
 tags:
-    - SOLID
-    - Object-Oriented Design
-    - Software Architecture
+    - Architecture
+    - Engineering
 featured: true
 ---
 

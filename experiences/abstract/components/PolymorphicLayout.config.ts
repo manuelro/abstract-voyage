@@ -67,7 +67,10 @@ import {
 } from '../../../components/tailwindSpacingScale'
 import type {
   SiteHeaderContentWidth,
+  SiteHeaderContentWidthWide,
+  SiteHeaderContentWidthLg,
 } from './SiteHeader/config/registered'
+import { normalizeTailwindToken } from '../../../components/Panel/config/tailwindFields'
 
 // PolymorphicLayout owns its full type domain — no import from
 // SplitColumnLayout.config.ts (see PLAN-SPLIT-COLUMN-LAYOUT-ENRICHMENT-
@@ -155,6 +158,14 @@ export type PolymorphicLayoutScrollGradientCompositor = 'legacy' | 'enhanced';
 export type PolymorphicLayoutScrollGradientFocalHorizontal = 'left' | 'center' | 'right';
 export type PolymorphicLayoutScrollGradientInterpolation = 'srgb' | 'oklab';
 export const POLYMORPHIC_LAYOUT_ENHANCED_GRADIENT_COMPAT_DEFAULTS = {
+  // Shared inert defaults for the tablet/desktop narrow-gradient glass
+  // capability. Every page-owned PolymorphicLayout payload spreads this
+  // record, so a new panel field is immediately valid for every registered
+  // page scope rather than only the first page that authored an override.
+  scrollGradientNarrowColumnGlassOpacityWide: 0,
+  scrollGradientNarrowColumnGlassOpacityLg: 0,
+  scrollGradientNarrowColumnBackdropBlurPxWide: 0,
+  scrollGradientNarrowColumnBackdropBlurPxLg: 0,
   scrollGradientCompositor: 'legacy', scrollGradientCompositorWide: 'legacy', scrollGradientCompositorLg: 'legacy',
   scrollGradientFocalHorizontal: 'left', scrollGradientFocalHorizontalWide: 'left', scrollGradientFocalHorizontalLg: 'left',
   scrollGradientLightHiddenPercent: 50, scrollGradientLightHiddenPercentWide: 50, scrollGradientLightHiddenPercentLg: 50,
@@ -346,6 +357,22 @@ export type PolymorphicLayoutConfig = {
   narrowColumnWidthTierLg: PolymorphicLayoutRatioTier;
   /** See PolymorphicLayoutStackedOrder's own doc comment. */
   stackedColumnOrder: PolymorphicLayoutStackedOrder;
+  /** Tablet-only stacked order. Missing persisted values inherit the base
+   * mobile order so existing pages retain their current composition. */
+  stackedColumnOrderWide?: PolymorphicLayoutStackedOrder;
+  /** Opt-in tablet-only viewport partition while columns are stacked. The
+   * wide column receives stackedWideColumnViewportPercentWide; the narrow
+   * column receives the mathematical remainder. */
+  stackedViewportPartitionEnabledWide?: boolean;
+  stackedWideColumnViewportPercentWide?: number;
+  /** Same idea as stackedViewportPartitionEnabledWide/
+   * stackedWideColumnViewportPercentWide, for whenever narrowColumnWidthTierLg
+   * above is itself 'stacked' (columns remain stacked at the desktop
+   * breakpoint too) — independently enabled/tuned from the tablet pair, since
+   * a page that wants a tablet partition doesn't necessarily want the same
+   * share (or any partition at all) at desktop. */
+  stackedViewportPartitionEnabledLg?: boolean;
+  stackedWideColumnViewportPercentLg?: number;
   /** Independent per-column choice between reserving space for the fixed
    * header ('pushDown') and letting it float over this column's own
    * content ('float'). */
@@ -782,9 +809,9 @@ export type PolymorphicLayoutConfig = {
    * every tier here, since the header's own row is always full-width
    * regardless of breakpoint. Only visibly changes anything once paired
    * with a non-default align above. */
-  headerLeftContentWidth: ContentWidthPercentClass | 'auto';
-  headerLeftContentWidthWide: SiteHeaderContentWidth;
-  headerLeftContentWidthLg: ContentWidthPercentLgClass | 'auto';
+  headerLeftContentWidth: SiteHeaderContentWidth;
+  headerLeftContentWidthWide: SiteHeaderContentWidthWide;
+  headerLeftContentWidthLg: SiteHeaderContentWidthLg;
   /** Where the header's own right-segment content sits within the header's
    * own right split segment (the segment LayoutDebugOverlay's 'HEADER ·
    * RIGHT' box visualizes). */
@@ -797,9 +824,9 @@ export type PolymorphicLayoutConfig = {
   headerRightSegmentVerticalAlignLg: HeaderSegmentItemsLgClass;
   /** Same as headerLeftContentWidth/-Wide/-Lg, applied to the right-segment
    * content container instead. */
-  headerRightContentWidth: ContentWidthPercentClass | 'auto';
-  headerRightContentWidthWide: SiteHeaderContentWidth;
-  headerRightContentWidthLg: ContentWidthPercentLgClass | 'auto';
+  headerRightContentWidth: SiteHeaderContentWidth;
+  headerRightContentWidthWide: SiteHeaderContentWidthWide;
+  headerRightContentWidthLg: SiteHeaderContentWidthLg;
   /** Where the header's own left-segment content sits *within* its own
    * content box (the same box headerLeftContentWidth/-Wide/-Lg sizes and
    * LayoutDebugOverlay's 'HEADER · LEFT CONTENT' visualizes) — distinct
@@ -881,7 +908,7 @@ export type PolymorphicLayoutConfig = {
    * prop), not a per-column padding like wideColumnContentPaddingLeft/
    * narrowColumnContentPaddingRight above. A page's own, independent value
    * — SplitColumnPageShell never reads the shared header's own paddingX/
-   * desktopPaddingX for this wrapper once bodyGutterClassName is supplied.
+   * paddingXWide for this wrapper once bodyGutterClassName is supplied.
    * No margin equivalent exists for this wrapper — it's centered via a
    * structural `mx-auto`, and has no vertical role of its own. */
   bodyGutterPaddingLeft: PaddingLeftClass;
@@ -965,6 +992,16 @@ export type PolymorphicLayoutConfig = {
   /** Perceptual-lightness reduction for the desktop narrow-column variant.
    * 0 = unchanged, 1 = black. */
   scrollGradientNarrowColumnDarknessLg: number;
+  /** Glass tint opacity over the live narrow-column scroll gradient. These
+   * controls begin at tablet because this page's narrow gradient treatment
+   * is composed as a tablet/desktop surface. Alpha is composited into the
+   * paint itself so backdrop filtering remains effective. */
+  scrollGradientNarrowColumnGlassOpacityWide?: number;
+  scrollGradientNarrowColumnGlassOpacityLg?: number;
+  /** Backdrop blur behind the translucent narrow-column glass surface, in
+   * px. 0 disables blur. */
+  scrollGradientNarrowColumnBackdropBlurPxWide?: number;
+  scrollGradientNarrowColumnBackdropBlurPxLg?: number;
   /** Saturation intensity for dark derived ink. 0 is neutral, 1 preserves
    * the sampled gradient saturation, and 2 doubles it. */
   scrollGradientDarkInkSaturation?: number;
@@ -1081,6 +1118,22 @@ export type PolymorphicLayoutConfig = {
   scrollGradientMaxDarken: number;
   scrollGradientMaxDarkenWide: number;
   scrollGradientMaxDarkenLg: number;
+  /** Master switch for the darken overlay itself, independent of
+   * scrollGradientMaxDarken/scrollGradientLegibilityTargetRatio's own
+   * numeric values — false forces this tier's effective darken ceiling to
+   * 0 (PolymorphicLayout.tsx's own scrollGradientResolved), so the
+   * gradient renders exactly as generated, at every scroll position, with
+   * no black overlay ever mixed in, regardless of what either of those two
+   * fields is tuned to. Deliberately a separate on/off rather than
+   * repurposing "Max darken: 0": that would silently discard whatever
+   * ceiling was already tuned, and re-enabling darkening would mean
+   * re-entering it from scratch — this way scrollGradientMaxDarken keeps
+   * its own value untouched and simply resumes applying the moment this
+   * flips back on. Default true: every existing consumer keeps darkening
+   * on scroll exactly as before this field existed. Base/mobile tier. */
+  scrollGradientDarkenOnScrollEnabled: boolean;
+  scrollGradientDarkenOnScrollEnabledWide: boolean;
+  scrollGradientDarkenOnScrollEnabledLg: boolean;
   /** Opt-in (default 0 — inert). Above 0, the darken schedule above stops
    * being purely scroll-driven: whenever the scroll-driven value alone
    * wouldn't let PURE WHITE text reach this WCAG contrast ratio against the
@@ -1322,16 +1375,16 @@ export const POLYMORPHIC_LAYOUT_HEADER_SEGMENT_DEFAULTS = {
   headerLeftSegmentVerticalAlign: 'items-center',
   headerLeftSegmentVerticalAlignWide: 'md:items-center',
   headerLeftSegmentVerticalAlignLg: 'lg:items-center',
-  headerLeftContentWidth: 'max-w-[90%]',
-  headerLeftContentWidthWide: 'md:max-w-[100%]',
-  headerLeftContentWidthLg: 'lg:max-w-[100%]',
+  headerLeftContentWidth: 'max-w-percent-90',
+  headerLeftContentWidthWide: 'md:max-w-percent-100',
+  headerLeftContentWidthLg: 'lg:max-w-percent-100',
   headerRightSegmentAlign: 'justify-center',
   headerRightSegmentAlignWide: 'md:justify-start',
   headerRightSegmentAlignLg: 'lg:justify-start',
   headerRightSegmentVerticalAlign: 'items-center',
   headerRightSegmentVerticalAlignWide: 'md:items-center',
   headerRightSegmentVerticalAlignLg: 'lg:items-center',
-  headerRightContentWidth: 'max-w-[80%]',
+  headerRightContentWidth: 'max-w-percent-80',
   headerRightContentWidthWide: 'auto',
   headerRightContentWidthLg: 'auto',
   headerLeftInnerAlign: 'justify-center',
@@ -1358,6 +1411,11 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   narrowColumnWidthTierMd: '38/62',
   narrowColumnWidthTierLg: '38/62',
   stackedColumnOrder: 'narrowFirst',
+  stackedColumnOrderWide: 'narrowFirst',
+  stackedViewportPartitionEnabledWide: false,
+  stackedWideColumnViewportPercentWide: 60,
+  stackedViewportPartitionEnabledLg: false,
+  stackedWideColumnViewportPercentLg: 60,
   wideColumnHeaderBehavior: 'pushDown',
   narrowColumnHeaderBehavior: 'pushDown',
   legibilityScrimEnabled: true,
@@ -1397,6 +1455,10 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientNarrowColumnVariantEnabledLg: false,
   scrollGradientNarrowColumnSaturationLg: 1,
   scrollGradientNarrowColumnDarknessLg: 0,
+  scrollGradientNarrowColumnGlassOpacityWide: 0,
+  scrollGradientNarrowColumnGlassOpacityLg: 0,
+  scrollGradientNarrowColumnBackdropBlurPxWide: 0,
+  scrollGradientNarrowColumnBackdropBlurPxLg: 0,
   scrollGradientDarkInkSaturation: 0,
   scrollGradientDarkInkSaturationWide: 0,
   scrollGradientDarkInkSaturationLg: 1,
@@ -1486,6 +1548,9 @@ export const DEFAULT_POLYMORPHIC_LAYOUT_CONFIG = {
   scrollGradientMaxDarken: 0.65,
   scrollGradientMaxDarkenWide: 0.65,
   scrollGradientMaxDarkenLg: 0.65,
+  scrollGradientDarkenOnScrollEnabled: true,
+  scrollGradientDarkenOnScrollEnabledWide: true,
+  scrollGradientDarkenOnScrollEnabledLg: true,
   scrollGradientLegibilityTargetRatio: 0,
   scrollGradientLegibilityTargetRatioWide: 0,
   scrollGradientLegibilityTargetRatioLg: 0,
@@ -1874,18 +1939,6 @@ const HEADER_SEGMENT_ITEMS_WIDE_VALUES: ReadonlyArray<HeaderSegmentItemsWideClas
 const HEADER_SEGMENT_ITEMS_LG_VALUES: ReadonlyArray<HeaderSegmentItemsLgClass> = [
   'lg:items-start', 'lg:items-center', 'lg:items-end',
 ];
-const HEADER_CONTENT_WIDTH_BASE_VALUES: ReadonlyArray<ContentWidthPercentClass | 'auto'> = [
-  'auto',
-  ...CONTENT_WIDTH_PERCENT_OPTIONS.map(option => option.value),
-];
-const HEADER_CONTENT_WIDTH_VALUES: ReadonlyArray<SiteHeaderContentWidth> = [
-  'auto',
-  ...CONTENT_WIDTH_PERCENT_WIDE_OPTIONS.map(option => option.value),
-];
-const HEADER_CONTENT_WIDTH_LG_VALUES: ReadonlyArray<ContentWidthPercentLgClass | 'auto'> = [
-  'auto',
-  ...CONTENT_WIDTH_PERCENT_LG_OPTIONS.map(option => option.value),
-];
 const HEADER_SCROLL_BEHAVIOR_VALUES: ReadonlyArray<PolymorphicLayoutHeaderScrollBehavior> = ['fixed', 'sticky', 'static'];
 const RATIO_TIER_VALUES: ReadonlyArray<PolymorphicLayoutRatioTier> = [
   'stacked', '30/70', '35/65', '38/62', '40/60', '45/55', '50/50',
@@ -1971,6 +2024,25 @@ export function normalizePolymorphicLayoutConfig(
     stackedColumnOrder: token(
       base.stackedColumnOrder, STACKED_ORDERS, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.stackedColumnOrder,
     ),
+    stackedColumnOrderWide: token(
+      base.stackedColumnOrderWide ?? base.stackedColumnOrder,
+      STACKED_ORDERS,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.stackedColumnOrderWide,
+    ),
+    stackedViewportPartitionEnabledWide: base.stackedViewportPartitionEnabledWide === true,
+    stackedWideColumnViewportPercentWide: clampRange(
+      base.stackedWideColumnViewportPercentWide,
+      10,
+      90,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.stackedWideColumnViewportPercentWide,
+    ),
+    stackedViewportPartitionEnabledLg: base.stackedViewportPartitionEnabledLg === true,
+    stackedWideColumnViewportPercentLg: clampRange(
+      base.stackedWideColumnViewportPercentLg,
+      10,
+      90,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.stackedWideColumnViewportPercentLg,
+    ),
     wideColumnHeaderBehavior: token(
       base.wideColumnHeaderBehavior,
       HEADER_BEHAVIORS,
@@ -2031,6 +2103,30 @@ export function normalizePolymorphicLayoutConfig(
       0,
       1,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnDarknessLg,
+    ),
+    scrollGradientNarrowColumnGlassOpacityWide: clampRange(
+      base.scrollGradientNarrowColumnGlassOpacityWide,
+      0,
+      1,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnGlassOpacityWide,
+    ),
+    scrollGradientNarrowColumnGlassOpacityLg: clampRange(
+      base.scrollGradientNarrowColumnGlassOpacityLg,
+      0,
+      1,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnGlassOpacityLg,
+    ),
+    scrollGradientNarrowColumnBackdropBlurPxWide: clampRange(
+      base.scrollGradientNarrowColumnBackdropBlurPxWide,
+      0,
+      64,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnBackdropBlurPxWide,
+    ),
+    scrollGradientNarrowColumnBackdropBlurPxLg: clampRange(
+      base.scrollGradientNarrowColumnBackdropBlurPxLg,
+      0,
+      64,
+      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientNarrowColumnBackdropBlurPxLg,
     ),
     scrollGradientDarkInkSaturation: clampRange(
       base.scrollGradientDarkInkSaturation,
@@ -2223,6 +2319,13 @@ export function normalizePolymorphicLayoutConfig(
     scrollGradientMaxDarkenLg: clampRange(
       base.scrollGradientMaxDarkenLg, 0, 1, DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientMaxDarkenLg,
     ),
+    // !== false (not === true): default true, same "opt out, not opt in"
+    // convention headerSplitBandEnabled elsewhere in this file already
+    // uses — every existing consumer keeps darkening on scroll exactly as
+    // before this field existed unless a page explicitly sets it to false.
+    scrollGradientDarkenOnScrollEnabled: base.scrollGradientDarkenOnScrollEnabled !== false,
+    scrollGradientDarkenOnScrollEnabledWide: base.scrollGradientDarkenOnScrollEnabledWide !== false,
+    scrollGradientDarkenOnScrollEnabledLg: base.scrollGradientDarkenOnScrollEnabledLg !== false,
     scrollGradientLegibilityTargetRatio: clampRange(
       base.scrollGradientLegibilityTargetRatio, 0, 21,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.scrollGradientLegibilityTargetRatio,
@@ -2792,21 +2895,9 @@ export function normalizePolymorphicLayoutConfig(
       HEADER_SEGMENT_ITEMS_LG_VALUES,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerLeftSegmentVerticalAlignLg,
     ),
-    headerLeftContentWidth: token(
-      base.headerLeftContentWidth,
-      HEADER_CONTENT_WIDTH_BASE_VALUES,
-      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerLeftContentWidth,
-    ),
-    headerLeftContentWidthWide: token(
-      base.headerLeftContentWidthWide,
-      HEADER_CONTENT_WIDTH_VALUES,
-      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerLeftContentWidthWide,
-    ),
-    headerLeftContentWidthLg: token(
-      base.headerLeftContentWidthLg,
-      HEADER_CONTENT_WIDTH_LG_VALUES,
-      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerLeftContentWidthLg,
-    ),
+    headerLeftContentWidth: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'base', value: base.headerLeftContentWidth, fallback: DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerLeftContentWidth }),
+    headerLeftContentWidthWide: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'md', value: base.headerLeftContentWidthWide, fallback: DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerLeftContentWidthWide }),
+    headerLeftContentWidthLg: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'lg', value: base.headerLeftContentWidthLg, fallback: DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerLeftContentWidthLg }),
     headerRightSegmentAlign: token(
       base.headerRightSegmentAlign,
       HEADER_SEGMENT_JUSTIFY_VALUES,
@@ -2837,21 +2928,9 @@ export function normalizePolymorphicLayoutConfig(
       HEADER_SEGMENT_ITEMS_LG_VALUES,
       DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerRightSegmentVerticalAlignLg,
     ),
-    headerRightContentWidth: token(
-      base.headerRightContentWidth,
-      HEADER_CONTENT_WIDTH_BASE_VALUES,
-      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerRightContentWidth,
-    ),
-    headerRightContentWidthWide: token(
-      base.headerRightContentWidthWide,
-      HEADER_CONTENT_WIDTH_VALUES,
-      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerRightContentWidthWide,
-    ),
-    headerRightContentWidthLg: token(
-      base.headerRightContentWidthLg,
-      HEADER_CONTENT_WIDTH_LG_VALUES,
-      DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerRightContentWidthLg,
-    ),
+    headerRightContentWidth: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'base', value: base.headerRightContentWidth, fallback: DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerRightContentWidth }),
+    headerRightContentWidthWide: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'md', value: base.headerRightContentWidthWide, fallback: DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerRightContentWidthWide }),
+    headerRightContentWidthLg: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'lg', value: base.headerRightContentWidthLg, fallback: DEFAULT_POLYMORPHIC_LAYOUT_CONFIG.headerRightContentWidthLg }),
     headerLeftInnerAlign: token(
       base.headerLeftInnerAlign,
       HEADER_SEGMENT_JUSTIFY_VALUES,

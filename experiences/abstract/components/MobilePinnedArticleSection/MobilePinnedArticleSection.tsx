@@ -57,6 +57,9 @@ export type MobilePinnedListControls = {
    * itself decided to show. */
   rows: ReadonlyArray<AboutTimelineRowData>;
   onSelect: (index: number) => void;
+  /** Opens the full reading list from the Timeline toolbar, when the compact
+   * mobile list is the active presentation. */
+  onExpand?: () => void;
 };
 
 type MobilePinnedArticleSectionProps = {
@@ -91,6 +94,23 @@ type MobilePinnedArticleSectionProps = {
    * dropout cannot make the whole panel disappear. */
   expandedPanelFallbackColor?: string;
   config: MobilePinnedArticleSectionConfig;
+  /** Supplied by Abstract's mobile Timeline controls. */
+  dragDownToCloseEnabled?: boolean;
+  dragDownToCloseThresholdPx?: number;
+  /** Retains the carousel driver while omitting the mobile list UI. */
+  listPresentation?: 'visible' | 'none';
+  /** Optional parent-supplied viewport slot. Used by the tablet stacked
+   * composition to keep CoverFlow inside its complementary row budget. */
+  viewportHeight?: CSSProperties['height'];
+  /** An opt-in viewport-owned carousel plane. Unlike `viewportHeight`, this
+   * moves the carousel's clipping viewport into the visible browser viewport
+   * itself, which is required when a stacked desktop composition reserves
+   * only part of the page section for the carousel. Only meaningful for the
+   * carousel-only (`listPresentation: 'none'`) presentation. */
+  carouselViewportPlane?: {
+    top: CSSProperties['top'];
+    height: CSSProperties['height'];
+  };
   /** Fires exactly when the expanded panel opens/closes (openPanel/closePanel
    * below) — lets a caller drive page-level behavior tied to this modal-like
    * reading state, e.g. config.expandedForcesMaxBackgroundDarken
@@ -98,6 +118,25 @@ type MobilePinnedArticleSectionProps = {
    * own max darken while true). Optional; every existing caller not
    * supplying it behaves exactly as before. */
   onExpandedChange?: (expanded: boolean) => void;
+  /** Opt-in (default false, byte-identical to today): flips the sign this
+   * section applies when converting a drag/swipe's raw pixel delta (or
+   * release velocity) into a `position`/index change. This section's own
+   * index space (activeIndex, position, itemCount, rows) always stays in
+   * the caller's original, un-reversed order — same contract CoverFlow
+   * itself keeps at its own boundary (see CoverFlow.config.ts's own
+   * `reverseItemOrder` doc comment) — so the short/expanded list here is
+   * unaffected either way. Only the DRAG direction needs correcting: when
+   * the paired CoverFlow instance is rendering that same index space in
+   * reverse (CoverFlow.config.ts's own `reverseItemOrder`), dragging right
+   * moves toward a LOWER on-screen position but a HIGHER index (the
+   * opposite of the un-reversed relationship this section's math assumes),
+   * so a caller pairing this section with a reversed CoverFlow must set
+   * this to true or every drag/swipe here fights that CoverFlow instance's
+   * own reversed layout — confirmed live: without this, dragging past the
+   * one end already visible on screen produced no movement at all, since
+   * `position` was already pinned at the un-reversed array's own boundary
+   * in the direction the drag was (incorrectly) trying to push it. */
+  reverseNavigationDirection?: boolean;
 };
 
 const clampIndex = (index: number, count: number) => (
@@ -163,7 +202,13 @@ export function MobilePinnedArticleSection({
   panelColor,
   expandedPanelFallbackColor,
   config: rawConfig,
+  dragDownToCloseEnabled = false,
+  dragDownToCloseThresholdPx = 96,
+  listPresentation = 'visible',
+  viewportHeight,
+  carouselViewportPlane,
   onExpandedChange,
+  reverseNavigationDirection = false,
 }: MobilePinnedArticleSectionProps) {
   const config = useMemo(
     () => normalizeMobilePinnedArticleSectionConfig(rawConfig),
@@ -338,13 +383,6 @@ export function MobilePinnedArticleSection({
   // last item post-selection. Suppressed only once expanded (redundant —
   // the full list is already visible).
   const showExpandRow = !expanded;
-  // A real row in the SAME list AboutTimeline renders — not a separate
-  // element beside it — so it gets the exact same marker/spacing/hover/
-  // keyboard-nav treatment as every other row, for free, via the same
-  // component. `itemCount` (one past the last real index) can never
-  // collide with a genuine slideIndex; handleListSelect below checks for
-  // it before doing anything else with a clicked/selected index, since
-  // clampIndex would otherwise pull it straight back into range.
   const expandListSentinelRow = useMemo(
     () => ({ caption: 'Expand list', slideIndex: itemCount }),
     [itemCount],
@@ -415,6 +453,32 @@ export function MobilePinnedArticleSection({
       expandedSelectionRef.current = null;
     }
   }, [safeActiveIndex]);
+
+  // `position` (the value threaded into CoverFlow's own externalDriver, see
+  // renderCarousel's own controls.position below) previously only ever
+  // changed from an interaction this component owns end-to-end — scroll
+  // (syncFromScroll), a drag release, or a tap in its own short/expanded
+  // list — every one of those already calls setPosition itself in the same
+  // handler that also reports the new index upward. That covered every
+  // caller until PLAN-ABSTRACT-TABLET-HERO-TIMELINE-COVERFLOW-ORDER.md
+  // started rendering AboutTimeline as a sibling at tablet
+  // (listPresentation: 'none') instead of inside this component's own list:
+  // selecting a timeline row now changes the shared activeIndex entirely
+  // from OUTSIDE, with no internal handler of this component's own in that
+  // call path to move `position` alongside it. The result (screenshot-
+  // reported): activeIndex updates the active-card CSS/content immediately,
+  // but the carousel's own transform position never moves, since nothing
+  // told it to. This effect is the missing sync — it only fires for a
+  // genuinely external index change; every internal path above already
+  // leaves `position` equal to the new index by the time this runs, making
+  // it a no-op there. Skipped while scroll drives the carousel (position
+  // must keep tracking real scroll, not jump), mid-drag (the gesture itself
+  // is the authority), or expanded (SEL-07's own deferred-commit handoff
+  // above already owns that transition's timing).
+  useEffect(() => {
+    if (config.scrollDrivenNavigationEnabled || dragActive || expandedRef.current) return;
+    setPosition(current => (current === safeActiveIndex ? current : safeActiveIndex));
+  }, [safeActiveIndex, config.scrollDrivenNavigationEnabled, dragActive]);
 
   useEffect(() => {
     const query = window.matchMedia(`(max-height: ${config.smallPhoneMaxHeightPx}px)`);
@@ -1102,10 +1166,19 @@ export function MobilePinnedArticleSection({
     const viewport = rowsViewportRef.current ?? glassRowsViewportRef.current;
     if (!viewport) return undefined;
     let touchY = 0;
+    let dragStart: { x: number; y: number } | null = null;
     const onTouchStart = (event: TouchEvent) => {
-      touchY = event.touches[0]?.clientY ?? 0;
+      const touch = event.touches[0];
+      touchY = touch?.clientY ?? 0;
+      // A gesture that starts in the middle of a scrollable list must keep
+      // scrolling normally, even if it reaches the top before release.
+      dragStart = dragDownToCloseEnabled && presentationPhase === 'open'
+        && event.touches.length === 1 && viewport.scrollTop <= 1 && touch
+        ? { x: touch.clientX, y: touch.clientY }
+        : null;
     };
     const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1) dragStart = null;
       const currentY = event.touches[0]?.clientY ?? touchY;
       const pullingPastTop = viewport.scrollTop <= 0 && currentY > touchY;
       const pushingPastBottom =
@@ -1114,13 +1187,32 @@ export function MobilePinnedArticleSection({
       if (pullingPastTop || pushingPastBottom) event.preventDefault();
       touchY = currentY;
     };
+    const onTouchEnd = (event: TouchEvent) => {
+      const start = dragStart;
+      dragStart = null;
+      const touch = event.changedTouches[0];
+      if (!start || !touch || viewport.scrollTop > 1 || presentationPhase !== 'open') return;
+      const down = touch.clientY - start.y;
+      const sideways = Math.abs(touch.clientX - start.x);
+      if (down < dragDownToCloseThresholdPx || down <= sideways * 1.2) return;
+      event.preventDefault();
+      requestClose();
+    };
+    const onTouchCancel = () => { dragStart = null; };
     viewport.addEventListener('touchstart', onTouchStart, { passive: true });
     viewport.addEventListener('touchmove', onTouchMove, { passive: false });
+    viewport.addEventListener('touchend', onTouchEnd, { passive: false });
+    viewport.addEventListener('touchcancel', onTouchCancel);
     return () => {
       viewport.removeEventListener('touchstart', onTouchStart);
       viewport.removeEventListener('touchmove', onTouchMove);
+      viewport.removeEventListener('touchend', onTouchEnd);
+      viewport.removeEventListener('touchcancel', onTouchCancel);
     };
-  }, [expanded]);
+  }, [
+    dragDownToCloseEnabled, dragDownToCloseThresholdPx, expanded,
+    presentationPhase, requestClose,
+  ]);
 
   const handlePanelKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!expanded) return;
@@ -1159,9 +1251,6 @@ export function MobilePinnedArticleSection({
   }, [flushPendingDeferredCommit, itemCount, onActiveIndexCommit]);
 
   const handleListSelect = useCallback((index: number) => {
-    // The "Expand list" row's own sentinel slideIndex (see shortListRows
-    // above) — must be checked before clampIndex below, which would
-    // otherwise pull it straight back into the real [0, itemCount) range.
     if (index === itemCount) {
       openPanel();
       return;
@@ -1233,29 +1322,43 @@ export function MobilePinnedArticleSection({
   const handleCarouselDragEnd = useCallback((velocityX: number) => {
     restoreRootSnapAfterDrag();
     setDragActive(false);
+    // See reverseNavigationDirection's own doc comment — same sign flip
+    // onDragScroll below applies to a live drag, applied here to its
+    // release velocity so a flung swipe keeps resolving to the same
+    // on-screen direction the drag itself just moved in.
+    const signedVelocityX = reverseNavigationDirection ? -velocityX : velocityX;
     if (config.scrollDrivenNavigationEnabled) {
       const currentPosition = scrollStepPx > 0
         ? (window.scrollY - sectionTop()) / scrollStepPx
         : position;
-      const projected = currentPosition - velocityX * 0.002;
+      const projected = currentPosition - signedVelocityX * 0.002;
       scrollToIndex(Math.round(projected));
       return;
     }
     // Direct-drag mode already kept `position` continuously up to date
     // (see onDragScroll below) — project from that, not from window.scrollY,
     // which no longer has anything to do with the carousel here.
-    const projected = position - velocityX * 0.002;
+    const projected = position - signedVelocityX * 0.002;
     commitIndexDirect(Math.round(projected));
   }, [
     commitIndexDirect, config.scrollDrivenNavigationEnabled, position,
-    restoreRootSnapAfterDrag, scrollStepPx, scrollToIndex, sectionTop,
+    restoreRootSnapAfterDrag, reverseNavigationDirection, scrollStepPx, scrollToIndex, sectionTop,
   ]);
 
   const style = {
+    '--mobile-pinned-viewport-height': viewportHeight ?? '100svh',
+    '--mobile-pinned-carousel-viewport-top': carouselViewportPlane?.top ?? '0px',
+    '--mobile-pinned-carousel-viewport-height': carouselViewportPlane?.height ?? '100svh',
     '--mobile-pinned-carousel-color': carouselColor,
     '--mobile-pinned-panel-color': panelColor,
     '--mobile-pinned-panel-opacity': config.panelOpacity,
-    '--mobile-pinned-carousel-percent': config.carouselHeightPercent,
+    // carouselHeightPercent normally reserves room below the carousel for
+    // the short list panel (.shortListPanel/.panel) it shares the sticky
+    // viewport with. When listPresentation is 'none' that panel is never
+    // rendered at all (tablet's carousel-only mode), so that reservation
+    // would otherwise just be dead space under the carousel with nothing
+    // occupying it.
+    '--mobile-pinned-carousel-percent': listPresentation === 'none' ? 100 : config.carouselHeightPercent,
     '--mobile-pinned-list-percent': config.listHeightPercent,
     '--mobile-pinned-expanded-percent': config.expandedPanelHeightPercent,
     '--mobile-pinned-peek-height': config.peekHeightSvh,
@@ -1278,8 +1381,8 @@ export function MobilePinnedArticleSection({
     // 100svh, and there's nothing to scroll through to reach any article —
     // they're all reachable via the list or a swipe.
     height: config.scrollDrivenNavigationEnabled
-      ? `calc(100svh + ${Math.max(1, travelPx)}px)`
-      : '100svh',
+      ? `calc(${viewportHeight ?? '100svh'} + ${Math.max(1, travelPx)}px)`
+      : viewportHeight ?? '100svh',
   } as CSSProperties;
 
   const carouselControls: MobilePinnedCarouselControls = {
@@ -1293,13 +1396,19 @@ export function MobilePinnedArticleSection({
       if (!config.scrollDrivenNavigationEnabled) setDragActive(true);
     },
     onDragScroll: deltaX => {
+      // See reverseNavigationDirection's own doc comment — a raw pixel
+      // delta straight from CoverFlow's own drag (never itself aware of
+      // reverseItemOrder, see CoverFlow.tsx's own onDrag) needs this sign
+      // flip so it still moves `position` toward whichever on-screen
+      // direction the finger/pointer actually dragged.
+      const signedDeltaX = reverseNavigationDirection ? -deltaX : deltaX;
       if (config.scrollDrivenNavigationEnabled) {
-        window.scrollBy({ top: -deltaX * config.scrollEffortMultiplier, behavior: 'auto' });
+        window.scrollBy({ top: -signedDeltaX * config.scrollEffortMultiplier, behavior: 'auto' });
         return;
       }
       const step = stepPx > 0 ? stepPx : 1;
       setPosition(current => Math.min(
-        Math.max(current - deltaX / step, 0),
+        Math.max(current - signedDeltaX / step, 0),
         Math.max(itemCount - 1, 0),
       ));
     },
@@ -1348,6 +1457,7 @@ export function MobilePinnedArticleSection({
           presentation: 'short',
           rows: shortListRows,
           onSelect: handleListSelect,
+          onExpand: showExpandRow ? openPanel : undefined,
         })}
       </motion.div>
     </AnimatePresence>
@@ -1474,9 +1584,10 @@ export function MobilePinnedArticleSection({
         className={styles.stickyViewport}
         data-expanded={expanded}
         data-phase={presentationPhase}
+        data-viewport-carousel-plane={carouselViewportPlane !== undefined && listPresentation === 'none'}
       >
         <div className={styles.carousel} data-presentation={usesCardFlip ? 'cardFlip' : 'glassPanel'}>
-          {usesCardFlip ? (
+          {listPresentation === 'none' ? renderCarousel(carouselControls) : usesCardFlip ? (
             <div
               ref={flipCardRef}
               className={styles.flipCard}
@@ -1510,14 +1621,14 @@ export function MobilePinnedArticleSection({
             </div>
           ) : renderCarousel(carouselControls)}
         </div>
-        {expanded ? (
+        {listPresentation === 'visible' && expanded ? (
           <div
             className={styles.collapseSurface}
             onClick={requestClose}
             aria-hidden="true"
           />
         ) : null}
-        {usesCardFlip ? (
+        {listPresentation === 'none' ? null : usesCardFlip ? (
           <div className={styles.shortListPanel}>
             {renderShortList()}
           </div>
@@ -1535,19 +1646,19 @@ export function MobilePinnedArticleSection({
             </div>
           </div>
         )}
-        <button
+        {listPresentation === 'visible' ? <button
           type="button"
           className={styles.peekTarget}
           data-active={peekActive && !expanded}
           aria-label="Show articles"
           tabIndex={peekActive && !expanded ? 0 : -1}
           onClick={() => window.scrollTo({ top: sectionTop(), behavior: 'smooth' })}
-        />
-        <div className={styles.announcement} role="status" aria-live="polite" aria-atomic="true">
+        /> : null}
+        {listPresentation === 'visible' ? <div className={styles.announcement} role="status" aria-live="polite" aria-atomic="true">
           {rows[safeActiveIndex]
             ? `Article ${safeActiveIndex + 1} of ${itemCount}: ${rows[safeActiveIndex].caption}`
             : ''}
-        </div>
+        </div> : null}
       </div>
     </section>
   );

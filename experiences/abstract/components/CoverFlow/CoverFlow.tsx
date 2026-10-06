@@ -1,5 +1,5 @@
 import {
-  memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode,
+  memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
 } from 'react';
 import {
   animate,
@@ -13,7 +13,7 @@ import { useMeasuredElementRect } from '../../../../components/useMeasuredElemen
 import { useBreakpointTier } from '../../../../components/useBreakpointTier';
 import { clamp } from '../../../../helpers/clamp';
 import { createGaussianEase } from '../../../../helpers/gaussianEasing';
-import { DEFAULT_COVER_FLOW_CONFIG, type CoverFlowConfig } from './CoverFlow.config';
+import { capCoverFlowCardSize, DEFAULT_COVER_FLOW_CONFIG, type CoverFlowConfig } from './CoverFlow.config';
 
 /**
  * Promoted from experiences/abstract/components/CoverFlowLab/CoverFlowLab.tsx
@@ -122,7 +122,23 @@ export type CoverFlowRenderItem<T> = (
   isActive: boolean,
   geometry: CoverFlowItemGeometry,
   reveal: CoverFlowCardReveal,
-  position: { distanceFromActive: number },
+  position: {
+    distanceFromActive: number;
+    /** PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md — the same `Math.abs(index
+     * - scrollX)` this card's own x/rotateY/z transforms already derive
+     * every frame, exposed as a live MotionValue rather than a plain
+     * number: 0 while this card is exactly active, rising continuously
+     * (through every fractional value in between) toward 1 as it approaches
+     * the immediate-neighbour rest slot, whether via a live drag, a spring
+     * settle, or a gaussian jump. Unlike `distanceFromActive` above (a
+     * discrete integer that only updates once a gesture RESOLVES to a new
+     * committed activeIndex), this changes throughout the transition
+     * itself — read it imperatively (`.on('change', ...)`/`.get()`), the
+     * same way `scrollX` itself is meant to be consumed, not as a React
+     * render dependency. Purely additive: every existing consumer of
+     * `distanceFromActive` is unaffected. */
+    distanceFromActiveLive: MotionValue<number>;
+  },
 ) => ReactNode;
 
 export interface CoverFlowProps<T> {
@@ -197,10 +213,62 @@ export interface CoverFlowProps<T> {
    * a fixed-time heuristic tried first wasn't reliable across real device
    * speeds. */
   suppressEntranceAnimation?: boolean;
+  /** Optional non-card content rendered as a plain sibling to the cards
+   * inside this component's own draggable root (`data-cover-flow-geometry`
+   * below) — outside the per-card `transform-style: preserve-3d` stack, so
+   * it sits in the root's own flat plane, unaffected by any single card's
+   * 3D transform. `undefined` (every existing caller): this render branch
+   * doesn't execute at all — the root's DOM, drag hit-area, and touch/click
+   * behavior stay byte-identical to before this prop existed.
+   *
+   * Exists so a caller can fold extra visual content into the SAME
+   * swipe/pan area the cards already use, rather than that content living
+   * as an external sibling the draggable root's own pointer handling never
+   * sees (PLAN-COVERFLOW-TIMELINE-SLOT-DRAG-AREA.md — pages/abstract.tsx's
+   * opt-in Timeline-in-track figure is the first, and so far only, caller).
+   * Native `onClick`/`<a href>` navigation already coexists reliably with
+   * this root's own `drag="x"` — the active card's own "Read article" link
+   * and its `onCardClick` handler below are proof already shipped in this
+   * exact component — so nesting other plain interactive elements here
+   * carries the same, already-proven behavior, not a new risk. */
+  overlayContent?: ReactNode;
 }
 
 function clampIndex(index: number, length: number) {
   return Math.min(Math.max(index, 0), Math.max(length - 1, 0));
+}
+
+/** Infinite-loop mode (CoverFlowConfig's own `infiniteLoopEnabled`). Maps a
+ * raw `index - position` difference to the NEAREST equivalent copy of that
+ * card around the current position: the result lands in `(-count/2, count/2]`,
+ * so every real card renders at whichever wrapped position is closest to the
+ * active slot and both sides stay populated (the "runway"). `count <= 0`
+ * (loop off / empty) returns the raw difference unchanged, so every transform
+ * that routes through this is byte-identical when the mode is off. */
+function wrapDelta(raw: number, count: number): number {
+  if (count <= 0) return raw;
+  let d = ((raw % count) + count) % count;
+  if (d > count / 2) d -= count;
+  return d;
+}
+
+/** The normal `[0, count)` display index for a (possibly out-of-range,
+ * loop-extended) position — what a paired list/timeline receives via
+ * `onActiveIndexChange` so it never sees the extended loop coordinate. */
+function wrapIndex(index: number, count: number): number {
+  if (count <= 0) return 0;
+  return ((Math.round(index) % count) + count) % count;
+}
+
+/** The nearest loop-extended integer whose wrapped index equals
+ * `targetDisplayIndex`, starting from `currentPos`. Lets a discrete jump to a
+ * `[0, count)` index (click-to-snap, a programmatic `activeIndex` change) move
+ * to the closest copy of that card rather than teleporting back into the
+ * base range — the key to keeping `positionX` continuous across the wrap. */
+function nearestLoopTarget(currentPos: number, targetDisplayIndex: number, count: number): number {
+  if (count <= 0) return targetDisplayIndex;
+  const currentRounded = Math.round(currentPos);
+  return currentRounded + wrapDelta(targetDisplayIndex - currentRounded, count);
 }
 
 /** Rubber-band overscroll — the same diminishing-returns curve native
@@ -313,14 +381,51 @@ function useCoverFlowGeometry(
       : tier === 'md'
         ? config.cardDistanceRatioMd
         : config.cardDistanceRatio;
+    const maxCardHeightPx = tier === 'lg'
+      ? config.maxCardHeightPxLg
+      : tier === 'md'
+        ? config.maxCardHeightPxMd
+        : config.maxCardHeightPx;
+    const activeCardLandingMode = tier === 'lg'
+      ? config.activeCardLandingModeLg
+      : tier === 'md'
+        ? config.activeCardLandingModeMd
+        : config.activeCardLandingMode;
+    const activeCardLandingXPercent = tier === 'lg'
+      ? config.activeCardLandingXPercentLg
+      : tier === 'md'
+        ? config.activeCardLandingXPercentMd
+        : config.activeCardLandingXPercent;
+    const stackSpacingToCenterGapRatio = tier === 'lg'
+      ? config.stackSpacingToCenterGapRatioLg
+      : tier === 'md'
+        ? config.stackSpacingToCenterGapRatioMd
+        : config.stackSpacingToCenterGapRatio;
+    const stackSpacingGrowthPercent = tier === 'lg'
+      ? config.stackSpacingGrowthPercentLg
+      : tier === 'md'
+        ? config.stackSpacingGrowthPercentMd
+        : config.stackSpacingGrowthPercent;
+    const rotationMaxDeg = tier === 'lg'
+      ? config.rotationMaxDegLg
+      : tier === 'md'
+        ? config.rotationMaxDegMd
+        : config.rotationMaxDeg;
+    const rotationDistanceGrowthPercent = tier === 'lg'
+      ? config.rotationDistanceGrowthPercentLg
+      : tier === 'md'
+        ? config.rotationDistanceGrowthPercentMd
+        : config.rotationDistanceGrowthPercent;
 
     // Falls back to the reference width before the first real measurement
-    // lands. No fixed pixel ceiling — see CoverFlow.config.ts's own
-    // cardWidthRatio doc comment for why a ceiling makes the ratio a no-op.
+    // lands. The width ratio itself has no pixel ceiling; the separately
+    // configured height cap below may reduce both dimensions together.
     let itemWidth = containerWidthPx && containerWidthPx > 0
       ? Math.min(containerWidthPx, Math.max(config.minCardWidthPx, containerWidthPx * cardWidthRatio))
       : config.referenceWidthPx;
-    let itemHeight = itemWidth * config.cardAspectRatio;
+    const cappedSize = capCoverFlowCardSize(itemWidth, config.cardAspectRatio, maxCardHeightPx);
+    itemWidth = cappedSize.width;
+    let itemHeight = cappedSize.height;
     // config.cardAspectRatio is never deformed: whenever the available
     // vertical room forces the card smaller, width shrinks right along with
     // height (never height alone) so the card's own proportions stay
@@ -343,23 +448,90 @@ function useCoverFlowGeometry(
       }
     }
     const centerGap = itemWidth * cardDistanceRatio;
-    const stackSpacing = centerGap * config.stackSpacingToCenterGapRatio;
+    const stackSpacing = centerGap * stackSpacingToCenterGapRatio;
     const depthScale = itemWidth / config.referenceWidthPx;
     const depthPx = config.depthPxAtReferenceWidth * depthScale;
     const perspectiveOrigin = `${config.perspectiveOriginXPercent}% ${config.perspectiveOriginYPercent}%`;
+    // PLAN-COVERFLOW-ACTIVE-CARD-LANDING-POSITION.md — a pure rendering-time
+    // constant, not part of the pos/positionX model drag/wheel/click-to-snap/
+    // the external-driver contract share, so none of those need to know
+    // about it. 0 (activeCardLandingMode === 'center', the default at every
+    // tier) makes this byte-identical to before this field group existed.
+    const activeCardLandingOffsetPx = activeCardLandingMode !== 'center' && containerWidthPx
+      ? (containerWidthPx * (activeCardLandingXPercent - 50)) / 100
+      : 0;
 
-    return { itemWidth, itemHeight, centerGap, stackSpacing, depthPx, perspectiveOrigin };
+    return {
+      itemWidth, itemHeight, centerGap, stackSpacing, depthPx, perspectiveOrigin,
+      activeCardLandingMode, activeCardLandingOffsetPx,
+      stackSpacingGrowthPercent, rotationMaxDeg, rotationDistanceGrowthPercent,
+    };
   }, [
     config, containerWidthPx, containerHeightPx, tier,
     hoverMaxScale, hoverMaxLiftPx, hoverMaxTiltDeg, hoverTiltPerspectivePx,
   ]);
 }
 
+/** How many inactive cards currently sit at least partially VISIBLE to the
+ * left of the active card, given the resolved resting geometry and the
+ * measured container width — the divisor `leftFadeEnabled`'s progressive fade
+ * is normalized over (see CoverFlowConfig's own `leftFadeEnabled` doc
+ * comment). Mirrors CoverFlowItemInner's own resting-x magnitude formula for a
+ * left-side card (pos < 0) at each integer distance, counting outward until a
+ * card's right edge no longer clears the container's own left edge. Left
+ * magnitude is monotonic in distance (each added spacing term is
+ * non-negative), so the first card that falls off the edge ends the count.
+ * `activeCardLandingOffsetPx` shifts every card together, so a rightward
+ * landing simply frees more room on the left and raises the count. */
+function resolveVisibleLeftCardCount({
+  containerWidthPx,
+  itemWidth,
+  centerGap,
+  stackSpacing,
+  stackSpacingGrowthPercent,
+  includesFirstNeighbor,
+  activeCardLandingOffsetPx,
+  maxCount,
+}: {
+  containerWidthPx: number;
+  itemWidth: number;
+  centerGap: number;
+  stackSpacing: number;
+  stackSpacingGrowthPercent: number;
+  includesFirstNeighbor: boolean;
+  activeCardLandingOffsetPx: number;
+  maxCount: number;
+}): number {
+  if (containerWidthPx <= 0 || itemWidth <= 0) return 0;
+  const halfContainer = containerWidthPx / 2;
+  const growthRatio = 1 + stackSpacingGrowthPercent / 100;
+  const leftMagnitude = (absPos: number) => {
+    if (includesFirstNeighbor) {
+      return growthRatio === 1
+        ? stackSpacing * absPos
+        : stackSpacing * (Math.pow(growthRatio, absPos) - 1) / (growthRatio - 1);
+    }
+    const growthSum = absPos < 1
+      ? 0
+      : growthRatio === 1
+        ? absPos - 1
+        : (Math.pow(growthRatio, absPos - 1) - 1) / (growthRatio - 1);
+    return centerGap + stackSpacing * growthSum;
+  };
+  let count = 0;
+  for (let k = 1; k <= maxCount; k += 1) {
+    const centerX = activeCardLandingOffsetPx - leftMagnitude(k);
+    if (centerX + itemWidth / 2 > -halfContainer) count = k;
+    else break;
+  }
+  return count;
+}
+
 export function CoverFlow<T>({
-  items,
-  activeIndex,
-  onActiveIndexChange,
-  renderItem,
+  items: itemsProp,
+  activeIndex: activeIndexProp,
+  onActiveIndexChange: onActiveIndexChangeProp,
+  renderItem: renderItemProp,
   config = DEFAULT_COVER_FLOW_CONFIG,
   cardWidthBasisPx,
   requireCardWidthBasis = false,
@@ -369,11 +541,64 @@ export function CoverFlow<T>({
   hoverMaxTiltDeg = 0,
   hoverTiltPerspectivePx = 1000,
   className,
-  onItemClick,
-  externalDriver,
+  onItemClick: onItemClickProp,
+  externalDriver: externalDriverProp,
   accessibilityHidden = false,
   suppressEntranceAnimation = false,
+  overlayContent,
 }: CoverFlowProps<T>) {
+  // reverseItemOrder is a purely positional flip applied at this component's
+  // own external boundary — activeIndex/onActiveIndexChange/onItemClick, and
+  // the index a renderItem implementation receives, all stay in the
+  // CALLER's original array order regardless of this flag (mapIndex is its
+  // own inverse, so applying it once going in and once going out round-
+  // trips exactly). Every internal reference below (drag/wheel physics,
+  // spring/gaussian settle, click-to-snap) reads `items`/`activeIndex` — the
+  // already-mapped, display-order versions — so none of that logic needs to
+  // know this flag exists at all. See CoverFlowConfig's own
+  // `reverseItemOrder` doc comment.
+  const { reverseItemOrder } = config;
+  const mapIndex = useCallback((index: number) => (
+    reverseItemOrder ? itemsProp.length - 1 - index : index
+  ), [itemsProp.length, reverseItemOrder]);
+  const items = useMemo(() => (
+    reverseItemOrder ? itemsProp.slice().reverse() : itemsProp
+  ), [itemsProp, reverseItemOrder]);
+  const activeIndex = mapIndex(activeIndexProp);
+  const onActiveIndexChange = useCallback((index: number) => {
+    onActiveIndexChangeProp(mapIndex(index));
+  }, [onActiveIndexChangeProp, mapIndex]);
+  const onItemClick = useMemo(() => (
+    onItemClickProp
+      ? (item: T, index: number) => onItemClickProp(item, mapIndex(index))
+      : undefined
+  ), [onItemClickProp, mapIndex]);
+  const renderItem = useCallback<CoverFlowRenderItem<T>>((
+    item, index, isActive, geometry, reveal, position,
+  ) => (
+    renderItemProp(item, mapIndex(index), isActive, geometry, reveal, position)
+  ), [renderItemProp, mapIndex]);
+  // externalDriver.position/onPositionRequest are ALSO index-space, on a
+  // completely separate contract from activeIndex/onActiveIndexChange above
+  // (a parent owning CoverFlow's continuous position directly, e.g. mobile's
+  // pinned-scroll sync) — easy to miss wrapping since it's its own prop, not
+  // a variant of the discrete index path. Left unmapped, a caller's
+  // externally-driven `position` lands in positionX still in the CALLER's
+  // original order while every other internal reference already reads
+  // display order, snapping the live card to the wrong on-screen slot the
+  // instant this driver's own position-sync effect runs (confirmed live:
+  // the geometrically centered card and the one carrying `isActive`/
+  // revealed text ended up several slots apart, reproducible with
+  // `reverseItemOrder` alone since MobilePinnedArticleSection's own
+  // CoverFlow instance also serves the non-split desktop/tablet layout, not
+  // just true mobile).
+  const externalDriver = useMemo(() => (
+    externalDriverProp ? {
+      ...externalDriverProp,
+      position: mapIndex(externalDriverProp.position),
+      onPositionRequest: (index: number) => externalDriverProp.onPositionRequest(mapIndex(index)),
+    } : undefined
+  ), [externalDriverProp, mapIndex]);
   const safeInitial = clampIndex(activeIndex, items.length);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -382,18 +607,84 @@ export function CoverFlow<T>({
     containerRef.current = element;
     measureRef(element);
   }, [measureRef]);
+  const { tier } = useBreakpointTier();
+  const alignActiveCardRightToMainNav = tier === 'lg'
+    ? config.alignActiveCardRightToMainNavLg
+    : tier === 'md' && config.alignActiveCardRightToMainNavMd;
+  const [mainNavLandingOffsetPx, setMainNavLandingOffsetPx] = useState<number | null>(null);
 
-  const { itemWidth, itemHeight, centerGap, stackSpacing, depthPx, perspectiveOrigin } =
-    useCoverFlowGeometry(
-      config, cardWidthBasisPx ?? containerRect?.width, containerRect?.height,
-      hoverMaxScale, hoverMaxLiftPx, hoverMaxTiltDeg, hoverTiltPerspectivePx,
-    );
+  const {
+    itemWidth, itemHeight, centerGap, stackSpacing, depthPx, perspectiveOrigin,
+    activeCardLandingMode, activeCardLandingOffsetPx,
+    stackSpacingGrowthPercent, rotationMaxDeg, rotationDistanceGrowthPercent,
+  } = useCoverFlowGeometry(
+    config, cardWidthBasisPx ?? containerRect?.width, containerRect?.height,
+    hoverMaxScale, hoverMaxLiftPx, hoverMaxTiltDeg, hoverTiltPerspectivePx,
+  );
   const hasContainerGeometry = Boolean(
     containerRect && containerRect.width > 0 && containerRect.height > 0,
   );
   const hasRequiredWidthBasis = !requireCardWidthBasis
     || (cardWidthBasisPx !== undefined && cardWidthBasisPx > 0);
   const geometryReady = hasContainerGeometry && hasRequiredWidthBasis;
+
+  // Bridge two independently rendered layout systems by measuring their real
+  // boxes, rather than duplicating header padding/column assumptions here.
+  // `anchorShift` below translates the COMPLETE CoverFlow stack by one
+  // constant, so its internal card geometry remains wholly unchanged while
+  // the active card's right edge tracks the primary nav's right boundary.
+  useLayoutEffect(() => {
+    if (!alignActiveCardRightToMainNav) {
+      setMainNavLandingOffsetPx(null);
+      return undefined;
+    }
+    const container = containerRef.current;
+    const nav = document.querySelector<HTMLElement>('nav[aria-label="Primary navigation"]');
+    if (!container || !nav) return undefined;
+    const applyAlignment = () => {
+      const containerBox = container.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      setMainNavLandingOffsetPx(navBox.right - containerBox.left - itemWidth / 2 - containerBox.width / 2);
+    };
+    applyAlignment();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(applyAlignment);
+    observer?.observe(container);
+    observer?.observe(nav);
+    window.addEventListener('resize', applyAlignment);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', applyAlignment);
+    };
+  }, [alignActiveCardRightToMainNav, itemWidth]);
+  const effectiveActiveCardLandingMode = alignActiveCardRightToMainNav
+    ? 'anchorShift'
+    : activeCardLandingMode;
+  const effectiveActiveCardLandingOffsetPx = alignActiveCardRightToMainNav
+    ? mainNavLandingOffsetPx ?? 0
+    : activeCardLandingOffsetPx;
+
+  // Divisor for the opt-in left-side fade (CoverFlowConfig's own
+  // `leftFadeEnabled`). Geometry-derived, so it only recomputes when the
+  // resolved spacing/width/landing actually change — not per drag frame; the
+  // per-card fade itself is a live `useTransform` on `positionX` below.
+  const visibleLeftCardCount = useMemo(() => (
+    config.leftFadeEnabled
+      ? resolveVisibleLeftCardCount({
+        containerWidthPx: containerRect?.width ?? 0,
+        itemWidth,
+        centerGap,
+        stackSpacing,
+        stackSpacingGrowthPercent,
+        includesFirstNeighbor: config.stackSpacingGrowthIncludesFirstNeighbor,
+        activeCardLandingOffsetPx: effectiveActiveCardLandingOffsetPx,
+        maxCount: Math.max(0, items.length - 1),
+      })
+      : 0
+  ), [
+    config.leftFadeEnabled, config.stackSpacingGrowthIncludesFirstNeighbor,
+    containerRect?.width, itemWidth, centerGap, stackSpacing, stackSpacingGrowthPercent,
+    effectiveActiveCardLandingOffsetPx, items.length,
+  ]);
 
   const activeIndexRef = useRef(safeInitial);
   const enableScrollRef = useRef(config.enableScroll);
@@ -431,6 +722,12 @@ export function CoverFlow<T>({
   // internal (desktop, non-externalDriver) one below.
   const positionX = useMotionValue(safeInitial);
   const externallyControlled = externalDriver !== undefined;
+  // Infinite-loop mode (CoverFlowConfig's own `infiniteLoopEnabled`). Off (0)
+  // for an externally-driven instance: that path's position is owned by the
+  // parent's scroll-sync, so wrapping it there is the caller's concern, not
+  // this component's. 0 makes every wrapDelta/wrapIndex call below a no-op, so
+  // the whole feature is byte-identical when off.
+  const loopCount = config.infiniteLoopEnabled && !externallyControlled ? items.length : 0;
   const externalDriverRef = useRef(externalDriver);
   externalDriverRef.current = externalDriver;
   // Set by onDragEnd's external branch below, immediately before it calls
@@ -621,6 +918,24 @@ export function CoverFlow<T>({
   // settle motion as every other way a card becomes active, not a
   // competing instant snap.
   useEffect(() => {
+    // Loop mode: activeIndexRef holds the loop-EXTENDED coordinate (which can
+    // roam past [0, count)); the incoming `activeIndex` prop is always a
+    // normal [0, count) index. Compare on the wrapped value so our own echoed
+    // change is a no-op, and for a genuine external change move to the nearest
+    // copy of that card rather than teleporting back into the base range.
+    if (loopCount > 0) {
+      if (wrapIndex(activeIndexRef.current, loopCount) === wrapIndex(activeIndex, loopCount)) return;
+      const target = nearestLoopTarget(positionX.get(), activeIndex, loopCount);
+      activeIndexRef.current = target;
+      if (prefersReducedMotion) {
+        positionX.jump(target);
+      } else if (config.settleMotionCurve === 'gaussian') {
+        animateGaussianToIndex(target);
+      } else {
+        animate(positionX, target, { ...POSITION_SPRING_TRANSITION, velocity: positionX.getVelocity() });
+      }
+      return;
+    }
     const clamped = clampIndex(activeIndex, items.length);
     if (clamped !== activeIndexRef.current) {
       activeIndexRef.current = clamped;
@@ -636,11 +951,28 @@ export function CoverFlow<T>({
     }
   }, [
     activeIndex, externallyControlled, items.length, positionX, prefersReducedMotion,
-    config.settleMotionCurve, animateGaussianToIndex,
+    config.settleMotionCurve, animateGaussianToIndex, loopCount,
   ]);
 
   const jumpToIndex = useCallback(
     (index: number) => {
+      // Loop mode: snap to the nearest copy of the clicked card so the motion
+      // stays a short, seamless step across the wrap rather than a long
+      // rewind. Report the plain wrapped index to the caller.
+      if (loopCount > 0) {
+        const target = nearestLoopTarget(positionX.get(), index, loopCount);
+        if (wrapIndex(target, loopCount) === wrapIndex(activeIndexRef.current, loopCount)) return;
+        activeIndexRef.current = target;
+        if (prefersReducedMotion) {
+          positionX.jump(target);
+        } else if (config.settleMotionCurve === 'gaussian') {
+          animateGaussianToIndex(target);
+        } else {
+          animate(positionX, target, { ...POSITION_SPRING_TRANSITION, velocity: positionX.getVelocity() });
+        }
+        onActiveIndexChangeRef.current(wrapIndex(target, loopCount));
+        return;
+      }
       const clamped = clampIndex(index, items.length);
       if (clamped === activeIndexRef.current) return;
       if (externalDriverRef.current) {
@@ -663,7 +995,7 @@ export function CoverFlow<T>({
       }
       onActiveIndexChangeRef.current(clamped);
     },
-    [items.length, positionX, prefersReducedMotion, config.settleMotionCurve, animateGaussianToIndex],
+    [items.length, positionX, prefersReducedMotion, config.settleMotionCurve, animateGaussianToIndex, loopCount],
   );
 
   // PLAN-COVERFLOW-WHEEL-TRACKPAD-DRAG-PARITY.md: wheel/trackpad input now
@@ -709,21 +1041,32 @@ export function CoverFlow<T>({
       // DECREASES positionX) — see the `+` in the continuous-tracking
       // .set() call below for the same reasoning.
       const projected = positionX.get() + velocityPxPerSec * VELOCITY_PROJECTION;
-      const clamped = clampIndex(Math.round(projected), items.length);
-      if (clamped !== activeIndexRef.current) {
-        activeIndexRef.current = clamped;
-        onActiveIndexChangeRef.current(clamped);
+      // Loop mode: settle to the raw rounded position (no clamp) so the wrap
+      // is seamless; report the plain wrapped index. activeIndexRef holds the
+      // loop-extended coordinate for positionX continuity.
+      const target = loopCount > 0
+        ? Math.round(projected)
+        : clampIndex(Math.round(projected), items.length);
+      if (loopCount > 0) {
+        const wrapped = wrapIndex(target, loopCount);
+        if (wrapped !== wrapIndex(activeIndexRef.current, loopCount)) {
+          onActiveIndexChangeRef.current(wrapped);
+        }
+        activeIndexRef.current = target;
+      } else if (target !== activeIndexRef.current) {
+        activeIndexRef.current = target;
+        onActiveIndexChangeRef.current(target);
       }
       if (prefersReducedMotion) {
-        positionX.jump(clamped);
+        positionX.jump(target);
       } else if (config.settleMotionCurve === 'gaussian') {
-        animateGaussianToIndex(clamped);
+        animateGaussianToIndex(target);
       } else {
         // Glides from wherever the gesture actually left positionX (no
         // jump, no swap), seeded with the gesture's own estimated release
         // velocity — the wheel-input equivalent of onDragEnd's identical
         // branch below.
-        animate(positionX, clamped, {
+        animate(positionX, target, {
           ...POSITION_SPRING_TRANSITION,
           velocity: velocityPxPerSec / (centerGap * 0.8),
         });
@@ -759,8 +1102,12 @@ export function CoverFlow<T>({
       // applyRubberBandOverscroll's own doc comment for why this is
       // wheel-only, not applied to onDrag.
       const rawPosition = positionX.get() + e.deltaX / (centerGap * 0.8);
+      // Loop mode: no edge to rubber-band against — the position flows freely
+      // and the wrapped rendering keeps both sides populated.
       positionX.set(
-        applyRubberBandOverscroll(rawPosition, items.length - 1, wheelOverscrollLimitRef.current),
+        loopCount > 0
+          ? rawPosition
+          : applyRubberBandOverscroll(rawPosition, items.length - 1, wheelOverscrollLimitRef.current),
       );
 
       const now = Date.now();
@@ -777,18 +1124,26 @@ export function CoverFlow<T>({
     };
   }, [
     items.length, positionX, centerGap, prefersReducedMotion,
-    config.settleMotionCurve, animateGaussianToIndex,
+    config.settleMotionCurve, animateGaussianToIndex, loopCount,
   ]);
 
   const handleCardClick = useCallback(
     (item: T, index: number) => {
-      if (index === activeIndexRef.current) {
+      // Loop mode keeps activeIndexRef in loop-extended coordinates, so the
+      // "clicked the active card" check must compare on the wrapped [0, count)
+      // index the clicked card actually carries — otherwise clicking the
+      // active card would miss its own onItemClick (e.g. "Read article") and
+      // fall through to a no-op re-snap.
+      const isActiveCard = loopCount > 0
+        ? wrapIndex(activeIndexRef.current, loopCount) === index
+        : index === activeIndexRef.current;
+      if (isActiveCard) {
         onItemClickRef.current?.(item, index);
       } else if (enableClickToSnapRef.current) {
         jumpToIndex(index);
       }
     },
-    [jumpToIndex],
+    [jumpToIndex, loopCount],
   );
 
   const externalDragActiveRef = useRef(false);
@@ -853,13 +1208,23 @@ export function CoverFlow<T>({
         return;
       }
       const projected = positionX.get() - info.velocity.x * 0.002;
-      const clamped = clampIndex(Math.round(projected), items.length);
-      if (clamped !== activeIndexRef.current) {
-        activeIndexRef.current = clamped;
-        onActiveIndexChangeRef.current(clamped);
+      // Loop mode: settle to the raw rounded position (no clamp), report the
+      // wrapped index, keep activeIndexRef in loop-extended coordinates.
+      const target = loopCount > 0
+        ? Math.round(projected)
+        : clampIndex(Math.round(projected), items.length);
+      if (loopCount > 0) {
+        const wrapped = wrapIndex(target, loopCount);
+        if (wrapped !== wrapIndex(activeIndexRef.current, loopCount)) {
+          onActiveIndexChangeRef.current(wrapped);
+        }
+        activeIndexRef.current = target;
+      } else if (target !== activeIndexRef.current) {
+        activeIndexRef.current = target;
+        onActiveIndexChangeRef.current(target);
       }
       if (prefersReducedMotion) {
-        positionX.jump(clamped);
+        positionX.jump(target);
       } else {
         // Glides from the exact position the finger just left off (no
         // swap, no jump) toward the settled index, seeded with the drag's
@@ -868,13 +1233,13 @@ export function CoverFlow<T>({
         // derivative vulnerable to single-interval timing noise; see
         // externalReleaseVelocityRef's own doc comment for the live-verified
         // failure mode that caused).
-        animate(positionX, clamped, {
+        animate(positionX, target, {
           ...POSITION_SPRING_TRANSITION,
           velocity: -info.velocity.x / (centerGap * 0.8),
         });
       }
     },
-    [centerGap, items.length, positionX, prefersReducedMotion],
+    [centerGap, items.length, positionX, prefersReducedMotion, loopCount],
   );
 
   if (items.length === 0) return null;
@@ -916,8 +1281,18 @@ export function CoverFlow<T>({
             width={itemWidth}
             height={itemHeight}
             stackSpacing={stackSpacing}
+            stackSpacingGrowthPercent={stackSpacingGrowthPercent}
+            stackSpacingGrowthIncludesFirstNeighbor={config.stackSpacingGrowthIncludesFirstNeighbor}
             centerGap={centerGap}
             rotation={config.rotationDeg}
+            rotationDistributionMode={config.rotationDistributionMode}
+            rotationProgressionMode={config.rotationProgressionMode}
+            rotationMaxDeg={rotationMaxDeg}
+            rotationSpreadDepth={config.rotationSpreadDepth}
+            rotationSpreadExponent={config.rotationSpreadExponent}
+            rotationDistanceGrowthPercent={rotationDistanceGrowthPercent}
+            rotationGrowthIncludesFirstNeighbor={config.rotationGrowthIncludesFirstNeighbor}
+            showCardBackface={config.showCardBackface}
             depthPx={depthPx}
             isActive={index === activeIndex}
             activeIndex={activeIndex}
@@ -929,9 +1304,16 @@ export function CoverFlow<T>({
             reveal={reveal}
             dataActive={index === activeIndex}
             flattenPerspective={prefersReducedMotion && externallyControlled}
+            activeCardLandingMode={effectiveActiveCardLandingMode}
+            activeCardLandingOffsetPx={effectiveActiveCardLandingOffsetPx}
+            leftFadeEnabled={config.leftFadeEnabled}
+            leftFadeMinOpacity={config.leftFadeMinOpacity}
+            visibleLeftCardCount={visibleLeftCardCount}
+            loopItemCount={loopCount}
           />
         ))}
       </div>
+      {overlayContent}
     </motion.div>
   );
 }
@@ -943,8 +1325,18 @@ interface CardProps<T> {
   width: number;
   height: number;
   stackSpacing: number;
+  stackSpacingGrowthPercent: number;
+  stackSpacingGrowthIncludesFirstNeighbor: boolean;
   centerGap: number;
   rotation: number;
+  rotationDistributionMode: CoverFlowConfig['rotationDistributionMode'];
+  rotationProgressionMode: CoverFlowConfig['rotationProgressionMode'];
+  rotationMaxDeg: number;
+  rotationSpreadDepth: number;
+  rotationSpreadExponent: number;
+  rotationDistanceGrowthPercent: number;
+  rotationGrowthIncludesFirstNeighbor: boolean;
+  showCardBackface: boolean;
   depthPx: number;
   isActive: boolean;
   activeIndex: number;
@@ -956,6 +1348,14 @@ interface CardProps<T> {
   reveal: CoverFlowCardReveal;
   dataActive: boolean;
   flattenPerspective: boolean;
+  activeCardLandingMode: 'center' | 'anchorShift' | 'activeOnly';
+  activeCardLandingOffsetPx: number;
+  leftFadeEnabled: boolean;
+  leftFadeMinOpacity: number;
+  visibleLeftCardCount: number;
+  /** >0 enables infinite-loop rendering (the item count to wrap around);
+   * 0 renders the linear stack exactly as before. */
+  loopItemCount: number;
 }
 
 function CoverFlowItemInner<T>({
@@ -965,8 +1365,18 @@ function CoverFlowItemInner<T>({
   width,
   height,
   stackSpacing,
+  stackSpacingGrowthPercent,
+  stackSpacingGrowthIncludesFirstNeighbor,
   centerGap,
   rotation,
+  rotationDistributionMode,
+  rotationProgressionMode,
+  rotationMaxDeg,
+  rotationSpreadDepth,
+  rotationSpreadExponent,
+  rotationDistanceGrowthPercent,
+  rotationGrowthIncludesFirstNeighbor,
+  showCardBackface,
   depthPx,
   isActive,
   activeIndex,
@@ -978,21 +1388,145 @@ function CoverFlowItemInner<T>({
   reveal,
   dataActive,
   flattenPerspective,
+  activeCardLandingMode,
+  activeCardLandingOffsetPx,
+  leftFadeEnabled,
+  leftFadeMinOpacity,
+  visibleLeftCardCount,
+  loopItemCount,
 }: CardProps<T>) {
+  // PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md — same computation x/rotateY/z
+  // below already do inline every frame, surfaced as its own MotionValue so
+  // a caller can react to this card's continuous closeness to the active
+  // slot (e.g. tapering a lift ceiling before a discrete role change lands)
+  // without waiting for the discrete distanceFromActive integer to update.
+  const distanceFromActiveLive = useTransform(scrollX, (value) => Math.abs(wrapDelta(index - value, loopItemCount)));
+
   const rotateY = useTransform(scrollX, (value) => {
     if (reduceMotion) return 0;
-    const pos = index - value;
+    const pos = wrapDelta(index - value, loopItemCount);
     const absPos = Math.abs(pos);
-    return absPos < 0.5 ? -pos * (rotation * 2) : pos < 0 ? rotation : -rotation;
+    // `spread` distributes one bounded rotation budget across the depth of
+    // the visible maze. Unlike compounding, it cannot burn through the
+    // 90deg projection ceiling in the first few cards and leave every
+    // remaining card with the same silhouette. `compounding` remains for
+    // existing compositions which explicitly select it.
+    if (rotationDistributionMode === 'spread') {
+      const cappedMax = Math.max(rotation, Math.min(90, rotationMaxDeg));
+      if (absPos < 0.5) return absPos * (rotation * 2);
+      const depthRange = Math.max(1, rotationSpreadDepth - 1);
+      const progress = Math.min(1, Math.max(0, (absPos - 1) / depthRange));
+      const magnitude = rotation + (cappedMax - rotation) * Math.pow(progress, rotationSpreadExponent);
+      return magnitude;
+    }
+    // Legacy rhythmic distribution (rotationDistanceGrowthPercent/
+    // rotationGrowthIncludesFirstNeighbor's own doc comments,
+    // CoverFlow.config.ts). rotationGrowthIncludesFirstNeighbor false
+    // (default): firstNeighbourRotation === rotation, so every line below
+    // reproduces the pre-existing flat-first-neighbour behavior exactly —
+    // true: the immediate neighbour's own rotation is itself the growth
+    // series' first term (rotation * growthRatio), and every neighbour
+    // beyond it shifts out by that same one extra power of growthRatio, so
+    // the whole stack reads as one continuous rhythm instead of a flat
+    // first neighbour followed by a differently-paced one. The active
+    // card's own approach through center (absPos < 0.5) eases toward
+    // whichever of the two is active, so there is no snap at the boundary
+    // either way.
+    const growthRatio = 1 + rotationDistanceGrowthPercent / 100;
+    const invertedNearestRotation = rotationMaxDeg;
+    const invertedFarRotation = Math.min(rotation, rotationMaxDeg);
+    const firstNeighbourRotation = rotationGrowthIncludesFirstNeighbor
+      ? rotation * growthRatio
+      : rotation;
+    const nearestRotation = rotationProgressionMode === 'invert'
+      ? invertedNearestRotation
+      : firstNeighbourRotation;
+    if (absPos < 0.5) return absPos * (Math.min(90, nearestRotation) * 2);
+    const magnitude = rotationProgressionMode === 'invert'
+      ? Math.max(
+        invertedFarRotation,
+        invertedNearestRotation / Math.pow(growthRatio, Math.max(0, absPos - 1)),
+      )
+      : growthRatio === 1
+        ? firstNeighbourRotation
+        : firstNeighbourRotation * Math.pow(growthRatio, Math.max(0, absPos - 1));
+    // The percentage curve stops at the configured near-edge-on maximum,
+    // rather than CSS's theoretical 90deg edge. This keeps the final card
+    // a deliberate sliver, avoids a face flip, and makes the cap tuneable
+    // without altering perspective, depth, or card dimensions.
+    const cappedMagnitude = rotationProgressionMode === 'invert'
+      ? Math.min(90, magnitude)
+      : Math.min(rotationMaxDeg, magnitude);
+    // Both branches rotate away from the viewing plane. The previous signed
+    // pair made the right branch rotate toward the camera under this
+    // CoverFlow's perspective, which preserved broad card faces instead of
+    // producing the required distance-based narrowing.
+    return cappedMagnitude;
   });
-
+  // PLAN-COVERFLOW-ACTIVE-CARD-LANDING-POSITION.md — activeCardLandingMode
+  // 'center' (every tier's default) always falls through to `base`
+  // unmodified, so this is byte-identical to before this field group
+  // existed unless an operator explicitly opts a tier into one of the other
+  // two modes. 'activeOnly' only ever touches the existing `absPos < 1`
+  // window (the active card and its live transition) — every card at
+  // `absPos >= 1` returns `base` untouched, regardless of
+  // activeCardLandingOffsetPx, which is what makes "the only card that
+  // lands in a different spot is the active card" provable rather than
+  // just visually approximate.
   const x = useTransform(scrollX, (value) => {
-    const pos = index - value;
+    const pos = wrapDelta(index - value, loopItemCount);
     const absPos = Math.abs(pos);
-    if (absPos < 1) return pos * centerGap;
-    return pos < 0
-      ? -centerGap - (absPos - 1) * stackSpacing
-      : centerGap + (absPos - 1) * stackSpacing;
+    // Rhythmic distribution (stackSpacingGrowthPercent/
+    // stackSpacingGrowthIncludesFirstNeighbor's own doc comments,
+    // CoverFlow.config.ts). stackSpacingGrowthIncludesFirstNeighbor false
+    // (default): reproduces the pre-existing flat `(absPos - 1) *
+    // stackSpacing` formula byte-for-byte (growthSum collapses to
+    // absPos - 1 whenever growthRatio === 1 too) — the active-to-first-
+    // neighbour gap stays the separately-configured centerGap, unrelated
+    // to stackSpacing's own rhythm.
+    //
+    // true: centerGap drops out of the RESTING/live position entirely (it
+    // still governs unrelated concerns elsewhere — drag/wheel sensitivity,
+    // the click-vs-drag threshold — just not where a settled card sits).
+    // stackSpacing itself becomes the series' own first term instead, so
+    // the active-to-first-neighbour gap already reads as "one stackSpacing
+    // unit," the exact same unit the first-to-second gap already used —
+    // rather than centerGap, a separately-tunable value with no required
+    // relationship to stackSpacing at all (that mismatch, not the growth
+    // math, is what left the first neighbour reading as tucked in tight
+    // against the active card even with the growth series otherwise
+    // running correctly deeper in the stack — operator-reported,
+    // screenshot). One closed-form `magnitude(absPos)` now covers the
+    // active card's own approach through center AND every resting
+    // neighbour continuously (absPos = 0 -> magnitude 0, matching the
+    // active card exactly), rather than two separately-shaped formulas
+    // that only had to agree at the absPos = 1 seam.
+    const growthRatio = 1 + stackSpacingGrowthPercent / 100;
+    let base: number;
+    if (stackSpacingGrowthIncludesFirstNeighbor) {
+      const magnitude = growthRatio === 1
+        ? stackSpacing * absPos
+        : stackSpacing * (Math.pow(growthRatio, absPos) - 1) / (growthRatio - 1);
+      base = pos < 0 ? -magnitude : magnitude;
+    } else {
+      const growthSum = absPos < 1
+        ? 0
+        : growthRatio === 1
+          ? absPos - 1
+          : (Math.pow(growthRatio, absPos - 1) - 1) / (growthRatio - 1);
+      base = absPos < 1
+        ? pos * centerGap
+        : pos < 0
+          ? -centerGap - stackSpacing * growthSum
+          : centerGap + stackSpacing * growthSum;
+    }
+
+    if (activeCardLandingMode === 'anchorShift') return base + activeCardLandingOffsetPx;
+    if (activeCardLandingMode === 'activeOnly' && absPos < 1) {
+      const taper = 1 - absPos; // 1 exactly at pos === 0, 0 at |pos| === 1
+      return base + activeCardLandingOffsetPx * taper;
+    }
+    return base;
   });
 
   // depthPx is the closest neighbour's own magnitude, proportional to card
@@ -1013,8 +1547,25 @@ function CoverFlowItemInner<T>({
   // at all).
   const z = useTransform(scrollX, (value) => {
     if (reduceMotion) return 0;
-    const absPos = Math.abs(index - value);
+    const absPos = Math.abs(wrapDelta(index - value, loopItemCount));
     return absPos > 0.5 ? -depthPx : absPos * -depthPx * 2;
+  });
+
+  // Opt-in left-side fade (CoverFlowConfig's own `leftFadeEnabled`). Live in
+  // the same fractional `pos = index - scrollX` the transforms above derive:
+  // pos >= 0 (the active card and everything to its right) stays fully opaque;
+  // a left card fades linearly from 1 at the active slot down to
+  // `leftFadeMinOpacity` by the time its distance reaches
+  // `visibleLeftCardCount` (the count of currently-visible left cards), so the
+  // leftmost visible card lands exactly at the configured floor and anything
+  // beyond it clamps there.
+  const opacity = useTransform(scrollX, (value) => {
+    if (!leftFadeEnabled) return 1;
+    const pos = wrapDelta(index - value, loopItemCount);
+    if (pos >= 0) return 1;
+    const denom = Math.max(1, visibleLeftCardCount);
+    const t = Math.min(1, -pos / denom);
+    return 1 - t * (1 - leftFadeMinOpacity);
   });
 
   const cursor = isDragging ? 'grabbing' : isActive || enableClickToSnap ? 'pointer' : 'grab';
@@ -1031,7 +1582,12 @@ function CoverFlowItemInner<T>({
         x,
         z,
         rotateY,
+        // Only bind opacity when the fade is on, so the disabled path never
+        // sets an inline opacity (byte-identical to before this feature).
+        opacity: leftFadeEnabled ? opacity : undefined,
         transformStyle: flattenPerspective ? 'flat' : 'preserve-3d',
+        backfaceVisibility: showCardBackface ? 'visible' : 'hidden',
+        WebkitBackfaceVisibility: showCardBackface ? 'visible' : 'hidden',
         cursor,
       }}
       onClick={() => onCardClick(item, index)}
@@ -1043,7 +1599,8 @@ function CoverFlowItemInner<T>({
         { width, height },
         reveal,
         {
-          distanceFromActive: Math.abs(index - activeIndex),
+          distanceFromActive: Math.abs(wrapDelta(index - activeIndex, loopItemCount)),
+          distanceFromActiveLive,
         },
       )}
     </motion.div>

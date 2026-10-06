@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import Link from 'next/link';
 import { CTA_BUTTON_MOTION_EASINGS } from '../../../components/CtaButton/config/registered';
 import { useExpandableHeight } from '../../../components/useExpandableHeight';
@@ -27,8 +27,8 @@ import styles from '../../../pages/about.module.css';
 // is deliberately absent here (was a hardcoded text-white) — applied via
 // the textColor prop's own inline style instead (AboutMobileAccordionConfig
 // .textSurfaceOffset, derived from the page's own column background).
-function contentTextClassName(config: AboutMobileAccordionConfig) {
-  return `${config.contentFontSizeClassName} leading-relaxed [text-wrap:balance]`;
+function contentTextClassName(config: AboutMobileAccordionConfig, fontSizeClassName?: string) {
+  return `${fontSizeClassName ?? `${config.contentFontSizeClassName} ${config.contentFontSizeClassNameWide} ${config.contentFontSizeClassNameLg}`} leading-relaxed [text-wrap:balance]`;
 }
 
 export function AboutMobileAccordionItem({
@@ -46,23 +46,35 @@ export function AboutMobileAccordionItem({
   maxContentHeightPx,
   headerRef,
   headerHref,
+  staticHeader = false,
+  staticHeadingLevel = 2,
   headerClassName,
   headerTextClassName,
+  headerSuffix,
+  headerFontSizeClassName,
   contentClassName,
+  contentPaddingTopClassName,
   contentTextClassName: contentTextClassNameOverride,
+  contentFontSizeClassName,
   openIndicatorVisible,
+  affordanceVisible = true,
+  headerTextStyle,
+  contentTextStyle,
+  contentEmphasisOpacity,
+  contentEmphasisColorOverride,
+  contentBefore,
 }: {
-  slide: SliderContentSlide;
-  palette: DeckPaletteState | null;
-  motion: ReturnType<typeof useLiquidSliderMotion>;
-  gradientConfig: LiquidSliderConfig;
+  slide: Pick<SliderContentSlide, 'excerpt' | 'title'>;
+  palette?: DeckPaletteState | null;
+  motion?: ReturnType<typeof useLiquidSliderMotion>;
+  gradientConfig?: LiquidSliderConfig;
   config: AboutMobileAccordionConfig;
   /** AboutMobileAccordion's own derived color (config.textSurfaceOffset
    * applied to the page's columnBackgroundColor) — applied to both the
    * collapsed header preview and the expanded paragraph below. */
   textColor: string;
   expanded: boolean;
-  onToggle: () => void;
+  onToggle?: () => void;
   dimOpacity: number;
   emphasisOpacity: number;
   prefersReducedMotion: boolean;
@@ -86,20 +98,45 @@ export function AboutMobileAccordionItem({
    * Omitted in the real accordion/hero path, where the header remains a
    * button and toggles expanded state. */
   headerHref?: string;
+  /** Render an always-open, non-interactive item with a semantic heading. */
+  staticHeader?: boolean;
+  staticHeadingLevel?: 1 | 2;
   /** Applied to the visible header text itself, after this item's own
    * configured typography. Kept separate from headerClassName so reused
    * surfaces can override a text token without relying on inheritance. */
   headerClassName?: string;
   headerTextClassName?: string;
+  /** Optional inline text following the header title, inside the same link. */
+  headerSuffix?: ReactNode;
+  /** Complete base/md/lg token string for an independent header size. */
+  headerFontSizeClassName?: string;
   /** Applied to the expanded-content wrapper for layout concerns. */
   contentClassName?: string;
+  /** Replaces the shared top-padding tokens for this item's body. */
+  contentPaddingTopClassName?: string;
   /** Applied to the visible expanded paragraph itself, after this item's
    * configured typography. */
   contentTextClassName?: string;
+  /** Complete base/md/lg token string for an independent description size. */
+  contentFontSizeClassName?: string;
   /** Optional per-instance override for the active-item bullet. This lets a
    * non-accordion reuse opt into the marker without altering the hero's
    * shared accordion configuration. */
   openIndicatorVisible?: boolean;
+  /** Hide disclosure chrome when an always-open item is used as a link. */
+  affordanceVisible?: boolean;
+  headerTextStyle?: CSSProperties;
+  contentTextStyle?: CSSProperties;
+  contentEmphasisOpacity?: number;
+  /** Optional content between the header and expanded description. */
+  contentBefore?: ReactNode;
+  /** Forwarded verbatim to renderEmphasisText's own emphasisColorOverride
+   * (helpers/textEmphasis.tsx) — paints this item's **bold** runs an
+   * explicit color instead of inheriting textColor at emphasisOpacity.
+   * Additive and optional: every existing caller omits it and renders
+   * byte-identical to before this prop existed (same contract
+   * emphasisColorOverride itself already documents one layer down). */
+  contentEmphasisColorOverride?: string;
 }) {
   const sectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -212,15 +249,16 @@ export function AboutMobileAccordionItem({
   const { contentRef, wrapperStyle } = useExpandableHeight(
     expanded, heightTransitionMs, heightEasing, maxContentHeightPx,
   );
-  const resolvedHeaderClassName = `${styles.accordionHeaderButton} relative z-10 flex w-full items-center justify-between gap-3 text-left ${config.previewMinHeight} ${config.affordancePaddingX} ${config.affordancePaddingY} ${headerClassName ?? ''}`;
+  const resolvedHeaderClassName = `${styles.accordionHeaderButton} relative z-10 flex w-full items-center justify-between gap-3 text-left ${config.previewMinHeight} ${config.affordancePaddingX} ${config.affordancePaddingXWide} ${config.affordancePaddingXLg} ${config.affordancePaddingY} ${config.affordancePaddingYWide} ${config.affordancePaddingYLg} ${headerClassName ?? ''}`;
   const headerContent = (
     <>
       <span
-        className={`m-0 ${config.headerTextWrapEnabled ? '' : 'line-clamp-1'} ${contentTextClassName(config)} ${headerTextClassName ?? ''}`}
+        className={`m-0 ${config.headerTextWrapEnabled ? '' : 'line-clamp-1'} ${contentTextClassName(config, headerFontSizeClassName)} ${headerTextClassName ?? ''}`}
         style={{
           color: textColor,
           opacity: previewTextOpacity,
           transition: `opacity ${contentSettleWaitMs}ms ${contentEasing}`,
+          ...headerTextStyle,
           // Header/preview text shadow removed (operator ask) — was the
           // same A11Y-05 drop shadow View.tsx's own narrative text uses,
           // tuned for that component's own busy animated mesh backdrop;
@@ -232,6 +270,8 @@ export function AboutMobileAccordionItem({
         }}
       >
         {slide.excerpt}
+        {headerSuffix ? ' ' : null}
+        {headerSuffix}
       </span>
       {/* Wrapped with the chevron (rather than a third direct flex child
           of the button above) so the button keeps exactly two direct flex
@@ -252,7 +292,7 @@ export function AboutMobileAccordionItem({
           other, rather than side by side. Centered vertically against the
           header text via the button's own `items-center` (this wrapper
           is one of exactly two flex children there, same as before). */}
-      <span
+      {affordanceVisible && <span
         className="relative shrink-0"
         style={{ width: `${affordanceDimensionPx}px`, height: `${affordanceDimensionPx}px` }}
       >
@@ -303,7 +343,7 @@ export function AboutMobileAccordionItem({
             '--about-accordion-affordance-mouseout-easing': CTA_BUTTON_MOTION_EASINGS[config.affordanceMouseOutEasing],
           } as CSSProperties}
         />
-      </span>
+      </span>}
     </>
   );
 
@@ -340,6 +380,8 @@ export function AboutMobileAccordionItem({
         <Link href={headerHref} className={resolvedHeaderClassName}>
           {headerContent}
         </Link>
+      ) : staticHeader ? (
+        <div role="heading" aria-level={staticHeadingLevel} className={resolvedHeaderClassName}>{headerContent}</div>
       ) : (
         <button
           ref={headerRef}
@@ -352,19 +394,13 @@ export function AboutMobileAccordionItem({
         </button>
       )}
 
-      <div className="relative z-10" style={wrapperStyle}>
+      {(!headerHref || expanded) && <div className="relative z-10" style={wrapperStyle}>
         <div ref={contentRef}>
           <div
-            // Same horizontal padding as the header button
-            // (config.affordancePaddingX) — pt-0 only, so the expanded
-            // paragraph's own left edge lines up with the preview text's
-            // left edge above it (they were previously two independently
-            // hand-picked padding values that didn't agree). affordancePaddingY
-            // still contributes its own bottom half (pt-0 only cancels the
-            // TOP half of that same vertical value, same "one axis field,
-            // one side zeroed" shape this had before affordancePadding was
-            // split into X/Y).
-            className={`${config.affordancePaddingX} ${config.affordancePaddingY} pt-0 ${contentClassName ?? ''}`}
+            // Content spacing is independent from the preview tab so each
+            // body edge can be tuned without moving its header affordance.
+            // The defaults retain the previous 0 / 7 / 5 / 7 geometry.
+            className={`${contentPaddingTopClassName ?? `${config.itemContentPaddingTop} ${config.itemContentPaddingTopWide}`} ${config.itemContentPaddingRight} ${config.itemContentPaddingRightWide} ${config.itemContentPaddingBottom} ${config.itemContentPaddingBottomWide} ${config.itemContentPaddingLeft} ${config.itemContentPaddingLeftWide} ${contentClassName ?? ''}`}
             // PLAN-ABOUT-MOBILE-ACCORDION-COLLAPSE-REVEAL-FIX.md — matches
             // the desktop accordion's own audited mechanism exactly
             // (View.tsx's minimal-mode branch): opacity is a direct,
@@ -380,15 +416,16 @@ export function AboutMobileAccordionItem({
               easingCss: heightEasing,
             })}
           >
+            {contentBefore}
             <p
-              className={`relative ${contentTextClassName(config)} ${contentTextClassNameOverride ?? ''}`}
-              style={{ color: textColor }}
+              className={`relative ${contentTextClassName(config, contentFontSizeClassName)} ${contentTextClassNameOverride ?? ''}`}
+              style={{ color: textColor, ...contentTextStyle }}
             >
-              {renderEmphasisText(slide.title, dimOpacity, emphasisOpacity)}
+              {renderEmphasisText(slide.title, dimOpacity, contentEmphasisOpacity ?? emphasisOpacity, undefined, contentEmphasisColorOverride)}
             </p>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

@@ -459,6 +459,12 @@ export function TabStrip({
   currentDeviceTabId?: string;
 }) {
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const copyNoticeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (copyNoticeTimerRef.current !== null) window.clearTimeout(copyNoticeTimerRef.current);
+  }, []);
 
   const focusAndSelect = (id: string) => {
     onSelect(id);
@@ -481,26 +487,46 @@ export function TabStrip({
     focusAndSelect(tabs[nextIndex].id);
   };
 
+  const handleTabClick = (tab: { id: string; label: string }) => {
+    onSelect(tab.id);
+    // Tab selection stays immediate even when clipboard access is delayed or
+    // unavailable. A label copy is a convenience layered onto the familiar
+    // click/tap interaction, never a prerequisite for navigation.
+    void writePanelConfigToClipboard(tab.label)
+      .then(() => setCopyNotice(`Copied “${tab.label}”`))
+      .catch(() => setCopyNotice('Could not copy tab label'));
+    if (copyNoticeTimerRef.current !== null) window.clearTimeout(copyNoticeTimerRef.current);
+    copyNoticeTimerRef.current = window.setTimeout(() => {
+      setCopyNotice(null);
+      copyNoticeTimerRef.current = null;
+    }, 1800);
+  };
+
   return (
-    <div className={styles.tabStrip} role="tablist" aria-label={ariaLabel}>
-      {tabs.map((tab, index) => (
-        <button
-          key={tab.id}
-          ref={el => { tabRefs.current[tab.id] = el; }}
-          type="button"
-          role="tab"
-          id={`panel-tab-${tab.id}`}
-          aria-selected={tab.id === activeId}
-          aria-controls={`panel-tabpanel-${tab.id}`}
-          tabIndex={tab.id === activeId ? 0 : -1}
-          data-current-device={tab.id === currentDeviceTabId ? 'true' : undefined}
-          className={styles.tabButton}
-          onClick={() => onSelect(tab.id)}
-          onKeyDown={event => handleKeyDown(event, index)}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <div>
+      <div className={styles.tabStrip} role="tablist" aria-label={ariaLabel}>
+        {tabs.map((tab, index) => (
+          <button
+            key={tab.id}
+            ref={el => { tabRefs.current[tab.id] = el; }}
+            type="button"
+            role="tab"
+            id={`panel-tab-${tab.id}`}
+            aria-selected={tab.id === activeId}
+            aria-controls={`panel-tabpanel-${tab.id}`}
+            tabIndex={tab.id === activeId ? 0 : -1}
+            data-current-device={tab.id === currentDeviceTabId ? 'true' : undefined}
+            className={styles.tabButton}
+            onClick={() => handleTabClick(tab)}
+            onKeyDown={event => handleKeyDown(event, index)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <p className={styles.tabCopyNotice} role="status" aria-live="polite">
+        {copyNotice}
+      </p>
     </div>
   );
 }

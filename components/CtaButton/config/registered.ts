@@ -143,14 +143,49 @@ export type CtaButtonConfig = {
   // Deliberately NOT tiered by sizeDesktop, unlike padding/font above — both
   // remain a single floor for every breakpoint. Two reasons: (1) a tap
   // target's minimum accessible size shouldn't shrink on desktop just
-  // because a smaller Size was picked there; (2) these are applied as an
+  // because a smaller Size was picked there; (2) this is applied as an
   // inline pixel style (surfaceStyle in CtaButton.tsx), not a Tailwind
-  // class, specifically so a consumer (e.g. ComposerPill.tsx, matching its
-  // own pill height to this button's) can read one concrete number back —
-  // a tier-dependent value would leave that reader with no single answer to
-  // read. Always resolves from `size` (mobile), never `sizeDesktop`.
+  // class, so a reader can get one concrete number back rather than a
+  // tier-dependent value with no single answer. Always resolves from `size`
+  // (mobile), never `sizeDesktop`. Governs only whatever renders a real
+  // CtaButton (CtaButton.tsx itself) — ComposerPill.tsx used to read this
+  // same field to match its own pill height to a button's, before
+  // composerMinHeightPx below existed as its own independent knob.
   minHeightPx: number;
   minWidthPx: number;
+  // Composer-pill-only counterpart of size/sizeDesktop/fontSize/
+  // fontSizeDesktop/paddingX/paddingXDesktop/paddingY/paddingYDesktop/
+  // minHeightPx above. ComposerPill.tsx styles its own <textarea> straight
+  // off a CtaButtonConfig instance rather than rendering a real CtaButton,
+  // so before this bundle existed it silently read the SAME size-resolved
+  // fields the two real buttons use — tuning Button size in the panel also
+  // resized the composer input, with no way to size them independently
+  // (operator-reported). Resolved from the exact same CTA_BUTTON_SIZE_PRESETS
+  // table, segregated by breakpoint the same way, but affects only whatever
+  // actually reads these composer* fields — today, only ComposerPill.tsx.
+  // No composerIconSize/composerMinWidthPx: ComposerPill never renders a
+  // config-driven icon glyph (its own send arrow is a fixed text-lg) and
+  // never applies a min-width (always w-full) — either would be dead
+  // configuration with no visual effect.
+  composerSize: CtaButtonSize;
+  composerSizeDesktop: CtaButtonSize;
+  /** Unlike fontSize above, this floors at 'text-base' (16px) regardless of
+   * source (preset-derived or explicitly overridden) — see
+   * normalizeCtaButtonConfig. The composer renders this token directly onto
+   * a real, focusable <textarea>, and iOS/Android mobile browsers auto-zoom
+   * the viewport when a focused text control's font-size is under 16px
+   * (confirmed live, real-device regression: 'sm' — this field's own
+   * default size, matching the button's own default — resolves to
+   * text-sm/14px, fine for a button label that never takes focus, but zooms
+   * the page the instant a visitor taps the composer). Exactly why this
+   * needed its own field rather than reusing fontSize. */
+  composerFontSize: CtaButtonFontSize;
+  composerFontSizeDesktop: CtaButtonDesktopFontSize;
+  composerPaddingX: CtaButtonPaddingX;
+  composerPaddingXDesktop: CtaButtonDesktopPaddingX;
+  composerPaddingY: CtaButtonPaddingY;
+  composerPaddingYDesktop: CtaButtonDesktopPaddingY;
+  composerMinHeightPx: number;
   hoverColorsEnabled: boolean;
   hoverBackgroundColor: string;
   hoverBorderColor: string;
@@ -274,6 +309,20 @@ export const DEFAULT_CTA_BUTTON_CONFIG = {
   paddingYDesktop: 'md:py-5',
   minHeightPx: 36,
   minWidthPx: 128,
+  // Byte-parity with the button's own defaults above, EXCEPT composerFontSize
+  // (see its own doc comment on CtaButtonConfig — 'text-base', not 'text-sm',
+  // is the floored value 'sm' would otherwise resolve to for a focusable
+  // input) — so no consumer's composer visually shifts the moment this
+  // bundle exists.
+  composerSize: 'md',
+  composerSizeDesktop: 'lg',
+  composerFontSize: 'text-base',
+  composerFontSizeDesktop: 'md:text-base',
+  composerPaddingX: 'px-6',
+  composerPaddingXDesktop: 'md:px-12',
+  composerPaddingY: 'py-3',
+  composerPaddingYDesktop: 'md:py-5',
+  composerMinHeightPx: 44,
   hoverColorsEnabled: true,
   hoverBackgroundColor: '#d6d6d6',
   hoverBorderColor: '#d9d9d9',
@@ -519,6 +568,23 @@ export function normalizeCtaButtonConfig(
   const sizeDesktop = 'sizeDesktop' in raw ? token(base.sizeDesktop, SIZES, size) : size;
   const presetDesktop = CTA_BUTTON_SIZE_PRESETS[sizeDesktop];
   const fontSize = 'fontSize' in raw ? token(base.fontSize, FONT_SIZES, preset.fontSize) : preset.fontSize;
+  // Composer-only counterpart — same coupled-until-touched/preset contract
+  // as size/sizeDesktop/fontSize above, resolved independently so a
+  // composer's own size never tracks the two buttons' size. The
+  // text-sm→text-base floor (composerFontSize's own doc comment) applies
+  // regardless of whether the value came from the preset or an explicit
+  // override — a visitor can still zoom-trigger by focusing the composer
+  // even if an operator deliberately set composerFontSize to 'text-sm'.
+  const composerSize = token(base.composerSize, SIZES, DEFAULT_CTA_BUTTON_CONFIG.composerSize);
+  const composerPreset = CTA_BUTTON_SIZE_PRESETS[composerSize];
+  const composerSizeDesktop = 'composerSizeDesktop' in raw
+    ? token(base.composerSizeDesktop, SIZES, composerSize)
+    : composerSize;
+  const composerPresetDesktop = CTA_BUTTON_SIZE_PRESETS[composerSizeDesktop];
+  const rawComposerFontSize = 'composerFontSize' in raw
+    ? token(base.composerFontSize, FONT_SIZES, composerPreset.fontSize)
+    : composerPreset.fontSize;
+  const composerFontSize = rawComposerFontSize === 'text-sm' ? 'text-base' : rawComposerFontSize;
   return {
     backgroundMode: base.backgroundMode === 'transparent' || base.backgroundMode === 'gradient'
       ? base.backgroundMode
@@ -599,6 +665,29 @@ export function normalizeCtaButtonConfig(
     minWidthPx: 'minWidthPx' in raw
       ? clamp(base.minWidthPx, 64, 320, preset.minWidthPx)
       : preset.minWidthPx,
+    composerSize,
+    composerSizeDesktop,
+    composerFontSize,
+    composerFontSizeDesktop: 'composerFontSizeDesktop' in raw
+      ? token(
+        base.composerFontSizeDesktop, DESKTOP_FONT_SIZES, DESKTOP_FONT_SIZE_BY_FONT_SIZE[composerFontSize],
+      )
+      : DESKTOP_FONT_SIZE_BY_FONT_SIZE[composerFontSize],
+    composerPaddingX: 'composerPaddingX' in raw
+      ? token(base.composerPaddingX, PADDING_X, composerPreset.paddingX)
+      : composerPreset.paddingX,
+    composerPaddingXDesktop: 'composerPaddingXDesktop' in raw
+      ? token(base.composerPaddingXDesktop, DESKTOP_PADDING_X, composerPresetDesktop.paddingXDesktop)
+      : composerPresetDesktop.paddingXDesktop,
+    composerPaddingY: 'composerPaddingY' in raw
+      ? token(base.composerPaddingY, PADDING_Y, composerPreset.paddingY)
+      : composerPreset.paddingY,
+    composerPaddingYDesktop: 'composerPaddingYDesktop' in raw
+      ? token(base.composerPaddingYDesktop, DESKTOP_PADDING_Y, composerPresetDesktop.paddingYDesktop)
+      : composerPresetDesktop.paddingYDesktop,
+    composerMinHeightPx: 'composerMinHeightPx' in raw
+      ? clamp(base.composerMinHeightPx, 24, 96, composerPreset.minHeightPx)
+      : composerPreset.minHeightPx,
     hoverColorsEnabled: base.hoverColorsEnabled === true,
     hoverBackgroundColor: color(
       base.hoverBackgroundColor,
@@ -819,6 +908,39 @@ export function withCtaButtonSizeDesktop(
   const rest: Partial<CtaButtonConfig> = { ...config };
   for (const key of DESKTOP_SIZE_BOUND_KEYS) delete rest[key];
   return { ...rest, sizeDesktop };
+}
+
+// Composer-only counterparts of SIZE_BOUND_KEYS/DESKTOP_SIZE_BOUND_KEYS above
+// — no 'iconSize'/'minWidthPx' entry (composerSize has neither field; see
+// composerSize's own doc comment on CtaButtonConfig).
+const COMPOSER_SIZE_BOUND_KEYS = [
+  'composerSize', 'composerFontSize', 'composerPaddingX', 'composerPaddingY', 'composerMinHeightPx',
+] as const satisfies ReadonlyArray<keyof CtaButtonConfig>;
+const COMPOSER_DESKTOP_SIZE_BOUND_KEYS = [
+  'composerSizeDesktop', 'composerFontSizeDesktop', 'composerPaddingXDesktop', 'composerPaddingYDesktop',
+] as const satisfies ReadonlyArray<keyof CtaButtonConfig>;
+
+/** The composer-pill (`composerSize`) equivalent of withCtaButtonSize above —
+ * see that function's own doc comment for why a plain object-spread can't
+ * do this correctly. */
+export function withComposerSize(
+  config: Partial<CtaButtonConfig>,
+  composerSize: CtaButtonSize,
+): Partial<CtaButtonConfig> {
+  const rest: Partial<CtaButtonConfig> = { ...config };
+  for (const key of COMPOSER_SIZE_BOUND_KEYS) delete rest[key];
+  return { ...rest, composerSize };
+}
+
+/** The composer-pill desktop-tier (`composerSizeDesktop`) equivalent of
+ * withCtaButtonSizeDesktop above. */
+export function withComposerSizeDesktop(
+  config: Partial<CtaButtonConfig>,
+  composerSizeDesktop: CtaButtonSize,
+): Partial<CtaButtonConfig> {
+  const rest: Partial<CtaButtonConfig> = { ...config };
+  for (const key of COMPOSER_DESKTOP_SIZE_BOUND_KEYS) delete rest[key];
+  return { ...rest, composerSizeDesktop };
 }
 
 /**

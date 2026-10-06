@@ -92,7 +92,7 @@ export const WORDMARK_FIELDS: ReadonlyArray<ConfigScopeEntry<WordmarkConfig>> = 
         kind: 'number',
         key: 'maxWidthPx',
         label: 'Max width',
-        description: 'Hard cap on the wordmark\'s rendered width, on top of the responsive logoWidth/desktopLogoWidth sizing — applies to every page since SiteHeader is the sole global mount point.',
+        description: 'Hard cap on the wordmark\'s rendered width, on top of the responsive logoWidth/logoWidthWide sizing — applies to every page since SiteHeader is the sole global mount point.',
         min: 100,
         max: 960,
         step: 10,

@@ -1,4 +1,4 @@
-import { CONTENT_WIDTH_PERCENT_WIDE_OPTIONS, type ContentWidthPercentWideClass } from '../../../../../components/tailwindWidthScale';
+import { normalizeTailwindToken, translateTailwindTokenBreakpoint, type TailwindTokenValue } from '../../../../../components/Panel/config/tailwindFields';
 
 // The gap this header's own split-aligned nav overlay uses on *both* sides
 // of its separator (logo-to-separator and separator-to-first-item — see
@@ -56,150 +56,57 @@ export type SiteHeaderContentAlign = 'start' | 'center' | 'end';
 // for exactly this reason — that field's box is a block element (100%
 // width by default already), this one's is a flex item (shrink-to-fit by
 // default), so the same "just a percentage" shape would be inert here.
-export type SiteHeaderContentWidth = ContentWidthPercentWideClass | 'auto';
+export type SiteHeaderContentWidth = TailwindTokenValue<'maxWidth'>;
+export type SiteHeaderContentWidthWide = TailwindTokenValue<'maxWidth', 'md'>;
+export type SiteHeaderContentWidthLg = TailwindTokenValue<'maxWidth', 'lg'>;
 /** 'inherit' (default) follows GlobalTypographyConfig.headingFontFamily —
  * see components/GlobalTypography.config.ts. 'sans'/'serif' pin the nav/
  * logo font regardless of the site-wide default. */
 export type SiteHeaderFontFamily = 'inherit' | 'sans' | 'serif';
-/** Literal Tailwind font-weight classes — the standard named scale, not
- * every numeric step Tailwind ships (100/200/300/800/900 have no plausible
- * use on a small uppercase nav label). Default 'font-semibold' (600) is the
- * closest standard step to the nav's previous hardcoded 650 — a 50-unit
- * difference invisible at this label's ~10px size, and preferable to a
- * one-off font-[650] arbitrary value no other config in this codebase uses
- * for weight. */
-export type SiteHeaderNavFontWeight =
-  | 'font-normal'
-  | 'font-medium'
-  | 'font-semibold'
-  | 'font-bold';
-/** Nav labels (About/Journal/Contact) previously rendered at a fluid
- * `clamp(9px, 2.5vw, 10px)` — a genuinely continuous, viewport-driven size
- * with no discrete "step" a fixed option list can represent. Collapsed here
- * to the same mobile-base/desktop-override pair every other font-size field
- * in this codebase uses (SectionHeadingFontSize, PageTitleFontSizeNarrow,
- * etc.) — narrow defaults to 'text-[10px]' (the clamp's own ceiling, and the
- * value already used verbatim at the md breakpoint) rather than reproducing
- * the fluid mid-transition. Includes both Tailwind's own smallest named
- * steps and literal arbitrary-value pixel options below them, since this
- * label already rendered under Tailwind's own text-xs (12px) floor. */
-export type SiteHeaderNavFontSizeNarrow =
-  | 'text-[9px]'
-  | 'text-[10px]'
-  | 'text-[11px]'
-  | 'text-xs'
-  | 'text-sm'
-  | 'text-base';
-export type SiteHeaderNavFontSizeDesktop =
-  | 'md:text-[9px]'
-  | 'md:text-[10px]'
-  | 'md:text-[11px]'
-  | 'md:text-xs'
-  | 'md:text-sm'
-  | 'md:text-base';
-// 'h-auto'/'md:h-auto': the wrapper imposes no height at all (no cap, no
-// floor) — <header> switches from a flex row to a block container and its
-// own content (navSplitOverlay) switches from absolute/inset-0 to relative
-// (in-flow) for that breakpoint, so the box's real height comes from normal
-// document flow instead of this token. See SiteHeader.tsx's own
-// MIN_HEIGHT_BY_HEIGHT/MIN_HEIGHT_BY_DESKTOP_HEIGHT and the header/
-// navSplitOverlay className computation for where this is consumed —
-// fixes the stacked-content overlap a fixed/min height could never solve
-// (the header's real content lives in an absolutely-positioned overlay,
-// which contributes nothing to an ancestor's intrinsic/min-content height
-// regardless of what height token that ancestor carries).
-export type SiteHeaderHeight =
-  | 'h-auto'
-  | 'h-12'
-  | 'h-14'
-  | 'h-16'
-  | 'h-20'
-  | 'h-24'
-  | 'h-28'
-  | 'h-32'
-  | 'h-36'
-  | 'h-40';
-export type SiteHeaderDesktopHeight =
-  | 'md:h-auto'
-  | 'md:h-12'
-  | 'md:h-14'
-  | 'md:h-16'
-  | 'md:h-20'
-  | 'md:h-24'
-  | 'md:h-28'
-  | 'md:h-32'
-  | 'md:h-36'
-  | 'md:h-40';
-export type SiteHeaderPaddingX = 'px-4' | 'px-5' | 'px-6' | 'px-8';
-export type SiteHeaderPaddingY =
-  | 'py-0'
-  | 'py-1'
-  | 'py-2'
-  | 'py-3'
-  | 'py-4'
-  | 'py-6';
-export type SiteHeaderDesktopPaddingX =
-  | 'md:px-6'
-  | 'md:px-8'
-  | 'md:px-10'
-  | 'md:px-12'
-  | 'md:px-16';
-export type SiteHeaderDesktopPaddingY =
-  | 'md:py-0'
-  | 'md:py-1'
-  | 'md:py-2'
-  | 'md:py-3'
-  | 'md:py-4'
-  | 'md:py-6';
-export type SiteHeaderMarginTop = 'mt-0' | 'mt-2' | 'mt-4' | 'mt-6' | 'mt-8';
-export type SiteHeaderMarginBottom = 'mb-0' | 'mb-2' | 'mb-4' | 'mb-6' | 'mb-8';
-export type SiteHeaderDesktopMarginTop =
-  | 'md:mt-0'
-  | 'md:mt-2'
-  | 'md:mt-4'
-  | 'md:mt-6'
-  | 'md:mt-8';
-export type SiteHeaderDesktopMarginBottom =
-  | 'md:mb-0'
-  | 'md:mb-2'
-  | 'md:mb-4'
-  | 'md:mb-6'
-  | 'md:mb-8';
-export type SiteHeaderLogoWidth = 'w-36' | 'w-40' | 'w-48' | 'w-56';
-export type SiteHeaderDesktopLogoWidth =
-  | 'md:w-56'
-  | 'md:w-64'
-  | 'md:w-72'
-  | 'md:w-80';
-export type SiteHeaderGap = 'gap-1' | 'gap-2' | 'gap-3' | 'gap-4' | 'gap-6';
-export type SiteHeaderDesktopGap =
-  | 'md:gap-4'
-  | 'md:gap-6'
-  | 'md:gap-8'
-  | 'md:gap-10';
-export type AbstractHeroNavGap =
-  | 'md:gap-4'
-  | 'md:gap-6'
-  | 'md:gap-8'
-  | 'md:gap-10';
-export type AbstractHeroMobileNavGap = 'gap-0' | 'gap-1' | 'gap-2' | 'gap-3';
+/** The shared resolved Tailwind font-weight scale. The default remains
+ * font-semibold (600), preserving the previous named-token choice. */
+export type SiteHeaderNavFontWeight = TailwindTokenValue<'fontWeight'>;
+export type SiteHeaderNavFontSize = TailwindTokenValue<'fontSize'>;
+export type SiteHeaderNavFontSizeWide = TailwindTokenValue<'fontSize', 'md'>;
+export type SiteHeaderNavFontSizeLg = TailwindTokenValue<'fontSize', 'lg'>;
+
+export type SiteHeaderHeight = TailwindTokenValue<'height'>;
+export type SiteHeaderHeightWide = TailwindTokenValue<'height', 'md'>;
+export type SiteHeaderHeightLg = TailwindTokenValue<'height', 'lg'>;
+export type SiteHeaderPaddingX = TailwindTokenValue<'paddingX'>;
+export type SiteHeaderPaddingXWide = TailwindTokenValue<'paddingX', 'md'>;
+export type SiteHeaderPaddingXLg = TailwindTokenValue<'paddingX', 'lg'>;
+export type SiteHeaderPaddingY = TailwindTokenValue<'paddingY'>;
+export type SiteHeaderPaddingYWide = TailwindTokenValue<'paddingY', 'md'>;
+export type SiteHeaderPaddingYLg = TailwindTokenValue<'paddingY', 'lg'>;
+export type SiteHeaderMarginTop = TailwindTokenValue<'marginTop'>;
+export type SiteHeaderMarginTopWide = TailwindTokenValue<'marginTop', 'md'>;
+export type SiteHeaderMarginTopLg = TailwindTokenValue<'marginTop', 'lg'>;
+export type SiteHeaderMarginBottom = TailwindTokenValue<'marginBottom'>;
+export type SiteHeaderMarginBottomWide = TailwindTokenValue<'marginBottom', 'md'>;
+export type SiteHeaderMarginBottomLg = TailwindTokenValue<'marginBottom', 'lg'>;
+export type SiteHeaderLogoWidth = TailwindTokenValue<'width'>;
+export type SiteHeaderLogoWidthWide = TailwindTokenValue<'width', 'md'>;
+export type SiteHeaderLogoWidthLg = TailwindTokenValue<'width', 'lg'>;
+export type SiteHeaderGap = TailwindTokenValue<'gap'>;
+export type SiteHeaderGapWide = TailwindTokenValue<'gap', 'md'>;
+export type SiteHeaderGapLg = TailwindTokenValue<'gap', 'lg'>;
+export type SiteHeaderNavGap = TailwindTokenValue<'gap'>;
+export type SiteHeaderNavGapWide = TailwindTokenValue<'gap', 'md'>;
+export type SiteHeaderNavGapLg = TailwindTokenValue<'gap', 'lg'>;
 export type SiteHeaderMobileNavDistribution =
   | 'justify-start'
   | 'justify-center'
   | 'justify-between'
   | 'justify-around'
   | 'justify-evenly';
-export type SiteHeaderMobileNavDivider =
-  | 'hidden'
-  | "before:content-['|']"
-  | "before:content-['⋅']"
-  | 'border-l';
-export type SiteHeaderMobileNavItemGap = 'gap-x-0' | 'gap-x-1' | 'gap-x-2' | 'gap-x-3' | 'gap-x-4';
-export type SiteHeaderMobileNavDividerHeight = 'h-2' | 'h-3' | 'h-4' | 'h-5' | 'h-6';
-export type SiteHeaderMobileNavDividerWidth = 'w-px' | 'w-0.5' | 'w-1';
-export type AbstractHeroContactPaddingX = 'px-3' | 'px-4' | 'px-5' | 'px-6';
-export type AbstractHeroContactPaddingY = 'py-2' | 'py-2.5' | 'py-3' | 'py-4';
-export type AbstractHeroContactBorderWidth = 'border' | 'border-2';
+export type SiteHeaderMobileNavDivider = 'none' | 'pipe' | 'dot' | 'rule';
+export type SiteHeaderMobileNavItemGap = TailwindTokenValue<'gapX'>;
+export type SiteHeaderMobileNavDividerHeight = TailwindTokenValue<'height'>;
+export type SiteHeaderMobileNavDividerWidth = TailwindTokenValue<'width'>;
+export type AbstractHeroContactPaddingX = TailwindTokenValue<'paddingX'>;
+export type AbstractHeroContactPaddingY = TailwindTokenValue<'paddingY'>;
+export type AbstractHeroContactBorderWidth = TailwindTokenValue<'borderWidth'>;
 
 export type SiteHeaderConfig = {
   colorMode: SiteHeaderColorMode;
@@ -217,8 +124,9 @@ export type SiteHeaderConfig = {
   navUppercase: boolean;
   navLetterSpacingEm: number;
   navFontWeight: SiteHeaderNavFontWeight;
-  navFontSizeNarrow: SiteHeaderNavFontSizeNarrow;
-  navFontSizeDesktop: SiteHeaderNavFontSizeDesktop;
+  navFontSize: SiteHeaderNavFontSize;
+  navFontSizeWide: SiteHeaderNavFontSizeWide;
+  navFontSizeLg: SiteHeaderNavFontSizeLg;
   // logoColor/logoSurfaceOffset: legacy-only now. The logo's own color/
   // adaptive config lives on the shared WordmarkConfig scope (config/
   // wordmark.ts) — see that file's own doc comment for the parity bug this
@@ -265,26 +173,35 @@ export type SiteHeaderConfig = {
   // CtaButtonConfig.autoTextMinContrast.
   columnTextMinContrast: number;
   height: SiteHeaderHeight;
-  desktopHeight: SiteHeaderDesktopHeight;
+  heightWide: SiteHeaderHeightWide;
+  heightLg: SiteHeaderHeightLg;
   paddingX: SiteHeaderPaddingX;
   paddingY: SiteHeaderPaddingY;
-  desktopPaddingX: SiteHeaderDesktopPaddingX;
-  desktopPaddingY: SiteHeaderDesktopPaddingY;
+  paddingXWide: SiteHeaderPaddingXWide;
+  paddingYWide: SiteHeaderPaddingYWide;
+  paddingXLg: SiteHeaderPaddingXLg;
+  paddingYLg: SiteHeaderPaddingYLg;
   marginTop: SiteHeaderMarginTop;
   marginBottom: SiteHeaderMarginBottom;
-  desktopMarginTop: SiteHeaderDesktopMarginTop;
-  desktopMarginBottom: SiteHeaderDesktopMarginBottom;
+  marginTopWide: SiteHeaderMarginTopWide;
+  marginBottomWide: SiteHeaderMarginBottomWide;
+  marginTopLg: SiteHeaderMarginTopLg;
+  marginBottomLg: SiteHeaderMarginBottomLg;
   logoWidth: SiteHeaderLogoWidth;
-  desktopLogoWidth: SiteHeaderDesktopLogoWidth;
+  logoWidthWide: SiteHeaderLogoWidthWide;
+  logoWidthLg: SiteHeaderLogoWidthLg;
   gap: SiteHeaderGap;
-  desktopGap: SiteHeaderDesktopGap;
-  mobileNavGap: AbstractHeroMobileNavGap;
+  gapWide: SiteHeaderGapWide;
+  gapLg: SiteHeaderGapLg;
+  navGap: SiteHeaderNavGap;
+  navGapWide: SiteHeaderNavGapWide;
+  navGapLg: SiteHeaderNavGapLg;
   /** Off (default): mobile nav keeps the legacy three-column grid. On:
    * mobile nav switches to a full-width flex row, enabling the distribution
    * and divider controls below. Desktop keeps the existing md:flex layout. */
   mobileNavFlexEnabled: boolean;
   /** Gap between mobile nav items/dividers while mobileNavFlexEnabled is
-   * on. Separate from the legacy mobileNavGap so the flex/divider layout
+   * on. Separate from the legacy navGap so the flex/divider layout
    * can be tuned without changing the fallback grid. */
   mobileNavItemGap: SiteHeaderMobileNavItemGap;
   /** While mobileNavFlexEnabled is on, controls how the mobile nav items
@@ -301,7 +218,6 @@ export type SiteHeaderConfig = {
   mobileNavDividerHeight: SiteHeaderMobileNavDividerHeight;
   /** Width of the custom mobile divider rule. */
   mobileNavDividerWidth: SiteHeaderMobileNavDividerWidth;
-  navGap: AbstractHeroNavGap;
   contactPaddingX: AbstractHeroContactPaddingX;
   contactPaddingY: AbstractHeroContactPaddingY;
   contactBorderWidth: AbstractHeroContactBorderWidth;
@@ -372,7 +288,7 @@ export type SiteHeaderConfig = {
   navSeparatorColor: string;
   /** Separator height = the logo's own live-measured rendered height
    * (`getBoundingClientRect().height` on mount/resize, never a guessed
-   * constant, since it changes with `logoWidth`/`desktopLogoWidth` and the
+   * constant, since it changes with `logoWidth`/`logoWidthWide` and the
    * wordmark's own aspect ratio) times this multiplier. Default 2 —
    * "twice the height of the main logo" per the original design request —
    * but independently configurable per that same request. */
@@ -412,7 +328,7 @@ export type SiteHeaderConfig = {
    * already used on the separator's other side (between the separator and
    * the first nav item) — so the divider sits at equal distance from the
    * logo and from the first nav item, not a visually different gap on
-   * each side. (An earlier version reused `gap`/`desktopGap` instead,
+   * each side. (An earlier version reused `gap`/`gapWide` instead,
    * reasoning it was "already used between logo and nav elsewhere" — but
    * that produced two different-looking gaps flanking the same divider,
    * which is a real, reported defect, not a valid reading of "the same
@@ -454,9 +370,13 @@ export type SiteHeaderConfig = {
    * headerRightContentAlign below — see SiteHeader.tsx's own doc
    * comment on why both cells share one mechanism now). */
   headerLeftContentAlign: SiteHeaderContentAlign;
+  headerLeftContentAlignWide: SiteHeaderContentAlign;
+  headerLeftContentAlignLg: SiteHeaderContentAlign;
   /** Same as headerLeftContentAlign, vertical axis. 'center' reproduces
    * today's de-facto position. */
   headerLeftContentVerticalAlign: SiteHeaderContentAlign;
+  headerLeftContentVerticalAlignWide: SiteHeaderContentAlign;
+  headerLeftContentVerticalAlignLg: SiteHeaderContentAlign;
   /** Where the nav content sits within the header's own right split
    * segment (the same segment LayoutDebugOverlay's 'HEADER · RIGHT' box
    * visualizes) — 'start' reproduces today's de-facto position (nav items
@@ -464,10 +384,14 @@ export type SiteHeaderConfig = {
    * far right edge). Implemented as `justify-content` on the <nav> element
    * itself, which is already a flex row container for its own <ul>. */
   headerRightContentAlign: SiteHeaderContentAlign;
+  headerRightContentAlignWide: SiteHeaderContentAlign;
+  headerRightContentAlignLg: SiteHeaderContentAlign;
   /** Same as headerRightContentAlign, vertical axis (`align-items` on
    * <nav>). 'center' reproduces today's de-facto position (previously a
    * hardcoded items-center with no field). */
   headerRightContentVerticalAlign: SiteHeaderContentAlign;
+  headerRightContentVerticalAlignWide: SiteHeaderContentAlign;
+  headerRightContentVerticalAlignLg: SiteHeaderContentAlign;
   /** Width of the logo content container as a percentage of the header's
    * own left split segment (the same segment LayoutDebugOverlay's
    * 'HEADER · LEFT' box visualizes) — a literal class from
@@ -478,10 +402,14 @@ export type SiteHeaderConfig = {
    * meaningfully change anything once combined with a non-default
    * headerLeftContentAlign — a wide box that's still left/start-aligned
    * looks identical to a shrink-wrapped one. */
-  headerLeftContentWidthWide: SiteHeaderContentWidth;
+  headerLeftContentWidth: SiteHeaderContentWidth;
+  headerLeftContentWidthWide: SiteHeaderContentWidthWide;
+  headerLeftContentWidthLg: SiteHeaderContentWidthLg;
   /** Same as headerLeftContentWidthWide, applied to the nav content
    * container within the header's own right split segment instead. */
-  headerRightContentWidthWide: SiteHeaderContentWidth;
+  headerRightContentWidth: SiteHeaderContentWidth;
+  headerRightContentWidthWide: SiteHeaderContentWidthWide;
+  headerRightContentWidthLg: SiteHeaderContentWidthLg;
   /** Where the logo sits *within* the header's own left content box (the
    * same box LayoutDebugOverlay's 'HEADER · LEFT CONTENT' visualizes) —
    * distinct from headerLeftContentAlign above, which positions that whole
@@ -496,13 +424,17 @@ export type SiteHeaderConfig = {
    * see SiteHeader.tsx's own doc comment on this field for the
    * confirmed reasoning. 'start' (default) reproduces today's flush-left
    * behavior exactly. */
+  headerLeftContentInnerAlign: SiteHeaderContentAlign;
   headerLeftContentInnerAlignWide: SiteHeaderContentAlign;
+  headerLeftContentInnerAlignLg: SiteHeaderContentAlign;
   /** Same as headerLeftContentInnerAlignWide, applied to the nav content
    * box ('HEADER · RIGHT CONTENT') instead — that box is already a flex
    * container today (nav's own separator + <ul> already lay out inside
    * it), so this only adds the missing justify-content control, no new
    * flex conversion needed there. */
+  headerRightContentInnerAlign: SiteHeaderContentAlign;
   headerRightContentInnerAlignWide: SiteHeaderContentAlign;
+  headerRightContentInnerAlignLg: SiteHeaderContentAlign;
   /** Raw literal Tailwind classes (space-separated, e.g. 'pt-2 md:pt-4
    * mb-6'), appended verbatim to the header's own left content box
    * (SiteHeader.tsx's 'HEADER · LEFT CONTENT' div) — a passthrough,
@@ -561,8 +493,9 @@ export const DEFAULT_SITE_HEADER_CONFIG = {
   navUppercase: true,
   navLetterSpacingEm: 0.14,
   navFontWeight: 'font-normal',
-  navFontSizeNarrow: 'text-[10px]',
-  navFontSizeDesktop: 'md:text-xs',
+  navFontSize: 'text-3xs',
+  navFontSizeWide: 'md:text-xs',
+  navFontSizeLg: 'lg:text-xs',
   logoColor: '#f5f5f5',
   navTextColor: '#787878',
   navBorderColor: '#787878',
@@ -572,28 +505,36 @@ export const DEFAULT_SITE_HEADER_CONFIG = {
   navBorderSurfaceOffset: 0,
   columnTextMinContrast: 14.3,
   height: 'h-auto',
-  desktopHeight: 'md:h-28',
+  heightWide: 'md:h-28',
+  heightLg: 'lg:h-28',
   paddingX: 'px-8',
   paddingY: 'py-0',
-  desktopPaddingX: 'md:px-12',
-  desktopPaddingY: 'md:py-2',
+  paddingXWide: 'md:px-20',
+  paddingYWide: 'md:py-2',
+  paddingXLg: 'lg:px-12',
+  paddingYLg: 'lg:py-2',
   marginTop: 'mt-0',
   marginBottom: 'mb-0',
-  desktopMarginTop: 'md:mt-8',
-  desktopMarginBottom: 'md:mb-0',
+  marginTopWide: 'md:mt-8',
+  marginBottomWide: 'md:mb-0',
+  marginTopLg: 'lg:mt-8',
+  marginBottomLg: 'lg:mb-0',
   logoWidth: 'w-56',
-  desktopLogoWidth: 'md:w-80',
+  logoWidthWide: 'md:w-80',
+  logoWidthLg: 'lg:w-80',
   gap: 'gap-1',
-  desktopGap: 'md:gap-6',
-  mobileNavGap: 'gap-3',
+  gapWide: 'md:gap-6',
+  gapLg: 'lg:gap-6',
+  navGap: 'gap-3',
+  navGapWide: 'md:gap-8',
+  navGapLg: 'lg:gap-8',
   mobileNavFlexEnabled: true,
   mobileNavItemGap: 'gap-x-4',
   mobileNavDistribution: 'justify-start',
   mobileNavEqualItemWidth: true,
-  mobileNavDivider: 'before:content-[\'⋅\']',
+  mobileNavDivider: 'dot',
   mobileNavDividerHeight: 'h-2',
   mobileNavDividerWidth: 'w-px',
-  navGap: 'md:gap-8',
   contactPaddingX: 'px-5',
   contactPaddingY: 'py-2.5',
   contactBorderWidth: 'border',
@@ -623,14 +564,30 @@ export const DEFAULT_SITE_HEADER_CONFIG = {
   // left of its own cell. See SiteHeader.tsx's own doc comment on
   // this cell's conditional paddingRight for how the exact navContentGapPx
   // gap that used to sit between logo and separator is preserved too.
-  headerLeftContentAlign: 'end',
+  headerLeftContentAlign: 'center',
+  headerLeftContentAlignWide: 'end',
+  headerLeftContentAlignLg: 'end',
   headerLeftContentVerticalAlign: 'center',
-  headerRightContentAlign: 'start',
+  headerLeftContentVerticalAlignWide: 'center',
+  headerLeftContentVerticalAlignLg: 'center',
+  headerRightContentAlign: 'center',
+  headerRightContentAlignWide: 'start',
+  headerRightContentAlignLg: 'start',
   headerRightContentVerticalAlign: 'center',
+  headerRightContentVerticalAlignWide: 'center',
+  headerRightContentVerticalAlignLg: 'center',
+  headerLeftContentWidth: 'auto',
   headerLeftContentWidthWide: 'auto',
+  headerLeftContentWidthLg: 'auto',
+  headerRightContentWidth: 'auto',
   headerRightContentWidthWide: 'auto',
+  headerRightContentWidthLg: 'auto',
+  headerLeftContentInnerAlign: 'start',
   headerLeftContentInnerAlignWide: 'start',
+  headerLeftContentInnerAlignLg: 'start',
+  headerRightContentInnerAlign: 'start',
   headerRightContentInnerAlignWide: 'start',
+  headerRightContentInnerAlignLg: 'start',
   headerLeftContentClassName: '',
   headerRightContentClassName: '',
   headerContentLayoutOwnedByPage: false,
@@ -651,99 +608,69 @@ const token = <T extends string>(value: string, values: ReadonlyArray<T>, fallba
   values.includes(value as T) ? value as T : fallback
 );
 
-const HEIGHTS: ReadonlyArray<SiteHeaderHeight> = [
-  'h-auto', 'h-12', 'h-14', 'h-16', 'h-20', 'h-24', 'h-28', 'h-32', 'h-36', 'h-40',
-];
-const DESKTOP_HEIGHTS: ReadonlyArray<SiteHeaderDesktopHeight> = [
-  'md:h-auto', 'md:h-12', 'md:h-14', 'md:h-16', 'md:h-20', 'md:h-24',
-  'md:h-28', 'md:h-32', 'md:h-36', 'md:h-40',
-];
-const PADDING_X: ReadonlyArray<SiteHeaderPaddingX> = ['px-4', 'px-5', 'px-6', 'px-8'];
-const PADDING_Y: ReadonlyArray<SiteHeaderPaddingY> = [
-  'py-0', 'py-1', 'py-2', 'py-3', 'py-4', 'py-6',
-];
-const DESKTOP_PADDING_X: ReadonlyArray<SiteHeaderDesktopPaddingX> = [
-  'md:px-6', 'md:px-8', 'md:px-10', 'md:px-12', 'md:px-16',
-];
-const DESKTOP_PADDING_Y: ReadonlyArray<SiteHeaderDesktopPaddingY> = [
-  'md:py-0', 'md:py-1', 'md:py-2', 'md:py-3', 'md:py-4', 'md:py-6',
-];
-const MARGIN_TOP: ReadonlyArray<SiteHeaderMarginTop> = [
-  'mt-0', 'mt-2', 'mt-4', 'mt-6', 'mt-8',
-];
-const MARGIN_BOTTOM: ReadonlyArray<SiteHeaderMarginBottom> = [
-  'mb-0', 'mb-2', 'mb-4', 'mb-6', 'mb-8',
-];
-const DESKTOP_MARGIN_TOP: ReadonlyArray<SiteHeaderDesktopMarginTop> = [
-  'md:mt-0', 'md:mt-2', 'md:mt-4', 'md:mt-6', 'md:mt-8',
-];
-const DESKTOP_MARGIN_BOTTOM: ReadonlyArray<SiteHeaderDesktopMarginBottom> = [
-  'md:mb-0', 'md:mb-2', 'md:mb-4', 'md:mb-6', 'md:mb-8',
-];
-const LOGO_WIDTHS: ReadonlyArray<SiteHeaderLogoWidth> = [
-  'w-36', 'w-40', 'w-48', 'w-56',
-];
-const DESKTOP_LOGO_WIDTHS: ReadonlyArray<SiteHeaderDesktopLogoWidth> = [
-  'md:w-56', 'md:w-64', 'md:w-72', 'md:w-80',
-];
-const GAPS: ReadonlyArray<SiteHeaderGap> = ['gap-1', 'gap-2', 'gap-3', 'gap-4', 'gap-6'];
-const DESKTOP_GAPS: ReadonlyArray<SiteHeaderDesktopGap> = [
-  'md:gap-4', 'md:gap-6', 'md:gap-8', 'md:gap-10',
-];
-const NAV_GAPS: ReadonlyArray<AbstractHeroNavGap> = [
-  'md:gap-4', 'md:gap-6', 'md:gap-8', 'md:gap-10',
-];
-const MOBILE_NAV_GAPS: ReadonlyArray<AbstractHeroMobileNavGap> = [
-  'gap-0', 'gap-1', 'gap-2', 'gap-3',
-];
 const MOBILE_NAV_DISTRIBUTIONS: ReadonlyArray<SiteHeaderMobileNavDistribution> = [
   'justify-start', 'justify-center', 'justify-between', 'justify-around', 'justify-evenly',
 ];
 const MOBILE_NAV_DIVIDERS: ReadonlyArray<SiteHeaderMobileNavDivider> = [
-  'hidden', "before:content-['|']", "before:content-['⋅']", 'border-l',
-];
-const MOBILE_NAV_ITEM_GAPS: ReadonlyArray<SiteHeaderMobileNavItemGap> = [
-  'gap-x-0', 'gap-x-1', 'gap-x-2', 'gap-x-3', 'gap-x-4',
-];
-const MOBILE_NAV_DIVIDER_HEIGHTS: ReadonlyArray<SiteHeaderMobileNavDividerHeight> = [
-  'h-2', 'h-3', 'h-4', 'h-5', 'h-6',
-];
-const MOBILE_NAV_DIVIDER_WIDTHS: ReadonlyArray<SiteHeaderMobileNavDividerWidth> = [
-  'w-px', 'w-0.5', 'w-1',
-];
-const CONTACT_PADDING_X: ReadonlyArray<AbstractHeroContactPaddingX> = [
-  'px-3', 'px-4', 'px-5', 'px-6',
-];
-const CONTACT_PADDING_Y: ReadonlyArray<AbstractHeroContactPaddingY> = [
-  'py-2', 'py-2.5', 'py-3', 'py-4',
-];
-const CONTACT_BORDER_WIDTHS: ReadonlyArray<AbstractHeroContactBorderWidth> = [
-  'border', 'border-2',
+  'none', 'pipe', 'dot', 'rule',
 ];
 const SPLIT_BAND_SIDES: ReadonlyArray<'left' | 'right'> = ['left', 'right'];
 const COLOR_MODES: ReadonlyArray<SiteHeaderColorMode> = [
   'adaptive', 'custom', 'surface', 'column',
 ];
 const CONTENT_ALIGN_VALUES: ReadonlyArray<SiteHeaderContentAlign> = ['start', 'center', 'end'];
-const CONTENT_WIDTH_VALUES: ReadonlyArray<SiteHeaderContentWidth> = [
-  'auto',
-  ...CONTENT_WIDTH_PERCENT_WIDE_OPTIONS.map(option => option.value),
-];
 const FONT_FAMILIES: ReadonlyArray<SiteHeaderFontFamily> = ['inherit', 'sans', 'serif'];
-const NAV_FONT_WEIGHTS: ReadonlyArray<SiteHeaderNavFontWeight> = [
-  'font-normal', 'font-medium', 'font-semibold', 'font-bold',
-];
-const NAV_FONT_SIZES_NARROW: ReadonlyArray<SiteHeaderNavFontSizeNarrow> = [
-  'text-[9px]', 'text-[10px]', 'text-[11px]', 'text-xs', 'text-sm', 'text-base',
-];
-const NAV_FONT_SIZES_DESKTOP: ReadonlyArray<SiteHeaderNavFontSizeDesktop> = [
-  'md:text-[9px]', 'md:text-[10px]', 'md:text-[11px]', 'md:text-xs', 'md:text-sm', 'md:text-base',
-];
+
+/** Read bridge for configurations saved before the base/Wide/Lg rename.
+ * Remove after all persisted SiteHeader values have been rewritten by the
+ * config update path and the old keys no longer appear in stored data. */
+function migrateLegacySiteHeaderConfig(config: Partial<SiteHeaderConfig> | undefined): Partial<SiteHeaderConfig> {
+  if (!config) return {};
+  const raw = config as Record<string, unknown>;
+  const migrated: Record<string, unknown> = { ...raw };
+  const renamed: Record<string, string> = {
+    desktopHeight: 'heightWide', desktopPaddingX: 'paddingXWide', desktopPaddingY: 'paddingYWide',
+    desktopMarginTop: 'marginTopWide', desktopMarginBottom: 'marginBottomWide',
+    desktopLogoWidth: 'logoWidthWide', desktopGap: 'gapWide',
+    navFontSizeNarrow: 'navFontSize', navFontSizeDesktop: 'navFontSizeWide',
+  };
+  for (const [oldKey, newKey] of Object.entries(renamed)) {
+    if (migrated[newKey] === undefined && raw[oldKey] !== undefined) migrated[newKey] = raw[oldKey];
+  }
+  if (raw.mobileNavGap !== undefined) {
+    if (migrated.navGapWide === undefined) migrated.navGapWide = raw.navGap;
+    migrated.navGap = raw.mobileNavGap;
+  } else if (typeof raw.navGap === 'string' && raw.navGap.startsWith('md:') && migrated.navGapWide === undefined) {
+    migrated.navGapWide = raw.navGap;
+    migrated.navGap = undefined;
+  }
+  if (raw.mobileNavDivider === 'hidden') migrated.mobileNavDivider = 'none';
+  if (raw.mobileNavDivider === "before:content-['|']") migrated.mobileNavDivider = 'pipe';
+  if (raw.mobileNavDivider === "before:content-['⋅']") migrated.mobileNavDivider = 'dot';
+  if (raw.mobileNavDivider === 'border-l') migrated.mobileNavDivider = 'rule';
+  const responsive = [
+    ['height', 'height'], ['paddingX', 'paddingX'], ['paddingY', 'paddingY'],
+    ['marginTop', 'marginTop'], ['marginBottom', 'marginBottom'],
+    ['logoWidth', 'width'], ['gap', 'gap'], ['navFontSize', 'fontSize'], ['navGap', 'gap'],
+  ] as const;
+  const defaults = DEFAULT_SITE_HEADER_CONFIG as unknown as Record<string, string>;
+  for (const [key, utility] of responsive) {
+    const wideKey = `${key}Wide`;
+    const lgKey = `${key}Lg`;
+    if (migrated[lgKey] !== undefined || migrated[wideKey] === undefined) continue;
+    const wide = normalizeTailwindToken({
+      utility, breakpoint: 'md', value: migrated[wideKey],
+      fallback: defaults[wideKey] as TailwindTokenValue<typeof utility, 'md'>,
+    });
+    migrated[lgKey] = translateTailwindTokenBreakpoint(utility, 'md', 'lg', wide, defaults[lgKey] as TailwindTokenValue<typeof utility, 'lg'>);
+  }
+  return migrated as Partial<SiteHeaderConfig>;
+}
 
 export function normalizeSiteHeaderConfig(
   config: Partial<SiteHeaderConfig> | undefined,
 ): SiteHeaderConfig {
-  const base = { ...DEFAULT_SITE_HEADER_CONFIG, ...(config ?? {}) };
+  const base = { ...DEFAULT_SITE_HEADER_CONFIG, ...migrateLegacySiteHeaderConfig(config) };
   return {
     colorMode: token(base.colorMode, COLOR_MODES, DEFAULT_SITE_HEADER_CONFIG.colorMode),
     fontFamily: token(base.fontFamily, FONT_FAMILIES, DEFAULT_SITE_HEADER_CONFIG.fontFamily),
@@ -757,19 +684,10 @@ export function normalizeSiteHeaderConfig(
     navLetterSpacingEm: clampRange(
       base.navLetterSpacingEm, 0, 0.3, DEFAULT_SITE_HEADER_CONFIG.navLetterSpacingEm,
     ),
-    navFontWeight: token(
-      base.navFontWeight, NAV_FONT_WEIGHTS, DEFAULT_SITE_HEADER_CONFIG.navFontWeight,
-    ),
-    navFontSizeNarrow: token(
-      base.navFontSizeNarrow,
-      NAV_FONT_SIZES_NARROW,
-      DEFAULT_SITE_HEADER_CONFIG.navFontSizeNarrow,
-    ),
-    navFontSizeDesktop: token(
-      base.navFontSizeDesktop,
-      NAV_FONT_SIZES_DESKTOP,
-      DEFAULT_SITE_HEADER_CONFIG.navFontSizeDesktop,
-    ),
+    navFontWeight: normalizeTailwindToken({ utility: 'fontWeight', breakpoint: 'base', value: base.navFontWeight, fallback: DEFAULT_SITE_HEADER_CONFIG.navFontWeight }),
+    navFontSize: normalizeTailwindToken({ utility: 'fontSize', breakpoint: 'base', value: base.navFontSize, fallback: DEFAULT_SITE_HEADER_CONFIG.navFontSize }),
+    navFontSizeWide: normalizeTailwindToken({ utility: 'fontSize', breakpoint: 'md', value: base.navFontSizeWide, fallback: DEFAULT_SITE_HEADER_CONFIG.navFontSizeWide }),
+    navFontSizeLg: normalizeTailwindToken({ utility: 'fontSize', breakpoint: 'lg', value: base.navFontSizeLg, fallback: DEFAULT_SITE_HEADER_CONFIG.navFontSizeLg }),
     logoColor: normalizeColor(base.logoColor, DEFAULT_SITE_HEADER_CONFIG.logoColor),
     navTextColor: normalizeColor(
       base.navTextColor,
@@ -798,71 +716,32 @@ export function normalizeSiteHeaderConfig(
       21,
       DEFAULT_SITE_HEADER_CONFIG.columnTextMinContrast,
     ),
-    height: token(base.height, HEIGHTS, DEFAULT_SITE_HEADER_CONFIG.height),
-    desktopHeight: token(
-      base.desktopHeight,
-      DESKTOP_HEIGHTS,
-      DEFAULT_SITE_HEADER_CONFIG.desktopHeight,
-    ),
-    paddingX: token(base.paddingX, PADDING_X, DEFAULT_SITE_HEADER_CONFIG.paddingX),
-    paddingY: token(base.paddingY, PADDING_Y, DEFAULT_SITE_HEADER_CONFIG.paddingY),
-    desktopPaddingX: token(
-      base.desktopPaddingX,
-      DESKTOP_PADDING_X,
-      DEFAULT_SITE_HEADER_CONFIG.desktopPaddingX,
-    ),
-    desktopPaddingY: token(
-      base.desktopPaddingY,
-      DESKTOP_PADDING_Y,
-      DEFAULT_SITE_HEADER_CONFIG.desktopPaddingY,
-    ),
-    marginTop: token(
-      base.marginTop,
-      MARGIN_TOP,
-      DEFAULT_SITE_HEADER_CONFIG.marginTop,
-    ),
-    marginBottom: token(
-      base.marginBottom,
-      MARGIN_BOTTOM,
-      DEFAULT_SITE_HEADER_CONFIG.marginBottom,
-    ),
-    desktopMarginTop: token(
-      base.desktopMarginTop,
-      DESKTOP_MARGIN_TOP,
-      DEFAULT_SITE_HEADER_CONFIG.desktopMarginTop,
-    ),
-    desktopMarginBottom: token(
-      base.desktopMarginBottom,
-      DESKTOP_MARGIN_BOTTOM,
-      DEFAULT_SITE_HEADER_CONFIG.desktopMarginBottom,
-    ),
-    logoWidth: token(
-      base.logoWidth,
-      LOGO_WIDTHS,
-      DEFAULT_SITE_HEADER_CONFIG.logoWidth,
-    ),
-    desktopLogoWidth: token(
-      base.desktopLogoWidth,
-      DESKTOP_LOGO_WIDTHS,
-      DEFAULT_SITE_HEADER_CONFIG.desktopLogoWidth,
-    ),
-    gap: token(base.gap, GAPS, DEFAULT_SITE_HEADER_CONFIG.gap),
-    desktopGap: token(
-      base.desktopGap,
-      DESKTOP_GAPS,
-      DEFAULT_SITE_HEADER_CONFIG.desktopGap,
-    ),
-    mobileNavGap: token(
-      base.mobileNavGap,
-      MOBILE_NAV_GAPS,
-      DEFAULT_SITE_HEADER_CONFIG.mobileNavGap,
-    ),
+    height: normalizeTailwindToken({ utility: 'height', breakpoint: 'base', value: base.height, fallback: DEFAULT_SITE_HEADER_CONFIG.height }),
+    heightWide: normalizeTailwindToken({ utility: 'height', breakpoint: 'md', value: base.heightWide, fallback: DEFAULT_SITE_HEADER_CONFIG.heightWide }),
+    heightLg: normalizeTailwindToken({ utility: 'height', breakpoint: 'lg', value: base.heightLg, fallback: DEFAULT_SITE_HEADER_CONFIG.heightLg }),
+    paddingX: normalizeTailwindToken({ utility: 'paddingX', breakpoint: 'base', value: base.paddingX, fallback: DEFAULT_SITE_HEADER_CONFIG.paddingX }),
+    paddingXWide: normalizeTailwindToken({ utility: 'paddingX', breakpoint: 'md', value: base.paddingXWide, fallback: DEFAULT_SITE_HEADER_CONFIG.paddingXWide }),
+    paddingXLg: normalizeTailwindToken({ utility: 'paddingX', breakpoint: 'lg', value: base.paddingXLg, fallback: DEFAULT_SITE_HEADER_CONFIG.paddingXLg }),
+    paddingY: normalizeTailwindToken({ utility: 'paddingY', breakpoint: 'base', value: base.paddingY, fallback: DEFAULT_SITE_HEADER_CONFIG.paddingY }),
+    paddingYWide: normalizeTailwindToken({ utility: 'paddingY', breakpoint: 'md', value: base.paddingYWide, fallback: DEFAULT_SITE_HEADER_CONFIG.paddingYWide }),
+    paddingYLg: normalizeTailwindToken({ utility: 'paddingY', breakpoint: 'lg', value: base.paddingYLg, fallback: DEFAULT_SITE_HEADER_CONFIG.paddingYLg }),
+    marginTop: normalizeTailwindToken({ utility: 'marginTop', breakpoint: 'base', value: base.marginTop, fallback: DEFAULT_SITE_HEADER_CONFIG.marginTop }),
+    marginTopWide: normalizeTailwindToken({ utility: 'marginTop', breakpoint: 'md', value: base.marginTopWide, fallback: DEFAULT_SITE_HEADER_CONFIG.marginTopWide }),
+    marginTopLg: normalizeTailwindToken({ utility: 'marginTop', breakpoint: 'lg', value: base.marginTopLg, fallback: DEFAULT_SITE_HEADER_CONFIG.marginTopLg }),
+    marginBottom: normalizeTailwindToken({ utility: 'marginBottom', breakpoint: 'base', value: base.marginBottom, fallback: DEFAULT_SITE_HEADER_CONFIG.marginBottom }),
+    marginBottomWide: normalizeTailwindToken({ utility: 'marginBottom', breakpoint: 'md', value: base.marginBottomWide, fallback: DEFAULT_SITE_HEADER_CONFIG.marginBottomWide }),
+    marginBottomLg: normalizeTailwindToken({ utility: 'marginBottom', breakpoint: 'lg', value: base.marginBottomLg, fallback: DEFAULT_SITE_HEADER_CONFIG.marginBottomLg }),
+    logoWidth: normalizeTailwindToken({ utility: 'width', breakpoint: 'base', value: base.logoWidth, fallback: DEFAULT_SITE_HEADER_CONFIG.logoWidth }),
+    logoWidthWide: normalizeTailwindToken({ utility: 'width', breakpoint: 'md', value: base.logoWidthWide, fallback: DEFAULT_SITE_HEADER_CONFIG.logoWidthWide }),
+    logoWidthLg: normalizeTailwindToken({ utility: 'width', breakpoint: 'lg', value: base.logoWidthLg, fallback: DEFAULT_SITE_HEADER_CONFIG.logoWidthLg }),
+    gap: normalizeTailwindToken({ utility: 'gap', breakpoint: 'base', value: base.gap, fallback: DEFAULT_SITE_HEADER_CONFIG.gap }),
+    gapWide: normalizeTailwindToken({ utility: 'gap', breakpoint: 'md', value: base.gapWide, fallback: DEFAULT_SITE_HEADER_CONFIG.gapWide }),
+    gapLg: normalizeTailwindToken({ utility: 'gap', breakpoint: 'lg', value: base.gapLg, fallback: DEFAULT_SITE_HEADER_CONFIG.gapLg }),
+    navGap: normalizeTailwindToken({ utility: 'gap', breakpoint: 'base', value: base.navGap, fallback: DEFAULT_SITE_HEADER_CONFIG.navGap }),
+    navGapWide: normalizeTailwindToken({ utility: 'gap', breakpoint: 'md', value: base.navGapWide, fallback: DEFAULT_SITE_HEADER_CONFIG.navGapWide }),
+    navGapLg: normalizeTailwindToken({ utility: 'gap', breakpoint: 'lg', value: base.navGapLg, fallback: DEFAULT_SITE_HEADER_CONFIG.navGapLg }),
     mobileNavFlexEnabled: base.mobileNavFlexEnabled === true,
-    mobileNavItemGap: token(
-      base.mobileNavItemGap,
-      MOBILE_NAV_ITEM_GAPS,
-      DEFAULT_SITE_HEADER_CONFIG.mobileNavItemGap,
-    ),
+    mobileNavItemGap: normalizeTailwindToken({ utility: 'gapX', breakpoint: 'base', value: base.mobileNavItemGap, fallback: DEFAULT_SITE_HEADER_CONFIG.mobileNavItemGap }),
     mobileNavDistribution: token(
       base.mobileNavDistribution,
       MOBILE_NAV_DISTRIBUTIONS,
@@ -874,32 +753,11 @@ export function normalizeSiteHeaderConfig(
       MOBILE_NAV_DIVIDERS,
       DEFAULT_SITE_HEADER_CONFIG.mobileNavDivider,
     ),
-    mobileNavDividerHeight: token(
-      base.mobileNavDividerHeight,
-      MOBILE_NAV_DIVIDER_HEIGHTS,
-      DEFAULT_SITE_HEADER_CONFIG.mobileNavDividerHeight,
-    ),
-    mobileNavDividerWidth: token(
-      base.mobileNavDividerWidth,
-      MOBILE_NAV_DIVIDER_WIDTHS,
-      DEFAULT_SITE_HEADER_CONFIG.mobileNavDividerWidth,
-    ),
-    navGap: token(base.navGap, NAV_GAPS, DEFAULT_SITE_HEADER_CONFIG.navGap),
-    contactPaddingX: token(
-      base.contactPaddingX,
-      CONTACT_PADDING_X,
-      DEFAULT_SITE_HEADER_CONFIG.contactPaddingX,
-    ),
-    contactPaddingY: token(
-      base.contactPaddingY,
-      CONTACT_PADDING_Y,
-      DEFAULT_SITE_HEADER_CONFIG.contactPaddingY,
-    ),
-    contactBorderWidth: token(
-      base.contactBorderWidth,
-      CONTACT_BORDER_WIDTHS,
-      DEFAULT_SITE_HEADER_CONFIG.contactBorderWidth,
-    ),
+    mobileNavDividerHeight: normalizeTailwindToken({ utility: 'height', breakpoint: 'base', value: base.mobileNavDividerHeight, fallback: DEFAULT_SITE_HEADER_CONFIG.mobileNavDividerHeight }),
+    mobileNavDividerWidth: normalizeTailwindToken({ utility: 'width', breakpoint: 'base', value: base.mobileNavDividerWidth, fallback: DEFAULT_SITE_HEADER_CONFIG.mobileNavDividerWidth }),
+    contactPaddingX: normalizeTailwindToken({ utility: 'paddingX', breakpoint: 'base', value: base.contactPaddingX, fallback: DEFAULT_SITE_HEADER_CONFIG.contactPaddingX }),
+    contactPaddingY: normalizeTailwindToken({ utility: 'paddingY', breakpoint: 'base', value: base.contactPaddingY, fallback: DEFAULT_SITE_HEADER_CONFIG.contactPaddingY }),
+    contactBorderWidth: normalizeTailwindToken({ utility: 'borderWidth', breakpoint: 'base', value: base.contactBorderWidth, fallback: DEFAULT_SITE_HEADER_CONFIG.contactBorderWidth }),
     navBandEnabled: base.navBandEnabled === true,
     navBandSourceRow: Math.round(clampRange(
       base.navBandSourceRow,
@@ -977,42 +835,30 @@ export function normalizeSiteHeaderConfig(
     navAlignedToPageContainer: base.navAlignedToPageContainer === true,
     logoAlignedToSplitEnabled: base.logoAlignedToSplitEnabled === true,
     logoContentGapPaddingEnabled: base.logoContentGapPaddingEnabled !== false,
-    headerLeftContentAlign: token(
-      base.headerLeftContentAlign, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentAlign,
-    ),
-    headerLeftContentVerticalAlign: token(
-      base.headerLeftContentVerticalAlign,
-      CONTENT_ALIGN_VALUES,
-      DEFAULT_SITE_HEADER_CONFIG.headerLeftContentVerticalAlign,
-    ),
-    headerRightContentAlign: token(
-      base.headerRightContentAlign, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentAlign,
-    ),
-    headerRightContentVerticalAlign: token(
-      base.headerRightContentVerticalAlign,
-      CONTENT_ALIGN_VALUES,
-      DEFAULT_SITE_HEADER_CONFIG.headerRightContentVerticalAlign,
-    ),
-    headerLeftContentWidthWide: token(
-      base.headerLeftContentWidthWide,
-      CONTENT_WIDTH_VALUES,
-      DEFAULT_SITE_HEADER_CONFIG.headerLeftContentWidthWide,
-    ),
-    headerRightContentWidthWide: token(
-      base.headerRightContentWidthWide,
-      CONTENT_WIDTH_VALUES,
-      DEFAULT_SITE_HEADER_CONFIG.headerRightContentWidthWide,
-    ),
-    headerLeftContentInnerAlignWide: token(
-      base.headerLeftContentInnerAlignWide,
-      CONTENT_ALIGN_VALUES,
-      DEFAULT_SITE_HEADER_CONFIG.headerLeftContentInnerAlignWide,
-    ),
-    headerRightContentInnerAlignWide: token(
-      base.headerRightContentInnerAlignWide,
-      CONTENT_ALIGN_VALUES,
-      DEFAULT_SITE_HEADER_CONFIG.headerRightContentInnerAlignWide,
-    ),
+    headerLeftContentAlign: token(base.headerLeftContentAlign, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentAlign),
+    headerLeftContentAlignWide: token(base.headerLeftContentAlignWide, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentAlignWide),
+    headerLeftContentAlignLg: token(base.headerLeftContentAlignLg, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentAlignLg),
+    headerLeftContentVerticalAlign: token(base.headerLeftContentVerticalAlign, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentVerticalAlign),
+    headerLeftContentVerticalAlignWide: token(base.headerLeftContentVerticalAlignWide, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentVerticalAlignWide),
+    headerLeftContentVerticalAlignLg: token(base.headerLeftContentVerticalAlignLg, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentVerticalAlignLg),
+    headerRightContentAlign: token(base.headerRightContentAlign, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentAlign),
+    headerRightContentAlignWide: token(base.headerRightContentAlignWide, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentAlignWide),
+    headerRightContentAlignLg: token(base.headerRightContentAlignLg, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentAlignLg),
+    headerRightContentVerticalAlign: token(base.headerRightContentVerticalAlign, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentVerticalAlign),
+    headerRightContentVerticalAlignWide: token(base.headerRightContentVerticalAlignWide, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentVerticalAlignWide),
+    headerRightContentVerticalAlignLg: token(base.headerRightContentVerticalAlignLg, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentVerticalAlignLg),
+    headerLeftContentInnerAlign: token(base.headerLeftContentInnerAlign, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentInnerAlign),
+    headerLeftContentInnerAlignWide: token(base.headerLeftContentInnerAlignWide, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentInnerAlignWide),
+    headerLeftContentInnerAlignLg: token(base.headerLeftContentInnerAlignLg, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerLeftContentInnerAlignLg),
+    headerRightContentInnerAlign: token(base.headerRightContentInnerAlign, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentInnerAlign),
+    headerRightContentInnerAlignWide: token(base.headerRightContentInnerAlignWide, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentInnerAlignWide),
+    headerRightContentInnerAlignLg: token(base.headerRightContentInnerAlignLg, CONTENT_ALIGN_VALUES, DEFAULT_SITE_HEADER_CONFIG.headerRightContentInnerAlignLg),
+    headerLeftContentWidth: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'base', value: base.headerLeftContentWidth, fallback: DEFAULT_SITE_HEADER_CONFIG.headerLeftContentWidth }),
+    headerLeftContentWidthWide: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'md', value: base.headerLeftContentWidthWide, fallback: DEFAULT_SITE_HEADER_CONFIG.headerLeftContentWidthWide }),
+    headerLeftContentWidthLg: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'lg', value: base.headerLeftContentWidthLg, fallback: DEFAULT_SITE_HEADER_CONFIG.headerLeftContentWidthLg }),
+    headerRightContentWidth: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'base', value: base.headerRightContentWidth, fallback: DEFAULT_SITE_HEADER_CONFIG.headerRightContentWidth }),
+    headerRightContentWidthWide: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'md', value: base.headerRightContentWidthWide, fallback: DEFAULT_SITE_HEADER_CONFIG.headerRightContentWidthWide }),
+    headerRightContentWidthLg: normalizeTailwindToken({ utility: 'maxWidth', breakpoint: 'lg', value: base.headerRightContentWidthLg, fallback: DEFAULT_SITE_HEADER_CONFIG.headerRightContentWidthLg }),
     headerLeftContentClassName: typeof base.headerLeftContentClassName === 'string'
       ? base.headerLeftContentClassName
       : DEFAULT_SITE_HEADER_CONFIG.headerLeftContentClassName,

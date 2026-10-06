@@ -1,5 +1,7 @@
 import SeoHead from '../components/SeoHead';
 import { buildSiteTitle } from '../helpers/siteMetadata';
+import { SiteContentProvider } from '../helpers/content/SiteContentProvider';
+import type { AboutPageContent, SiteContent } from '../helpers/content/pageContent.schema';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { PanelShell, PanelStandardHeaderActions } from '../components/Panel';
@@ -111,7 +113,7 @@ import {
   ABOUT_POLYMORPHIC_LAYOUT_PANEL,
 } from './about.panel';
 import { aboutConfigPanelRegistry } from './aboutConfigPanels';
-import { BELOW_MD_MEDIA_QUERY, MD_BREAKPOINT_PX } from '../components/breakpoints';
+import { LG_BREAKPOINT_PX, MD_BREAKPOINT_PX } from '../components/breakpoints';
 import { useBreakpointTier } from '../components/useBreakpointTier';
 import { AboutMobileAccordion } from '../experiences/about/components/AboutMobileAccordion';
 import {
@@ -127,14 +129,10 @@ import {
 } from '../experiences/about/components/AboutTimeline.config';
 import styles from './about.module.css';
 
-// Below this width, splitLeft/splitRight stack top/bottom instead of
-// sitting side by side (see about.module.css's own @media (max-width:
-// 767px) rule on .splitGrid) — matches the star-field narrow-mode decision
-// below (config.narrowBehavior), kept as one threshold rather than two.
-// BELOW_MD_MEDIA_QUERY (components/breakpoints.ts) — derived from the same
-// shared md breakpoint, not a separately-hand-computed '767px' literal (see
-// PLAN-CENTRALIZED-BREAKPOINTS-RESPONSIVE-CARD-STACK.md).
-const NARROW_VIEWPORT_MEDIA_QUERY = BELOW_MD_MEDIA_QUERY;
+// /about uses one compact composition through tablet. Derive the boundary
+// from the shared lg breakpoint so the runtime branch and the Polymorphic
+// Layout panel's stacked tablet value cannot drift apart.
+const NARROW_VIEWPORT_MEDIA_QUERY = `(max-width: ${LG_BREAKPOINT_PX - 1}px)`;
 
 // Legible against the spacefield's own dark backgroundColor — the header's
 // nav text/logo are otherwise tuned for the light tan/blue split-band this
@@ -180,61 +178,10 @@ const SPACEFIELD_DEFINITION =
 // Row 4 ("On my own") stays deliberately vague — no client count, no team
 // size, no named clients (see the left/right column rule's own "opacity is
 // deliberate" note).
-const ABOUT_TIMELINE_ROWS = [
-  {
-    caption: 'Where it starts, circa 2010',
-    line: 'Contract work for large corporations, learning the craft on live stakes',
-    slideIndex: 0,
-  },
-  {
-    caption: 'The question, circa 2017',
-    line: 'Light and sound, and what biomimicry teaches about products',
-    slideIndex: 1,
-  },
-  {
-    caption: 'The consulting years, 2018 to 2023',
-    line: 'Contractor, then multiple squads, then whole engagements',
-    slideIndex: 2,
-  },
-  {
-    caption: 'McKinsey, 2023 to 2025',
-    line: 'Several teams at once, on firm-wide initiatives',
-    slideIndex: 3,
-  },
-  {
-    caption: 'On my own, since 2025',
-    line: 'A few collaborators, a small number of clients',
-    slideIndex: 4,
-  },
-] as const;
-
-// `**word**` runs render brighter, `[text](href)` runs are inline links
-// (see renderEmphasisText in helpers/textEmphasis.tsx) — a lightweight,
-// source-only way to mark each paragraph's important words/routes without a
-// second structured field. Five entries, chronological, one per
-// ABOUT_TIMELINE_ROWS row above (index-for-index) — no digits/dates live in
-// any of these strings; every one already lives in the matching timeline
-// row instead (QA-01).
-const ABOUT_NARRATIVE_PARAGRAPHS: string[] = [
-  'Before any of this had a name, I was a **contractor**. Large corporations, long projects, the kind of work where the **brief** arrives finished and the job is to build it well. That was the work for years, and building it well was enough, until I started wondering about things the brief never asked about.',
-  'Two questions in particular, and neither had a use. How **light and sound** relate, which is where the color on this page comes from. The gradient behind these words is generated rather than chosen, from colors derived from sound. The other is what **biomimicry** can teach about making a product feel human. [Both are still open](/), and chasing them taught me more than any framework did. It set the pattern too. I pick up a question, and eventually it turns into work.',
-  'The work it turned into was technology consulting. I started as a contractor, across industries from consumer goods to real estate, then led multiple squads, and later whole **engagements**. Different clients, one recurring problem. The plan always arrived confident, and real **usage** always disagreed with part of it.',
-  '**McKinsey** put that problem at a **scale** where being wrong was expensive. I worked across several teams on firm-wide initiatives, and most of a day went to deciding what should exist rather than building it. That is where the shift stopped being an opinion.',
-  'Then AI took over much of the execution, and the weight moved to **judgment**. That is the shift I wanted to work inside. It opened collaboration rather than replacing it, so I still bring people in when the work needs them. I take on a few at a time and stay close to the work, from the first conversations through delivery. The plan is a **hypothesis** until real usage tests it, and when the signals move I say so. [Start anywhere](/contact)',
-];
-
-// CNT-06 — derived, not hand-maintained: the mobile accordion's own
-// collapsed-preview header is now each row's own editorial caption, not an
-// extracted single word (three of the four single-word previews this
-// replaced gave a reader nothing to decide with). Feeds
-// SliderContentSlide.excerpt below, same field this array always fed.
-const ABOUT_NARRATIVE_PREVIEWS: string[] = ABOUT_TIMELINE_ROWS.map(row => row.caption);
-
 // Left column (index 0) + the five slides (index 1..5) share one continuous
 // ramp (ABOUT_PALETTE_STOP_COUNT stops), so the left panel reads as part of
 // the same palette sequence the dock's own slides use rather than an
 // arbitrarily-picked color.
-const ABOUT_PALETTE_STOP_COUNT = ABOUT_NARRATIVE_PARAGRAPHS.length + 1;
 const LEFT_PANEL_PALETTE_INDEX = 0;
 // The header's own top-segment row (topSegmentDynamicBackgroundEnabled) is
 // deliberately NOT a stop in the ABOUT_PALETTE_STOP_COUNT ramp above — an
@@ -304,11 +251,20 @@ function tailwindTokenToPx(token: string): number {
 // AbstractPostDock (wide column) — a thin wrapper provides it since a
 // component can't consume a context it renders the Provider for within its
 // own return (see AboutPageContent's own doc comment below).
-export default function AboutPage() {
+type AboutPageProps = { pageContent: AboutPageContent; siteContent: SiteContent };
+
+export async function getStaticProps() {
+  const { loadAboutPageContent, loadSiteContent } = await import('../helpers/content/pageContent.build');
+  return { props: { pageContent: loadAboutPageContent(), siteContent: loadSiteContent() } };
+}
+
+export default function AboutPage({ pageContent, siteContent }: AboutPageProps) {
   return (
-    <AboutSlidesProvider slideCount={ABOUT_NARRATIVE_PARAGRAPHS.length}>
-      <AboutPageContent />
-    </AboutSlidesProvider>
+    <SiteContentProvider site={siteContent} page={pageContent}>
+      <AboutSlidesProvider slideCount={pageContent.timeline.length}>
+        <AboutPageContent pageContent={pageContent} />
+      </AboutSlidesProvider>
+    </SiteContentProvider>
   );
 }
 
@@ -317,7 +273,15 @@ export default function AboutPage() {
  * useAboutSlides() itself to source AbstractPostDock's activeIndex/
  * onActiveIndexChange props from the shared context, same interface as
  * before, just sourced from context instead of a local useState. */
-function AboutPageContent() {
+function AboutPageContent({ pageContent }: { pageContent: AboutPageContent }) {
+  const aboutTimelineRows = pageContent.timeline.map((row, slideIndex) => ({
+    caption: `${row.title}, ${row.period}`,
+    line: row.line,
+    slideIndex,
+  }));
+  const aboutNarrativeParagraphs = pageContent.timeline.map(row => row.body);
+  const aboutNarrativePreviews = aboutTimelineRows.map(row => row.caption);
+  const aboutPaletteStopCount = aboutNarrativeParagraphs.length + 1;
   const {
     pageSurfaceConfig,
     setPageSurfaceConfig,
@@ -438,8 +402,8 @@ function AboutPageContent() {
   // whichever breakpoint is currently rendered.
   const { ref: headerWrapperRef, rect: headerWrapperRect } = useMeasuredElementRect<HTMLDivElement>();
   const navHeightPx = headerWrapperRect?.height ?? (
-    tailwindTokenToPx(normalizedSiteHeaderConfig.desktopHeight)
-    + tailwindTokenToPx(normalizedSiteHeaderConfig.desktopMarginTop)
+    tailwindTokenToPx(normalizedSiteHeaderConfig.heightWide)
+    + tailwindTokenToPx(normalizedSiteHeaderConfig.marginTopWide)
   );
 
 
@@ -569,12 +533,12 @@ function AboutPageContent() {
   // (it's also the fallback fill behind the dynamic-gradient canvas, so it
   // stays meaningful even with minimalModeGradientEnabled on).
   const aboutSlides: SliderContentSlide[] = useMemo(() => (
-    ABOUT_NARRATIVE_PARAGRAPHS.map((body, index) => ({
+    aboutNarrativeParagraphs.map((body, index) => ({
       id: index,
       slug: `about-${index}`,
       label: String(index + 1).padStart(2, '0'),
       title: body,
-      excerpt: ABOUT_NARRATIVE_PREVIEWS[index] ?? '',
+      excerpt: aboutNarrativePreviews[index] ?? '',
       topic: '',
       date: '',
       readingTime: '',
@@ -588,11 +552,11 @@ function AboutPageContent() {
       // and hueSpread) — this is what makes the gradient read as one
       // continuous field sliced across the slides rather than N independent
       // ones.
-      hueOffset: deckWindowHueOffset(index + 1, ABOUT_PALETTE_STOP_COUNT, dockPaletteConfig.hueSpread),
+      hueOffset: deckWindowHueOffset(index + 1, aboutPaletteStopCount, dockPaletteConfig.hueSpread),
       variationBias: 0,
       offsetX: 0,
       offsetY: 0,
-      accent: resolveSplitColumnAccent(index + 1, ABOUT_PALETTE_STOP_COUNT, dockPaletteConfig),
+      accent: resolveSplitColumnAccent(index + 1, aboutPaletteStopCount, dockPaletteConfig),
     }))
   ), [dockPaletteConfig]);
 
@@ -611,8 +575,8 @@ function AboutPageContent() {
   // LEFT_PANEL_PALETTE_INDEX/ABOUT_PALETTE_STOP_COUNT's own doc comment
   // above).
   const paletteColorResolver = useCallback(
-    () => resolveSplitColumnAccent(LEFT_PANEL_PALETTE_INDEX, ABOUT_PALETTE_STOP_COUNT, dockPaletteConfig),
-    [dockPaletteConfig],
+    () => resolveSplitColumnAccent(LEFT_PANEL_PALETTE_INDEX, aboutPaletteStopCount, dockPaletteConfig),
+    [aboutPaletteStopCount, dockPaletteConfig],
   );
   // The header top-segment row's own palette state — the SAME
   // buildDeckPaletteStates(...) call AbstractPostDock's own View.tsx makes
@@ -928,6 +892,17 @@ function AboutPageContent() {
     colors,
   });
   const aboutTimelineInkColor = aboutTimelineInkColorResolved ?? narrowColumnTypography.titleColor;
+  // The timeline and wordmark are separate DOM subtrees. The adaptive ink is
+  // a live `color-mix()` expression whose CSS progress variable must exist on
+  // each subtree's own ancestor; sharing the timeline's string alone leaves
+  // the wordmark's `var(...)` unresolved and its SVG stops fall back to black.
+  const aboutWordmarkInkRef = useRef<HTMLAnchorElement | null>(null);
+  const aboutWordmarkInkColor = usePolymorphicColumnAdaptiveInk({
+    ref: aboutWordmarkInkRef,
+    baseColor: narrowColumnTypography.titleColor,
+    config: splitColumnLayoutConfig,
+    colors,
+  }) ?? narrowColumnTypography.titleColor;
   // Bug fix, /abstract used as the role model (its own <SiteHeader> render
   // call forces this same override — pages/abstract.tsx: `colorMode:
   // colors.scrollGradientActive ? 'custom' : ...`, `navTextColor: colors.
@@ -948,6 +923,17 @@ function AboutPageContent() {
     colorMode: 'custom' as const,
     navTextColor: aboutTimelineInkColor,
   }), [normalizedSiteHeaderConfig, aboutTimelineInkColor]);
+  // Tablet intentionally uses the compact/mobile accordion composition.
+  // Its stored custom text color is a static fallback, so replace it at the
+  // final consumer with the same live adaptive ink supplied to the tablet
+  // wordmark and primary nav.
+  const effectiveAboutMobileAccordionConfig = colors.breakpointTier === 'md'
+    ? {
+      ...aboutMobileAccordionConfig,
+      textColorMode: 'custom' as const,
+      textCustomColor: aboutTimelineInkColor,
+    }
+    : aboutMobileAccordionConfig;
   // Bug fix, /abstract used as the role model (pages/abstract.tsx's own
   // gradientBackedNarrowColumn gate): whenever the narrow column is
   // genuinely gradient-backed (colors.narrowColumnGradientReferenceColor
@@ -999,6 +985,10 @@ function AboutPageContent() {
   const { ref: logoAnchorRef, rect: logoAnchorRect } = useMeasuredElementRect<HTMLAnchorElement>(
     [colors.breakpointTier, colors.viewportWidthPx],
   );
+  const setAboutLogoAnchorRef = useCallback((element: HTMLAnchorElement | null) => {
+    logoAnchorRef(element);
+    aboutWordmarkInkRef.current = element;
+  }, [logoAnchorRef]);
   // Only meaningful once the header is genuinely in its side-by-side (≥md)
   // layout, where the logo really does sit at a fixed left edge that the
   // narrow column's own content can line up against. Below md, the header
@@ -1025,6 +1015,39 @@ function AboutPageContent() {
   const leftAlignPx = (isNarrowViewport || aboutPageLayoutConfig.narrowColumnContentWidthDecoupledEnabled)
     ? undefined
     : logoAnchorRect?.left;
+  // The decoupled narrow-column mode intentionally owns its own body width,
+  // so it must not borrow the wordmark inset wholesale. The desktop timeline
+  // is the one exception: its column is a navigational index, and its outer
+  // edge should share the wordmark's masthead anchor without changing the
+  // body column or the timeline's configured right-aligned rows.
+  const desktopTimelineStartPx = colors.breakpointTier === 'lg'
+    ? logoAnchorRect?.left
+    : undefined;
+  // The body grids remain intentionally page-specific, but the masthead is
+  // one site-level spatial cue. At md and lg, resolve About's header fields
+  // to Abstract's final consumer values: wordmark against the left edge and
+  // primary nav against the right edge, with the same content-track widths
+  // and no inherited inner padding changing either anchor.
+  const headerLayoutConfig = colors.breakpointTier === 'md'
+    ? {
+      ...splitColumnLayoutConfig,
+      headerLeftContentPaddingRightWide: 'md:pr-0' as PolymorphicLayoutConfig['headerLeftContentPaddingRightWide'],
+      headerRightSegmentAlignWide: 'md:justify-end' as PolymorphicLayoutConfig['headerRightSegmentAlignWide'],
+      headerRightInnerAlignWide: 'md:justify-end' as PolymorphicLayoutConfig['headerRightInnerAlignWide'],
+    }
+    : colors.breakpointTier === 'lg'
+      ? {
+        ...splitColumnLayoutConfig,
+        headerLeftSegmentAlignLg: 'lg:justify-start' as PolymorphicLayoutConfig['headerLeftSegmentAlignLg'],
+        headerRightSegmentAlignLg: 'lg:justify-end' as PolymorphicLayoutConfig['headerRightSegmentAlignLg'],
+        headerLeftContentWidthLg: 'lg:max-w-percent-90' as PolymorphicLayoutConfig['headerLeftContentWidthLg'],
+        headerRightContentWidthLg: 'lg:max-w-percent-80' as PolymorphicLayoutConfig['headerRightContentWidthLg'],
+        headerLeftInnerAlignLg: 'lg:justify-start' as PolymorphicLayoutConfig['headerLeftInnerAlignLg'],
+        headerRightInnerAlignLg: 'lg:justify-end' as PolymorphicLayoutConfig['headerRightInnerAlignLg'],
+        headerLeftContentPaddingRightLg: 'lg:pr-0' as PolymorphicLayoutConfig['headerLeftContentPaddingRightLg'],
+        headerRightContentPaddingLeftLg: 'lg:pl-0' as PolymorphicLayoutConfig['headerRightContentPaddingLeftLg'],
+      }
+      : splitColumnLayoutConfig;
 
   // Arrow idle/hover fill — both derived from the header split-band's own
   // resolved left color (never an independent pick), so the control always
@@ -1261,7 +1284,7 @@ function AboutPageContent() {
           top: -logoGradientSegmentHeightPx,
           bottom: 'auto',
           height: unifiedGradientTotalHeightPx > 0 ? `${unifiedGradientTotalHeightPx}px` : '100%',
-        } : { height: `calc(100vh / ${ABOUT_NARRATIVE_PARAGRAPHS.length})` }}
+        } : { height: `calc(100vh / ${aboutNarrativeParagraphs.length})` }}
       >
         <LiquidGradientAdapter
           slide={topSegmentSlide}
@@ -1485,8 +1508,8 @@ function AboutPageContent() {
     // same context — now app-wide, not just page-wide.
     <>
       <SeoHead
-        title={buildSiteTitle('About')}
-        description="About the judgment, collaboration, and ongoing experiments behind Abstract Voyage."
+        title={buildSiteTitle(pageContent.meta.title)}
+        description={pageContent.meta.description}
         canonicalPath="/about"
       />
       <PolymorphicLayout
@@ -1542,14 +1565,16 @@ function AboutPageContent() {
                   // SAME narrow-column ink read there instead washed the
                   // nav text into near-invisibility against a background
                   // it was never resolved against (operator-reported,
-                  // screenshot evidence). Scoped to 'mobile' only restores
-                  // this page's own pre-existing (working) colorMode/
-                  // navTextColor resolution at md/lg, unchanged.
-                  : colors.scrollGradientActive && colors.breakpointTier === 'mobile'
+                  // screenshot evidence). Tablet shares the narrow-column
+                  // mobile composition, so its nav must consume that same
+                  // derived ink as the wordmark and accordion content.
+                  : colors.scrollGradientActive && (
+                    colors.breakpointTier === 'mobile' || colors.breakpointTier === 'md'
+                  )
                     ? scrollGradientAdaptiveHeaderConfig
                     : normalizedSiteHeaderConfig,
               ),
-              splitColumnLayoutConfig,
+              headerLayoutConfig,
             )}
             // The wordmark's own color/adaptive/intro config, fully
             // decoupled from `config` above (which is nav-only now) — the
@@ -1569,10 +1594,15 @@ function AboutPageContent() {
             // only in that case — SiteHeader only reads logoStops in that
             // mode (see resolveSiteHeaderLogoStops). See
             // PLAN-WORDMARK-SCROLL-GRADIENT-INTEGRATION.md.
-            wordmarkConfig={colors.wordmarkGradientStops
+            wordmarkConfig={aboutGradientBackedNarrowColumn || colors.wordmarkGradientStops
               ? { ...wordmarkConfig, colorMode: 'adaptive' }
               : wordmarkConfig}
             logoStops={aboutLogoStops}
+            // The wordmark is the timeline's header-level label on this
+            // composition. Feed it the same final, adaptive timeline ink
+            // directly rather than allowing SiteHeader to derive a second
+            // color from the logo segment's background.
+            titleColorOverride={aboutWordmarkInkColor}
             // physicalLeftColumnColor: SiteHeader itself resolves the
             // logo's own colorMode-driven stops internally from this value
             // now (see SiteHeaderProps.logoStops's own doc comment for
@@ -1588,7 +1618,7 @@ function AboutPageContent() {
             // measurement, unrelated to the shell's own internal ref-
             // merging (never one of HeaderSlotProps's own values; pure
             // passthrough both before and after this migration).
-            logoAnchorRef={logoAnchorRef}
+            logoAnchorRef={setAboutLogoAnchorRef}
             // splitBandActive: not spacefieldVisible falls back to
             // splitColumnLayoutConfig.headerSplitBandEnabled directly — the
             // field the panel's own "Header split band" toggle actually
@@ -1653,6 +1683,9 @@ function AboutPageContent() {
         narrowColumnClassName={[
           styles.splitLeft,
           'relative isolate',
+          // The mobile accordion owns tablet too; suppress the otherwise
+          // empty desktop-timeline track above it.
+          isNarrowViewport ? 'md:!hidden' : '',
           // See narrowColumnContentWidthDecoupledEnabled's own doc comment
           // (about.config.ts) — this modifier suppresses .splitLeft's own
           // padding-left rule (about.module.css) entirely, so the
@@ -1728,9 +1761,15 @@ function AboutPageContent() {
                   CNT-06) as its only "timeline," never this synchronized
                   tablist. */}
               {!isNarrowViewport ? (
-                <div ref={aboutTimelineInkRef}>
+                <div
+                  ref={aboutTimelineInkRef}
+                  style={desktopTimelineStartPx != null ? {
+                    marginLeft: `${desktopTimelineStartPx}px`,
+                    width: `calc(100% - ${desktopTimelineStartPx}px)`,
+                  } : undefined}
+                >
                   <AboutTimeline
-                    rows={ABOUT_TIMELINE_ROWS}
+                    rows={aboutTimelineRows}
                     activeIndex={activeSlideIndex}
                     onSelect={setActiveSlideIndex}
                     accentColor={aboutSlides[activeSlideIndex]?.accent ?? '#ffffff'}
@@ -1783,7 +1822,7 @@ function AboutPageContent() {
             slides={aboutSlides}
             gradientConfig={dockSliderConfig}
             paletteConfig={dockPaletteConfig}
-            config={aboutMobileAccordionConfig}
+            config={effectiveAboutMobileAccordionConfig}
             dimOpacity={dockLayoutConfig.minimalModeTextDimOpacity}
             emphasisOpacity={dockLayoutConfig.minimalModeTextEmphasisOpacity}
             prefersReducedMotion={prefersReducedMotion}

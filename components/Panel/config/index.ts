@@ -11,6 +11,15 @@ export {
 export type { ConfigPanelSurfaceSources } from './globalBindings';
 export { defineConfigScope, getConfigScopeFieldKeys, validateConfigScopeDefinition } from './defineConfigScope';
 export { definePageConfigScope } from './definePageConfigScope';
+export {
+  createTailwindFieldFactory,
+  normalizeTailwindToken,
+} from './tailwindFields';
+export type {
+  TailwindBreakpoint,
+  TailwindTokenValue,
+  TailwindUtilityName,
+} from './tailwindFields';
 export { defineConfigScopeRegistry } from './registry';
 export {
   serializeConfigScopeBinding,

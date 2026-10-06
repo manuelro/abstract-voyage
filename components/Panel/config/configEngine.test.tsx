@@ -59,6 +59,61 @@ function createDemoDefinition() {
 }
 
 describe('dynamic config panel engine', () => {
+  it('rejects enums above the shared eight-option ceiling', () => {
+    expect(() => defineConfigScope<DemoConfig>({
+      ...createDemoDefinition(),
+      fields: [
+        { kind: 'boolean', key: 'enabled', label: 'Enabled' },
+        {
+          kind: 'enum',
+          key: 'mode',
+          label: 'Mode',
+          options: Array.from({ length: 9 }, (_, index) => ({
+            label: index === 0 ? 'ACTIVE' : `OPTION ${index}`,
+            value: index === 0 ? 'active' : `mode-${index}`,
+          })) as Array<{ label: string; value: 'active' | 'all' }>,
+        },
+        { kind: 'number', key: 'amount', label: 'Amount', min: 0, max: 1, step: 0.1 },
+        { kind: 'color', key: 'color', label: 'Color' },
+      ],
+    })).toThrow('has 9 options; use kind "select" above 8');
+  });
+
+  it('allows only an exact legacy oversized-enum identity and option count', () => {
+    type LegacyConfig = { containerHeight: string };
+    const oversizedModeOptions = Array.from({ length: 10 }, (_, index) => ({
+      label: index === 0 ? 'ACTIVE' : `OPTION ${index}`,
+      value: index === 0 ? 'active' : `mode-${index}`,
+    }));
+    const definition = {
+      id: 'FiberHeading/appearance',
+      component: 'FiberHeading',
+      scope: 'appearance',
+      title: 'Legacy fixture',
+      createdAt: '2026-09-23',
+      defaultValue: { containerHeight: 'active' },
+      copy: {
+        targetFile: 'fixture.ts',
+        targetSymbol: 'DEFAULT_FIXTURE',
+        targetType: 'LegacyConfig',
+      },
+    };
+
+    expect(() => defineConfigScope<LegacyConfig>({
+      ...definition,
+      fields: [{
+        kind: 'enum', key: 'containerHeight', label: 'Height', options: oversizedModeOptions,
+      }],
+    })).not.toThrow();
+
+    expect(() => defineConfigScope<LegacyConfig>({
+      ...definition,
+      fields: [{
+        kind: 'enum', key: 'containerHeight', label: 'Height', options: oversizedModeOptions.slice(0, 9),
+      }],
+    })).toThrow('has 9 options; use kind "select" above 8');
+  });
+
   it('validates complete field coverage and enum defaults', () => {
     expect(() => defineConfigScope<DemoConfig>({
       ...createDemoDefinition(),

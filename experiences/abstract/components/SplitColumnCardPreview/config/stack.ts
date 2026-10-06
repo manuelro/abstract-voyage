@@ -727,8 +727,15 @@ export function normalizeSplitColumnCardStackConfig(
     neighborRotationDeg: clamp(base.neighborRotationDeg, 0, 60, D.neighborRotationDeg),
     neighborScaleDownPercent: clamp(base.neighborScaleDownPercent, 0, 0.8, D.neighborScaleDownPercent),
     neighborOpacity: clamp(base.neighborOpacity, 0, 1, D.neighborOpacity),
+    // Ceiling raised from 1200 to 1400 — PLAN-COVERFLOW-NEIGHBOR-COLOR-
+    // TRANSITION-SYNC.md: CoverFlow's own default gaussian settle curve caps
+    // its position glide at gaussianSettleMaxDurationMs (1290ms), and a
+    // color transition shorter than that finishes while the card is still
+    // visibly sliding, reading as a snap. 1400 gives an operator enough
+    // headroom to clear that cap; no existing default or persisted value
+    // changes as a result of this ceiling move alone.
     neighborGradientRevealDurationMs: clamp(
-      base.neighborGradientRevealDurationMs, 0, 1200, D.neighborGradientRevealDurationMs,
+      base.neighborGradientRevealDurationMs, 0, 1400, D.neighborGradientRevealDurationMs,
     ),
     neighborGradientRevealEasing: token(
       base.neighborGradientRevealEasing, MOTION_EASINGS, D.neighborGradientRevealEasing,
@@ -736,8 +743,9 @@ export function normalizeSplitColumnCardStackConfig(
     neighborGradientRevealBlurPx: clamp(
       base.neighborGradientRevealBlurPx, 0, 64, D.neighborGradientRevealBlurPx,
     ),
+    // Same ceiling raise and same reasoning as neighborGradientRevealDurationMs above.
     neighborShadowFadeDurationMs: clamp(
-      base.neighborShadowFadeDurationMs, 0, 1200, D.neighborShadowFadeDurationMs,
+      base.neighborShadowFadeDurationMs, 0, 1400, D.neighborShadowFadeDurationMs,
     ),
     neighborShadowFadeEasing: token(
       base.neighborShadowFadeEasing, MOTION_EASINGS, D.neighborShadowFadeEasing,
@@ -782,7 +790,9 @@ export function normalizeSplitColumnCardStackConfig(
     ctaHoverDelayMs: clamp(base.ctaHoverDelayMs, 0, 1200, D.ctaHoverDelayMs),
 
     stepStaggerMs: clamp(base.stepStaggerMs, 0, 400, D.stepStaggerMs),
-    stepTiltDurationMs: clamp(base.stepTiltDurationMs, 0, 1200, D.stepTiltDurationMs),
+    // Same 1200 -> 1400 ceiling raise as neighborGradientRevealDurationMs/
+    // neighborShadowFadeDurationMs above, same reasoning.
+    stepTiltDurationMs: clamp(base.stepTiltDurationMs, 0, 1400, D.stepTiltDurationMs),
     stepTiltEasing: token(base.stepTiltEasing, MOTION_EASINGS, D.stepTiltEasing),
     stepTranslateDurationMs: clamp(base.stepTranslateDurationMs, 0, 1200, D.stepTranslateDurationMs),
     stepTranslateEasing: token(base.stepTranslateEasing, MOTION_EASINGS, D.stepTranslateEasing),

@@ -40,6 +40,24 @@ module.exports = {
       mono: ['var(--site-font-sans)'],
     },
     extend: {
+      // Reusable sub-xs labels used anywhere a compact interface needs
+      // precise 9/10/11px typography, including SiteHeader navigation.
+      fontSize: {
+        '4xs': '0.5625rem',
+        '3xs': '0.625rem',
+        '2xs': '0.6875rem',
+      },
+      // Percentage caps are useful for content inside either side of a
+      // split layout. Keep them in the resolved global scale.
+      maxWidth: {
+        'percent-40': '40%',
+        'percent-50': '50%',
+        'percent-60': '60%',
+        'percent-70': '70%',
+        'percent-80': '80%',
+        'percent-90': '90%',
+        'percent-100': '100%',
+      },
       // Tailwind 3.3 does not map the spacing scale into min-width/
       // min-height by default. This repository's registered config tokens
       // deliberately use literals such as min-h-11 for the shared 44px

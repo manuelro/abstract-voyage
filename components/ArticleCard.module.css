@@ -14,6 +14,10 @@
  */
 .card {
   container-type: size;
+  /* This is the card's own clipping boundary. Tailwind supplies its radius
+     * class; explicit clipping here keeps every background/canvas layer
+     * inside it even when a parent has a 3D transform on mobile Safari. */
+  overflow: hidden;
   /* Active (gradient-appearance) card only — multipliers on top of each
      element's own already-tuned opacity below, not a flat replacement
      value: 1 (default, set here so an operator who never touches the panel
@@ -58,6 +62,64 @@
   --article-card-cta-hover-border-color: #b0b0b4;
   --article-card-scrim-color: transparent;
   --article-card-text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+/* The live holographic canvas stays behind this layer. An opaque white (or
+   configured) surface screens it to its exact authored color; black glyphs
+   and borders screen to the untouched live canvas beneath, becoming true
+   moving gradient ink without approximating the shader in CSS. */
+.card[data-gradient-ink='multiply'] .content {
+  background-color: color-mix(
+    in srgb,
+    var(--article-card-inverted-surface-color)
+      calc(var(--article-card-inverted-surface-opacity) * 100%),
+    transparent
+  );
+  border-radius: inherit;
+  overflow: hidden;
+  mix-blend-mode: var(--article-card-inverted-blend-mode);
+  text-shadow: none !important;
+}
+
+/* In the CoverFlow composition the direct parent carries the same configured
+   Tailwind radius. Explicitly inherit it on the actual ArticleCard root so
+   WebKit has a concrete rounded clipping boundary before it composites the
+   live gradient canvas; the content surface then inherits that exact value. */
+.card[data-gradient-ink='multiply'] {
+  border-radius: inherit;
+}
+
+.card[data-gradient-ink='multiply'][data-gradient-ink-active-border='true'] .content::after {
+  position: absolute;
+  inset: 0;
+  border: var(--article-card-inverted-border-width) solid var(--article-card-inverted-foreground-color);
+  border-radius: inherit;
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--article-card-appearance-duration)
+    var(--article-card-appearance-easing) var(--article-card-appearance-delay);
+}
+
+.card[data-gradient-ink='multiply'][data-gradient-ink-active-border-visible='true'] .content::after {
+  opacity: 1;
+}
+
+.card[data-gradient-ink='multiply'] .label,
+.card[data-gradient-ink='multiply'] :global(.articleCardMeta),
+.card[data-gradient-ink='multiply'] :global(.articleCardTopic),
+.card[data-gradient-ink='multiply'] :global(.articleCardDate),
+.card[data-gradient-ink='multiply'] :global(.articleCardReadingTime),
+.card[data-gradient-ink='multiply'] :global(.articleCardSeparator),
+.card[data-gradient-ink='multiply'] .titleInk,
+.card[data-gradient-ink='multiply'] .excerptInk,
+.card[data-gradient-ink='multiply'] .cta {
+  color: var(--article-card-inverted-foreground-color);
+}
+
+.card[data-gradient-ink='multiply'] :global(.articleCardTopic),
+.card[data-gradient-ink='multiply'] .cta {
+  border-color: var(--article-card-inverted-foreground-color);
 }
 
 .content {

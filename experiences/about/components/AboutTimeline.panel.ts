@@ -1,4 +1,4 @@
-import { defineConfigScope } from '../../../components/Panel/config';
+import { createTailwindFieldFactory, defineConfigScope } from '../../../components/Panel/config';
 import type { ConfigScopeEntry } from '../../../components/Panel/config/types';
 import {
   GAP_OPTIONS,
@@ -51,9 +51,11 @@ import {
 
 export const ABOUT_TIMELINE_SCOPE_ID = 'AboutTimeline/appearance' as const;
 
+const tailwindTimelineField = createTailwindFieldFactory<AboutTimelineConfig>();
+
 // Local to this scope, same "each panel.ts keeps its own copy" convention
 // AboutMobileAccordion.panel.ts already follows.
-const MOTION_EASING_OPTIONS = [
+export const MOTION_EASING_OPTIONS = [
   { label: 'LINEAR', value: 'linear' },
   { label: 'STANDARD', value: 'standard' },
   { label: 'EXPRESSIVE', value: 'expressive' },
@@ -128,6 +130,16 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     key: 'markerVisible',
     label: 'Show marker',
     description: 'Shows the circular marker for each item. With the rule also off, hiding markers releases the marker gutter.',
+  },
+  {
+    kind: 'enum',
+    key: 'markerShape',
+    label: 'Marker shape',
+    description: '"Dot" (default) is the hollow/filled circular bullet. "Document" is a small plain-document glyph instead (a bordered 4:5 rectangle with a solid corner tab), outline while inactive and filled while active — same color/opacity behavior as the dot.',
+    options: [
+      { label: 'DOT', value: 'dot' },
+      { label: 'DOCUMENT', value: 'page' },
+    ],
   },
   {
     kind: 'number',
@@ -276,6 +288,12 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     description: 'Shows each item\'s optional supporting line. This does not affect the timeline lead-in description above the rows.',
   },
   {
+    kind: 'boolean',
+    key: 'rowDescriptionShortViewportHideEnabled',
+    label: 'Hide row description on short viewports',
+    description: 'On by default. Drops the supporting line at viewport heights below 768px — the fallback a fixed-height, overflow-hidden column (e.g. /about\'s own left column) needs so five rows plus the lead-in description never clip on a short phone screen. Turn off for a timeline that scrolls normally instead of living in a fixed-height box (e.g. /journal\'s) — there descriptions can stay visible at every viewport height with no clipping risk.',
+  },
+  {
     kind: 'enum',
     key: 'rowTitleFontFamily',
     label: 'Row title font',
@@ -399,6 +417,7 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     kind: 'enum',
     key: 'rowAppendixSeparator',
     label: 'Appendix separator',
+    description: 'NONE omits the separator glyph entirely, along with the spacing it reserves before the appendix text.',
     options: APPENDIX_SEPARATOR_OPTIONS,
     visibleWhen: whenRowAppendixEnabled,
   },
@@ -406,7 +425,16 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     kind: 'enum',
     key: 'rowAppendixFontFamily',
     label: 'Appendix font',
+    description: 'Applies at every breakpoint — unlike the row title/description fonts, this is not tiered.',
     options: ITEM_FONT_FAMILY_OPTIONS,
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'select',
+    key: 'rowAppendixFontWeightClassName',
+    label: 'Appendix font weight',
+    description: 'Applies at every breakpoint — not tiered.',
+    options: FONT_WEIGHT_OPTIONS,
     visibleWhen: whenRowAppendixEnabled,
   },
   {
@@ -436,6 +464,80 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     min: 0,
     max: 1,
     step: 0.01,
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'boolean',
+    key: 'rowAppendixForceVisible',
+    label: 'Force appendix visible',
+    description: 'Off (default): the appendix only reveals on hover or keyboard focus, as normal. On: it renders at Appendix opacity unconditionally at this tier, independent of hover — no pointer interaction needed. Base/mobile tier.',
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'boolean',
+    key: 'rowAppendixForceVisibleWide',
+    label: 'Force appendix visible (≥ tablet)',
+    description: 'Overrides Force appendix visible from 768px through just below 1024px.',
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'boolean',
+    key: 'rowAppendixForceVisibleLg',
+    label: 'Force appendix visible (≥ desktop)',
+    description: 'Overrides Force appendix visible (≥ tablet) from 1024px up.',
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'boolean',
+    key: 'rowAppendixForceLineBreak',
+    label: 'Force appendix onto its own line',
+    description: 'Off (default): the appendix flows inline after the title, as normal. On: it renders as a block on its own line below the title at this tier, independent of Force appendix visible above. Base/mobile tier.',
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'boolean',
+    key: 'rowAppendixForceLineBreakWide',
+    label: 'Force appendix onto its own line (≥ tablet)',
+    description: 'Overrides Force appendix onto its own line from 768px through just below 1024px.',
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'boolean',
+    key: 'rowAppendixForceLineBreakLg',
+    label: 'Force appendix onto its own line (≥ desktop)',
+    description: 'Overrides Force appendix onto its own line (≥ tablet) from 1024px up.',
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'select',
+    key: 'rowAppendixPaddingTopClassName',
+    label: 'Appendix padding top',
+    description: 'Applies at every breakpoint — not tiered.',
+    options: PADDING_TOP_OPTIONS,
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'select',
+    key: 'rowAppendixPaddingRightClassName',
+    label: 'Appendix padding right',
+    description: 'Applies at every breakpoint — not tiered.',
+    options: PADDING_RIGHT_OPTIONS,
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'select',
+    key: 'rowAppendixPaddingBottomClassName',
+    label: 'Appendix padding bottom',
+    description: 'Applies at every breakpoint — not tiered.',
+    options: PADDING_BOTTOM_OPTIONS,
+    visibleWhen: whenRowAppendixEnabled,
+  },
+  {
+    kind: 'select',
+    key: 'rowAppendixPaddingLeftClassName',
+    label: 'Appendix padding left',
+    description: 'Applies at every breakpoint — not tiered.',
+    options: PADDING_LEFT_OPTIONS,
     visibleWhen: whenRowAppendixEnabled,
   },
   // Padding and margin are tiered by breakpoint; the ALL SIZES tab is only
@@ -484,6 +586,20 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
         fields: [
           {
             kind: 'group',
+            label: 'Windowed-list controls',
+            fields: [
+              { kind: 'number', key: 'scrollWindowVisibleCount', label: 'Visible links', min: 0, max: 50, step: 1 },
+              tailwindTimelineField('paddingTop', { key: 'toolbarPaddingTopClassName', label: 'Toolbar padding top' }), tailwindTimelineField('paddingRight', { key: 'toolbarPaddingRightClassName', label: 'Toolbar padding right' }), tailwindTimelineField('paddingBottom', { key: 'toolbarPaddingBottomClassName', label: 'Toolbar padding bottom' }), tailwindTimelineField('paddingLeft', { key: 'toolbarPaddingLeftClassName', label: 'Toolbar padding left' }),
+              tailwindTimelineField('fontSize', { key: 'toolbarActionFontSizeClassName', label: 'Expand list font size' }),
+              { kind: 'boolean', key: 'scrollWindowCounterEnabled', label: 'Show count indicator', description: 'Opt-in “N of M” context for a windowed list on mobile.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsEnabled', label: 'Show navigation arrows', description: 'Opt-in one-row previous/next controls for a windowed list on mobile.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsNavigateTimeline', label: 'Arrows navigate articles', description: 'Makes the arrows select the previous/next article and update the paired carousel, rather than only scroll the list.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsNavigateEntireList', label: 'Arrows navigate entire list', description: 'When article navigation is on, lets arrows continue through every Timeline item beyond the visible-row window.' },
+              { kind: 'enum', key: 'scrollWindowControlsPosition', label: 'Controls position', description: 'Places any enabled count indicator or arrows before or after the timeline rows.', options: [{ label: 'TOP', value: 'top' }, { label: 'BOTTOM', value: 'bottom' }] },
+            ],
+          },
+          {
+            kind: 'group',
             label: 'Row title',
             fields: [
               { kind: 'select', key: 'rowTitlePaddingTopClassName', label: 'Padding top', options: PADDING_TOP_OPTIONS },
@@ -514,10 +630,10 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Component',
             fields: [
-              { kind: 'select', key: 'paddingTopClassName', label: 'Padding top', options: PADDING_TOP_OPTIONS },
-              { kind: 'select', key: 'paddingRightClassName', label: 'Padding right', options: PADDING_RIGHT_OPTIONS },
-              { kind: 'select', key: 'paddingBottomClassName', label: 'Padding bottom', options: PADDING_BOTTOM_OPTIONS },
-              { kind: 'select', key: 'paddingLeftClassName', label: 'Padding left', options: PADDING_LEFT_OPTIONS },
+              tailwindTimelineField('paddingTop', { key: 'paddingTopClassName', label: 'Padding top' }),
+              tailwindTimelineField('paddingRight', { key: 'paddingRightClassName', label: 'Padding right' }),
+              tailwindTimelineField('paddingBottom', { key: 'paddingBottomClassName', label: 'Padding bottom' }),
+              tailwindTimelineField('paddingLeft', { key: 'paddingLeftClassName', label: 'Padding left' }),
               { kind: 'select', key: 'marginTopClassName', label: 'Margin top', options: MARGIN_TOP_OPTIONS },
               { kind: 'select', key: 'marginRightClassName', label: 'Margin right', options: MARGIN_RIGHT_OPTIONS },
               { kind: 'select', key: 'marginBottomClassName', label: 'Margin bottom', options: MARGIN_BOTTOM_OPTIONS },
@@ -530,6 +646,8 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             fields: [
               { kind: 'text', key: 'description', label: 'Timeline description', description: 'Lead-in copy rendered below 768px. Leave empty to omit it.' },
               { kind: 'select', key: 'descriptionFontSizeClassName', label: 'Description font size', options: FONT_SIZE_OPTIONS },
+              tailwindTimelineField('fontWeight', { key: 'descriptionFontWeightClassName', label: 'Description font weight' }),
+              { kind: 'enum', key: 'descriptionFontFamily', label: 'Description font', options: ITEM_FONT_FAMILY_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingTopClassName', label: 'Padding top', options: PADDING_TOP_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingRightClassName', label: 'Padding right', options: PADDING_RIGHT_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingBottomClassName', label: 'Padding bottom', options: PADDING_BOTTOM_OPTIONS },
@@ -546,6 +664,20 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
         id: 'tablet',
         label: 'TABLET (≥ 768px)',
         fields: [
+          {
+            kind: 'group',
+            label: 'Windowed-list controls',
+            fields: [
+              { kind: 'number', key: 'scrollWindowVisibleCountWide', label: 'Visible links', min: 0, max: 50, step: 1 },
+              tailwindTimelineField('paddingTop', { breakpoint: 'md', key: 'toolbarPaddingTopWideClassName', label: 'Toolbar padding top' }), tailwindTimelineField('paddingRight', { breakpoint: 'md', key: 'toolbarPaddingRightWideClassName', label: 'Toolbar padding right' }), tailwindTimelineField('paddingBottom', { breakpoint: 'md', key: 'toolbarPaddingBottomWideClassName', label: 'Toolbar padding bottom' }), tailwindTimelineField('paddingLeft', { breakpoint: 'md', key: 'toolbarPaddingLeftWideClassName', label: 'Toolbar padding left' }),
+              tailwindTimelineField('fontSize', { breakpoint: 'md', key: 'toolbarActionFontSizeWideClassName', label: 'Expand list font size' }),
+              { kind: 'boolean', key: 'scrollWindowCounterEnabledWide', label: 'Show count indicator', description: 'Opt-in “N of M” context from 768px through 1023px.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsEnabledWide', label: 'Show navigation arrows', description: 'Opt-in one-row previous/next controls from 768px through 1023px.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsNavigateTimelineWide', label: 'Arrows navigate articles', description: 'Makes the arrows select the previous/next article and update the paired carousel at this breakpoint.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsNavigateEntireListWide', label: 'Arrows navigate entire list', description: 'Lets arrows continue through every Timeline item beyond the tablet visible-row window.' },
+              { kind: 'enum', key: 'scrollWindowControlsPositionWide', label: 'Controls position', description: 'Places any enabled count indicator or arrows before or after the timeline rows at this breakpoint.', options: [{ label: 'TOP', value: 'top' }, { label: 'BOTTOM', value: 'bottom' }] },
+            ],
+          },
           {
             kind: 'group',
             label: 'Row title',
@@ -586,7 +718,6 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Appendix (≥ tablet)',
             fields: [
-              { kind: 'enum', key: 'rowAppendixFontFamilyWide', label: 'Font', options: ITEM_FONT_FAMILY_WIDE_OPTIONS },
               { kind: 'select', key: 'rowAppendixFontSizeWideClassName', label: 'Font size', options: MD_FONT_SIZE_OPTIONS },
             ],
           },
@@ -595,10 +726,10 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             label: 'Component',
             fields: [
               { kind: 'select', key: 'maxWidthWideClassName', label: 'Max width', options: MAX_WIDTH_WIDE_OPTIONS },
-              { kind: 'select', key: 'paddingTopWideClassName', label: 'Padding top', options: PADDING_TOP_WIDE_OPTIONS },
-              { kind: 'select', key: 'paddingRightWideClassName', label: 'Padding right', options: PADDING_RIGHT_WIDE_OPTIONS },
-              { kind: 'select', key: 'paddingBottomWideClassName', label: 'Padding bottom', options: PADDING_BOTTOM_WIDE_OPTIONS },
-              { kind: 'select', key: 'paddingLeftWideClassName', label: 'Padding left', options: PADDING_LEFT_WIDE_OPTIONS },
+              tailwindTimelineField('paddingTop', { breakpoint: 'md', key: 'paddingTopWideClassName', label: 'Padding top' }),
+              tailwindTimelineField('paddingRight', { breakpoint: 'md', key: 'paddingRightWideClassName', label: 'Padding right' }),
+              tailwindTimelineField('paddingBottom', { breakpoint: 'md', key: 'paddingBottomWideClassName', label: 'Padding bottom' }),
+              tailwindTimelineField('paddingLeft', { breakpoint: 'md', key: 'paddingLeftWideClassName', label: 'Padding left' }),
               { kind: 'select', key: 'marginTopWideClassName', label: 'Margin top', options: MARGIN_TOP_WIDE_OPTIONS },
               { kind: 'select', key: 'marginRightWideClassName', label: 'Margin right', options: MARGIN_RIGHT_WIDE_OPTIONS },
               { kind: 'select', key: 'marginBottomWideClassName', label: 'Margin bottom', options: MARGIN_BOTTOM_WIDE_OPTIONS },
@@ -611,6 +742,8 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             fields: [
               { kind: 'text', key: 'descriptionWide', label: 'Timeline description', description: 'Lead-in copy rendered from 768px through 1023px. Leave empty to omit it.' },
               { kind: 'select', key: 'descriptionFontSizeWideClassName', label: 'Description font size', options: MD_FONT_SIZE_OPTIONS },
+              tailwindTimelineField('fontWeight', { breakpoint: 'md', key: 'descriptionFontWeightWideClassName', label: 'Description font weight' }),
+              { kind: 'enum', key: 'descriptionFontFamilyWide', label: 'Description font', options: ITEM_FONT_FAMILY_WIDE_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingTopWideClassName', label: 'Padding top', options: PADDING_TOP_WIDE_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingRightWideClassName', label: 'Padding right', options: PADDING_RIGHT_WIDE_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingBottomWideClassName', label: 'Padding bottom', options: PADDING_BOTTOM_WIDE_OPTIONS },
@@ -627,6 +760,20 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
         id: 'desktop',
         label: 'DESKTOP (≥ 1024px)',
         fields: [
+          {
+            kind: 'group',
+            label: 'Windowed-list controls',
+            fields: [
+              { kind: 'number', key: 'scrollWindowVisibleCountLg', label: 'Visible links', min: 0, max: 50, step: 1 },
+              tailwindTimelineField('paddingTop', { breakpoint: 'lg', key: 'toolbarPaddingTopLgClassName', label: 'Toolbar padding top' }), tailwindTimelineField('paddingRight', { breakpoint: 'lg', key: 'toolbarPaddingRightLgClassName', label: 'Toolbar padding right' }), tailwindTimelineField('paddingBottom', { breakpoint: 'lg', key: 'toolbarPaddingBottomLgClassName', label: 'Toolbar padding bottom' }), tailwindTimelineField('paddingLeft', { breakpoint: 'lg', key: 'toolbarPaddingLeftLgClassName', label: 'Toolbar padding left' }),
+              tailwindTimelineField('fontSize', { breakpoint: 'lg', key: 'toolbarActionFontSizeLgClassName', label: 'Expand list font size' }),
+              { kind: 'boolean', key: 'scrollWindowCounterEnabledLg', label: 'Show count indicator', description: 'Opt-in “N of M” context from 1024px.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsEnabledLg', label: 'Show navigation arrows', description: 'Opt-in one-row previous/next controls from 1024px.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsNavigateTimelineLg', label: 'Arrows navigate articles', description: 'Makes the arrows select the previous/next article and update the paired carousel at this breakpoint.' },
+              { kind: 'boolean', key: 'scrollWindowArrowsNavigateEntireListLg', label: 'Arrows navigate entire list', description: 'Lets arrows continue through every Timeline item beyond the desktop visible-row window.' },
+              { kind: 'enum', key: 'scrollWindowControlsPositionLg', label: 'Controls position', description: 'Places any enabled count indicator or arrows before or after the timeline rows at this breakpoint.', options: [{ label: 'TOP', value: 'top' }, { label: 'BOTTOM', value: 'bottom' }] },
+            ],
+          },
           {
             kind: 'group',
             label: 'Row title',
@@ -667,7 +814,6 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             kind: 'group',
             label: 'Appendix (≥ desktop)',
             fields: [
-              { kind: 'enum', key: 'rowAppendixFontFamilyLg', label: 'Font', options: ITEM_FONT_FAMILY_LG_OPTIONS },
               { kind: 'select', key: 'rowAppendixFontSizeLgClassName', label: 'Font size', options: LG_FONT_SIZE_OPTIONS },
             ],
           },
@@ -676,10 +822,10 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             label: 'Component',
             fields: [
               { kind: 'select', key: 'maxWidthLgClassName', label: 'Max width', options: MAX_WIDTH_LG_OPTIONS },
-              { kind: 'select', key: 'paddingTopLgClassName', label: 'Padding top', options: PADDING_TOP_LG_OPTIONS },
-              { kind: 'select', key: 'paddingRightLgClassName', label: 'Padding right', options: PADDING_RIGHT_LG_OPTIONS },
-              { kind: 'select', key: 'paddingBottomLgClassName', label: 'Padding bottom', options: PADDING_BOTTOM_LG_OPTIONS },
-              { kind: 'select', key: 'paddingLeftLgClassName', label: 'Padding left', options: PADDING_LEFT_LG_OPTIONS },
+              tailwindTimelineField('paddingTop', { breakpoint: 'lg', key: 'paddingTopLgClassName', label: 'Padding top' }),
+              tailwindTimelineField('paddingRight', { breakpoint: 'lg', key: 'paddingRightLgClassName', label: 'Padding right' }),
+              tailwindTimelineField('paddingBottom', { breakpoint: 'lg', key: 'paddingBottomLgClassName', label: 'Padding bottom' }),
+              tailwindTimelineField('paddingLeft', { breakpoint: 'lg', key: 'paddingLeftLgClassName', label: 'Padding left' }),
               { kind: 'select', key: 'marginTopLgClassName', label: 'Margin top', options: MARGIN_TOP_LG_OPTIONS },
               { kind: 'select', key: 'marginRightLgClassName', label: 'Margin right', options: MARGIN_RIGHT_LG_OPTIONS },
               { kind: 'select', key: 'marginBottomLgClassName', label: 'Margin bottom', options: MARGIN_BOTTOM_LG_OPTIONS },
@@ -692,6 +838,8 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
             fields: [
               { kind: 'text', key: 'descriptionLg', label: 'Timeline description', description: 'Lead-in copy rendered from 1024px. Leave empty to omit it.' },
               { kind: 'select', key: 'descriptionFontSizeLgClassName', label: 'Description font size', options: LG_FONT_SIZE_OPTIONS },
+              tailwindTimelineField('fontWeight', { breakpoint: 'lg', key: 'descriptionFontWeightLgClassName', label: 'Description font weight' }),
+              { kind: 'enum', key: 'descriptionFontFamilyLg', label: 'Description font', options: ITEM_FONT_FAMILY_LG_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingTopLgClassName', label: 'Padding top', options: PADDING_TOP_LG_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingRightLgClassName', label: 'Padding right', options: PADDING_RIGHT_LG_OPTIONS },
               { kind: 'select', key: 'descriptionPaddingBottomLgClassName', label: 'Padding bottom', options: PADDING_BOTTOM_LG_OPTIONS },
@@ -711,6 +859,12 @@ export const ABOUT_TIMELINE_PANEL_FIELDS: ReadonlyArray<ConfigScopeEntry<AboutTi
     key: 'descriptionVisible',
     label: 'Show timeline description',
     description: 'Shows the lead-in description above the rows, independent of whether description/descriptionWide/descriptionLg hold text. Distinct from "Show row description", which affects item descriptions only.',
+  },
+  {
+    kind: 'boolean',
+    key: 'descriptionIndentMatchesMarkerLane',
+    label: 'Description shares row marker-lane indent',
+    description: 'On (default): a left-aligned description starts flush with row titles, past the marker lane. Off: the description ignores that lane and sits at whatever "Padding left" alone specifies (0 unless set) — for a description with no marker of its own that reads better flush with the card edge.',
   },
   {
     kind: 'number',

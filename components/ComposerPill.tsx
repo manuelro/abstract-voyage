@@ -720,7 +720,10 @@ export function ComposerPill({
     backgroundColor: 'var(--pill-background)',
     borderColor: 'var(--pill-border)',
     color: 'var(--pill-text)',
-    minHeight: `${ctaButtonConfig.minHeightPx}px`,
+    // composerMinHeightPx, not minHeightPx — this pill's own size (registered.ts's
+    // own composerSize doc comment), independent of whatever size a real
+    // CtaButton instance elsewhere resolves.
+    minHeight: `${ctaButtonConfig.composerMinHeightPx}px`,
     transformOrigin: 'center center',
     transformStyle: 'preserve-3d',
     backfaceVisibility: 'hidden',
@@ -873,7 +876,7 @@ export function ComposerPill({
         // on the broader showOverlay (true for nearly the entire pre-submit
         // window, not just browsing) previously hid the caret almost
         // always while focused and empty — a real regression, not a fix.
-        className={`${singleLine ? 'flex items-center overflow-y-auto' : 'flex items-center max-h-40'} min-h-6 w-full flex-1 resize-none border-0 bg-transparent text-left font-sans ${ctaButtonConfig.fontSize} leading-snug text-[color:var(--pill-text)] ${isBrowsingStarterPoints || isRevealingIntro ? 'caret-transparent' : 'caret-[color:var(--pill-text)]'} outline-none placeholder:text-[color:var(--pill-placeholder)] ${isTagPill ? 'placeholder:font-mono placeholder:uppercase placeholder:tracking-[0.16em]' : ''} read-only:cursor-wait ${ctaButtonConfig.paddingX} ${ctaButtonConfig.paddingXDesktop} ${ctaButtonConfig.paddingY} ${ctaButtonConfig.paddingYDesktop} pr-12 md:pr-16`}
+        className={`${singleLine ? 'flex items-center overflow-y-auto' : 'flex items-center max-h-40'} min-h-6 w-full flex-1 resize-none border-0 bg-transparent text-left font-sans ${ctaButtonConfig.composerFontSize} ${ctaButtonConfig.composerFontSizeDesktop} leading-snug text-[color:var(--pill-text)] ${isBrowsingStarterPoints || isRevealingIntro ? 'caret-transparent' : 'caret-[color:var(--pill-text)]'} outline-none placeholder:text-[color:var(--pill-placeholder)] ${isTagPill ? 'placeholder:font-mono placeholder:uppercase placeholder:tracking-[0.16em]' : ''} read-only:cursor-wait ${ctaButtonConfig.composerPaddingX} ${ctaButtonConfig.composerPaddingXDesktop} ${ctaButtonConfig.composerPaddingY} ${ctaButtonConfig.composerPaddingYDesktop} pr-12 md:pr-16`}
       />
       {showOverlay && (
         <span
@@ -893,7 +896,7 @@ export function ComposerPill({
           // own full-width hit area (inset-x-0) would swallow clicks meant
           // for the textarea across the entire placeholder/hint region, not
           // just over the interactive label itself.
-          className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-left ${isTagPill && !introText ? 'font-mono uppercase tracking-[0.16em]' : 'font-sans'} ${ctaButtonConfig.fontSize} leading-snug text-[color:var(--pill-overlay-color)] ${ctaButtonConfig.paddingX} ${ctaButtonConfig.paddingXDesktop} pr-12 md:pr-16`}
+          className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-left ${isTagPill && !introText ? 'font-mono uppercase tracking-[0.16em]' : 'font-sans'} ${ctaButtonConfig.composerFontSize} ${ctaButtonConfig.composerFontSizeDesktop} leading-snug text-[color:var(--pill-overlay-color)] ${ctaButtonConfig.composerPaddingX} ${ctaButtonConfig.composerPaddingXDesktop} pr-12 md:pr-16`}
           // Color and opacity transition independently — two positions in
           // each comma-separated list, matched by index — so a caller (e.g.
           // AbstractHeroCtaComposer) can fade this whole block out on one

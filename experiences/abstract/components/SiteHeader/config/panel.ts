@@ -1,5 +1,7 @@
-import type { ConfigScopeEntry } from '../../../../../components/Panel/config';
+import type { ConfigFieldAction } from '../../../../../components/Panel/config';
+import type { ConfigFieldDefinition, ConfigFieldGroup } from '../../../../../components/Panel/config/types';
 import { defineConfigScope } from '../../../../../components/Panel/config';
+import { createTailwindFieldFactory } from '../../../../../components/Panel/config/tailwindFields';
 import {
   DEFAULT_SITE_HEADER_CONFIG,
   type SiteHeaderConfig,
@@ -7,6 +9,8 @@ import {
 
 export const SITE_HEADER_COLORS_SCOPE_ID =
   'SiteHeader/colors' as const;
+
+const tailwindHeaderField = createTailwindFieldFactory<SiteHeaderConfig>();
 
 // Familiar CSS timing names keep the authoring surface readable while the
 // runtime continues to receive standards-compliant timing-function values.
@@ -30,13 +34,29 @@ const INTRO_EASING_OPTIONS = [
 // posts-lab-owned.
 const HEADER_LAYOUT_KEYS_OWNED_ELSEWHERE: ReadonlyArray<keyof SiteHeaderConfig> = [
   'headerLeftContentAlign',
+  'headerLeftContentAlignWide',
+  'headerLeftContentAlignLg',
   'headerLeftContentVerticalAlign',
+  'headerLeftContentVerticalAlignWide',
+  'headerLeftContentVerticalAlignLg',
+  'headerLeftContentWidth',
   'headerLeftContentWidthWide',
+  'headerLeftContentWidthLg',
+  'headerLeftContentInnerAlign',
   'headerLeftContentInnerAlignWide',
+  'headerLeftContentInnerAlignLg',
   'headerRightContentAlign',
+  'headerRightContentAlignWide',
+  'headerRightContentAlignLg',
   'headerRightContentVerticalAlign',
+  'headerRightContentVerticalAlignWide',
+  'headerRightContentVerticalAlignLg',
+  'headerRightContentWidth',
   'headerRightContentWidthWide',
+  'headerRightContentWidthLg',
+  'headerRightContentInnerAlign',
   'headerRightContentInnerAlignWide',
+  'headerRightContentInnerAlignLg',
   // headerLeftContentClassName/headerRightContentClassName: a plain
   // passthrough string, not a token-validated field, so it has no panel
   // field on *either* scope — postLab.panel.ts's own padding/margin fields
@@ -88,7 +108,9 @@ const HEADER_LAYOUT_KEYS_OWNED_ELSEWHERE: ReadonlyArray<keyof SiteHeaderConfig> 
  * the one point it borrows this array for a differently-shaped (but
  * field-for-field identical) config type.
  */
-export const SITE_HEADER_COLOR_FIELDS: ReadonlyArray<ConfigScopeEntry<SiteHeaderConfig>> = [
+export const SITE_HEADER_COLOR_FIELDS: ReadonlyArray<
+  ConfigFieldDefinition<SiteHeaderConfig> | ConfigFieldGroup<SiteHeaderConfig> | ConfigFieldAction<SiteHeaderConfig>
+> = [
   {
     kind: 'enum',
     key: 'colorMode',
@@ -173,315 +195,28 @@ export const SITE_HEADER_COLORS_PANEL =
     hiddenKeys: HEADER_LAYOUT_KEYS_OWNED_ELSEWHERE,
     defaultValue: DEFAULT_SITE_HEADER_CONFIG,
     fields: [
-      ...SITE_HEADER_COLOR_FIELDS,
       {
-        kind: 'boolean',
-        key: 'navTextUsesWordmarkGradient',
-        label: 'Navigation text uses wordmark gradient',
-        description: 'Opt-in, independent of the color mode above — mirrors AbstractEditorialHero\'s own "Paragraph uses wordmark gradient" knob. When on and the page supplies wordmark gradient stops, the nav labels (About/Journal/Contact) render through that exact same gradient as one continuous fill, overriding the color mode above for nav text only (the nav border/separator is unaffected). Inert whenever the page hasn\'t supplied wordmark gradient stops (e.g. the active tier has no scroll/wordmark gradient active) — falls back to the color mode above. Not part of SITE_HEADER_COLOR_FIELDS above/SiteHeaderColorOverrideConfig — additive linkage, not a base color the per-page override scope needs to mirror.',
-      },
-      {
-        kind: 'group',
-        label: 'Navigation type',
-        // Nav labels only (About/Journal/Contact) — the logo is vector
-        // artwork (Logo.tsx), not text, so nothing here touches it. Color
-        // is deliberately absent: nav text color is already fully owned by
-        // colorMode/*Color/*SurfaceOffset above (SITE_HEADER_COLOR_FIELDS)
-        // and stays inferred per-page exactly as it works today.
-        fields: [
+        kind: 'tabs',
+        tabs: [
           {
-            kind: 'enum',
-            key: 'fontFamily',
-            label: 'Heading font',
-            description: 'Inherit (default) follows the site-wide Global typography setting. Sans/Serif pin the logo/nav font regardless of that setting.',
-            options: [
-              { label: 'INHERIT', value: 'inherit' },
-              { label: 'SANS', value: 'sans' },
-              { label: 'SERIF', value: 'serif' },
-            ],
-          },
-          {
-            kind: 'boolean',
-            key: 'navUppercase',
-            label: 'All caps',
-            description: 'Uppercases the nav labels (About/Journal/Contact). On by default, matching today\'s look.',
-          },
-          {
-            kind: 'number',
-            key: 'navLetterSpacingEm',
-            label: 'Letter spacing',
-            min: 0,
-            max: 0.3,
-            step: 0.01,
-            unit: 'em',
-          },
-          {
-            kind: 'enum',
-            key: 'navFontWeight',
-            label: 'Font weight',
-            options: [
-              { label: 'NORMAL', value: 'font-normal' },
-              { label: 'MEDIUM', value: 'font-medium' },
-              { label: 'SEMIBOLD', value: 'font-semibold' },
-              { label: 'BOLD', value: 'font-bold' },
-            ],
-          },
-          {
-            kind: 'enum',
-            key: 'navFontSizeNarrow',
-            label: 'Font size (mobile)',
-            description: 'Applies below the md breakpoint (768px).',
-            options: [
-              { label: '9px', value: 'text-[9px]' },
-              { label: '10px', value: 'text-[10px]' },
-              { label: '11px', value: 'text-[11px]' },
-              { label: 'xs (12px)', value: 'text-xs' },
-              { label: 'sm (14px)', value: 'text-sm' },
-              { label: 'base (16px)', value: 'text-base' },
-            ],
-          },
-          {
-            kind: 'enum',
-            key: 'navFontSizeDesktop',
-            label: 'Font size (desktop)',
-            description: 'Overrides the mobile font size from md (768px) up.',
-            options: [
-              { label: '9px', value: 'md:text-[9px]' },
-              { label: '10px', value: 'md:text-[10px]' },
-              { label: '11px', value: 'md:text-[11px]' },
-              { label: 'xs (12px)', value: 'md:text-xs' },
-              { label: 'sm (14px)', value: 'md:text-sm' },
-              { label: 'base (16px)', value: 'md:text-base' },
-            ],
-          },
-        ],
-      },
-      {
-        kind: 'group',
-        label: 'Top bar wrapper',
-        fields: [
-          { kind: 'enum', key: 'height', label: 'Narrow wrapper height', options: [
-            { label: 'AUTO', value: 'h-auto' },
-            { label: 'H-12', value: 'h-12' },
-            { label: 'H-14', value: 'h-14' },
-            { label: 'H-16', value: 'h-16' },
-            { label: 'H-20', value: 'h-20' },
-            { label: 'H-24', value: 'h-24' },
-            { label: 'H-28', value: 'h-28' },
-            { label: 'H-32', value: 'h-32' },
-            { label: 'H-36', value: 'h-36' },
-            { label: 'H-40', value: 'h-40' },
-          ] },
-          { kind: 'enum', key: 'desktopHeight', label: 'Desktop wrapper height', options: [
-            { label: 'AUTO', value: 'md:h-auto' },
-            { label: 'H-12', value: 'md:h-12' },
-            { label: 'H-14', value: 'md:h-14' },
-            { label: 'H-16', value: 'md:h-16' },
-            { label: 'H-20', value: 'md:h-20' },
-            { label: 'H-24', value: 'md:h-24' },
-            { label: 'H-28', value: 'md:h-28' },
-            { label: 'H-32', value: 'md:h-32' },
-            { label: 'H-36', value: 'md:h-36' },
-            { label: 'H-40', value: 'md:h-40' },
-          ] },
-          { kind: 'enum', key: 'paddingX', label: 'Narrow padding', options: [
-            { label: 'PX-4', value: 'px-4' },
-            { label: 'PX-5', value: 'px-5' },
-            { label: 'PX-6', value: 'px-6' },
-            { label: 'PX-8', value: 'px-8' },
-          ] },
-          { kind: 'enum', key: 'paddingY', label: 'Narrow vertical padding', options: [
-            { label: 'PY-0', value: 'py-0' },
-            { label: 'PY-1', value: 'py-1' },
-            { label: 'PY-2', value: 'py-2' },
-            { label: 'PY-3', value: 'py-3' },
-            { label: 'PY-4', value: 'py-4' },
-            { label: 'PY-6', value: 'py-6' },
-          ] },
-          { kind: 'enum', key: 'desktopPaddingX', label: 'Desktop padding', options: [
-            { label: 'PX-6', value: 'md:px-6' },
-            { label: 'PX-8', value: 'md:px-8' },
-            { label: 'PX-10', value: 'md:px-10' },
-            { label: 'PX-12', value: 'md:px-12' },
-            { label: 'PX-16', value: 'md:px-16' },
-          ] },
-          { kind: 'enum', key: 'desktopPaddingY', label: 'Desktop vertical padding', options: [
-            { label: 'PY-0', value: 'md:py-0' },
-            { label: 'PY-1', value: 'md:py-1' },
-            { label: 'PY-2', value: 'md:py-2' },
-            { label: 'PY-3', value: 'md:py-3' },
-            { label: 'PY-4', value: 'md:py-4' },
-            { label: 'PY-6', value: 'md:py-6' },
-          ] },
-          { kind: 'enum', key: 'marginTop', label: 'Narrow margin top', options: [
-            { label: 'MT-0', value: 'mt-0' },
-            { label: 'MT-2', value: 'mt-2' },
-            { label: 'MT-4', value: 'mt-4' },
-            { label: 'MT-6', value: 'mt-6' },
-            { label: 'MT-8', value: 'mt-8' },
-          ] },
-          { kind: 'enum', key: 'marginBottom', label: 'Narrow margin bottom', options: [
-            { label: 'MB-0', value: 'mb-0' },
-            { label: 'MB-2', value: 'mb-2' },
-            { label: 'MB-4', value: 'mb-4' },
-            { label: 'MB-6', value: 'mb-6' },
-            { label: 'MB-8', value: 'mb-8' },
-          ] },
-          { kind: 'enum', key: 'desktopMarginTop', label: 'Desktop margin top', options: [
-            { label: 'MT-0', value: 'md:mt-0' },
-            { label: 'MT-2', value: 'md:mt-2' },
-            { label: 'MT-4', value: 'md:mt-4' },
-            { label: 'MT-6', value: 'md:mt-6' },
-            { label: 'MT-8', value: 'md:mt-8' },
-          ] },
-          { kind: 'enum', key: 'desktopMarginBottom', label: 'Desktop margin bottom', options: [
-            { label: 'MB-0', value: 'md:mb-0' },
-            { label: 'MB-2', value: 'md:mb-2' },
-            { label: 'MB-4', value: 'md:mb-4' },
-            { label: 'MB-6', value: 'md:mb-6' },
-            { label: 'MB-8', value: 'md:mb-8' },
-          ] },
-        ],
-      },
-      {
-        kind: 'group',
-        label: 'Navigation layout',
-        fields: [
-          { kind: 'enum', key: 'logoWidth', label: 'Narrow logo width', options: [
-            { label: 'W-36', value: 'w-36' },
-            { label: 'W-40', value: 'w-40' },
-            { label: 'W-48', value: 'w-48' },
-            { label: 'W-56', value: 'w-56' },
-          ] },
-          { kind: 'enum', key: 'desktopLogoWidth', label: 'Desktop logo width', options: [
-            { label: 'W-56', value: 'md:w-56' },
-            { label: 'W-64', value: 'md:w-64' },
-            { label: 'W-72', value: 'md:w-72' },
-            { label: 'W-80', value: 'md:w-80' },
-          ] },
-          { kind: 'enum', key: 'gap', label: 'Narrow header gap', options: [
-            { label: 'GAP-1', value: 'gap-1' },
-            { label: 'GAP-2', value: 'gap-2' },
-            { label: 'GAP-3', value: 'gap-3' },
-            { label: 'GAP-4', value: 'gap-4' },
-            { label: 'GAP-6', value: 'gap-6' },
-          ] },
-          { kind: 'enum', key: 'desktopGap', label: 'Desktop header gap', options: [
-            { label: 'GAP-4', value: 'md:gap-4' },
-            { label: 'GAP-6', value: 'md:gap-6' },
-            { label: 'GAP-8', value: 'md:gap-8' },
-            { label: 'GAP-10', value: 'md:gap-10' },
-          ] },
-          { kind: 'enum', key: 'navGap', label: 'Navigation gap', options: [
-            { label: 'GAP-4', value: 'md:gap-4' },
-            { label: 'GAP-6', value: 'md:gap-6' },
-            { label: 'GAP-8', value: 'md:gap-8' },
-            { label: 'GAP-10', value: 'md:gap-10' },
-          ] },
-          { kind: 'enum', key: 'mobileNavGap', label: 'Narrow navigation gap', options: [
-            { label: 'GAP-0', value: 'gap-0' },
-            { label: 'GAP-1', value: 'gap-1' },
-            { label: 'GAP-2', value: 'gap-2' },
-            { label: 'GAP-3', value: 'gap-3' },
-          ] },
-          {
-            kind: 'boolean',
-            key: 'mobileNavFlexEnabled',
-            label: 'Narrow nav flex row',
-            description: 'Opt-in: switch the mobile nav from the legacy three-column grid to a full-width flex row so distribution, equal item widths, and dividers can be tuned.',
-          },
-          {
-            kind: 'enum',
-            key: 'mobileNavDistribution',
-            label: 'Narrow nav distribution',
-            description: 'How mobile nav items distribute across the full row while Narrow nav flex row is on.',
-            visibleWhen: config => config.mobileNavFlexEnabled,
-            options: [
-              { label: 'START', value: 'justify-start' },
-              { label: 'CENTER', value: 'justify-center' },
-              { label: 'BETWEEN', value: 'justify-between' },
-              { label: 'AROUND', value: 'justify-around' },
-              { label: 'EVENLY', value: 'justify-evenly' },
-            ],
-          },
-          {
-            kind: 'enum',
-            key: 'mobileNavItemGap',
-            label: 'Narrow nav item gap',
-            description: 'Horizontal gap between mobile nav items and dividers while Narrow nav flex row is on.',
-            visibleWhen: config => config.mobileNavFlexEnabled,
-            options: [
-              { label: 'GAP-X-0', value: 'gap-x-0' },
-              { label: 'GAP-X-1', value: 'gap-x-1' },
-              { label: 'GAP-X-2', value: 'gap-x-2' },
-              { label: 'GAP-X-3', value: 'gap-x-3' },
-              { label: 'GAP-X-4', value: 'gap-x-4' },
-            ],
-          },
-          {
-            kind: 'boolean',
-            key: 'mobileNavEqualItemWidth',
-            label: 'Equal narrow nav items',
-            description: 'While Narrow nav flex row is on, each mobile nav item uses the same horizontal share of the parent row.',
-            visibleWhen: config => config.mobileNavFlexEnabled,
-          },
-          {
-            kind: 'enum',
-            key: 'mobileNavDivider',
-            label: 'Narrow nav divider',
-            description: 'Mobile-only divider between menu items. It inherits the nav text color and renders at 50% opacity.',
-            visibleWhen: config => config.mobileNavFlexEnabled,
-            options: [
-              { label: 'NONE', value: 'hidden' },
-              { label: 'PIPE', value: "before:content-['|']" },
-              { label: 'DOT', value: "before:content-['⋅']" },
-              { label: 'RULE', value: 'border-l' },
-            ],
-          },
-          {
-            kind: 'enum',
-            key: 'mobileNavDividerHeight',
-            label: 'Narrow divider height',
-            description: 'Height for the custom rule divider.',
-            visibleWhen: config => config.mobileNavFlexEnabled && config.mobileNavDivider === 'border-l',
-            options: [
-              { label: 'H-2', value: 'h-2' },
-              { label: 'H-3', value: 'h-3' },
-              { label: 'H-4', value: 'h-4' },
-              { label: 'H-5', value: 'h-5' },
-              { label: 'H-6', value: 'h-6' },
-            ],
-          },
-          {
-            kind: 'enum',
-            key: 'mobileNavDividerWidth',
-            label: 'Narrow divider width',
-            description: 'Visual stroke width for the custom rule divider.',
-            visibleWhen: config => config.mobileNavFlexEnabled && config.mobileNavDivider === 'border-l',
-            options: [
-              { label: 'W-PX', value: 'w-px' },
-              { label: 'W-0.5', value: 'w-0.5' },
-              { label: 'W-1', value: 'w-1' },
-            ],
-          },
-          { kind: 'enum', key: 'contactPaddingX', label: 'Contact padding X', options: [
-            { label: 'PX-3', value: 'px-3' },
-            { label: 'PX-4', value: 'px-4' },
-            { label: 'PX-5', value: 'px-5' },
-            { label: 'PX-6', value: 'px-6' },
-          ] },
-          { kind: 'enum', key: 'contactPaddingY', label: 'Contact padding Y', options: [
-            { label: 'PY-2', value: 'py-2' },
-            { label: 'PY-2.5', value: 'py-2.5' },
-            { label: 'PY-3', value: 'py-3' },
-            { label: 'PY-4', value: 'py-4' },
-          ] },
-          { kind: 'enum', key: 'contactBorderWidth', label: 'Contact border', options: [
-            { label: '1PX', value: 'border' },
-            { label: '2PX', value: 'border-2' },
-          ] },
-        ],
-      },
+            id: 'all',
+            label: 'ALL SIZES',
+            fields: [
+              ...SITE_HEADER_COLOR_FIELDS,
+              { kind: 'boolean', key: 'navTextUsesWordmarkGradient', label: 'Navigation uses wordmark gradient' },
+              { kind: 'group', label: 'Navigation typography', fields: [
+                { kind: 'enum', key: 'fontFamily', label: 'Heading font', options: [
+                  { label: 'INHERIT', value: 'inherit' }, { label: 'SANS', value: 'sans' }, { label: 'SERIF', value: 'serif' },
+                ] },
+                { kind: 'boolean', key: 'navUppercase', label: 'All caps' },
+                { kind: 'number', key: 'navLetterSpacingEm', label: 'Letter spacing', min: 0, max: 0.3, step: 0.01, unit: 'em' },
+                tailwindHeaderField('fontWeight', { key: 'navFontWeight', label: 'Navigation font weight' }),
+              ] },
+              { kind: 'group', label: 'Contact styling', fields: [
+                tailwindHeaderField('paddingX', { key: 'contactPaddingX', label: 'Horizontal padding' }),
+                tailwindHeaderField('paddingY', { key: 'contactPaddingY', label: 'Vertical padding' }),
+                tailwindHeaderField('borderWidth', { key: 'contactBorderWidth', label: 'Border width' }),
+              ] },
       {
         kind: 'group',
         label: 'Split background',
@@ -690,6 +425,87 @@ export const SITE_HEADER_COLORS_PANEL =
             unit: 'x',
             visibleWhen: config => config.navBandEnabled,
           },
+        ],
+      },
+            ],
+          },
+        {
+          id: 'mobile',
+          label: 'MOBILE (< 768px)',
+          fields: [
+            { kind: 'group', label: 'Wrapper', fields: [
+              tailwindHeaderField('height', { breakpoint: 'base', key: 'height', label: 'Wrapper height' }),
+              tailwindHeaderField('paddingX', { breakpoint: 'base', key: 'paddingX', label: 'Horizontal padding' }),
+              tailwindHeaderField('paddingY', { breakpoint: 'base', key: 'paddingY', label: 'Vertical padding' }),
+              tailwindHeaderField('marginTop', { breakpoint: 'base', key: 'marginTop', label: 'Top margin' }),
+              tailwindHeaderField('marginBottom', { breakpoint: 'base', key: 'marginBottom', label: 'Bottom margin' }),
+            ] },
+            { kind: 'group', label: 'Branding', fields: [
+              tailwindHeaderField('width', { breakpoint: 'base', key: 'logoWidth', label: 'Logo width' }),
+            ] },
+            { kind: 'group', label: 'Navigation', fields: [
+              tailwindHeaderField('gap', { breakpoint: 'base', key: 'gap', label: 'Header gap' }),
+              tailwindHeaderField('fontSize', { breakpoint: 'base', key: 'navFontSize', label: 'Navigation font size' }),
+              tailwindHeaderField('gap', { breakpoint: 'base', key: 'navGap', label: 'Navigation item gap' }),
+            ] },
+
+            { kind: 'group', label: 'Mobile flex navigation', fields: [
+              { kind: 'boolean', key: 'mobileNavFlexEnabled', label: 'Use flex row' },
+              { kind: 'enum', key: 'mobileNavDistribution', label: 'Distribution', visibleWhen: config => config.mobileNavFlexEnabled, options: [
+                { label: 'START', value: 'justify-start' }, { label: 'CENTER', value: 'justify-center' },
+                { label: 'BETWEEN', value: 'justify-between' }, { label: 'AROUND', value: 'justify-around' },
+                { label: 'EVENLY', value: 'justify-evenly' },
+              ] },
+              tailwindHeaderField('gapX', { key: 'mobileNavItemGap', label: 'Flex item gap', visibleWhen: config => config.mobileNavFlexEnabled }),
+              { kind: 'boolean', key: 'mobileNavEqualItemWidth', label: 'Equal item widths', visibleWhen: config => config.mobileNavFlexEnabled },
+              { kind: 'enum', key: 'mobileNavDivider', label: 'Divider', visibleWhen: config => config.mobileNavFlexEnabled, options: [
+                { label: 'NONE', value: 'none' }, { label: 'PIPE', value: 'pipe' },
+                { label: 'DOT', value: 'dot' }, { label: 'RULE', value: 'rule' },
+              ] },
+              tailwindHeaderField('height', { key: 'mobileNavDividerHeight', label: 'Divider height', visibleWhen: config => config.mobileNavFlexEnabled && config.mobileNavDivider === 'rule' }),
+              tailwindHeaderField('width', { key: 'mobileNavDividerWidth', label: 'Divider width', visibleWhen: config => config.mobileNavFlexEnabled && config.mobileNavDivider === 'rule' }),
+            ] },
+          ] },
+        {
+          id: 'tablet',
+          label: 'TABLET (≥ 768px)',
+          fields: [
+            { kind: 'group', label: 'Wrapper', fields: [
+              tailwindHeaderField('height', { breakpoint: 'md', key: 'heightWide', label: 'Wrapper height' }),
+              tailwindHeaderField('paddingX', { breakpoint: 'md', key: 'paddingXWide', label: 'Horizontal padding' }),
+              tailwindHeaderField('paddingY', { breakpoint: 'md', key: 'paddingYWide', label: 'Vertical padding' }),
+              tailwindHeaderField('marginTop', { breakpoint: 'md', key: 'marginTopWide', label: 'Top margin' }),
+              tailwindHeaderField('marginBottom', { breakpoint: 'md', key: 'marginBottomWide', label: 'Bottom margin' }),
+            ] },
+            { kind: 'group', label: 'Branding', fields: [
+              tailwindHeaderField('width', { breakpoint: 'md', key: 'logoWidthWide', label: 'Logo width' }),
+            ] },
+            { kind: 'group', label: 'Navigation', fields: [
+              tailwindHeaderField('gap', { breakpoint: 'md', key: 'gapWide', label: 'Header gap' }),
+              tailwindHeaderField('fontSize', { breakpoint: 'md', key: 'navFontSizeWide', label: 'Navigation font size' }),
+              tailwindHeaderField('gap', { breakpoint: 'md', key: 'navGapWide', label: 'Navigation item gap' }),
+            ] },
+          ] },
+        {
+          id: 'desktop',
+          label: 'DESKTOP (≥ 1024px)',
+          fields: [
+            { kind: 'group', label: 'Wrapper', fields: [
+              tailwindHeaderField('height', { breakpoint: 'lg', key: 'heightLg', label: 'Wrapper height' }),
+              tailwindHeaderField('paddingX', { breakpoint: 'lg', key: 'paddingXLg', label: 'Horizontal padding' }),
+              tailwindHeaderField('paddingY', { breakpoint: 'lg', key: 'paddingYLg', label: 'Vertical padding' }),
+              tailwindHeaderField('marginTop', { breakpoint: 'lg', key: 'marginTopLg', label: 'Top margin' }),
+              tailwindHeaderField('marginBottom', { breakpoint: 'lg', key: 'marginBottomLg', label: 'Bottom margin' }),
+            ] },
+            { kind: 'group', label: 'Branding', fields: [
+              tailwindHeaderField('width', { breakpoint: 'lg', key: 'logoWidthLg', label: 'Logo width' }),
+            ] },
+            { kind: 'group', label: 'Navigation', fields: [
+              tailwindHeaderField('gap', { breakpoint: 'lg', key: 'gapLg', label: 'Header gap' }),
+              tailwindHeaderField('fontSize', { breakpoint: 'lg', key: 'navFontSizeLg', label: 'Navigation font size' }),
+              tailwindHeaderField('gap', { breakpoint: 'lg', key: 'navGapLg', label: 'Navigation item gap' }),
+            ] },
+          ] },
         ],
       },
     ],

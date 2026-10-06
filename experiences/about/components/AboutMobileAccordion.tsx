@@ -8,6 +8,7 @@ import { deriveSurfaceColor, deriveTransparentTint } from '../../../helpers/surf
 import { buildDeckPaletteStates } from '../../abstract/helpers/deckPalette';
 import { AboutMobileAccordionItem } from './AboutMobileAccordionItem';
 import type { AboutMobileAccordionConfig } from './AboutMobileAccordion.config';
+import { readAboutAccordionSelection, writeAboutAccordionSelection } from './aboutAccordionNavigationState';
 
 /**
  * PLAN-ABOUT-MOBILE-ACCORDION.md — the mobile (below-md) replacement for
@@ -58,6 +59,22 @@ export function AboutMobileAccordion({
   // cap/eviction logic below) treats an already-populated initial array no
   // differently than one built up via taps, so no other wiring needed.
   const [expandedIndices, setExpandedIndices] = useState<ReadonlyArray<number>>([0]);
+  const [selectionRestored, setSelectionRestored] = useState(false);
+  useLayoutEffect(() => {
+    const saved = readAboutAccordionSelection().expandedSlideIds;
+    if (saved) {
+      const indices = saved.map(id => slides.findIndex(slide => slide.id === id)).filter(index => index >= 0);
+      const valid = config.maxExpandedItems > 0 ? indices.slice(-config.maxExpandedItems) : indices;
+      setExpandedIndices(config.maxExpandedItems === 1 && valid.length === 0 ? [0] : valid);
+    }
+    setSelectionRestored(true);
+  // Restore only when this accordion mounts; config edits should not undo taps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useLayoutEffect(() => {
+    if (!selectionRestored) return;
+    writeAboutAccordionSelection({ expandedSlideIds: expandedIndices.map(index => slides[index]?.id).filter((id): id is number => id !== undefined) });
+  }, [expandedIndices, slides, selectionRestored]);
   const motion = useLiquidSliderMotion(gradientConfig);
 
   // Operator ask: the page itself must never scroll — pages/about.module

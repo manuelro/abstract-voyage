@@ -216,8 +216,12 @@ export function usePolymorphicLayoutColors(
   config: PolymorphicLayoutConfig,
   pageSurfaceColor: string,
   paletteColorResolver?: (column: 'wide' | 'narrow') => string,
+  tierOverride?: BreakpointTier,
 ): PolymorphicLayoutResolvedColors {
-  const { tier: breakpointTier, viewportWidthPx } = useBreakpointTier();
+  const { tier: viewportTier, viewportWidthPx } = useBreakpointTier();
+  // Pages may need a stable color reference from another tier while still
+  // rendering the layout itself at the real viewport tier.
+  const breakpointTier = tierOverride ?? viewportTier;
   const tier = <T,>(base: T, wide: T, lg: T) => resolveColorTier(breakpointTier, base, wide, lg);
 
   const wideColumnCustomColor = tier(
@@ -307,6 +311,18 @@ export function usePolymorphicLayoutColors(
   const narrowColumnColor = narrowColumnTransparent ? 'transparent' : (narrowColumnGradientVisible ? scrollGradientInkColor : narrowColumnColorFromSource);
   const wideColumnPaintColor = wideColumnGradientVisible ? 'transparent' : wideColumnColor;
   const narrowColumnPaintColor = narrowColumnGradientVisible ? 'transparent' : narrowColumnColor;
+  // scrollGradientDarkenOnScrollEnabled's own resolved value — gates
+  // maxDarken/legibilityTargetRatio below to 0 rather than reading
+  // scrollGradientMaxDarken(-Wide/-Lg)/scrollGradientLegibilityTargetRatio(-Wide/-Lg)
+  // at all while false, so the gradient renders exactly as generated with
+  // zero scroll-driven darkening (see PolymorphicLayoutConfig's own doc
+  // comment on this field for why this is a separate switch rather than
+  // just setting Max darken to 0 directly).
+  const scrollGradientDarkenOnScrollEnabled = tier(
+    config.scrollGradientDarkenOnScrollEnabled,
+    config.scrollGradientDarkenOnScrollEnabledWide,
+    config.scrollGradientDarkenOnScrollEnabledLg,
+  );
   const scrollGradientResolved: PolymorphicScrollGradientBackgroundProps = {
     compositor: tier(config.scrollGradientCompositor, config.scrollGradientCompositorWide, config.scrollGradientCompositorLg),
     baseHue: tier(config.scrollGradientBaseHue, config.scrollGradientBaseHueWide, config.scrollGradientBaseHueLg),
@@ -334,13 +350,15 @@ export function usePolymorphicLayoutColors(
       config.scrollGradientViewportRangeVh, config.scrollGradientViewportRangeVhWide,
       config.scrollGradientViewportRangeVhLg,
     ),
-    maxDarken: tier(
-      config.scrollGradientMaxDarken, config.scrollGradientMaxDarkenWide, config.scrollGradientMaxDarkenLg,
-    ),
-    legibilityTargetRatio: tier(
-      config.scrollGradientLegibilityTargetRatio, config.scrollGradientLegibilityTargetRatioWide,
-      config.scrollGradientLegibilityTargetRatioLg,
-    ),
+    maxDarken: scrollGradientDarkenOnScrollEnabled
+      ? tier(config.scrollGradientMaxDarken, config.scrollGradientMaxDarkenWide, config.scrollGradientMaxDarkenLg)
+      : 0,
+    legibilityTargetRatio: scrollGradientDarkenOnScrollEnabled
+      ? tier(
+        config.scrollGradientLegibilityTargetRatio, config.scrollGradientLegibilityTargetRatioWide,
+        config.scrollGradientLegibilityTargetRatioLg,
+      )
+      : 0,
     tauMs: config.scrollGradientTauMs,
     focalHorizontal: tier(config.scrollGradientFocalHorizontal, config.scrollGradientFocalHorizontalWide, config.scrollGradientFocalHorizontalLg),
     lightHiddenPercent: tier(config.scrollGradientLightHiddenPercent, config.scrollGradientLightHiddenPercentWide, config.scrollGradientLightHiddenPercentLg),
@@ -857,19 +875,35 @@ function ColumnContentBox({
         className={joinClasses(
           'relative',
           fillHeight ? 'h-full flex-1' : '',
-          width && width !== 'auto' ? `w-full ${width}` : '',
-          widthWide && widthWide !== 'auto' ? `w-full ${widthWide}` : '',
-          widthLg && widthLg !== 'auto' ? `w-full ${widthLg}` : '',
-          // w-full + max-w-*: CSS resolves width to the smaller of the two,
-          // so this fills the column up to the cap rather than replacing
-          // the percentage width classes above — both can be set at once
-          // (max-w-* still wins as the true ceiling either way). Stays
-          // effective under a containerQuery ancestor, unlike the
+          // Unconditional, same reasoning as the outer box's own explicit
+          // w-full above (see its doc comment) — this inner box is the one
+          // a page's actual children mount into, so it's the one that can
+          // collapse to shrink-to-fit content width under an `align` that
+          // resolves to an auto-margin class (CONTENT_ALIGN_MARGIN_CLASS
+          // below), even with the parent's align-items at its default
+          // stretch value. Previously only added alongside an explicit
+          // width/maxWidth override, so a column with NEITHER (every
+          // caller's common case — "just fill the column") had no width
+          // safeguard at all: on a real device this collapsed CoverFlow's
+          // own wide column to roughly half the viewport, right-aligned by
+          // its own 'items-end' margin class, whenever no width/maxWidth
+          // prop happened to be set (operator-reported, screenshot —
+          // mobile CoverFlow rendered at a fraction of the viewport width
+          // instead of full-bleed).
+          'w-full',
+          width && width !== 'auto' ? width : '',
+          widthWide && widthWide !== 'auto' ? widthWide : '',
+          widthLg && widthLg !== 'auto' ? widthLg : '',
+          // max-w-*: CSS resolves width to the smaller of w-full above and
+          // this cap, so this fills the column up to the cap rather than
+          // replacing the percentage width classes above (both can be set
+          // at once — max-w-* still wins as the true ceiling either way).
+          // Stays effective under a containerQuery ancestor, unlike the
           // percentage width classes above — see maxWidth's own doc
           // comment (ColumnContentBoxProps) for why.
-          maxWidth && maxWidth !== 'none' ? `w-full ${maxWidth}` : '',
-          maxWidthWide && maxWidthWide !== 'none' ? `w-full ${maxWidthWide}` : '',
-          maxWidthLg && maxWidthLg !== 'none' ? `w-full ${maxWidthLg}` : '',
+          maxWidth && maxWidth !== 'none' ? maxWidth : '',
+          maxWidthWide && maxWidthWide !== 'none' ? maxWidthWide : '',
+          maxWidthLg && maxWidthLg !== 'none' ? maxWidthLg : '',
           CONTENT_ALIGN_MARGIN_CLASS[align],
           alignWide ? CONTENT_ALIGN_MARGIN_CLASS_WIDE[alignWide] : '',
           alignLg ? CONTENT_ALIGN_MARGIN_CLASS_LG[alignLg] : '',
@@ -1375,6 +1409,25 @@ export function PolymorphicLayout({
     normalizedConfig.layoutMode === 'split'
     && normalizedConfig.contentContainer === 'bounded'
   );
+  const narrowColumnGlassOpacity = colors.breakpointTier === 'lg'
+    ? (normalizedConfig.scrollGradientNarrowColumnGlassOpacityLg ?? 0)
+    : (normalizedConfig.scrollGradientNarrowColumnGlassOpacityWide ?? 0);
+  const narrowColumnBackdropBlurPx = colors.breakpointTier === 'lg'
+    ? (normalizedConfig.scrollGradientNarrowColumnBackdropBlurPxLg ?? 0)
+    : (normalizedConfig.scrollGradientNarrowColumnBackdropBlurPxWide ?? 0);
+  // Match the Timeline glass implementation and the mobile expanded list:
+  // alpha is embedded in the background paint, never set as element opacity.
+  // That keeps column content opaque and leaves this surface composited so
+  // backdrop-filter samples the live gradient behind it.
+  const narrowColumnGlassStyle: CSSProperties | undefined = colors.scrollGradientNarrowColumnActive
+    && colors.narrowColumnPaintColor === 'transparent'
+    && colors.breakpointTier !== 'mobile'
+    ? {
+      backgroundColor: `color-mix(in srgb, ${colors.narrowColumnGradientReferenceColor ?? colors.narrowColumnColor} ${narrowColumnGlassOpacity * 100}%, transparent)`,
+      backdropFilter: `blur(${narrowColumnBackdropBlurPx}px)`,
+      WebkitBackdropFilter: `blur(${narrowColumnBackdropBlurPx}px)`,
+    }
+    : undefined;
 
   const gradientClipStyle = (
     column: 'narrow' | 'wide',
@@ -1542,6 +1595,7 @@ export function PolymorphicLayout({
         ...(narrowColumnClearsFloatingHeaderStyle ?? {}),
         // See the matching override on wideColumnStyle above — same reason.
         ...(colors.scrollGradientNarrowColumnActive ? { backgroundColor: colors.narrowColumnPaintColor } : {}),
+        ...(narrowColumnGlassStyle ?? {}),
       }}
       contentContainer={normalizedConfig.contentContainer}
       bodyGutterClassName={bodyGutterClassName}

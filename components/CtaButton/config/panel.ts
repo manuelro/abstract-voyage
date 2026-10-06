@@ -218,6 +218,90 @@ export const CTA_BUTTON_APPEARANCE_PANEL = defineConfigScope<CtaButtonConfig>({
         },
       ],
     },
+    // Composer pill's own size, fully independent of Button size/Font size
+    // above (registered.ts's own composerSize/composerFontSize doc comments)
+    // — ComposerPill.tsx (e.g. the contact page's composer, the Abstract
+    // hero's composer) styles itself off these instead of the button-facing
+    // fields, so tuning a button's size here never resizes a composer, and
+    // vice versa. Font size floors at BASE (16px) on Mobile regardless of
+    // what's picked — see the field's own description.
+    {
+      kind: 'tabs',
+      tabs: [
+        {
+          id: 'mobile',
+          label: 'MOBILE (< 768px)',
+          fields: [
+            {
+              kind: 'group',
+              label: 'Composer size',
+              fields: [
+                {
+                  kind: 'enum',
+                  key: 'composerSize',
+                  label: 'Composer size',
+                  description: 'Resolves a coherent padding and min-height bundle for the composer pill at this tier, independently of Button size above.',
+                  options: [
+                    { label: 'SM', value: 'sm' },
+                    { label: 'MD', value: 'md' },
+                    { label: 'LG', value: 'lg' },
+                  ],
+                },
+                {
+                  kind: 'enum',
+                  key: 'composerFontSize',
+                  label: 'Font size',
+                  description: 'Composer input text size at this tier. Always renders at least BASE (16px) even if SM is picked — a focusable text input under 16px triggers iOS/Android\'s auto-zoom-on-focus, a real on-device regression this floor prevents.',
+                  options: [
+                    { label: 'SM', value: 'text-sm' },
+                    { label: 'BASE', value: 'text-base' },
+                    { label: 'LG', value: 'text-lg' },
+                    { label: 'XL', value: 'text-xl' },
+                    { label: '2XL', value: 'text-2xl' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'desktop',
+          label: 'DESKTOP (≥ 768px)',
+          fields: [
+            {
+              kind: 'group',
+              label: 'Composer size',
+              fields: [
+                {
+                  kind: 'enum',
+                  key: 'composerSizeDesktop',
+                  label: 'Composer size',
+                  description: 'Resolves this tier\'s own padding bundle for the composer pill, independently of Mobile\'s Composer size. Defaults to matching Mobile\'s Composer size unless overridden here.',
+                  options: [
+                    { label: 'SM', value: 'sm' },
+                    { label: 'MD', value: 'md' },
+                    { label: 'LG', value: 'lg' },
+                  ],
+                },
+                {
+                  kind: 'enum',
+                  key: 'composerFontSizeDesktop',
+                  label: 'Font size',
+                  description: 'Composer input text size at this tier — no 16px floor here (desktop pointer devices never auto-zoom on focus). Defaults to matching Mobile\'s Font size unless overridden here.',
+                  options: [
+                    { label: 'SM', value: 'md:text-sm' },
+                    { label: 'BASE', value: 'md:text-base' },
+                    { label: 'LG', value: 'md:text-lg' },
+                    { label: 'XL', value: 'md:text-xl' },
+                    { label: '2XL', value: 'md:text-2xl' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
     {
       kind: 'group',
       label: 'Icon',
@@ -648,10 +732,15 @@ export const CTA_BUTTON_APPEARANCE_PANEL = defineConfigScope<CtaButtonConfig>({
   // (does this instance join into a strip with a sibling, and on which
   // side) set by whichever page actually composes a joined pair — not
   // something an operator picks per-instance in this generic panel, same
-  // reasoning as the four above.
+  // reasoning as the four above. composerPaddingX/-Y/-XDesktop/-YDesktop/
+  // composerMinHeightPx are the composer's own size-preset-driven fields,
+  // same "resolved by the Composer size tabs above, no separate control"
+  // reasoning as paddingX/paddingY/etc.
   hiddenKeys: [
     'paddingX', 'paddingXDesktop', 'paddingY', 'paddingYDesktop',
     'minHeightPx', 'minWidthPx', 'radiusCorners', 'radiusCornersDesktop',
+    'composerPaddingX', 'composerPaddingXDesktop', 'composerPaddingY', 'composerPaddingYDesktop',
+    'composerMinHeightPx',
   ],
   // Named states worth their own generated Storybook story (see
   // components/Panel/config/generateStorybookStories.ts) rather than only

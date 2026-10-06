@@ -1,13 +1,44 @@
 import { defineConfigScope } from '../../../../components/Panel/config';
-import { DEFAULT_COVER_FLOW_CONFIG, type CoverFlowConfig } from './CoverFlow.config';
+import {
+  DEFAULT_COVER_FLOW_CONFIG,
+  MAX_CARD_HEIGHT_PX_MAX,
+  MAX_CARD_HEIGHT_PX_MIN,
+  type CoverFlowConfig,
+} from './CoverFlow.config';
 
 export const COVER_FLOW_SCOPE_ID = 'abstract/coverFlow' as const;
 
 // Same min/max CoverFlow.config.ts's own normalizer clamps to — kept in
 // sync by hand, same convention pages/carousel-lab.panel.ts (this scope's
 // own promotion source) already uses.
-const CARD_DISTANCE_FIELD_BASE = { kind: 'number' as const, min: 0.2, max: 1.5, step: 0.01 };
+const CARD_DISTANCE_FIELD_BASE = { kind: 'number' as const, min: 0.2, max: 2.5, step: 0.01 };
 const CARD_WIDTH_FIELD_BASE = { kind: 'number' as const, min: 0.1, max: 1, step: 0.01 };
+const MAX_CARD_HEIGHT_FIELD_BASE = {
+  kind: 'number' as const,
+  min: MAX_CARD_HEIGHT_PX_MIN,
+  max: MAX_CARD_HEIGHT_PX_MAX,
+  step: 10,
+  unit: 'px',
+};
+// PLAN-COVERFLOW-ACTIVE-CARD-LANDING-POSITION.md
+const ACTIVE_CARD_LANDING_MODE_OPTIONS = [
+  { label: 'CENTER', value: 'center' },
+  { label: 'ANCHOR SHIFT', value: 'anchorShift' },
+  { label: 'ACTIVE ONLY', value: 'activeOnly' },
+] as const;
+const ACTIVE_CARD_LANDING_X_PERCENT_FIELD_BASE = {
+  kind: 'number' as const,
+  min: 0,
+  max: 100,
+  step: 1,
+  unit: '%',
+};
+// Same min/max CoverFlow.config.ts's own normalizer clamps to — kept in
+// sync by hand, same convention CARD_DISTANCE_FIELD_BASE above follows.
+const ROTATION_MAX_DEG_FIELD_BASE = { kind: 'number' as const, min: 0, max: 90, step: 1, unit: 'deg' };
+const ROTATION_GROWTH_FIELD_BASE = { kind: 'number' as const, min: 0, max: 200, step: 1, unit: '%' };
+const STACK_SPACING_RATIO_FIELD_BASE = { kind: 'number' as const, min: 0, max: 2, step: 0.01 };
+const STACK_SPACING_GROWTH_FIELD_BASE = { kind: 'number' as const, min: -90, max: 200, step: 1, unit: '%' };
 
 const whenStaggeredCardRevealEnabled = (config: Readonly<CoverFlowConfig>) => (
   config.staggeredCardRevealEnabled
@@ -19,6 +50,31 @@ const whenGaussianSettleMotion = (config: Readonly<CoverFlowConfig>) => (
 
 const whenNarrowColumnGradientOnNavigateEnabled = (config: Readonly<CoverFlowConfig>) => (
   config.narrowColumnGradientOnNavigateEnabledLg
+);
+
+const whenRotationSpread = (config: Readonly<CoverFlowConfig>) => (
+  config.rotationDistributionMode === 'spread'
+);
+
+const whenRotationCompounding = (config: Readonly<CoverFlowConfig>) => (
+  config.rotationDistributionMode === 'compounding'
+);
+
+const ROTATION_PROGRESSION_OPTIONS = [
+  { label: 'RECEDE', value: 'recede' },
+  { label: 'INVERT', value: 'invert' },
+] as const;
+
+// PLAN-COVERFLOW-ACTIVE-CARD-LANDING-POSITION.md — one predicate per tier
+// since each tier's landing mode is independently configurable.
+const whenActiveCardLandingModeSet = (config: Readonly<CoverFlowConfig>) => (
+  config.activeCardLandingMode !== 'center'
+);
+const whenActiveCardLandingModeMdSet = (config: Readonly<CoverFlowConfig>) => (
+  config.activeCardLandingModeMd !== 'center'
+);
+const whenActiveCardLandingModeLgSet = (config: Readonly<CoverFlowConfig>) => (
+  config.activeCardLandingModeLg !== 'center'
 );
 
 const SETTLE_MOTION_CURVE_OPTIONS = [
@@ -66,6 +122,51 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
               label: 'Card size',
               description: 'Fraction of the available container width the active card fills at this tier.',
             },
+            {
+              ...MAX_CARD_HEIGHT_FIELD_BASE,
+              key: 'maxCardHeightPx',
+              label: 'Max card height',
+              description: 'Maximum card height on mobile. Width scales with height to preserve the aspect ratio. 0 removes the cap.',
+            },
+            {
+              kind: 'enum',
+              key: 'activeCardLandingMode',
+              label: 'Active card landing',
+              description: 'CENTER (default): today\'s behavior, unchanged. ANCHOR SHIFT: every card shifts together so the active card lands at the X position below, preserving spacing and revealing more cards on the freed side. ACTIVE ONLY: just the active card moves to that X position; every other card stays exactly where it is today.',
+              options: ACTIVE_CARD_LANDING_MODE_OPTIONS,
+            },
+            {
+              ...ACTIVE_CARD_LANDING_X_PERCENT_FIELD_BASE,
+              key: 'activeCardLandingXPercent',
+              label: 'Active card landing X',
+              description: 'Where the active card lands, as a percent of the mobile container width. 50 is today\'s exact center. Only applies when Active card landing above is not CENTER.',
+              visibleWhen: whenActiveCardLandingModeSet,
+            },
+            {
+              ...ROTATION_MAX_DEG_FIELD_BASE,
+              key: 'rotationMaxDeg',
+              label: 'Maximum rotation',
+              description: 'Rotation ceiling at this tier. In Recede mode, far cards approach it; in Invert mode, the immediate neighbour starts at it. Keep it below 90deg so cards remain visibly present.',
+            },
+            {
+              ...ROTATION_GROWTH_FIELD_BASE,
+              key: 'rotationDistanceGrowthPercent',
+              label: 'Rotation growth by distance',
+              description: 'Percentage multiplier between distance steps at this tier. Recede mode grows rotation outward; Invert mode divides rotation outward, flattening farther cards. 0 keeps each mode at its own endpoint.',
+              visibleWhen: whenRotationCompounding,
+            },
+            {
+              ...STACK_SPACING_RATIO_FIELD_BASE,
+              key: 'stackSpacingToCenterGapRatio',
+              label: 'Further-neighbour spacing ratio',
+              description: 'stackSpacing / centerGap at this tier — how tightly further-out neighbours pack relative to the first neighbour.',
+            },
+            {
+              ...STACK_SPACING_GROWTH_FIELD_BASE,
+              key: 'stackSpacingGrowthPercent',
+              label: 'Spacing growth by distance',
+              description: 'Rhythmic distribution at this tier: each card past the immediate neighbour sits this percent FARTHER from the card one step closer to active than that card sits from the one before it, compounding — e.g. 38 makes the 3rd card\'s own gap from the 2nd 38% wider than the 2nd\'s gap from the 1st, the 4th wider again by the same 38%, and so on: a fanned-out rhythm rather than an even row. 0 (default): every step past the first neighbour uses the same fixed spacing (Further-neighbour spacing ratio above), today\'s behavior unchanged. Negative values pack further cards tighter instead of fanning them out.',
+            },
           ],
         },
         {
@@ -84,6 +185,63 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
               label: 'Card size (≥ tablet)',
               description: 'Same ratio as Mobile\'s Card size, independently tunable for this tier.',
             },
+            {
+              ...MAX_CARD_HEIGHT_FIELD_BASE,
+              key: 'maxCardHeightPxMd',
+              label: 'Max card height',
+              description: 'Maximum card height on tablet only. Width scales with height to preserve the aspect ratio. 0 removes the cap.',
+            },
+            {
+              kind: 'enum',
+              key: 'activeCardLandingModeMd',
+              label: 'Active card landing (≥ tablet)',
+              description: 'Same behavior as Mobile\'s Active card landing, independently tunable for this tier.',
+              options: ACTIVE_CARD_LANDING_MODE_OPTIONS,
+            },
+            {
+              ...ACTIVE_CARD_LANDING_X_PERCENT_FIELD_BASE,
+              key: 'activeCardLandingXPercentMd',
+              label: 'Active card landing X (≥ tablet)',
+              description: 'Where the active card lands, as a percent of the tablet container width. 50 is today\'s exact center. Only applies when Active card landing (≥ tablet) above is not CENTER.',
+              visibleWhen: whenActiveCardLandingModeMdSet,
+            },
+            {
+              kind: 'boolean',
+              key: 'alignActiveCardRightToMainNavMd',
+              label: 'Align active card right to main nav',
+              description: 'Opt-in: measures the rendered primary navigation and translates the entire CoverFlow stack until the active card’s right edge meets its right boundary. Card spacing and geometry remain unchanged; overrides Active card landing X for tablet.',
+            },
+            {
+              kind: 'boolean',
+              key: 'alignToVisibleViewportCenterMd',
+              label: 'Vertically center carousel in visible viewport',
+              description: 'Opt-in: vertically aligns the complete CoverFlow composition to the real visible browser viewport at tablet, including browser-chrome changes. Card geometry remains unchanged.',
+            },
+            {
+              ...ROTATION_MAX_DEG_FIELD_BASE,
+              key: 'rotationMaxDegMd',
+              label: 'Maximum rotation (≥ tablet)',
+              description: 'Same behavior as Mobile\'s Maximum rotation, independently tunable for this tier.',
+            },
+            {
+              ...ROTATION_GROWTH_FIELD_BASE,
+              key: 'rotationDistanceGrowthPercentMd',
+              label: 'Rotation growth by distance (≥ tablet)',
+              description: 'Same behavior as Mobile\'s Rotation growth by distance, independently tunable for this tier.',
+              visibleWhen: whenRotationCompounding,
+            },
+            {
+              ...STACK_SPACING_RATIO_FIELD_BASE,
+              key: 'stackSpacingToCenterGapRatioMd',
+              label: 'Further-neighbour spacing ratio (≥ tablet)',
+              description: 'Same behavior as Mobile\'s Further-neighbour spacing ratio, independently tunable for this tier.',
+            },
+            {
+              ...STACK_SPACING_GROWTH_FIELD_BASE,
+              key: 'stackSpacingGrowthPercentMd',
+              label: 'Spacing growth by distance (≥ tablet)',
+              description: 'Same behavior as Mobile\'s Spacing growth by distance, independently tunable for this tier.',
+            },
           ],
         },
         {
@@ -101,6 +259,63 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
               key: 'cardWidthRatioLg',
               label: 'Card size (≥ desktop)',
               description: 'Same ratio as Mobile\'s Card size, independently tunable for this tier.',
+            },
+            {
+              ...MAX_CARD_HEIGHT_FIELD_BASE,
+              key: 'maxCardHeightPxLg',
+              label: 'Max card height',
+              description: 'Maximum card height on desktop only. Width scales with height to preserve the aspect ratio. 0 removes the cap.',
+            },
+            {
+              kind: 'enum',
+              key: 'activeCardLandingModeLg',
+              label: 'Active card landing (≥ desktop)',
+              description: 'Same behavior as Mobile\'s Active card landing, independently tunable for this tier.',
+              options: ACTIVE_CARD_LANDING_MODE_OPTIONS,
+            },
+            {
+              ...ACTIVE_CARD_LANDING_X_PERCENT_FIELD_BASE,
+              key: 'activeCardLandingXPercentLg',
+              label: 'Active card landing X (≥ desktop)',
+              description: 'Where the active card lands, as a percent of the desktop container width. 50 is today\'s exact center. Only applies when Active card landing (≥ desktop) above is not CENTER.',
+              visibleWhen: whenActiveCardLandingModeLgSet,
+            },
+            {
+              kind: 'boolean',
+              key: 'alignActiveCardRightToMainNavLg',
+              label: 'Align active card right to main nav',
+              description: 'Opt-in: measures the rendered primary navigation and translates the entire CoverFlow stack until the active card’s right edge meets its right boundary. Card spacing and geometry remain unchanged; overrides Active card landing X for desktop.',
+            },
+            {
+              kind: 'boolean',
+              key: 'alignToVisibleViewportCenterLg',
+              label: 'Vertically center carousel in visible viewport',
+              description: 'Opt-in: same visible-viewport centering at desktop, independently authored from tablet. Card geometry remains unchanged.',
+            },
+            {
+              ...ROTATION_MAX_DEG_FIELD_BASE,
+              key: 'rotationMaxDegLg',
+              label: 'Maximum rotation (≥ desktop)',
+              description: 'Same behavior as Mobile\'s Maximum rotation, independently tunable for this tier.',
+            },
+            {
+              ...ROTATION_GROWTH_FIELD_BASE,
+              key: 'rotationDistanceGrowthPercentLg',
+              label: 'Rotation growth by distance (≥ desktop)',
+              description: 'Same behavior as Mobile\'s Rotation growth by distance, independently tunable for this tier.',
+              visibleWhen: whenRotationCompounding,
+            },
+            {
+              ...STACK_SPACING_RATIO_FIELD_BASE,
+              key: 'stackSpacingToCenterGapRatioLg',
+              label: 'Further-neighbour spacing ratio (≥ desktop)',
+              description: 'Same behavior as Mobile\'s Further-neighbour spacing ratio, independently tunable for this tier.',
+            },
+            {
+              ...STACK_SPACING_GROWTH_FIELD_BASE,
+              key: 'stackSpacingGrowthPercentLg',
+              label: 'Spacing growth by distance (≥ desktop)',
+              description: 'Same behavior as Mobile\'s Spacing growth by distance, independently tunable for this tier.',
             },
           ],
         },
@@ -144,11 +359,62 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           kind: 'number',
           key: 'rotationDeg',
           label: 'Neighbour rotation',
-          description: 'Y-axis rotation applied to neighbour cards, degrees.',
+          description: 'Y-axis rotation applied to the immediate neighbour, degrees.',
           min: 0,
           max: 90,
           step: 1,
           unit: 'deg',
+        },
+        {
+          kind: 'boolean',
+          key: 'showCardBackface',
+          label: 'Show card back face',
+          description: 'Off by default: rotated cards hide their entire reverse side, including the shell, gradient, and content. Turn on only when a mirrored full-card reverse side is intentional.',
+        },
+        {
+          kind: 'enum',
+          key: 'rotationDistributionMode',
+          label: 'Rotation distribution',
+          description: 'Spread allocates a fixed rotation budget across the card maze so farther cards progressively narrow. Compounding preserves the legacy multiplicative curve.',
+          options: [
+            { label: 'SPREAD', value: 'spread' },
+            { label: 'COMPOUNDING', value: 'compounding' },
+          ],
+        },
+        {
+          kind: 'enum',
+          key: 'rotationProgressionMode',
+          label: 'Rotation progression',
+          description: 'Recede keeps near cards broad and narrows cards with distance. Invert makes the immediate neighbour narrowest and progressively flattens farther cards.',
+          options: ROTATION_PROGRESSION_OPTIONS,
+          visibleWhen: whenRotationCompounding,
+        },
+        {
+          kind: 'number',
+          key: 'rotationSpreadDepth',
+          label: 'Rotation spread depth',
+          description: 'How many neighbour positions receive the full rotation range in Spread mode. The final position reaches Maximum rotation.',
+          min: 1,
+          max: 20,
+          step: 1,
+          visibleWhen: whenRotationSpread,
+        },
+        {
+          kind: 'number',
+          key: 'rotationSpreadExponent',
+          label: 'Rotation spread curve',
+          description: '1 is linear. Values above 1 preserve the near cards and make the tail narrow more decisively.',
+          min: 0.25,
+          max: 4,
+          step: 0.05,
+          visibleWhen: whenRotationSpread,
+        },
+        {
+          kind: 'boolean',
+          key: 'rotationGrowthIncludesFirstNeighbor',
+          label: 'Rotation growth includes first neighbour',
+          description: 'Off (default): the immediate neighbour always rotates by the flat Neighbour rotation above, only the 2nd neighbour onward compounds — can leave the first neighbour looking flatter than the rhythm the rest of the stack is on. On: the immediate neighbour\'s own rotation becomes the growth series\' first term instead, so its silhouette already carries one step of the same rhythm as every card behind it. No effect while Rotation growth by distance is 0.',
+          visibleWhen: whenRotationCompounding,
         },
         {
           kind: 'number',
@@ -163,9 +429,9 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           kind: 'number',
           key: 'inactiveCardHoverAmplitudeStep',
           label: 'Inactive card hover amplitude step',
-          description: 'Opt-in: each step of distance from the active card recedes both live-proximity engines\' own hover ceiling by this fraction, toward a flat (non-hoverable, non-brightening) card — the CTA Button engine\'s scale/lift/tilt AND the gradient/hologram engine\'s brightness/saturation/hue-shift/pan response, together, including the immediate neighbor, unlike the darkening step above, since a lingering hover ceiling (not a resting-color identity) is exactly what lets a card still gliding past the pointer after leaving the active slot visibly snap or brighten when its hover effect finally releases. Zero disables the recede entirely.',
+          description: 'Opt-in: each step of distance from the active card recedes both live-proximity engines\' own hover ceiling by this fraction, toward a flat (non-hoverable, non-brightening) card — the CTA Button engine\'s scale/lift/tilt AND the gradient/hologram engine\'s brightness/saturation/hue-shift/pan response, together, including the immediate neighbor, unlike the darkening step above, since a lingering hover ceiling (not a resting-color identity) is exactly what lets a card still gliding past the pointer after leaving the active slot visibly snap or brighten when its hover effect finally releases. Also controls how aggressively the active card\'s own LIFT ceiling recedes as its live drag/settle position approaches the neighbor slot — values above 1 (e.g. 3) zero it out well before the full distance, giving typical release gestures enough runway to already be fully damped. Zero disables the recede entirely.',
           min: 0,
-          max: 1,
+          max: 4,
           step: 0.01,
         },
         {
@@ -240,13 +506,10 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           step: 0.01,
         },
         {
-          kind: 'number',
-          key: 'stackSpacingToCenterGapRatio',
-          label: 'Further-neighbour spacing ratio',
-          description: 'stackSpacing / centerGap — how tightly further-out neighbours pack relative to the first neighbour.',
-          min: 0,
-          max: 2,
-          step: 0.01,
+          kind: 'boolean',
+          key: 'stackSpacingGrowthIncludesFirstNeighbor',
+          label: 'Spacing growth includes first neighbour',
+          description: 'Off (default): the immediate neighbour always sits a flat Card distance gap from the active card, unrelated to Further-neighbour spacing ratio\'s own value — only the 2nd neighbour onward fans out on that separate rhythm. This is what leaves the immediate neighbour looking tucked right up against the active card. On: Card distance stops governing where a settled card sits (it still shapes drag/wheel feel) — the active-to-first-neighbour gap instead uses the same spacing unit the first-to-second gap already does, growing from there by this same percent each step, so the whole stack reads as one continuous rhythm starting right at the active card. No effect while Spacing growth by distance is 0.',
         },
       ],
     },
@@ -254,6 +517,24 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
       kind: 'group',
       label: 'Gestures',
       fields: [
+        {
+          kind: 'boolean',
+          key: 'startAtEndOfList',
+          label: 'Start at end of list',
+          description: 'Off by default: the list opens on its first item, today\'s exact behavior. On: the initial active card is the LAST item instead, as if the list had already been fully navigated once — every other navigation gesture (click, wheel, drag, list selection) still works exactly the same from there.',
+        },
+        {
+          kind: 'boolean',
+          key: 'reverseItemOrder',
+          label: 'Reverse list order',
+          description: 'Off by default: cards render/navigate in the order the caller\'s own list provides, today\'s exact behavior. On: flips that order end-to-end — a purely positional reverse, not a re-sort by date/title/etc. (the caller\'s own list still owns that). Independent of "Start at end of list" above: that toggle keeps resolving against the caller\'s original list length either way.',
+        },
+        {
+          kind: 'boolean',
+          key: 'infiniteLoopEnabled',
+          label: 'Infinite loop',
+          description: 'On by default. The carousel loops seamlessly — navigating past the last card continues onto the first (and vice versa), with the same cards acting as the runway on both sides so an edge is never left empty. There is no special end state to reach; the loop always looks full. Turn it off only for deliberately bounded navigation. A paired list/timeline follows the loop back to the first item through its normal active-item handling. Applies to drag, wheel, and click navigation; the mobile pinned scroll-synced instance is unaffected.',
+        },
         { kind: 'boolean', key: 'enableClickToSnap', label: 'Click neighbour to snap' },
         { kind: 'boolean', key: 'enableScroll', label: 'Wheel navigation' },
         {
@@ -285,6 +566,28 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           max: 50,
           step: 1,
           unit: 'px',
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Card fade',
+      fields: [
+        {
+          kind: 'boolean',
+          key: 'leftFadeEnabled',
+          label: 'Fade out cards to the left',
+          description: 'Off by default. On: inactive cards to the LEFT of the active card progressively fade out as they recede, normalized over the number of cards actually visible to the left at the current width, so the leftmost visible card reaches the minimum opacity below right at the viewport edge. The active card and everything to its right stay fully opaque.',
+        },
+        {
+          kind: 'number',
+          key: 'leftFadeMinOpacity',
+          label: 'Leftmost card opacity',
+          description: 'The opacity the leftmost visible card fades to. 0 fades it fully to invisible by the viewport edge; a higher value keeps far cards partially visible. Only applies while "Fade out cards to the left" is on.',
+          min: 0,
+          max: 1,
+          step: 0.05,
+          visibleWhen: config => config.leftFadeEnabled,
         },
       ],
     },

@@ -138,14 +138,21 @@ const RESET_ORDER_CLASS_BY_PREFIX: Record<'md' | 'lg', string> = {
  * (untouched, still order:0) default while stacked; RESET_ORDER_CLASS_BY_
  * PREFIX's own counter-class at the resolved split tier hands control back
  * to DOM order once the grid genuinely splits into two real tracks. */
-function resolveWideColumnOrderClassName(
+export function resolveWideColumnOrderClassName(
   stackedColumnOrder: SplitColumnLayoutConfig['stackedColumnOrder'],
+  stackedColumnOrderWide: SplitColumnLayoutConfig['stackedColumnOrderWide'] | undefined,
   narrowColumnWidthTierMd: SplitColumnRatioTier,
   narrowColumnWidthTierLg: SplitColumnRatioTier,
 ): string {
-  if (stackedColumnOrder !== 'wideFirst') return '';
-  const splitPrefix = firstSplitTierPrefix(narrowColumnWidthTierMd, narrowColumnWidthTierLg);
-  return ['order-first', splitPrefix ? RESET_ORDER_CLASS_BY_PREFIX[splitPrefix] : ''].filter(Boolean).join(' ');
+  const baseWideFirst = stackedColumnOrder === 'wideFirst';
+  const mdIsStacked = narrowColumnWidthTierMd === 'stacked';
+  const mdOrder = mdIsStacked
+    ? (stackedColumnOrderWide === 'wideFirst' ? 'md:order-first' : 'md:order-none')
+    : 'md:order-none';
+  const lgOrder = narrowColumnWidthTierLg === 'stacked'
+    ? ''
+    : 'lg:order-none';
+  return [baseWideFirst ? 'order-first' : '', mdOrder, lgOrder].filter(Boolean).join(' ');
 }
 
 export type SplitColumnLayoutColors = {
@@ -268,6 +275,7 @@ export function SplitColumnLayout({
     : undefined;
   const wideColumnOrderClassName = resolveWideColumnOrderClassName(
     normalized.stackedColumnOrder,
+    normalized.stackedColumnOrderWide,
     normalized.narrowColumnWidthTierMd,
     normalized.narrowColumnWidthTierLg,
   );

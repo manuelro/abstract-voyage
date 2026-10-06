@@ -6,6 +6,7 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MotionValue } from 'motion/react';
 import { clamp } from '../../../../../helpers/clamp';
 import {
   DEFAULT_ABSTRACT_POST_DOCK_HOLOGRAM_CONFIG,
@@ -72,6 +73,7 @@ export function LiquidGradientAdapter({
   isActive = false,
   activationRampDurationMs = 0,
   activationRampEasingCss = 'ease-out',
+  scaleMultiplierLive,
   onFirstRender,
 }: {
   slide: SliderSlide;
@@ -136,6 +138,9 @@ export function LiquidGradientAdapter({
    * tenth-pass revision note). 0 (default): every existing caller sees zero
    * behavior change. */
   activationRampDurationMs?: number;
+  /** An optional live multiplier for the final shader scale. It is read in
+   * the render loop, so a drag changes the mesh without waiting for React. */
+  scaleMultiplierLive?: MotionValue<number>;
   /** Called once after this instance has produced its first real WebGL frame. */
   onFirstRender?: () => void;
   /** CSS easing for the ramp above — pass the same token driving the
@@ -150,6 +155,7 @@ export function LiquidGradientAdapter({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const motionValuesRef = useRef<LiquidSliderMotionValues>(NEUTRAL_MOTION_VALUES);
   const configRef = useRef(config);
+  const scaleMultiplierRef = useRef(scaleMultiplierLive?.get() ?? 1);
   const activityRef = useRef(activity);
   const paletteRef = useRef<DeckPaletteState | null>(palette);
   const initialHueUniformState = hueUniformStateFromPalette(palette);
@@ -238,6 +244,22 @@ export function LiquidGradientAdapter({
   isActiveRef.current = isActive;
   activationRampDurationMsRef.current = activationRampDurationMs;
   activationRampEasingCssRef.current = activationRampEasingCss;
+
+  useEffect(() => {
+    scaleMultiplierRef.current = scaleMultiplierLive?.get() ?? 1;
+    // Inactive CoverFlow meshes intentionally use the frozen activity mode
+    // to avoid a standing rAF per card. A scale change is nevertheless a
+    // visual change: wake this mesh for exactly one frame whenever its live
+    // travel distance changes. Without this invalidate, an off-active card
+    // holds its origin-frame gradient all the way through a drag and only
+    // catches up after it becomes active — the precise transition gap this
+    // opt-in is meant to close.
+    renderControllerRef.current?.invalidate();
+    return scaleMultiplierLive?.on('change', (value) => {
+      scaleMultiplierRef.current = value;
+      renderControllerRef.current?.invalidate();
+    });
+  }, [scaleMultiplierLive]);
 
   // Canvas blur driver: legacy softness plus the master-bus smoothing, with
   // extra blur headroom when the master knob is engaged (blur px = var · 2.4).
@@ -460,6 +482,7 @@ export function LiquidGradientAdapter({
       // Palette direction: chord-mode LUT upload (on change) + duck easing.
       // Window mode has lut = null — the original wheel renders untouched.
       const paletteState = paletteRef.current;
+      const scaleMultiplier = scaleMultiplierRef.current;
       // Gaussian pan curve, proximity morph only: a live per-frame offsetX
       // that overrides the static palette value when present, read the same
       // imperative-ref-per-frame way hologramInteraction is above. undefined
@@ -672,7 +695,11 @@ export function LiquidGradientAdapter({
         paletteBrightness: paletteState ? paletteState.masterBrightness : 1,
         paletteContrast: paletteState ? paletteState.masterContrast : 1,
         paletteSoftness: paletteState ? paletteState.masterSoftness : 0,
-        paletteScale: paletteState ? paletteState.paletteScale : null,
+        // Palette scale overrides config scale at the final WebGL consumer.
+        // Resolve the base here, then apply the live multiplier so palette-
+        // backed cards respond continuously during drag as well.
+        paletteScale: (paletteState?.paletteScale ?? currentConfig.shaderColorScale)
+          * scaleMultiplier,
         paletteScaleX: paletteState ? paletteState.paletteScaleX : null,
         paletteScaleY: paletteState ? paletteState.paletteScaleY : null,
         paletteNoise: paletteState ? paletteState.paletteNoise : null,

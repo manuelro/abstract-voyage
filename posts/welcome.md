@@ -1,9 +1,7 @@
 ---
-title: "Thinking in systems."
+title: "About this journal: software, systems, and interfaces"
 excerpt: |-
-  A journal by Manuel Cerdas.
-  Software engineer.
-  On systems and craft.
+  Who writes Abstract Voyage and what to expect: technical and philosophical essays on engineering, plus links to the author's external writing and interface experiments.
 author: "Manu"
 ---
 

@@ -67,19 +67,24 @@ export const ABOUT_POLYMORPHIC_LAYOUT_PANEL = definePageConfigScope<PolymorphicL
   defaultOpen: false,
   fields: POLYMORPHIC_LAYOUT_FIELDS,
   defaultValue: ABOUT_POLYMORPHIC_LAYOUT_CONFIG,
-  // Points at experiences/abstract/components/PolymorphicLayout.pageConfigs.ts,
-  // NOT pages/about.config.ts — PLAN-POLYMORPHIC-LAYOUT-PAGE-CONFIG-PARITY.md
-  // relocated the real `export const ABOUT_POLYMORPHIC_LAYOUT_CONFIG = {...}`
-  // object literal there, leaving pages/about.config.ts with only a
-  // re-export (`export { ABOUT_POLYMORPHIC_LAYOUT_CONFIG } from '../
-  // experiences/abstract/components/PolymorphicLayout.pageConfigs'`) for
-  // import-compatibility. That migration's own doc comment says "no other
-  // consumer... needs to change" — true for JS imports, false for this
-  // field: a component-config-update payload aimed at the old file has no
-  // object literal to patch there, so it silently fails to persist (caught
-  // live, 2026-08-25 — an update targeting narrowColumnContentWidthLg/
-  // narrowColumnTextAlignLg against pages/about.config.ts never landed).
-  targetFile: 'experiences/abstract/components/PolymorphicLayout.pageConfigs.ts',
+  // Previously pointed at experiences/abstract/components/
+  // PolymorphicLayout.pageConfigs.ts (PLAN-POLYMORPHIC-LAYOUT-PAGE-CONFIG-
+  // PARITY.md relocated the real object literal there, leaving
+  // pages/about.config.ts with only a re-export — the exact "no other
+  // consumer... needs to change... true for JS imports, false for Update
+  // diff" gap caught live 2026-08-25). Re-pointed again (operator ask,
+  // 2026-09-23: journal's mobile/tablet gradient recipe copied onto this
+  // page too — pages/about.config.ts's own doc comment on this const): that
+  // file's own ABOUT_POLYMORPHIC_LAYOUT_CONFIG is now itself a real,
+  // page-owned object literal again (spreading the shared pageConfigs.ts
+  // instance and overriding only the gradient fields), not a bare
+  // re-export — so the real literal to patch moved back to
+  // pages/about.config.ts. Pointing this panel at the old shared
+  // pageConfigs.ts literal would both show stale values (missing the
+  // gradient override) and, on Update diff, patch the wrong file — the
+  // same class of bug postLab.panel.ts's own doc comment documents
+  // happening for real on /posts.
+  targetFile: 'pages/about.config.ts',
   targetSymbol: 'ABOUT_POLYMORPHIC_LAYOUT_CONFIG',
   targetType: 'PolymorphicLayoutConfig',
 });

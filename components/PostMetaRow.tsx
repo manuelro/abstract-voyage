@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import Chip from './Chip'
 
 type PostMetaRowProps = {
   topic?: string | null
@@ -46,15 +47,7 @@ export default function PostMetaRow({
   return (
     <div className={className} style={style}>
       {hasTopic ? (
-        <span
-          className={
-            topicClassName ??
-            'rounded-full border border-white/30 px-2 py-0.5 text-[11px] uppercase tracking-wide text-white/80'
-          }
-          style={topicStyle}
-        >
-          {topic}
-        </span>
+        <Chip label={topic} className={topicClassName} style={topicStyle} />
       ) : null}
       {hasTopic && hasDate ? (
         <span

@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import { TableOfContentsDisclosure } from '../TableOfContents'
-import { DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG } from './config/registered'
+import {
+  DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG,
+  resolvePostLabTocItemVisualGapCss,
+} from './config/registered'
 import { resolvePostLabTocPresentation } from '../../helpers/readingPresentation'
 
 describe('Abstract TableOfContents', () => {
@@ -33,5 +36,9 @@ describe('Abstract TableOfContents', () => {
     expect(html).toContain('md:hidden')
     expect(html).toContain('data-toc-summary="true"')
     expect(html.match(/min-h-11/g)?.length).toBeGreaterThanOrEqual(2)
+    expect(resolvePostLabTocItemVisualGapCss(DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG)).toBe('0.25rem')
+    expect(html).toContain('background-clip:padding-box')
+    expect(html).toContain('border-top-width:calc(0.25rem / 2)')
+    expect(html).not.toContain('flex flex-col gap-1')
   })
 })

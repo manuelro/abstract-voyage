@@ -4,6 +4,8 @@ import SeoHead from '../components/SeoHead';
 import { buildSiteTitle } from '../helpers/siteMetadata';
 import { getLabSummaries, type LabSummary } from '../helpers/labContent';
 import type { FooterConfigOverrides } from '../helpers/footerContent';
+import { SiteContentProvider } from '../helpers/content/SiteContentProvider';
+import type { AbstractPageContent, SiteContent } from '../helpers/content/pageContent.schema';
 import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
@@ -42,6 +44,7 @@ import {
   useConfigPanelBindings,
 } from '../components/Panel/config';
 import { PanelShell, PanelStandardHeaderActions } from '../components/Panel';
+import { tailwindTokenCssValue } from '../components/Panel/config/tailwindFields';
 import { DEFAULT_PANEL_SHELL_CONFIG } from '../components/Panel/config/shell';
 import { useAuthoringToolsVisibility } from '../components/Panel/useAuthoringToolsVisibility';
 import {
@@ -85,6 +88,7 @@ import {
   deriveTransparentTint,
 } from '../helpers/surfaceColorDerivation';
 import { usePrefersReducedMotion } from '../helpers/usePrefersReducedMotion';
+import type { MotionValue } from 'motion/react';
 import articleCardStyles from '../components/ArticleCard.module.css';
 import { useLiquidSliderMotion } from '../experiences/abstract/components/AbstractPostDock/hooks/motion';
 import { buildDeckPaletteStates } from '../experiences/abstract/helpers/deckPalette';
@@ -98,6 +102,7 @@ import {
   ACTIVATION_RAMP_REFERENCE_DURATION_MS,
   DEFAULT_COVER_FLOW_CONFIG,
   normalizeCoverFlowConfig,
+  resolveCoverFlowStartIndex,
 } from '../experiences/abstract/components/CoverFlow/CoverFlow.config';
 import { COVER_FLOW_SCOPE_ID } from '../experiences/abstract/components/CoverFlow/CoverFlow.panel';
 import {
@@ -263,12 +268,20 @@ import {
   DEFAULT_ABSTRACT_TIMELINE_CONFIG,
   DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG,
   DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG,
+  DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG,
+  DEFAULT_ABSTRACT_COVER_FLOW_TIMELINE_SLOT_CONFIG,
+  DEFAULT_ABSTRACT_TIMELINE_LINK_COLOR_CONFIG,
   applyAbstractPolymorphicLayoutAllSizesUpdate,
   normalizeAbstractNarrowColumnStackConfig,
   normalizeAbstractTimelineContentConfig,
   normalizeAbstractPageLayoutConfig,
   normalizeAbstractFooterConfig,
   normalizeAbstractMobileArticleListInkConfig,
+  normalizeAbstractCoverFlowTimelineSlotConfig,
+  normalizeAbstractTimelineLinkColorConfig,
+  normalizeAbstractTimelineConfig,
+  resolveAbstractPolymorphicLayoutConfigForDesktopMode,
+  resolveAbstractTimelineConfigForDesktopMode,
   type AbstractNarrowColumnStackConfig,
   type AbstractNarrowColumnStackHorizontalAlign,
   type AbstractNarrowColumnStackVerticalAlign,
@@ -276,16 +289,18 @@ import {
   type AbstractTimelineContentConfig,
   type AbstractFooterConfig,
   type AbstractMobileArticleListInkConfig,
+  type AbstractCoverFlowTimelineSlotConfig,
+  type AbstractTimelineLinkColorConfig,
+  type AbstractTimelineConfig,
 } from './abstract.config';
+import AbstractCoverFlowTimelineSlot from '../experiences/abstract/components/AbstractCoverFlowTimelineSlot';
 import {
   normalizeAboutMobileAccordionConfig,
   type AboutMobileAccordionConfig,
 } from '../experiences/about/components/AboutMobileAccordion.config';
 import { AboutTimeline, type AboutTimelineRowData } from '../experiences/about/components/AboutTimeline';
-import { normalizeAboutTimelineConfig, type AboutTimelineConfig } from '../experiences/about/components/AboutTimeline.config';
 import { ABSTRACT_TIMELINE_SCOPE_ID } from '../experiences/abstract/components/AbstractTimeline.panel';
 import {
-  DEFAULT_CARD_APPEARANCE_CONFIG,
   normalizeCardAppearanceConfig,
   type CardAppearanceConfig,
 } from '../experiences/abstract/components/Card/config/appearance';
@@ -299,9 +314,15 @@ import {
   ABSTRACT_TIMELINE_CONTENT_SCOPE_ID,
   ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID,
   ABSTRACT_MOBILE_ARTICLE_LIST_INK_SCOPE_ID,
+  ABSTRACT_COVER_FLOW_TIMELINE_SLOT_SCOPE_ID,
+  ABSTRACT_TIMELINE_LINK_COLOR_SCOPE_ID,
 } from './abstract.panel';
 import { PolymorphicLayout, usePolymorphicLayoutColors } from '../experiences/abstract/components/PolymorphicLayout';
-import { resolvePolymorphicNarrowColumnTypography } from '../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography';
+import {
+  resolvePolymorphicNarrowColumnTypography,
+  resolvePolymorphicColumnBackgroundReference,
+  resolveGradientColumnTypography,
+} from '../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography';
 import { SiteFooter } from '../experiences/abstract/components/SiteFooter/SiteFooter';
 import {
   buildScrollAdaptiveInkColor,
@@ -316,6 +337,8 @@ import {
   type PolymorphicLayoutConfig,
 } from '../experiences/abstract/components/PolymorphicLayout.config';
 import { resolveSplitColumnAccent } from '../experiences/abstract/components/SplitColumnLayout/colorResolution';
+import { narrowColumnFractionForTier } from '../experiences/abstract/components/SplitColumnLayout';
+import { computeNavSplitBoundaryPx } from '../experiences/abstract/components/SplitColumnPageShell/hooks/useSplitColumnNavAlignment';
 import {
   DEFAULT_SPLIT_COLUMN_CARD_STACK_CONFIG,
   normalizeSplitColumnCardStackConfig,
@@ -440,6 +463,7 @@ type AbstractNarrowColumnStackProps = {
   config: AbstractNarrowColumnStackConfig;
   top: ReactNode;
   bottom: ReactNode;
+  isTablet: boolean;
 };
 
 /** Page-endemic narrow-column composition. PolymorphicLayout owns the
@@ -448,6 +472,7 @@ function AbstractNarrowColumnStack({
   config,
   top,
   bottom,
+  isTablet,
 }: AbstractNarrowColumnStackProps) {
   if (!bottom) {
     return <div className="w-full min-w-0">{top}</div>;
@@ -472,6 +497,34 @@ function AbstractNarrowColumnStack({
       </div>
     </div>
   );
+
+  if (isTablet && config.tabletFlow === 'horizontal') {
+    const tabletRegion = (
+      position: 'top' | 'bottom',
+      content: ReactNode,
+      verticalAlign: AbstractNarrowColumnStackVerticalAlign,
+    ) => (
+      <div
+        className={`flex min-w-0 flex-col ${NARROW_STACK_VERTICAL_CLASS[verticalAlign]}`}
+        data-abstract-narrow-stack-region={position}
+      >
+        <div className="min-w-0 max-w-full">{content}</div>
+      </div>
+    );
+    const hero = tabletRegion('top', top, config.tabletHeroVerticalAlign);
+    const timeline = tabletRegion('bottom', bottom, config.tabletTimelineVerticalAlign);
+    return (
+      <div
+        className={`grid min-h-0 w-full min-w-0 ${NARROW_STACK_HORIZONTAL_CLASS[config.tabletPairVerticalAlign]} gap-7`}
+        data-abstract-narrow-stack="tablet-horizontal"
+        style={{
+          gridTemplateColumns: `minmax(0, ${config.tabletHeroWeight}fr) minmax(0, ${config.tabletTimelineWeight}fr)`,
+        }}
+      >
+        {config.tabletRegionOrder === 'heroFirst' ? <>{hero}{timeline}</> : <>{timeline}{hero}</>}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -516,7 +569,6 @@ const ABSTRACT_NARROW_COLUMN_PALETTE_INDEX = 1;
 // (Part 2 above); this page's own copy, byte-identical to what the
 // component used to hardcode, so both existing instances below render
 // exactly as before.
-const ABSTRACT_EDITORIAL_HEADLINE = 'Abstract Voyage is where I think out loud.';
 // About page's own emphasis markup convention (pages/about.tsx), reused
 // verbatim — `**word**` runs render brighter via renderEmphasisText
 // (helpers/textEmphasis.tsx). The name lives in the H1 above, so this
@@ -526,11 +578,6 @@ const ABSTRACT_EDITORIAL_HEADLINE = 'Abstract Voyage is where I think out loud.'
 // phrase "The longer arc" links to /about via the shared [text](href)
 // inline-link syntax. McKinsey and the AI/independence turn intentionally
 // live only on /about now, not here.
-const ABSTRACT_EDITORIAL_PARAGRAPH_1 =
-  'A name I build and write under, kept loose enough to follow whatever holds ' +
-  'my attention. It began with how **light and sound** relate, and I’ve been ' +
-  'turning questions like it into engineering ever since. [The longer arc](/about).';
-const ABSTRACT_EDITORIAL_PARAGRAPHS = [ABSTRACT_EDITORIAL_PARAGRAPH_1];
 
 const COVER_FLOW_DISABLED_REVEAL: CardReveal = {
   enabled: false,
@@ -630,6 +677,10 @@ const ABSTRACT_PAGE_LAYOUT_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_PAGE_LAYOUT_SCOPE_ID);
 const ABSTRACT_NARROW_COLUMN_STACK_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_NARROW_COLUMN_STACK_SCOPE_ID);
+const ABSTRACT_COVER_FLOW_TIMELINE_SLOT_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_COVER_FLOW_TIMELINE_SLOT_SCOPE_ID);
+const ABSTRACT_TIMELINE_LINK_COLOR_DEFINITION =
+  abstractConfigPanelRegistry.resolve(ABSTRACT_TIMELINE_LINK_COLOR_SCOPE_ID);
 const COVER_FLOW_DEFINITION =
   abstractConfigPanelRegistry.resolve(COVER_FLOW_SCOPE_ID);
 const SPLIT_COLUMN_CARD_STACK_DEFINITION =
@@ -1606,11 +1657,14 @@ type AbstractPageProps = {
   dockItems?: AbstractPostDockItem[];
   labs: LabSummary[];
   footerConfigOverrides: FooterConfigOverrides;
+  pageContent: AbstractPageContent;
+  siteContent: SiteContent;
 };
 
 export async function getStaticProps() {
   const { loadAbstractPostDockItems } = await import('../experiences/abstract/helpers/loadAbstractPostDockItems.server');
   const { loadFooterConfigOverrides } = await import('../helpers/footerContent');
+  const { loadAbstractPageContent, loadSiteContent } = await import('../helpers/content/pageContent.build');
   const dockItems = loadAbstractPostDockItems();
   const labs = getLabSummaries();
   const footerConfigOverrides = loadFooterConfigOverrides();
@@ -1620,11 +1674,13 @@ export async function getStaticProps() {
       dockItems,
       labs,
       footerConfigOverrides,
+      pageContent: loadAbstractPageContent(),
+      siteContent: loadSiteContent(),
     },
   };
 }
 
-export default function AbstractPage({ dockItems, labs, footerConfigOverrides }: AbstractPageProps) {
+export default function AbstractPage({ dockItems, labs, footerConfigOverrides, pageContent, siteContent }: AbstractPageProps) {
   useEffect(() => {
     // Keep the document-level ABS-01 backdrop active for this route's whole
     // lifetime. Chrome can briefly expose the outgoing document's body while
@@ -1800,6 +1856,14 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     useState<AbstractNarrowColumnStackConfig>(() => (
       normalizeAbstractNarrowColumnStackConfig(DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG)
     ));
+  const [abstractCoverFlowTimelineSlotConfig, setAbstractCoverFlowTimelineSlotConfig] =
+    useState<AbstractCoverFlowTimelineSlotConfig>(() => (
+      normalizeAbstractCoverFlowTimelineSlotConfig(DEFAULT_ABSTRACT_COVER_FLOW_TIMELINE_SLOT_CONFIG)
+    ));
+  const [abstractTimelineLinkColorConfig, setAbstractTimelineLinkColorConfig] =
+    useState<AbstractTimelineLinkColorConfig>(() => (
+      normalizeAbstractTimelineLinkColorConfig(DEFAULT_ABSTRACT_TIMELINE_LINK_COLOR_CONFIG)
+    ));
   const [abstractFooterConfig, setAbstractFooterConfig] =
     useState<AbstractFooterConfig>(() => (
       normalizeAbstractFooterConfig({
@@ -1883,10 +1947,14 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // defaults (neighborFlatFillOpacity: 1, neighborFlatFillToneOffset: -0.45)
   // compounded to a flat fill that was reliably near-black regardless of the
   // configured neighbor background. DEFAULT_CARD_APPEARANCE_CONFIG has since
-  // been retuned to a much lower opacity, so this page follows the shared
-  // default directly rather than pinning its own 0/0 override.
+  // been retuned to a much lower opacity, so this page followed the shared
+  // default directly for a long time — DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG
+  // (abstract.config.ts) is this page's first real divergence from it: see
+  // that constant's own doc comment (PLAN-COVERFLOW-NEIGHBOR-COLOR-
+  // TRANSITION-SYNC.md) for why its three appearance-duration fields need to
+  // exceed CoverFlow's own gaussian settle ceiling.
   const [cardAppearanceConfig, setCardAppearanceConfig] =
-    useState<CardAppearanceConfig>(() => normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG));
+    useState<CardAppearanceConfig>(() => normalizeCardAppearanceConfig(DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG));
   // CoverFlow and the narrow column's AboutTimeline remain independently
   // tunable through their own live scopes. abstractTimelineConfig is its
   // own independent instance from /about's own aboutTimelineConfig. The
@@ -1897,9 +1965,23 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   const [coverFlowConfig, setCoverFlowConfig] =
     useState(() => normalizeCoverFlowConfig(DEFAULT_COVER_FLOW_CONFIG));
   const [mobilePinnedArticleSectionConfig, setMobilePinnedArticleSectionConfig] =
-    useState(() => normalizeMobilePinnedArticleSectionConfig(
-      DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
-    ));
+    useState(() => normalizeMobilePinnedArticleSectionConfig({
+      ...DEFAULT_MOBILE_PINNED_ARTICLE_SECTION_CONFIG,
+      // expandedForcesMaxBackgroundDarken assumes the background darkens on
+      // expand, so the list ink is forced fully toward white to stay legible
+      // over it (usePolymorphicColumnAdaptiveInk's forceProgress: 1, plus the
+      // matching --mobile-article-list-darken force below). This page keeps
+      // scroll darkening OFF at every tier (scrollGradientDarkenOnScrollEnabled
+      // false, so scrollGradientResolved.maxDarken resolves to 0) — the
+      // background stays light when expanded, so forcing the ink white leaves
+      // near-white text on a light surface (operator-reported, screenshot: the
+      // expanded mobile list rows). The adaptive-ink contrast guarantee can't
+      // recover it either, since lightening never improves contrast against a
+      // light background. Off here so the expanded list keeps its normal,
+      // scroll-position-driven ink (dark on the light surface) — a page-local
+      // override, not a change to the shared default other consumers read.
+      expandedForcesMaxBackgroundDarken: false,
+    }));
   const mobileHeroRowMinHeightCss =
     `calc(100svh - ${splitColumnHeaderHeightPx ?? 0}px - ${mobilePinnedArticleSectionConfig.peekHeightSvh}svh)`;
   const mobileCoverFlowConfig = useMemo(() => ({
@@ -1907,7 +1989,18 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     enableScroll: false,
   }), [coverFlowConfig]);
   const [abstractTimelineConfig, setAbstractTimelineConfig] =
-    useState<AboutTimelineConfig>(() => normalizeAboutTimelineConfig(DEFAULT_ABSTRACT_TIMELINE_CONFIG));
+    useState<AbstractTimelineConfig>(() => normalizeAbstractTimelineConfig(DEFAULT_ABSTRACT_TIMELINE_CONFIG));
+  // abstractTimelineConfig's own Lg fields are tuned for the CoverFlow-track
+  // placement (abstractCoverFlowTimelineSlotConfig.enabledLg on) — the SAME
+  // config also renders the classic narrow-column bottom placement when
+  // that toggle is off, a different box with a different budget. Resolved
+  // here (not by writing into abstractTimelineConfig itself), same
+  // non-mutation reasoning as splitColumnLayoutConfigForDesktopMode further
+  // down this file: abstractTimelineConfig is the panel's real, persisted,
+  // operator-authored configuration.
+  const abstractTimelineConfigForDesktopMode = resolveAbstractTimelineConfigForDesktopMode(
+    abstractTimelineConfig, abstractCoverFlowTimelineSlotConfig.enabledLg,
+  );
   // Shared across every page via SharedDesignConfigProvider (pages/_app.tsx)
   // — tuning these here reflects on contact.tsx/about.tsx/design-system.tsx
   // too, and vice versa, instead of each page holding its own disconnected
@@ -2255,13 +2348,28 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   // built on top of it only ever reflect the operator's own real edits.
   const [narrowGradientLiveOverride, setNarrowGradientLiveOverride] =
     useState<{ saturation: number; darkness: number } | null>(null);
+  // Desktop's Lg-tier fields (narrowColumnWidthTierLg, splitBandWidthTierLg,
+  // every Lg alignment/padding/header field ABSTRACT_POLYMORPHIC_LAYOUT_
+  // CONFIG overrides for the stacked/full-width composition) must revert to
+  // the classic 38/62 split whenever abstractCoverFlowTimelineSlotConfig.
+  // enabledLg is off — that toggle is the only reason those fields exist in
+  // their stacked form at all, and there is nowhere for the Timeline to
+  // render inside CoverFlow's own track once it's switched off. Resolved
+  // here (not by writing into splitColumnLayoutConfig itself) for the exact
+  // same reason narrowGradientLiveOverride above is layered on separately —
+  // see that state's own doc comment: splitColumnLayoutConfig is the panel's
+  // real, persisted, operator-authored configuration and must never be
+  // written to by a derived, automatic behavior.
+  const splitColumnLayoutConfigForDesktopMode = resolveAbstractPolymorphicLayoutConfigForDesktopMode(
+    splitColumnLayoutConfig, abstractCoverFlowTimelineSlotConfig.enabledLg,
+  );
   const splitColumnLayoutConfigForColors = narrowGradientLiveOverride
     ? {
-      ...splitColumnLayoutConfig,
+      ...splitColumnLayoutConfigForDesktopMode,
       scrollGradientNarrowColumnSaturationLg: narrowGradientLiveOverride.saturation,
       scrollGradientNarrowColumnDarknessLg: narrowGradientLiveOverride.darkness,
     }
-    : splitColumnLayoutConfig;
+    : splitColumnLayoutConfigForDesktopMode;
   const colors = usePolymorphicLayoutColors(
     splitColumnLayoutConfigForColors, normalizedPageSurfaceConfig.color, paletteColorResolver,
   );
@@ -2785,38 +2893,12 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   const narrowColumnWordmarkGradientStops = gradientBackedNarrowColumn
     ? undefined
     : colors.wordmarkGradientStops;
-  const heroHeaderHeight = {
-    // The gradient-sampling canvas below (.gradientSourceViewport/
-    // .gradientOutputViewport, 'editorial' layout mode only) needs a
-    // concrete px value the way <header> itself no longer does — 'auto' has
-    // no natural rem equivalent, so it falls back to the same 7rem as the
-    // config's own 'h-28' default rather than producing an invalid CSS var.
-    // Purely cosmetic if ever hit: the header's own real height still comes
-    // from flow correctly (SiteHeader.tsx), only this decorative canvas's
-    // sampling window would stay fixed at 7rem instead of tracking it.
-    'h-auto': '7rem',
-    'h-12': '3rem',
-    'h-14': '3.5rem',
-    'h-16': '4rem',
-    'h-20': '5rem',
-    'h-24': '6rem',
-    'h-28': '7rem',
-    'h-32': '8rem',
-    'h-36': '9rem',
-    'h-40': '10rem',
-  }[normalizedSiteHeaderConfig.height];
-  const heroHeaderDesktopHeight = {
-    'md:h-auto': '7rem',
-    'md:h-12': '3rem',
-    'md:h-14': '3.5rem',
-    'md:h-16': '4rem',
-    'md:h-20': '5rem',
-    'md:h-24': '6rem',
-    'md:h-28': '7rem',
-    'md:h-32': '8rem',
-    'md:h-36': '9rem',
-    'md:h-40': '10rem',
-  }[normalizedSiteHeaderConfig.desktopHeight];
+  const headerBaseHeight = tailwindTokenCssValue('height', 'base', normalizedSiteHeaderConfig.height);
+  const headerWideHeight = tailwindTokenCssValue('height', 'md', normalizedSiteHeaderConfig.heightWide);
+  const headerLgHeight = tailwindTokenCssValue('height', 'lg', normalizedSiteHeaderConfig.heightLg);
+  const heroHeaderHeight = headerBaseHeight === 'auto' ? '7rem' : headerBaseHeight;
+  const heroHeaderDesktopHeight = headerWideHeight === 'auto' ? '7rem' : headerWideHeight;
+  const heroHeaderLgHeight = headerLgHeight === 'auto' ? '7rem' : headerLgHeight;
   const heroStyle = useMemo(() => ({
     backgroundColor: heroContentPresentationActive
       ? normalizedPageSurfaceConfig.color
@@ -2858,6 +2940,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     '--hero-glass-color-d': config.glassGradientColorD,
     '--hero-header-height': heroHeaderHeight,
     '--hero-header-height-desktop': heroHeaderDesktopHeight,
+    '--hero-header-height-lg': heroHeaderLgHeight,
     '--hero-editorial-stack-height': `${editorialRow.rowCount * 100}%`,
     '--hero-editorial-stack-offset': `${-editorialRow.rowIndex * 100}%`,
   } as CSSProperties), [
@@ -2877,6 +2960,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     editorialRow.rowIndex,
     heroHeaderHeight,
     heroHeaderDesktopHeight,
+    heroHeaderLgHeight,
     normalizedPageSurfaceConfig.color,
     heroContentPresentationActive,
     twilightGradient.stops,
@@ -3019,6 +3103,22 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       ),
     }),
     createConfigScopeBinding({
+      definition: ABSTRACT_COVER_FLOW_TIMELINE_SLOT_DEFINITION,
+      value: abstractCoverFlowTimelineSlotConfig,
+      onChange: setAbstractCoverFlowTimelineSlotConfig,
+      defaultValue: normalizeAbstractCoverFlowTimelineSlotConfig(
+        DEFAULT_ABSTRACT_COVER_FLOW_TIMELINE_SLOT_CONFIG,
+      ),
+    }),
+    createConfigScopeBinding({
+      definition: ABSTRACT_TIMELINE_LINK_COLOR_DEFINITION,
+      value: abstractTimelineLinkColorConfig,
+      onChange: setAbstractTimelineLinkColorConfig,
+      defaultValue: normalizeAbstractTimelineLinkColorConfig(
+        DEFAULT_ABSTRACT_TIMELINE_LINK_COLOR_CONFIG,
+      ),
+    }),
+    createConfigScopeBinding({
       definition: abstractConfigPanelRegistry.resolve(ABSTRACT_FOOTER_SCOPE_ID),
       value: abstractFooterConfig,
       onChange: setAbstractFooterConfig,
@@ -3061,7 +3161,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       definition: CARD_APPEARANCE_DEFINITION,
       value: cardAppearanceConfig,
       onChange: setCardAppearanceConfig,
-      defaultValue: normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG),
+      defaultValue: normalizeCardAppearanceConfig(DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG),
     }),
     createConfigScopeBinding({
       definition: ABSTRACT_HERO_ACCORDION_ITEM_DEFINITION,
@@ -3073,7 +3173,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       definition: ABSTRACT_TIMELINE_DEFINITION,
       value: abstractTimelineConfig,
       onChange: setAbstractTimelineConfig,
-      defaultValue: normalizeAboutTimelineConfig(DEFAULT_ABSTRACT_TIMELINE_CONFIG),
+      defaultValue: normalizeAbstractTimelineConfig(DEFAULT_ABSTRACT_TIMELINE_CONFIG),
     }),
     createConfigScopeBinding({
       definition: abstractConfigPanelRegistry.resolve(ABSTRACT_TIMELINE_CONTENT_SCOPE_ID),
@@ -3111,6 +3211,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     heroCtaComposerConfig,
     abstractPageLayoutConfig,
     abstractNarrowColumnStackConfig,
+    abstractCoverFlowTimelineSlotConfig,
+    abstractTimelineLinkColorConfig,
     abstractFooterConfig,
     footerConfigOverrides,
     abstractTimelineContentConfig,
@@ -3233,7 +3335,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       ...DEFAULT_ABSTRACT_METAL_LAB_CARD_CONFIG,
     });
     setCardAppearanceConfig(
-      normalizeCardAppearanceConfig(DEFAULT_CARD_APPEARANCE_CONFIG),
+      normalizeCardAppearanceConfig(DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG),
     );
     setAbstractPageLayoutConfig(
       normalizeAbstractPageLayoutConfig(DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG),
@@ -4336,17 +4438,94 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     });
     return () => window.cancelAnimationFrame(firstFrame);
   }, [abstractLayoutPending, coverFlowPrefersReducedMotion]);
-  // The split header initially has only its percentage fallback. On desktop
+  // The split header initially has only its percentage fallback. In a split tier
   // that fallback places the nav a few pixels to the right, then the live
   // pixel boundary moves it left on the next measurement. Keep the header
   // out of the first paint until the same boundary used by the body grid is
   // available; mobile/stacked layouts do not require this gate.
-  const navGeometryPending = colors.viewportWidthPx !== undefined
-    && colors.viewportWidthPx >= 768
+  const columnsAreSideBySide = colors.breakpointTier === 'lg'
+    ? splitColumnLayoutConfigForColors.narrowColumnWidthTierLg !== 'stacked'
+    : colors.breakpointTier === 'md'
+      ? splitColumnLayoutConfigForColors.narrowColumnWidthTierMd !== 'stacked'
+      : false;
+  const headerIsStatic = colors.breakpointTier === 'lg'
+    ? splitColumnLayoutConfigForColors.headerScrollBehaviorLg === 'static'
+    : colors.breakpointTier === 'md'
+      ? splitColumnLayoutConfigForColors.headerScrollBehaviorWide === 'static'
+      : splitColumnLayoutConfigForColors.headerScrollBehavior === 'static';
+  // When a tier remains stacked, its two rows can share the visible space
+  // beneath the in-flow header. One config value owns the wide/CoverFlow
+  // share; the narrow Hero–Timeline row is always the exact complement.
+  // Segregated per tier (tablet's own Wide-suffixed pair, desktop's own
+  // Lg-suffixed pair) — a page may want a partition on one tier only, or
+  // different shares on each, since the two tiers can have entirely
+  // different amounts of hero copy/CoverFlow card real estate to balance.
+  const tabletStackViewportPartitionActive = colors.breakpointTier === 'md'
+    && splitColumnLayoutConfigForColors.narrowColumnWidthTierMd === 'stacked'
+    && splitColumnLayoutConfigForColors.stackedViewportPartitionEnabledWide === true;
+  const desktopStackViewportPartitionActive = colors.breakpointTier === 'lg'
+    && splitColumnLayoutConfigForColors.narrowColumnWidthTierLg === 'stacked'
+    && splitColumnLayoutConfigForColors.stackedViewportPartitionEnabledLg === true;
+  const stackViewportPartitionActive = tabletStackViewportPartitionActive
+    || desktopStackViewportPartitionActive;
+  const stackedWideColumnViewportPercent = desktopStackViewportPartitionActive
+    ? (splitColumnLayoutConfigForColors.stackedWideColumnViewportPercentLg ?? 60)
+    : (splitColumnLayoutConfigForColors.stackedWideColumnViewportPercentWide ?? 60);
+  const tabletAvailableViewportHeightCss = `calc(100dvh - ${splitColumnHeaderHeightPx ?? 0}px)`;
+  const tabletWideViewportHeightCss = `calc((${tabletAvailableViewportHeightCss}) * ${stackedWideColumnViewportPercent} / 100)`;
+  const tabletNarrowViewportHeightCss = `calc((${tabletAvailableViewportHeightCss}) * ${100 - stackedWideColumnViewportPercent} / 100)`;
+  // Tablet can use the mobile stacked composition. In that state there is
+  // no split seam to measure, so gating the header or CoverFlow on one
+  // would leave both permanently invisible.
+  const navGeometryPending = columnsAreSideBySide && !colors.splitBandStacked
+    && colors.viewportWidthPx !== undefined
     && colors.splitBandBoundaryPx === undefined;
-  const isCoverFlowDesktopTier = colors.breakpointTier !== 'mobile';
+  const isCoverFlowSplitTier = columnsAreSideBySide;
+  const bodyNarrowFraction = narrowColumnFractionForTier(
+    colors.breakpointTier === 'lg'
+      ? splitColumnLayoutConfigForColors.narrowColumnWidthTierLg
+      : splitColumnLayoutConfigForColors.narrowColumnWidthTierMd,
+  );
+  const coverFlowSplitBoundaryPx = colors.splitBandBoundaryPx
+    ?? (columnsAreSideBySide && colors.viewportWidthPx !== undefined && bodyNarrowFraction !== undefined
+      ? computeNavSplitBoundaryPx(colors.viewportWidthPx, splitColumnLayoutConfigForColors.wideColumnSide, bodyNarrowFraction)
+      : undefined);
   const { ref: coverFlowSectionAnchorRef, rect: coverFlowSectionAnchorRect } =
-    useMeasuredElementRect<HTMLDivElement>([isCoverFlowDesktopTier]);
+    useMeasuredElementRect<HTMLDivElement>([isCoverFlowSplitTier]);
+  const coverFlowVisibleViewportCenteringEnabled = colors.breakpointTier === 'lg'
+      ? coverFlowConfig.alignToVisibleViewportCenterLg
+      : colors.breakpointTier === 'md' && coverFlowConfig.alignToVisibleViewportCenterMd;
+  const [coverFlowVisibleViewport, setCoverFlowVisibleViewport] = useState<{
+    top: number;
+    height: number;
+  } | null>(null);
+  // The viewport-centered presentation owns its entire clipping plane at the
+  // page-composition boundary. Unlike the former inner translate, this gives
+  // CoverFlow's own overflow-hidden drag root the full visible viewport to
+  // clip within, so cards cannot be cut off by the wide column's shorter
+  // usable-content box.
+  useEffect(() => {
+    if (!coverFlowVisibleViewportCenteringEnabled) {
+      setCoverFlowVisibleViewport(null);
+      return undefined;
+    }
+    const sync = () => {
+      const viewport = window.visualViewport;
+      setCoverFlowVisibleViewport({
+        top: viewport?.offsetTop ?? 0,
+        height: viewport?.height ?? window.innerHeight,
+      });
+    };
+    sync();
+    window.addEventListener('resize', sync);
+    window.visualViewport?.addEventListener('resize', sync);
+    window.visualViewport?.addEventListener('scroll', sync);
+    return () => {
+      window.removeEventListener('resize', sync);
+      window.visualViewport?.removeEventListener('resize', sync);
+      window.visualViewport?.removeEventListener('scroll', sync);
+    };
+  }, [coverFlowVisibleViewportCenteringEnabled]);
   // The mobile carousel's own full-bleed (100vw) plane, measured directly —
   // NOT the padded wideColumn anchor above, which desktop's own
   // cardWidthBasisPx intentionally uses. Lets carouselGutterX (Mobile
@@ -4363,10 +4542,20 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     useMeasuredElementRect<HTMLDivElement>();
   const coverFlowWideColumnStyle = useMemo<CSSProperties>(() => {
     const anchorLeftPx = coverFlowSectionAnchorRect?.left;
+    const anchorTopPx = coverFlowSectionAnchorRect?.top;
     const viewportWidthPx = colors.viewportWidthPx;
     if (anchorLeftPx === undefined || viewportWidthPx === undefined) {
       return { inset: 0 };
     }
+    const viewportPlaneStyle = coverFlowVisibleViewportCenteringEnabled
+      && coverFlowVisibleViewport
+      && anchorTopPx !== undefined
+      ? {
+          top: coverFlowVisibleViewport.top - anchorTopPx,
+          height: coverFlowVisibleViewport.height,
+          bottom: undefined,
+        }
+      : { top: 0, bottom: 0 };
     // Below the split (columns stacked, no splitBandBoundaryPx): the wide
     // column already spans the full viewport width, so the same breakout
     // math desktop uses collapses to wideColumnLeftPx=0/wideColumnWidthPx=
@@ -4378,41 +4567,50 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     // mobile-only regression from this page's 'full-bleed' -> 'bounded'
     // wideColumnContentContainer migration (see PolymorphicLayout.tsx's own
     // wideColumn doc comment).
-    if (!isCoverFlowDesktopTier) {
+    if (!isCoverFlowSplitTier) {
       return {
-        top: 0,
-        bottom: 0,
+        ...viewportPlaneStyle,
         left: -anchorLeftPx,
         width: viewportWidthPx,
       };
     }
-    const splitBoundaryPx = colors.splitBandBoundaryPx;
+    const splitBoundaryPx = coverFlowSplitBoundaryPx;
     if (splitBoundaryPx === undefined) {
       return { inset: 0 };
     }
-    const wideColumnLeftPx = splitColumnLayoutConfig.wideColumnSide === 'right'
+    const wideColumnLeftPx = splitColumnLayoutConfigForColors.wideColumnSide === 'right'
       ? splitBoundaryPx
       : 0;
-    const wideColumnWidthPx = splitColumnLayoutConfig.wideColumnSide === 'right'
+    const wideColumnWidthPx = splitColumnLayoutConfigForColors.wideColumnSide === 'right'
       ? viewportWidthPx - splitBoundaryPx
       : splitBoundaryPx;
     return {
-      top: 0,
-      bottom: 0,
+      ...viewportPlaneStyle,
       left: wideColumnLeftPx - anchorLeftPx,
       width: wideColumnWidthPx,
     };
   }, [
-    colors.splitBandBoundaryPx,
+    coverFlowSplitBoundaryPx,
     colors.viewportWidthPx,
     coverFlowSectionAnchorRect?.left,
-    isCoverFlowDesktopTier,
-    splitColumnLayoutConfig.wideColumnSide,
+    coverFlowSectionAnchorRect?.top,
+    coverFlowVisibleViewport,
+    coverFlowVisibleViewportCenteringEnabled,
+    isCoverFlowSplitTier,
+    splitColumnLayoutConfigForColors.wideColumnSide,
   ]);
+  const coverFlowItemSlugs = useMemo(
+    () => carouselAndListItems.map(item => item.slug),
+    [carouselAndListItems],
+  );
   const {
     activeIndex: articleActiveIndex,
     setActiveIndex: setArticleActiveIndex,
-  } = useArticleListCoverFlowSync(carouselAndListItems.length);
+  } = useArticleListCoverFlowSync(
+    carouselAndListItems.length,
+    resolveCoverFlowStartIndex(coverFlowConfig, carouselAndListItems.length),
+    coverFlowItemSlugs,
+  );
   // CoverFlow has already moved its MotionValue before it notifies this
   // controlled state. Keep that compositor-friendly movement ahead of the
   // page-level selection work: changing the index also refreshes the
@@ -4497,7 +4695,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       || colors.breakpointTier === undefined
       || !coverFlowSectionAnchorRect?.width
       || coverFlowSectionAnchorRect.width <= 0
-      || (isCoverFlowDesktopTier && colors.splitBandBoundaryPx === undefined)
+      || (isCoverFlowSplitTier && coverFlowSplitBoundaryPx === undefined)
     ) return;
 
     let firstFrame: number | null = null;
@@ -4518,12 +4716,12 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
   }, [
     colors.viewportWidthPx,
     colors.breakpointTier,
-    colors.splitBandBoundaryPx,
+    coverFlowSplitBoundaryPx,
     coverFlowSectionAnchorRect?.left,
     coverFlowSectionAnchorRect?.top,
     coverFlowSectionAnchorRect?.width,
     coverFlowSectionAnchorRect?.height,
-    isCoverFlowDesktopTier,
+    isCoverFlowSplitTier,
   ]);
   // Do not expose the desktop carousel while its breakout geometry or
   // breakpoint-specific card palettes are still resolving. The temporary
@@ -4537,7 +4735,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     && coverFlowSectionAnchorRect.width > 0
     && coverFlowPalettes
     && coverFlowPalettes.length >= carouselAndListItems.length
-    && (!isCoverFlowDesktopTier || colors.splitBandBoundaryPx !== undefined)
+    && (!isCoverFlowSplitTier || coverFlowSplitBoundaryPx !== undefined)
     && coverFlowGeometryStable,
   );
 
@@ -4842,7 +5040,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     isActive: boolean,
     geometry: { width: number; height: number },
     reveal: CoverFlowCardReveal,
-    position: { distanceFromActive: number },
+    position: { distanceFromActive: number; distanceFromActiveLive: MotionValue<number> },
     // Opt-in, only ever supplied by the mobile branch's own renderItem
     // wrapper below (MobilePinnedCarouselControls.focusProgress) — CoverFlow
     // itself calls renderItem with exactly the six params above, so the
@@ -4905,22 +5103,47 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       )
       : coverFlowStackPresentationBase.surfaceColor;
     // AUDIT-COVERFLOW-PROXIMITY-JUMP.md recommendation #3: taper the hover
-    // engine's own scale/lift/tilt ceiling the further a card sits from the
-    // active slot — unlike columnDarkeningAmount above, this deliberately
-    // includes distance-1 (see CoverFlow.config.ts's own
-    // inactiveCardHoverAmplitudeStep doc comment for why that exemption
-    // doesn't transfer here: confirmed live against the real repro layout
-    // that the immediate neighbor is the slot most likely to still be under
-    // the cursor right after a list click). Distance 0 (the active card)
-    // always resolves to multiplier 1 by construction, no separate check
-    // needed. A card that's already left the active slot can still sit
-    // under a stationary cursor while CoverFlow's own position spring
-    // carries it further out; shrinking how far its hover effect can push it
-    // leaves any residual settle-timing mismatch far less amplitude to
-    // visibly snap with.
+    // engine's own scale/lift/tilt ceiling (and the hologram's own hue/
+    // saturation/brightness ceiling below) the further a card sits from the
+    // active slot. Distance-1 (the immediate neighbor) is now exempt — same
+    // `Math.max(0, distanceFromActive - 1)` offset columnDarkeningAmount
+    // above already uses, for a related but distinct reason this time:
+    // PLAN-COVERFLOW-NEIGHBOR-HOLOGRAM-RAMP-DOUBLE-TAPER-FIX.md. This field
+    // used to deliberately include distance-1 (screenshot-reported reason:
+    // the immediate neighbor is the slot most likely to still be under the
+    // cursor right after a list click, and a full-amplitude ceiling there
+    // could let a lingering cursor visibly snap a departing card's hover
+    // response once CoverFlow's own position spring carried it away). That
+    // concern is already fully covered by a SEPARATE, correctly time-based
+    // mechanism this discrete multiplier was silently colliding with:
+    // useCardLiftPhysics's own activationRampActive/activationRampDurationMs
+    // ceiling and GradientRenderer's own isActive/activationRampDurationMs
+    // ceiling (both cursor-position-independent — they recede to 0 over
+    // activationRampDurationMs purely from elapsed time since the card
+    // stopped being active, regardless of whether the pointer is still
+    // resting on it). Since distanceFromActive flips 0->1 in the same
+    // render isActive flips, this multiplier used to collapse the ceiling
+    // BEFORE either ramp got a chance to ease it — a real, un-ramped snap
+    // (screenshot-reported, drag-release navigation) landing on top of an
+    // otherwise-smooth ramp. Exempting distance-1 here leaves that ramp as
+    // the sole mechanism for the immediate neighbor, on the same curve the
+    // incoming card already ramps up on; distance >= 2 (which neither ramp
+    // governs) keeps today's exact discrete tapering, unchanged.
+    //
+    // This exemption alone previously caused a SECOND regression (shadow/
+    // elevation snap, screenshot-reported) because useCardLiftPhysics's own
+    // shadow output read raw elevationPx directly, orthogonal to its own
+    // activationRampCeiling — restoring this ceiling for distance-1 let its
+    // shadow react to live cursor proximity again with nothing damping it.
+    // That is now fixed at the source (useCardLiftPhysics.ts's own
+    // composeAndApply blends the shadow's elevation input through the same
+    // activationRampCeiling the transform already uses), so this exemption
+    // and that fix ship together, not independently — see
+    // PLAN-COVERFLOW-NEIGHBOR-HOLOGRAM-RAMP-DOUBLE-TAPER-FIX.md's revised
+    // implementation note.
     const hoverAmplitudeMultiplier = 1 - Math.min(
       1,
-      position.distanceFromActive * coverFlowConfig.inactiveCardHoverAmplitudeStep,
+      Math.max(0, position.distanceFromActive - 1) * coverFlowConfig.inactiveCardHoverAmplitudeStep,
     );
     const cardCtaConfig = hoverAmplitudeMultiplier >= 1 ? normalizedCtaButtonConfig : {
       ...normalizedCtaButtonConfig,
@@ -4964,6 +5187,14 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     const cardHologramConfig = coverFlowHasHoverPointer
       ? hoverAmplitudeTaperedHologramConfig
       : { ...hoverAmplitudeTaperedHologramConfig, enabled: false };
+    // The active card is the authored shader-scale baseline. The card turns
+    // this step into a live MotionValue from CoverFlow's fractional distance,
+    // rather than a discrete render-time index multiplier.
+    const inactiveScaleStepPercent = colors.breakpointTier === 'lg'
+      ? dockPaletteConfig.inactiveGradientScaleDistancePercentLg
+      : colors.breakpointTier === 'md'
+        ? dockPaletteConfig.inactiveGradientScaleDistancePercentWide
+        : dockPaletteConfig.inactiveGradientScaleDistancePercent;
     // PLAN-COVERFLOW-ACTIVE-CARD-SETTLE-RAMP.md: the still-unaddressed half
     // of AUDIT-COVERFLOW-PROXIMITY-JUMP.md's diagnosis — hoverAmplitudeMultiplier
     // above is keyed on distanceFromActive, always 0 for the active card
@@ -4999,6 +5230,19 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     const peekOutlineActive = isActive
       && mobilePinnedArticleSectionConfig.peekOutlineModeEnabled
       && focusProgress < 1;
+    // Unified ink can also unify the live mesh beneath every card. The
+    // source is one-based in the panel; clamp against the currently-rendered
+    // CoverFlow data so a selection beyond a short collection degrades to
+    // its final available card rather than producing a blank canvas.
+    const unifiedGradientSourceIndex = cardAppearanceConfig.invertedGradientInkEnabled
+      && cardAppearanceConfig.invertedGradientInkUnifiedBackgroundEnabled
+      ? Math.min(
+        carouselAndListItems.length - 1,
+        Math.max(0, Number(cardAppearanceConfig.invertedGradientInkUnifiedBackgroundSourceCard) - 1),
+      )
+      : index;
+    const unifiedGradientSlide = carouselAndListItems[unifiedGradientSourceIndex] ?? article;
+    const unifiedGradientPalette = coverFlowPalettes?.[unifiedGradientSourceIndex] ?? null;
     return (
       <div
         className={`cover-flow-card ${isActive ? 'cover-flow-card--active' : 'cover-flow-card--inactive'}`}
@@ -5020,9 +5264,9 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           appearanceConfig={cardAppearanceConfig}
           motion={coverFlowLiquidSliderMotion}
           gradientConfig={journalDockSliderConfig}
-          basePalette={coverFlowPalettes?.[index] ?? null}
-          influencedPalette={coverFlowPalettes?.[index] ?? null}
-          visualSlide={article}
+          basePalette={unifiedGradientPalette}
+          influencedPalette={unifiedGradientPalette}
+          visualSlide={unifiedGradientSlide}
           journalHologramConfig={cardHologramConfig}
           cardWidthPx={geometry.width}
           cardHeightPx={geometry.height}
@@ -5045,6 +5289,10 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           stackNeighborSettled={!isActive && !isMeshLive}
           stackActiveSlide={isActive}
           activationRampDurationMs={activationRampDurationMs}
+          distanceFromActiveLive={position.distanceFromActiveLive}
+          inactiveCardHoverAmplitudeStep={coverFlowConfig.inactiveCardHoverAmplitudeStep}
+          inactiveGradientScaleDistanceEnabled={dockPaletteConfig.inactiveGradientScaleDistanceEnabled}
+          inactiveGradientScaleDistancePercent={inactiveScaleStepPercent}
           stackPresentation={{
             ...coverFlowStackPresentationBase,
             surfaceColor: coverFlowCardSurfaceColor,
@@ -5069,17 +5317,240 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
     normalizedCtaButtonConfig, coverFlowStackPresentationBase, coverFlowContentInsetCqw,
     coverFlowColumnBackgroundColor, coverFlowConfig.inactiveCardColumnDarkeningStep,
     coverFlowConfig.inactiveCardHoverAmplitudeStep, coverFlowConfig.activationRampRate,
-    cardAppearanceConfig, mobilePinnedArticleSectionConfig.peekOutlineModeEnabled, shortArticleListBodyColor,
-    coverFlowHasHoverPointer,
+    cardAppearanceConfig, carouselAndListItems, mobilePinnedArticleSectionConfig.peekOutlineModeEnabled, shortArticleListBodyColor,
+    coverFlowHasHoverPointer, colors.breakpointTier, dockPaletteConfig,
   ]);
 
+  // Tablet/desktop only — mirrors the `bottom` slot's own gating
+  // (colors.breakpointTier !== 'mobile'). When active, the Timeline moves
+  // into the CoverFlow's own track via AbstractCoverFlowTimelineSlot
+  // instead of AbstractNarrowColumnStack's `bottom` region, so exactly one
+  // of the two ever renders — never both, avoiding a duplicate timeline/
+  // tablist landmark in the DOM.
+  //
+  // Keyed on the real breakpoint tier, not isCoverFlowSplitTier — the two
+  // used to be interchangeable (Lg was always split, Md was this page's
+  // only stacked tier), but narrowColumnWidthTierLg can now be 'stacked'
+  // too (desktop reusing the same full-width composition tablet already
+  // has), and isCoverFlowSplitTier is false in that state. What actually
+  // decides which config fields apply is the breakpoint itself, never
+  // whether that breakpoint happens to be split or stacked this time.
+  const coverFlowTimelineSlotActive = colors.breakpointTier === 'lg'
+    ? abstractCoverFlowTimelineSlotConfig.enabledLg
+    : colors.breakpointTier === 'md' && abstractCoverFlowTimelineSlotConfig.enabledMd;
+
+  // Only meaningful in the CoverFlow-track placement (AboutTimeline's own
+  // scrollWindowVisibleCount prop) — the classic narrow-column bottom
+  // placement isn't height-constrained the same way, so it stays unlimited
+  // (0) regardless of this config, exactly as before this field existed.
+  const timelineScrollWindowVisibleCount = coverFlowTimelineSlotActive
+    ? (colors.breakpointTier === 'lg'
+      ? abstractTimelineConfigForDesktopMode.scrollWindowVisibleCountLg
+      : abstractTimelineConfig.scrollWindowVisibleCountWide)
+    : 0;
+  const timelineScrollWindowActiveScrollDurationMs = colors.breakpointTier === 'lg'
+    ? abstractCoverFlowTimelineSlotConfig.scrollWindowActiveScrollDurationMsLg
+    : abstractCoverFlowTimelineSlotConfig.scrollWindowActiveScrollDurationMsMd;
+  const timelineScrollWindowActiveScrollEasing = colors.breakpointTier === 'lg'
+    ? abstractCoverFlowTimelineSlotConfig.scrollWindowActiveScrollEasingLg
+    : abstractCoverFlowTimelineSlotConfig.scrollWindowActiveScrollEasingMd;
+  const timelineScrollWindowActiveScrollDelayMs = colors.breakpointTier === 'lg'
+    ? abstractCoverFlowTimelineSlotConfig.scrollWindowActiveScrollDelayMsLg
+    : abstractCoverFlowTimelineSlotConfig.scrollWindowActiveScrollDelayMsMd;
+
+  // The CoverFlow-track Timeline is painted on its figure's own translucent
+  // face, not on the polymorphic narrow column beneath it. When opted in,
+  // derive the Timeline's ink from that figure color using the same
+  // restrained saturation/opacity/tolerance model as polymorphic-gradient
+  // copy. The background start color is the stable, authored reference for
+  // both flat and two-stop figure faces; it avoids pretending a single text
+  // color can perfectly sample every pixel of a CSS gradient.
+  const coverFlowTimelineAdaptiveInk = useMemo(() => {
+    if (!coverFlowTimelineSlotActive) return null;
+    const isDesktop = colors.breakpointTier === 'lg';
+    const enabled = isDesktop
+      ? abstractCoverFlowTimelineSlotConfig.adaptiveTextInkEnabledLg
+      : abstractCoverFlowTimelineSlotConfig.adaptiveTextInkEnabledMd;
+    if (!enabled) return null;
+    const background = isDesktop
+      ? abstractCoverFlowTimelineSlotConfig.backgroundColorLg
+      : abstractCoverFlowTimelineSlotConfig.backgroundColorMd;
+    const darkInkSaturation = isDesktop
+      ? abstractCoverFlowTimelineSlotConfig.adaptiveTextInkDarkInkSaturationLg
+      : abstractCoverFlowTimelineSlotConfig.adaptiveTextInkDarkInkSaturationMd;
+    const opacityMultiplier = isDesktop
+      ? abstractCoverFlowTimelineSlotConfig.adaptiveTextInkDarkInkOpacityMultiplierLg
+      : abstractCoverFlowTimelineSlotConfig.adaptiveTextInkDarkInkOpacityMultiplierMd;
+    const lightInkTolerance = isDesktop
+      ? abstractCoverFlowTimelineSlotConfig.adaptiveTextInkLightInkToleranceLg
+      : abstractCoverFlowTimelineSlotConfig.adaptiveTextInkLightInkToleranceMd;
+    return {
+      ink: resolveGradientColumnTypography(
+        background, background, darkInkSaturation, opacityMultiplier,
+        lightInkTolerance, globalTypographyConfig,
+      ).ink,
+      opacityMultiplier,
+    };
+  }, [
+    abstractCoverFlowTimelineSlotConfig, colors.breakpointTier,
+    coverFlowTimelineSlotActive, globalTypographyConfig,
+  ]);
+
+  // Opt-in row "chip" background + text color (AbstractTimelineLinkColorConfig
+  // — pages/abstract.config.ts's own doc comment). null while off, so the
+  // JSX below falls back to today's exact inkColorOverride-only treatment.
+  // 'deriveFromGradient' reuses resolveGradientColumnTypography verbatim —
+  // the same background→contrast-side→dark-ink-saturation-chroma algorithm
+  // the narrow/wide column's own unified text ink already runs — rather
+  // than a second, independently-tuned color system.
+  const timelineLinkColors = useMemo(() => {
+    if (!abstractTimelineLinkColorConfig.enabled) return null;
+    const tier: 'Md' | 'Lg' = colors.breakpointTier === 'lg' ? 'Lg' : 'Md';
+    const colorMode = tier === 'Lg'
+      ? abstractTimelineLinkColorConfig.colorModeLg
+      : abstractTimelineLinkColorConfig.colorModeMd;
+    if (colorMode === 'manual') {
+      return tier === 'Lg' ? {
+        background: abstractTimelineLinkColorConfig.backgroundColorLg,
+        text: abstractTimelineLinkColorConfig.textColorLg,
+        backgroundActive: abstractTimelineLinkColorConfig.backgroundColorActiveLg,
+        textActive: abstractTimelineLinkColorConfig.textColorActiveLg,
+      } : {
+        background: abstractTimelineLinkColorConfig.backgroundColorMd,
+        text: abstractTimelineLinkColorConfig.textColorMd,
+        backgroundActive: abstractTimelineLinkColorConfig.backgroundColorActiveMd,
+        textActive: abstractTimelineLinkColorConfig.textColorActiveMd,
+      };
+    }
+    const darkInkSaturation = tier === 'Lg'
+      ? abstractTimelineLinkColorConfig.darkInkSaturationLg
+      : abstractTimelineLinkColorConfig.darkInkSaturationMd;
+    const darkInkOpacityMultiplier = tier === 'Lg'
+      ? abstractTimelineLinkColorConfig.darkInkOpacityMultiplierLg
+      : abstractTimelineLinkColorConfig.darkInkOpacityMultiplierMd;
+    const lightInkTolerance = tier === 'Lg'
+      ? abstractTimelineLinkColorConfig.lightInkToleranceLg
+      : abstractTimelineLinkColorConfig.lightInkToleranceMd;
+    const activeSurfaceOffset = tier === 'Lg'
+      ? abstractTimelineLinkColorConfig.activeSurfaceOffsetLg
+      : abstractTimelineLinkColorConfig.activeSurfaceOffsetMd;
+    const gradientReference = resolvePolymorphicColumnBackgroundReference(colors, 'narrow');
+    const background = gradientReference;
+    const backgroundActive = deriveSurfaceColor(gradientReference, activeSurfaceOffset);
+    const text = resolveGradientColumnTypography(
+      background, background, darkInkSaturation, darkInkOpacityMultiplier,
+      lightInkTolerance, globalTypographyConfig,
+    ).ink;
+    const textActive = resolveGradientColumnTypography(
+      backgroundActive, backgroundActive, darkInkSaturation, darkInkOpacityMultiplier,
+      lightInkTolerance, globalTypographyConfig,
+    ).ink;
+    return { background, text, backgroundActive, textActive };
+  }, [abstractTimelineLinkColorConfig, colors, globalTypographyConfig]);
+
+  // Resolve only ink against the expanded panel's surface. The row itself
+  // remains transparent, including its hover/active state.
+  const expandedMobileTimelineInkColors = useMemo(() => {
+    const config = abstractTimelineLinkColorConfig;
+    if (!config.enabledMobile || colors.breakpointTier !== 'mobile') return null;
+    if (config.colorModeMobile === 'manual') return {
+      text: config.textColorMobile,
+      textActive: config.textColorActiveMobile,
+    };
+    const background = mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken
+      ? mobileArticleListBackgroundDarkened
+      : mobileArticleListBackgroundAtRest;
+    const text = resolveGradientColumnTypography(
+      background, background, config.darkInkSaturationMobile,
+      config.darkInkOpacityMultiplierMobile, config.lightInkToleranceMobile,
+      globalTypographyConfig,
+    ).ink;
+    return { text, textActive: text };
+  }, [
+    abstractTimelineLinkColorConfig, colors.breakpointTier, globalTypographyConfig,
+    mobileArticleListBackgroundAtRest, mobileArticleListBackgroundDarkened,
+    mobilePinnedArticleSectionConfig.expandedForcesMaxBackgroundDarken,
+  ]);
+
+  // Single shared instance (consumed by whichever of the two placements
+  // above is active) — not two independently-configured copies. Includes
+  // its own shortArticleListDesktopInkRef wrapper so the live scroll-
+  // adaptive ink CSS var it writes keeps working regardless of which
+  // placement mounts it.
+  const abstractTimelineForTabletDesktop = (
+    <div
+      ref={shortArticleListDesktopInkRef}
+      data-abstract-article-list-section="true"
+      // Only the coverflow-track figure needs (or has) a definite height to
+      // fill — AboutTimeline's own fillContainerHeight="100%" chain (see its
+      // own doc comment) needs a sized ancestor at every level between it
+      // and the figure's own fixed-aspect-ratio box, and this wrapper is the
+      // one level AbstractCoverFlowTimelineSlot.tsx's own generic `children`
+      // slot doesn't know to stretch on this component's behalf. The classic
+      // bottom-of-column placement (same shared JSX, coverFlowTimelineSlotActive
+      // false) has no such ancestor and must stay auto-height, unaffected.
+      style={coverFlowTimelineSlotActive ? { height: '100%' } : undefined}
+    >
+      <AboutTimeline
+        rows={abstractTimelineRows}
+        activeIndex={articleActiveIndex}
+        onSelect={handleTimelineActiveIndexChange}
+        accentColor={carouselAndListItems[articleActiveIndex]?.accent ?? '#ffffff'}
+        columnBackgroundColor={colors.narrowColumnColor}
+        inkColorOverride={timelineLinkColors
+          ? undefined
+          : (coverFlowTimelineAdaptiveInk?.ink ?? shortArticleListBodyColor)}
+        bodyColorOverride={timelineLinkColors?.text ?? coverFlowTimelineAdaptiveInk?.ink}
+        highlightColorOverride={timelineLinkColors?.textActive ?? coverFlowTimelineAdaptiveInk?.ink}
+        rowBackgroundColorOverride={timelineLinkColors?.background}
+        rowBackgroundColorActiveOverride={timelineLinkColors?.backgroundActive}
+        scrollWindowVisibleCount={timelineScrollWindowVisibleCount}
+        scrollWindowActiveScrollDurationMs={timelineScrollWindowActiveScrollDurationMs}
+        scrollWindowActiveScrollEasing={timelineScrollWindowActiveScrollEasing}
+        scrollWindowActiveScrollDelayMs={timelineScrollWindowActiveScrollDelayMs}
+        // This same shared instance also serves the classic bottom-of-column
+        // placement below (the `bottom` prop a bit further down this file)
+        // whenever the coverflow-track slot itself is off — that placement
+        // has no fixed-height ancestor for `fillContainerHeight` to fill, so
+        // this is gated on the same boolean that already decides which of
+        // the two placements is actually mounted.
+        fillContainerHeight={coverFlowTimelineSlotActive}
+        inkOpacityMultiplier={coverFlowTimelineAdaptiveInk?.opacityMultiplier
+          ?? colors.scrollGradientDarkInkOpacityMultiplier}
+        description={abstractTimelineConfigForDesktopMode.description || undefined}
+        config={abstractTimelineConfigForDesktopMode}
+        prefersReducedMotion={coverFlowPrefersReducedMotion}
+        panelId={ABSTRACT_TIMELINE_PANEL_ID}
+        // Same gradient-marker inputs renderCoverFlowItem already threads
+        // into CoverFlow's own cards (carouselAndListItems is exactly
+        // SliderContentSlide-shaped, coverFlowPalettes/
+        // coverFlowLiquidSliderMotion/journalDockSliderConfig are the same
+        // live instances) — the marker mesh matches whatever the active
+        // CoverFlow card is already showing, not a second, independently-
+        // configured gradient.
+        gradientSlides={carouselAndListItems}
+        gradientPaletteStates={coverFlowPalettes}
+        gradientMotion={coverFlowLiquidSliderMotion}
+        gradientConfig={journalDockSliderConfig}
+      />
+    </div>
+  );
+
   return (
+    <SiteContentProvider site={siteContent} page={pageContent}>
     <>
       <SeoHead
-        title={buildSiteTitle('Manuel Cerdas, Software Engineer & Advisor')}
-        description="Software engineering and advisory across AI products, technical systems, product strategy, and interface design."
+        title={buildSiteTitle(pageContent.meta.title)}
+        description={pageContent.meta.description}
         canonicalPath="/abstract"
       />
+      <style>{`
+        /* The hero reuses an always-open accordion header as a static title.
+           Its button has no action, so do not advertise it as a link. */
+        [data-editorial-hero-root] button[aria-expanded=true] {
+          cursor: default;
+        }
+      `}</style>
     {abstractPageLayoutConfig.presentationMode === 'classic' ? (
     <>
     <main
@@ -5249,8 +5720,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
 
       {!gridLayoutActive && config.heroContentEnabled ? (
         <AbstractEditorialHero
-          headline={ABSTRACT_EDITORIAL_HEADLINE}
-          paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
+          headline={pageContent.hero.heading}
+          paragraphs={pageContent.hero.body}
           actionInkTone={actionsTone}
           config={normalizedEditorialHeroConfig}
           introStartAt={pageIntroStartedAt}
@@ -5481,14 +5952,14 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
       // does today, just reflowed into two columns. Renders through the
       // same <PolymorphicLayout> /about and /posts-lab already use (see
       // PLAN-SPLIT-COLUMN-LAYOUT-ENRICHMENT-EXTRACTION.md) — the shared,
-      // already-configurable marginTop/desktopMarginTop, properly contained
+      // already-configurable marginTop/marginTopWide, properly contained
       // by the shell's own overflow-hidden wrapper, not a page-specific
       // mt-0 override (which fixed one symptom — an exposed sliver of
       // globals.css's body{bg-slate-950} — by hiding it behind a different,
       // now-inconsistent margin instead of containing it).
       <PolymorphicLayout
         config={splitColumnLayoutConfigForColors}
-        className={`${styles.splitColumnViewport} ${abstractLayoutPending || !coverFlowGeometryStable ? styles.layoutGatePending : ''}`}
+        className={`${styles.splitColumnViewport} ${!columnsAreSideBySide || headerIsStatic ? styles.flowingHeaderViewport : ''} ${abstractLayoutPending || !coverFlowGeometryStable ? styles.layoutGatePending : ''}`}
         backgroundColor={normalizedPageSurfaceConfig.color}
         pageSurfaceConfig={normalizedPageSurfaceConfig}
         paletteColorResolver={paletteColorResolver}
@@ -5637,9 +6108,20 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
         // via <PolymorphicLayout>'s own buildWideColumnClassName. No
         // page-level justify-* override lives here: Polymorphic Layout's
         // base/tablet/desktop values are the sole vertical-position source.
-        wideColumnClassName={`flex flex-col gap-6 ${styles.abstractStackedRow} ${styles.mobilePinnedWideColumn}`}
+        wideColumnClassName={`flex flex-col gap-6 ${!columnsAreSideBySide ? styles.abstractStackedRow : ''}`}
         wideColumnStyle={{
-          minHeight: wideColumnRowMinHeightCss,
+          // columnsAreSideBySide-gated the same way narrowColumnStyle's own
+          // minHeight below already was — without this, a stacked tier with
+          // its own partition switched off still forced this column to a
+          // full wideColumnRowMinHeightCss (~100dvh), which fought a
+          // genuinely content-sized narrow column above it into leaving
+          // its own dead space rather than actually ending where its
+          // content does (found auditing the "give CoverFlow more of the
+          // stacked viewport" report).
+          minHeight: stackViewportPartitionActive
+            ? tabletWideViewportHeightCss
+            : columnsAreSideBySide ? wideColumnRowMinHeightCss : undefined,
+          height: stackViewportPartitionActive ? tabletWideViewportHeightCss : undefined,
           backgroundColor: colors.wideColumnColor,
         }}
         // 'viewport' is intentionally not another alias for the bounded
@@ -5649,39 +6131,46 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
         // reserves its measured height above a box that still ends flush
         // with the viewport bottom. PolymorphicLayout disables this mode
         // automatically while the columns stack on mobile.
-        wideColumnContentViewportMinHeight={isCoverFlowDesktopTier ? wideColumnRowMinHeightCss : undefined}
+        wideColumnContentViewportMinHeight={isCoverFlowSplitTier ? wideColumnRowMinHeightCss : undefined}
         narrowColumnClassName={[
           // No 'items-center' here anymore — the narrow column's own real
-          // vertical-centering slack (from narrowColumnStyle's own minHeight
-          // below) now passes through to NarrowColumnContent's own outer
+          // vertical-centering slack (from narrowColumnStyle's minHeight in
+          // split mode) now passes through to NarrowColumnContent's own outer
           // box via flexbox's default 'stretch' cross-axis instead, so that
           // primitive's own verticalAlign (narrowColumnContentVerticalAlign
           // — see ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG's own doc comment on
           // that field) is what actually centers AbstractEditorialHero now,
           // not a page-local class disconnected from that already-live
           // panel control.
-          'flex',
+          // The stacked CoverFlow keeps a transparent, sticky viewport over
+          // the whole screen. Place the following hero column above that
+          // viewport so its visible links receive pointer events, while the
+          // carousel remains interactive in its own section.
+          'relative z-[2] flex',
           // ABSTRACT-01 fix (2026-08-20-139d957): CSS-module class (not a
           // Tailwind utility — abstract.module.css's own
-          // @media (max-width: 767px) block targets .abstractStackedRow by
-          // name) so that stylesheet can reset this row's inline minHeight
-          // (below) back to auto once the two columns stack — see that CSS
-          // rule's own doc comment for the full root-cause explanation.
-          // Present on both wideColumnClassName and this
-          // narrowColumnClassName since both columns share the identical
-          // 100dvh-floor mechanism.
-          styles.abstractStackedRow,
-          styles.mobileHeroColumn,
+          // @media (max-width: 1023px) block targets .abstractStackedRow by
+          // name) so that stylesheet can guard against a viewport-height
+          // row floor when columns stack. Present on both columns.
+          !columnsAreSideBySide ? styles.abstractStackedRow : '',
+          // The mobile viewport-height floor reserves a carousel peek. Tablet
+          // is also stacked now, but its hero should end with its content.
+          colors.breakpointTier === 'mobile' ? styles.mobileHeroColumn : '',
         ].join(' ')}
         narrowColumnStyle={{
-          minHeight: narrowColumnRowMinHeightCss,
+          // A stacked tablet hero is content-sized. The mobile-only peek
+          // floor above remains separate from the split viewport floor.
+          minHeight: stackViewportPartitionActive
+            ? tabletNarrowViewportHeightCss
+            : columnsAreSideBySide ? narrowColumnRowMinHeightCss : undefined,
+          height: stackViewportPartitionActive ? tabletNarrowViewportHeightCss : undefined,
           backgroundColor: colors.narrowColumnColor,
           '--mobile-hero-column-height':
             mobileHeroRowMinHeightCss,
         } as CSSProperties}
-        narrowColumnContentViewportMinHeight={isCoverFlowDesktopTier
+        narrowColumnContentViewportMinHeight={isCoverFlowSplitTier
           ? narrowColumnRowMinHeightCss
-          : mobileHeroRowMinHeightCss}
+          : undefined}
         // wideColumn/narrowColumn below are raw content — no page-level
         // WideColumnContent/NarrowColumnContent composition. PolymorphicLayout
         // itself wraps both automatically now that wideColumnContentContainer/
@@ -5699,9 +6188,9 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
             className="relative h-full w-full"
             role="tabpanel"
             id={ABSTRACT_TIMELINE_PANEL_ID}
-            aria-live={isCoverFlowDesktopTier ? 'polite' : undefined}
+            aria-live={isCoverFlowSplitTier ? 'polite' : undefined}
           >
-            {isCoverFlowDesktopTier ? (
+            {isCoverFlowSplitTier ? (
               <div
                 className={`absolute ${coverFlowVisualReady ? '' : styles.coverFlowVisualPending}`}
                 style={coverFlowWideColumnStyle}
@@ -5723,6 +6212,23 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                     normalizedCtaButtonConfig.tiltEnabled ? normalizedCtaButtonConfig.tiltMaxDegrees : 0
                   }
                   hoverTiltPerspectivePx={normalizedCtaButtonConfig.tiltPerspectivePx}
+                  // PLAN-COVERFLOW-TIMELINE-SLOT-DRAG-AREA.md — rendered
+                  // inside CoverFlow's own draggable root (rather than as an
+                  // external sibling, the previous placement) so the figure's
+                  // own screen area is also part of the carousel's swipe/pan
+                  // area, not a dead zone for it. `undefined` whenever the
+                  // slot itself is off, so CoverFlow's own drag hit-area is
+                  // unaffected unless this feature is genuinely on.
+                  overlayContent={coverFlowTimelineSlotActive ? (
+                    <AbstractCoverFlowTimelineSlot
+                      config={abstractCoverFlowTimelineSlotConfig}
+                      tier="lg"
+                      ctaConfig={normalizedCtaButtonConfig}
+                      hasHoverPointer={coverFlowHasHoverPointer}
+                    >
+                      {abstractTimelineForTabletDesktop}
+                    </AbstractCoverFlowTimelineSlot>
+                  ) : undefined}
                 />
               </div>
             ) : (
@@ -5732,7 +6238,10 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                   shortArticleListMobileInkRef.current = element;
                   mobileCoverFlowPlaneRef(element);
                 }}
-                style={{ width: '100vw', marginLeft: 'calc(50% - 50vw)' }}
+                style={{
+                  width: '100vw',
+                  marginLeft: 'calc(50% - 50vw)',
+                }}
               >
                 <MobilePinnedArticleSection
                   itemCount={carouselAndListItems.length}
@@ -5748,6 +6257,30 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                       : mobileArticleListBackgroundAtRest
                   }
                   config={mobilePinnedArticleSectionConfig}
+                  dragDownToCloseEnabled={colors.breakpointTier === 'mobile'
+                    && abstractTimelineConfig.mobileExpandedDragDownEnabled}
+                  dragDownToCloseThresholdPx={abstractTimelineConfig.mobileExpandedDragDownThresholdPx}
+                  reverseNavigationDirection={coverFlowConfig.reverseItemOrder}
+                  // 'none' whenever this branch is serving a stacked
+                  // tablet OR stacked desktop composition (both hand their
+                  // own list rendering to the external renderList prop
+                  // below instead) — 'visible' only for genuine mobile,
+                  // which has no such external list and needs this
+                  // component's own internal one.
+                  listPresentation={colors.breakpointTier === 'mobile' ? 'visible' : 'none'}
+                  viewportHeight={stackViewportPartitionActive
+                    ? tabletWideViewportHeightCss
+                    : undefined}
+                  carouselViewportPlane={
+                    !isCoverFlowSplitTier
+                    && coverFlowVisibleViewportCenteringEnabled
+                    && coverFlowVisibleViewport
+                      ? {
+                          top: `${coverFlowVisibleViewport.top}px`,
+                          height: `${coverFlowVisibleViewport.height}px`,
+                        }
+                      : undefined
+                  }
                   onExpandedChange={setIsMobileArticleListExpanded}
                   renderCarousel={(controls: MobilePinnedCarouselControls) => (
                     // Keep the carousel's own measured/clipped plane
@@ -5802,17 +6335,65 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                         onDragEnd: controls.onDragScrollEnd,
                       }}
                       accessibilityHidden
+                      // PLAN-COVERFLOW-TIMELINE-SLOT-DRAG-AREA.md — same
+                      // opt-in overlay placement as the desktop instance
+                      // above; coverFlowTimelineSlotActive is false on true
+                      // mobile (base tier), so this only ever activates for
+                      // the stacked tablet or stacked desktop case this same
+                      // CoverFlow instance also serves — tier picks whichever
+                      // of those two is actually live, the same real-
+                      // breakpoint check coverFlowTimelineSlotActive itself
+                      // now uses.
+                      overlayContent={coverFlowTimelineSlotActive ? (
+                        <AbstractCoverFlowTimelineSlot
+                          config={abstractCoverFlowTimelineSlotConfig}
+                          tier={colors.breakpointTier === 'lg' ? 'lg' : 'md'}
+                          ctaConfig={normalizedCtaButtonConfig}
+                          hasHoverPointer={coverFlowHasHoverPointer}
+                        >
+                          {abstractTimelineForTabletDesktop}
+                        </AbstractCoverFlowTimelineSlot>
+                      ) : undefined}
                     />
                   )}
-                  renderList={({ activeIndex, rows: listRows, onSelect }) => (
+                  renderList={({ activeIndex, onExpand, presentation, rows: listRows, onSelect }) => (
                     <AboutTimeline
-                      rows={listRows}
+                      // Entire-list arrow navigation deliberately supplies
+                      // every article to the same windowed Timeline. Its
+                      // visible-row cap still limits the painted list, but
+                      // each next/previous target exists in the DOM first,
+                      // allowing AboutTimeline to reveal it before the
+                      // paired CoverFlow selection commits.
+                      rows={onExpand && abstractTimelineConfig.scrollWindowArrowsNavigateEntireList
+                        ? abstractTimelineRows
+                        : (onExpand
+                          ? listRows.filter(row => row.slideIndex !== carouselAndListItems.length)
+                          : listRows)}
                       activeIndex={activeIndex}
                       onSelect={onSelect}
                       accentColor={carouselAndListItems[activeIndex]?.accent ?? '#ffffff'}
                       columnBackgroundColor={colors.wideColumnColor}
-                      inkColorOverride={shortArticleListBodyColor}
+                      inkColorOverride={presentation === 'expanded' && expandedMobileTimelineInkColors
+                        ? undefined : shortArticleListBodyColor}
+                      bodyColorOverride={presentation === 'expanded' ? expandedMobileTimelineInkColors?.text : undefined}
+                      highlightColorOverride={presentation === 'expanded' ? expandedMobileTimelineInkColors?.textActive : undefined}
                       inkOpacityMultiplier={colors.scrollGradientDarkInkOpacityMultiplier}
+                      toolbarLeadingAction={onExpand ? (
+                        <button type="button" onClick={onExpand}>Expand list</button>
+                      ) : undefined}
+                      // The collapsed mobile list intentionally caps at
+                      // three rows, making the explicitly enabled top
+                      // counter/arrows a real one-row-at-a-time navigation
+                      // affordance. Expanded content stays fully visible and
+                      // does not need this constrained window.
+                      scrollWindowVisibleCount={presentation === 'short'
+                        ? Math.min(
+                          abstractTimelineConfig.scrollWindowVisibleCount,
+                          onExpand && abstractTimelineConfig.scrollWindowArrowsNavigateEntireList
+                            ? abstractTimelineRows.length
+                            : listRows.length - 1,
+                        )
+                        : 0}
                       // Operator ask: the short and expanded presentations must
                       // read the SAME AboutTimeline config — wideColumnTypography's
                       // opacity roles (the ones the expanded presentation already
@@ -5846,28 +6427,29 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
         narrowColumn={(
           <AbstractNarrowColumnStack
             config={abstractNarrowColumnStackConfig}
+            isTablet={colors.breakpointTier === 'md'}
             top={(
               <div data-abstract-editorial-section="true">
                 <AbstractEditorialHero
-                headline={ABSTRACT_EDITORIAL_HEADLINE}
-                paragraphs={ABSTRACT_EDITORIAL_PARAGRAPHS}
+                headline={pageContent.hero.heading}
+                paragraphs={pageContent.hero.body}
                 actionInkTone={actionsTone}
                 config={normalizedSplitColumnHeroConfig}
                 introStartAt={pageIntroStartedAt}
                 accordionItemConfig={heroAccordionItemConfig}
                 horizontalPlacement={
                   NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT[
-                    splitColumnLayoutConfig.narrowColumnContentAlign
+                    splitColumnLayoutConfigForColors.narrowColumnContentAlign
                   ]
                 }
                 horizontalPlacementWide={
                   NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_WIDE[
-                    splitColumnLayoutConfig.narrowColumnContentAlignWide
+                    splitColumnLayoutConfigForColors.narrowColumnContentAlignWide
                   ]
                 }
                 horizontalPlacementLg={
                   NARROW_COLUMN_ALIGN_TO_HERO_HORIZONTAL_PLACEMENT_LG[
-                    splitColumnLayoutConfig.narrowColumnContentAlignLg
+                    splitColumnLayoutConfigForColors.narrowColumnContentAlignLg
                   ]
                 }
                 copyInkTone={contentTone}
@@ -5907,37 +6489,22 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
                 />
               </div>
             )}
-            bottom={isCoverFlowDesktopTier ? (
-              <div
-                ref={shortArticleListDesktopInkRef}
-                data-abstract-article-list-section="true"
-              >
-                <AboutTimeline
-                  rows={abstractTimelineRows}
-                  activeIndex={articleActiveIndex}
-                  onSelect={handleTimelineActiveIndexChange}
-                  accentColor={carouselAndListItems[articleActiveIndex]?.accent ?? '#ffffff'}
-                  columnBackgroundColor={colors.narrowColumnColor}
-                  inkColorOverride={shortArticleListBodyColor}
-                  inkOpacityMultiplier={colors.scrollGradientDarkInkOpacityMultiplier}
-                  description={abstractTimelineConfig.description || undefined}
-                  config={abstractTimelineConfig}
-                  prefersReducedMotion={coverFlowPrefersReducedMotion}
-                  panelId={ABSTRACT_TIMELINE_PANEL_ID}
-                  // Same gradient-marker inputs renderCoverFlowItem already
-                  // threads into CoverFlow's own cards (carouselAndListItems
-                  // is exactly SliderContentSlide-shaped, coverFlowPalettes/
-                  // coverFlowLiquidSliderMotion/journalDockSliderConfig are
-                  // the same live instances) — the marker mesh matches
-                  // whatever the active CoverFlow card is already showing,
-                  // not a second, independently-configured gradient.
-                  gradientSlides={carouselAndListItems}
-                  gradientPaletteStates={coverFlowPalettes}
-                  gradientMotion={coverFlowLiquidSliderMotion}
-                  gradientConfig={journalDockSliderConfig}
-                />
-              </div>
-            ) : null}
+            // Tablet or desktop, split or stacked — anything but true
+            // mobile, which never renders the classic bottom Timeline
+            // placement at all (its own pinned-carousel rows serve that
+            // role instead). Was `isCoverFlowSplitTier || breakpointTier
+            // === 'md'`, which quietly assumed Lg only ever meant split;
+            // now that Lg can be stacked too, that combination went false
+            // there and this region never rendered anything, in a state
+            // where — thanks to coverFlowTimelineSlotActive not yet
+            // recognizing stacked-Lg either — the CoverFlow-track placement
+            // wasn't rendering it either, dropping the Timeline entirely
+            // (visually filled in by MobilePinnedArticleSection's own,
+            // separately-suppressed list to confusing effect).
+            bottom={colors.breakpointTier !== 'mobile'
+              && !coverFlowTimelineSlotActive
+              ? abstractTimelineForTabletDesktop
+              : null}
           />
         )}
       >
@@ -6012,7 +6579,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
           wordmarkConfig={effectiveWordmarkConfig}
           wordmarkStops={heroHeaderLogoStops}
           wordmarkWidthClassName={normalizedSiteHeaderConfig.logoWidth}
-          wordmarkDesktopWidthClassName={normalizedSiteHeaderConfig.desktopLogoWidth}
+          wordmarkDesktopWidthClassName={normalizedSiteHeaderConfig.logoWidthWide}
           scrollGradientDarkenViewportRangeVh={colors.scrollGradientResolved.viewportRangeVh}
           scrollGradientDarkenTauMs={colors.scrollGradientResolved.tauMs}
           scrollGradientOriginColor={narrowColumnGradientTextOrigin}
@@ -6049,5 +6616,6 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides }:
         </PanelShell>
       ) : null}
     </>
+    </SiteContentProvider>
   );
 }

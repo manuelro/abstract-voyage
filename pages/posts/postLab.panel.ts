@@ -1,6 +1,6 @@
 import { definePageConfigScope } from '../../components/Panel/config';
 import { POLYMORPHIC_LAYOUT_FIELDS } from '../../experiences/abstract/components/PolymorphicLayout.panel';
-import { POST_LAB_POLYMORPHIC_LAYOUT_CONFIG } from '../../experiences/abstract/components/PolymorphicLayout.pageConfigs';
+import { DEFAULT_POST_LAB_PAGE_LAYOUT_CONFIG } from './postLab.config';
 import type { PostLabPageLayoutConfig } from './postLab.config';
 
 // PLAN-POLYMORPHIC-LAYOUT-PAGE-CONFIG-PARITY.md: migrated off the plain
@@ -26,7 +26,7 @@ export const POST_LAB_PAGE_LAYOUT_PANEL = definePageConfigScope<PostLabPageLayou
   summary: 'Content container width/position, both columns',
   defaultOpen: false,
   fields: POLYMORPHIC_LAYOUT_FIELDS,
-  defaultValue: POST_LAB_POLYMORPHIC_LAYOUT_CONFIG,
+  defaultValue: DEFAULT_POST_LAB_PAGE_LAYOUT_CONFIG,
   // Bug fix (operator-reported: "Update diff" threw ERR on /posts —
   // components/Panel/index.tsx's UpdateDiffButton POSTs this targetFile to
   // pages/api/dev/apply-config-update.tsx, which does a literal
@@ -51,7 +51,17 @@ export const POST_LAB_PAGE_LAYOUT_PANEL = definePageConfigScope<PostLabPageLayou
   // PolymorphicLayout.pageConfigs.test.ts for the guard that now keeps all
   // three (and any future page added to this family) from drifting the
   // same way again.
-  targetFile: 'experiences/abstract/components/PolymorphicLayout.pageConfigs.ts',
-  targetSymbol: 'POST_LAB_POLYMORPHIC_LAYOUT_CONFIG',
+  //
+  // Re-pointed a second time (operator ask, 2026-09-23: journal's mobile/
+  // tablet gradient recipe copied onto this page too, pages/posts/
+  // postLab.config.ts's own doc comment) — DEFAULT_POST_LAB_PAGE_LAYOUT_CONFIG
+  // is now itself a real, page-owned object literal in that file (no longer
+  // a re-export of the shared POST_LAB_POLYMORPHIC_LAYOUT_CONFIG), so
+  // targetSymbol/targetFile/defaultValue all moved with it — pointing this
+  // panel at the old shared pageConfigs.ts literal would both show stale
+  // values (missing the gradient override) and, on Update diff, patch the
+  // wrong file (the shared literal /journal also spreads from).
+  targetFile: 'pages/posts/postLab.config.ts',
+  targetSymbol: 'DEFAULT_POST_LAB_PAGE_LAYOUT_CONFIG',
   targetType: 'PostLabPageLayoutConfig',
 });

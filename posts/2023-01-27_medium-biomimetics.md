@@ -1,12 +1,13 @@
 ---
 title: A biomimetic framework for interfaces that feel human
-excerpt: Five traits that make human communication work, turned into a way to
-  assess whether an interface feels human or merely functional.
+excerpt: An early, implementation-agnostic framework that maps five traits of
+  effective human communication onto interface design, aiming to lower user
+  rejection and improve adoption.
 author: Manu
 tags:
-  - Biomimetics
+  - Interaction
   - UX Design
-  - Interface Design
+  - Biomimetics
 featured: true
 heroImage: /posts/medium-biomimetics/hero.jpeg
 heroAlt: Biomimetics-inspired user interface framework hero illustration
@@ -18,7 +19,7 @@ source:
 toc: false
 ---
 
-> The use of biomimetics in technology may not be a hot topic, but it can revolutionize the way we construct our user interfaces.
+The use of biomimetics in technology may not be a hot topic, but it can revolutionize the way we construct our user interfaces.
 
 There have been several implementations of carefully selected biological characteristics in the design and development of devices and ideas that are inspired by how biology works, in part because biology and life as we know them (on Earth, at least), have been evolving for millions of years, which equates to equally astronomic quantities of trial and error mutations utilizing the evolutionary mechanisms known and well documented by Charles Darwin back in the day in his very famous scientific publication (**The Origin of Species**), which remains until today the de facto foundation for **evolutionary biology**.
 

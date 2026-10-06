@@ -1,16 +1,21 @@
-import { defineConfigScope } from '../../../../../components/Panel/config'
+import { createTailwindFieldFactory, defineConfigScope } from '../../../../../components/Panel/config'
 import { MARGIN_BOTTOM_OPTIONS, MARGIN_TOP_OPTIONS, MARGIN_Y_OPTIONS, PADDING_LEFT_OPTIONS, PADDING_OPTIONS, PADDING_Y_OPTIONS } from '../../../../../components/tailwindSpacingScale'
 import { BORDER_LEFT_WIDTH_OPTIONS, FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, FONT_WEIGHT_OPTIONS, LEADING_OPTIONS, MAX_WIDTH_OPTIONS, MD_FONT_SIZE_OPTIONS, RADIUS_OPTIONS, TRACKING_OPTIONS } from '../../../../../components/tailwindTypographyScale'
 import { DEFAULT_POST_LAB_ARTICLE_CONFIG, type MarkdownContentConfig } from './registered'
 
 const colorModeOptions = [{ label: 'COLUMN', value: 'column' }, { label: 'SURFACE', value: 'surface' }, { label: 'CUSTOM', value: 'custom' }] as const
 export const POST_LAB_ARTICLE_READING_SCOPE_ID = 'PostLabArticle/reading' as const
+const tailwindReadingField = createTailwindFieldFactory<MarkdownContentConfig>()
 
 export const POST_LAB_ARTICLE_READING_PANEL = defineConfigScope<MarkdownContentConfig>({
   id: POST_LAB_ARTICLE_READING_SCOPE_ID, component: 'PostLabArticle', scope: 'reading',
   title: 'Article reading', createdAt: '2026-08-11', defaultOpen: false,
   summary: 'Tailwind reading rhythm · editorial typography · derived ink · structured content',
   defaultValue: DEFAULT_POST_LAB_ARTICLE_CONFIG,
+  // The post page uses live scroll-adaptive ink for its body and muted text.
+  // The body target still feeds the static code-ink derivation; the muted
+  // target is replaced entirely on this page. Neither sets paragraph contrast.
+  hiddenKeys: ['bodyTextMinContrast', 'mutedTextMinContrast'],
   fields: [
     { kind: 'group', label: 'Reading frame', fields: [
       { kind: 'select', key: 'contentMaxWidth', label: 'Body reading measure', description: 'Literal Tailwind max-width token. The prose default protects sustained reading line length.', options: MAX_WIDTH_OPTIONS },
@@ -40,7 +45,9 @@ export const POST_LAB_ARTICLE_READING_PANEL = defineConfigScope<MarkdownContentC
       { kind: 'enum', key: 'bodyFontFamily', label: 'Body family', options: FONT_FAMILY_OPTIONS },
       { kind: 'enum', key: 'bodyFontSize', label: 'Body size', options: FONT_SIZE_OPTIONS.slice(0, 5) },
       { kind: 'enum', key: 'bodyFontSizeDesktop', label: 'Body size (desktop)', options: MD_FONT_SIZE_OPTIONS.slice(1, 6) },
-      { kind: 'enum', key: 'bodyLeading', label: 'Body line height', options: LEADING_OPTIONS },
+      tailwindReadingField('lineHeight', { key: 'bodyLeading', label: 'Body line height (mobile)', description: 'Base line height, used below the medium breakpoint.' }),
+      tailwindReadingField('lineHeight', { breakpoint: 'md', key: 'bodyLeadingMd', label: 'Body line height (tablet)', description: 'Applies from the medium breakpoint until the large breakpoint.' }),
+      tailwindReadingField('lineHeight', { breakpoint: 'lg', key: 'bodyLeadingLg', label: 'Body line height (desktop)', description: 'Applies from the large breakpoint upward.' }),
       { kind: 'enum', key: 'bodyTracking', label: 'Body tracking', options: TRACKING_OPTIONS },
       { kind: 'select', key: 'paragraphMarginBottom', label: 'Paragraph gap', options: MARGIN_BOTTOM_OPTIONS },
       { kind: 'enum', key: 'strongColorMode', label: 'Bold text source', options: [{ label: 'INHERIT (BODY INK)', value: 'inherit' }, { label: 'CUSTOM', value: 'custom' }] },
@@ -59,14 +66,15 @@ export const POST_LAB_ARTICLE_READING_PANEL = defineConfigScope<MarkdownContentC
       { kind: 'select', key: 'h3MarginTop', label: 'H3 top space', options: MARGIN_TOP_OPTIONS },
       { kind: 'select', key: 'h3MarginBottom', label: 'H3 bottom space', options: MARGIN_BOTTOM_OPTIONS },
     ] },
-    { kind: 'group', label: 'Derived reading ink', fields: [
-      { kind: 'enum', key: 'bodyTextColorMode', label: 'Text source', options: colorModeOptions },
-      { kind: 'color', key: 'bodyTextColor', label: 'Custom text color', visibleWhen: config => config.bodyTextColorMode === 'custom' },
-      { kind: 'number', key: 'bodyTextMinContrast', label: 'Body minimum contrast', min: 3, max: 21, step: 0.1 },
+    { kind: 'group', label: 'Reading contrast', fields: [
+      { kind: 'number', key: 'bodyInkOpacity', label: 'Body text opacity', description: 'Controls paragraphs, lists, bold text, excerpts, and blockquotes. Higher values strengthen the rendered ink; contrast still varies with the scroll background.', min: 0.65, max: 1, step: 0.01 },
+    ] },
+    { kind: 'group', label: 'Derived link and code ink', fields: [
+      { kind: 'enum', key: 'bodyTextColorMode', label: 'Ink source', description: 'Source for generated link and code ink. Paragraphs use the live column ink above.', options: colorModeOptions },
+      { kind: 'color', key: 'bodyTextColor', label: 'Custom ink source', visibleWhen: config => config.bodyTextColorMode === 'custom' },
       { kind: 'number', key: 'bodyTextOriginalHueRetention', label: 'Original hue retention', min: 0, max: 1, step: 0.01 },
       { kind: 'number', key: 'bodyTextHueShiftDegrees', label: 'Hue shift', min: -180, max: 180, step: 1, unit: '°', integer: true },
       { kind: 'number', key: 'bodyTextPigmentIntensity', label: 'Text pigment intensity', min: 0, max: 2, step: 0.01 },
-      { kind: 'number', key: 'mutedTextMinContrast', label: 'Support-text contrast', min: 3, max: 21, step: 0.1 },
       { kind: 'number', key: 'linkTextMinContrast', label: 'Link contrast', min: 3, max: 21, step: 0.1 },
       { kind: 'number', key: 'linkPigmentIntensity', label: 'Link pigment intensity', min: 0, max: 2, step: 0.01 },
     ] },

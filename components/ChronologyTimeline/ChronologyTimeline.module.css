@@ -1,0 +1,267 @@
+.root {
+  --chronology-rail-x: 5.5rem;
+  --chronology-lane: var(--chronology-content-gap-base);
+  --chronology-track-width: var(--chronology-track-width-base);
+  --chronology-track-opacity: var(--chronology-track-opacity-base);
+  position: relative;
+  width: 100%;
+  color: inherit;
+}
+@media (max-width: 767px) {
+  .root[data-year-placement='outward'][data-month-placement='inward'][data-show-months='true'] {
+    --chronology-rail-x: 4.5rem;
+  }
+  .root[data-year-placement='inward']:is([data-month-placement='inward'], [data-show-months='false']) {
+    --chronology-rail-x: 0.5rem;
+  }
+  .root[data-year-placement='inward'] .label[data-kind='year'] {
+    left: calc(var(--chronology-rail-x) + var(--chronology-year-dot) / 2);
+    transform: translateY(-50%);
+  }
+  .root[data-month-placement='inward'] .label[data-kind='month'] {
+    left: calc(var(--chronology-rail-x) + var(--chronology-month-dot) / 2);
+    transform: translateY(-50%);
+  }
+}
+@media (max-width: 359px) {
+  .root[data-year-placement='outward'][data-month-placement='inward'][data-show-months='true'] {
+    --chronology-rail-x: 3.8125rem;
+  }
+  /* The year label's own `left: -1rem` nudge that used to live here is gone:
+     it compensated for the old fixed-width label box (width: calc(rail-x -
+     0.85rem)) overflowing this cramped rail-x on tiny screens. The label is
+     now a shrink-to-content box (see .label's own doc comment below) with
+     nothing to overflow, so that compensation no longer has anything to
+     compensate for. */
+}
+
+.dated { position: relative; }
+
+.year { position: relative; padding-bottom: 2.25rem; }
+.year:last-of-type { padding-bottom: 0; }
+/* Bug fix (operator-reported three times, screenshot evidence each time):
+   the rail used to be one pseudo-element (.dated::before) shared by every
+   year, so a dimmed year's dot could repaint to a lighter solid color while
+   the line passing through it stayed at full, undimmed color — one shared
+   element can't hold two different colors for two different years' states
+   at once. The rail is now drawn per year, as this element (first child of
+   `.year`, so it paints behind that year's own dot/content), reading the
+   *exact same* variables that year's own dot reads: `--chronology-ink` at
+   rest, `--chronology-year-fade-dot-color` when dimmed (see .dot's own
+   dimmed rule below).
+   `top: 0; height: 100%` below are only the pre-measurement fallback.
+   ChronologyTimeline.tsx's own effect immediately overrides both with
+   inline styles, measured dot-center to dot-center (this year's own dot
+   down to the next year's dot, or its own last dot if it's the terminal
+   year) — not the section's raw edges, which sit above/below where the
+   actual dots are (see that effect's own doc comment for the two bugs that
+   produced: a stray tail above the very first dot, and the color handoff
+   landing short of the next dot instead of exactly on it). */
+.yearRail {
+  position: absolute;
+  /* Centered on the rail-x the dots themselves center on (same -half-width
+     offset .dot already applies), so a thicker configured track width
+     doesn't drift the line off from under the dots. */
+  left: calc(var(--chronology-rail-x) - var(--chronology-track-width) / 2);
+  top: 0;
+  height: 100%;
+  width: var(--chronology-track-width);
+  background: var(--chronology-ink);
+  opacity: var(--chronology-track-opacity);
+  z-index: 0;
+  transition: background-color var(--chronology-year-fade-duration, 0ms) var(--chronology-year-fade-easing, ease) 0ms;
+}
+.year[data-dimmed='true'] .yearRail {
+  background: var(--chronology-year-fade-dot-color, var(--chronology-ink));
+  transition-delay: var(--chronology-year-fade-delay, 0ms);
+}
+/* Label/items have nothing solid behind them, so a real opacity fade is
+   safe here. The rail dots are handled separately below — see .dot's own
+   doc comment for why they can't use opacity. */
+.year .label,
+.year .items {
+  opacity: 1;
+  transition: opacity var(--chronology-year-fade-duration, 0ms) var(--chronology-year-fade-easing, ease) 0ms;
+}
+.year[data-dimmed='true'] .label,
+.year[data-dimmed='true'] .items {
+  opacity: var(--chronology-year-fade-opacity, 1);
+  transition-delay: var(--chronology-year-fade-delay, 0ms);
+}
+.month {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--chronology-lane) minmax(0, 1fr);
+  padding-top: 1.25rem;
+}
+/* Bug fix (operator-reported three times, screenshot evidence each time):
+   a block-level element with no width set computes to `auto`, which for a
+   normal block box means *fill the containing block's width* — true
+   regardless of whether its children are in-flow or absolutely positioned
+   (an earlier pass here mistakenly assumed removing the flex layout made
+   this a non-issue; it didn't — `width: auto` block-filling happens with or
+   without flex). Dot and label are both position: absolute, so this element
+   has no in-flow content at all; left at `auto` it still stretched to the
+   full row width regardless. `width: fit-content` makes it shrink-wrap its
+   (absolutely positioned, so effectively zero-size) content instead.
+   `.month > .markerRow` below still sets its own explicit position/width
+   (more specific selector, wins regardless). */
+.markerRow { position: relative; min-height: 1.75rem; width: fit-content; }
+.month > .markerRow {
+  position: absolute;
+  left: 0;
+  top: var(--chronology-month-anchor-y, 3rem);
+  transform: translateY(-50%);
+  width: var(--chronology-lane);
+  min-height: 1.5rem;
+}
+.month > .items { grid-column: 2; margin-left: 0; }
+/* Dots sit exactly on the rail line (.yearRail) and must stay fully
+   opaque to keep occluding it — fading them via `opacity` lets the
+   always-opaque line behind show straight through the circle (the browser
+   flattens a dimmed `.year`'s whole subtree, dot included, into one layer
+   before blending it as a group). Dimming is simulated with a solid color
+   instead (see ChronologyTimeline.tsx's yearDotFadedColor/monthDotFadedColor,
+   derived via colord's deriveOpaqueTint), so only `background-color`
+   transitions here, never `opacity`. */
+.dot {
+  position: absolute;
+  z-index: 1;
+  /* Bug fix (operator-reported, screenshot evidence): this carried a stray
+     `+ 0.5px` the track's own centering formula (.yearRail's `left: calc(
+     var(--chronology-rail-x) - var(--chronology-track-width) / 2)`) never
+     had, so the dot sat half a pixel off from the line's true center —
+     small in absolute terms, but an obvious, visibly off-center dot once
+     the screenshot is zoomed in. Dropped so both use the exact same
+     rail-x-minus-half-own-width formula, with nothing extra on either side. */
+  left: calc(var(--chronology-rail-x) - var(--chronology-year-dot) / 2);
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--chronology-year-dot);
+  height: var(--chronology-year-dot);
+  border-radius: 999px;
+  /* --chronology-ink (not --chronology-year-color) — the year dot must
+     match the rail line it sits on; --chronology-year-color is reserved for
+     the year label text, which is deliberately allowed its own ink. */
+  background: var(--chronology-ink);
+  transition: background-color var(--chronology-year-fade-duration, 0ms) var(--chronology-year-fade-easing, ease) 0ms;
+}
+.dot[data-kind='month'] {
+  left: calc(var(--chronology-rail-x) - var(--chronology-month-dot) / 2);
+  width: var(--chronology-month-dot);
+  height: var(--chronology-month-dot);
+  background: var(--chronology-month-color);
+}
+.year[data-dimmed='true'] .dot[data-kind='year'] {
+  background: var(--chronology-year-fade-dot-color, var(--chronology-ink));
+  transition-delay: var(--chronology-year-fade-delay, 0ms);
+}
+.year[data-dimmed='true'] .dot[data-kind='month'] {
+  background: var(--chronology-month-fade-dot-color, var(--chronology-month-color));
+  transition-delay: var(--chronology-year-fade-delay, 0ms);
+}
+/* Bug fix (operator-reported three times, screenshot evidence each time):
+   every earlier version of this rule gave the label an explicit CSS width
+   (first a flat `- 0.85rem` off the rail, then `rail-x - dot-radius`) and
+   used text-align to push the text to whichever end faces the rail. Either
+   way, the box itself was sized off `--chronology-rail-x` — a fixed length
+   that has nothing to do with how wide the label's own text actually is —
+   so a short label ("2023") left real, visible empty space on the box's
+   *non-rail* side: to its left when outward (right-aligned text in a box
+   wider than the text), to its right when inward (left-aligned text in a
+   box wider than the text). Zeroing the configured padding only removed the
+   *extra, intentional* gap on the rail side; it could never touch this
+   structural one on the far side, because that space wasn't padding at all.
+   The label is now sized to its own content (no `width` at all — the
+   browser's own default for an absolutely-positioned element with only one
+   inset set) and pinned to the dot's physical edge with a translate, the
+   standard CSS "shrink-to-fit, anchored at one edge" pattern:
+   - outward (below): `left` is set to the dot's left edge; `translateX(-100%)`
+     then shifts the box fully behind that point, so the box's own *right*
+     edge — not some arbitrary wider box's edge — lands exactly there.
+   - inward (the per-breakpoint overrides further up/below): `left` is set to
+     the dot's right edge directly, no transform needed — the box's left
+     edge IS the pin point.
+   Configured padding-right/padding-left (toRailEdgePaddingX in
+   ChronologyTimeline.tsx) still lands between the text and that pinned
+   edge in both cases (padding is interior to the box; the pinned edge is
+   the box's outer border edge either way) — now it's the *only* space
+   there, on either side, for any text length or dot size. */
+.label {
+  position: absolute;
+  top: 50%;
+  margin: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  color: var(--chronology-ink);
+  font-variant-numeric: tabular-nums;
+}
+.label[data-kind='year'] {
+  color: var(--chronology-year-color);
+  left: calc(var(--chronology-rail-x) - var(--chronology-year-dot) / 2);
+  transform: translate(-100%, -50%);
+}
+.label[data-kind='month'] {
+  color: var(--chronology-month-color);
+  left: calc(var(--chronology-rail-x) - var(--chronology-month-dot) / 2);
+  transform: translate(-100%, -50%);
+}
+.monthShort { display: none; }
+.root[data-month-format-base='short'] .monthFull { display: none; }
+.root[data-month-format-base='short'] .monthShort { display: inline; }
+.items { margin-left: var(--chronology-lane); min-width: 0; }
+.undated { position: relative; padding-top: 2rem; }
+/* This label has no [data-kind] (it isn't a year/month marker), so it only
+   ever inherits .label's own base rule above — now position: absolute with
+   no left/transform set. Reset back to normal in-flow positioning here,
+   same as before this rewrite. */
+.undated .label { position: relative; top: auto; transform: none; width: auto; margin-left: var(--chronology-lane); text-align: left; }
+.undated .items { margin-top: 1rem; }
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .root { --chronology-rail-x: 6.75rem; --chronology-lane: var(--chronology-content-gap-md); --chronology-track-width: var(--chronology-track-width-md); --chronology-track-opacity: var(--chronology-track-opacity-md); }
+  .root[data-year-placement-md='inward']:is([data-month-placement-md='inward'], [data-show-months='false']) { --chronology-rail-x: 0.5rem; }
+  .root[data-year-placement-md='inward'] .label[data-kind='year'] {
+    left: calc(var(--chronology-rail-x) + var(--chronology-year-dot) / 2);
+    transform: translateY(-50%);
+  }
+  .root[data-month-placement-md='inward'] .label[data-kind='month'] {
+    left: calc(var(--chronology-rail-x) + var(--chronology-month-dot) / 2);
+    transform: translateY(-50%);
+  }
+  .root[data-month-format-md='full'] .monthFull { display: inline; }
+  .root[data-month-format-md='full'] .monthShort { display: none; }
+  .root[data-month-format-md='short'] .monthFull { display: none; }
+  .root[data-month-format-md='short'] .monthShort { display: inline; }
+}
+@media (min-width: 1024px) {
+  .root { --chronology-rail-x: 6.75rem; --chronology-lane: var(--chronology-content-gap-lg); --chronology-track-width: var(--chronology-track-width-lg); --chronology-track-opacity: var(--chronology-track-opacity-lg); }
+  .root[data-year-placement-lg='inward']:is([data-month-placement-lg='inward'], [data-show-months='false']) { --chronology-rail-x: 0.5rem; }
+  .root[data-year-placement-lg='inward'] .label[data-kind='year'] {
+    left: calc(var(--chronology-rail-x) + var(--chronology-year-dot) / 2);
+    transform: translateY(-50%);
+  }
+  .root[data-month-placement-lg='inward'] .label[data-kind='month'] {
+    left: calc(var(--chronology-rail-x) + var(--chronology-month-dot) / 2);
+    transform: translateY(-50%);
+  }
+  .root[data-month-format-lg='full'] .monthFull { display: inline; }
+  .root[data-month-format-lg='full'] .monthShort { display: none; }
+  .root[data-month-format-lg='short'] .monthFull { display: none; }
+  .root[data-month-format-lg='short'] .monthShort { display: inline; }
+}
+
+/* Operator ask (2026-10-04): the year label pins near the top of the
+   viewport for the duration of its own months, releasing the instant its
+   own `.year` section ends (native CSS sticky containment — no JS scroll
+   tracking, so the pin/release can't be jumpy). Tablet and desktop only,
+   matching the breakpoint blocks above; mobile's own `.markerRow` for the
+   year stays in normal flow (no override here). Opt-out via `data-year-
+   sticky`, set from `config.yearStickyEnabled` in ChronologyTimeline.tsx. */
+@media (min-width: 768px) {
+  .root[data-year-sticky='true'] .year > .markerRow {
+    position: sticky;
+    top: 1.5rem;
+    z-index: 3;
+  }
+}

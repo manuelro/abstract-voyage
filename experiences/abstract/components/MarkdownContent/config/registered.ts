@@ -31,6 +31,11 @@ import {
   type RadiusClass,
   type TrackingClass,
 } from '../../../../../components/tailwindTypographyScale'
+import {
+  normalizeTailwindToken,
+  translateTailwindTokenBreakpoint,
+  type TailwindTokenValue,
+} from '../../../../../components/Panel/config/tailwindFields'
 
 export type MarkdownContentFontFamily = FontFamilyClass
 export type MarkdownContentTextColorMode = 'column' | 'surface' | 'custom'
@@ -70,7 +75,9 @@ export type MarkdownContentConfig = {
   bodyFontFamily: MarkdownContentFontFamily
   bodyFontSize: FontSizeClass
   bodyFontSizeDesktop: MdFontSizeClass
-  bodyLeading: LeadingClass
+  bodyLeading: TailwindTokenValue<'lineHeight'>
+  bodyLeadingMd: TailwindTokenValue<'lineHeight', 'md'>
+  bodyLeadingLg: TailwindTokenValue<'lineHeight', 'lg'>
   bodyTracking: TrackingClass
   paragraphMarginBottom: MarginBottomClass
   /** Governs `<strong>`/`**bold**` phrases within the article body. Distinct
@@ -93,6 +100,10 @@ export type MarkdownContentConfig = {
   h2MarginBottom: MarginBottomClass
   h3MarginTop: MarginTopClass
   h3MarginBottom: MarginBottomClass
+  /** Opacity of the reading ink applied to paragraphs, lists, strong text,
+   * and muted prose. Ink adapts to scroll only while the column's visible
+   * gradient background also darkens with scroll. */
+  bodyInkOpacity: number
   bodyTextColorMode: MarkdownContentTextColorMode
   bodyTextColor: string
   bodyTextMinContrast: number
@@ -125,12 +136,12 @@ export type MarkdownContentConfig = {
 
 export const DEFAULT_POST_LAB_ARTICLE_CONFIG = {
   contentMaxWidth: 'max-w-xl',
-  mastheadToProseMarginTop: 'mt-16',
+  mastheadToProseMarginTop: 'mt-10',
   metadataFontSize: 'text-xs',
   metadataLetterSpacingEm: 0.11,
   metadataUppercase: true,
   metadataTitleMarginTop: 'mt-2.5',
-  metadataOpacity: 0.6,
+  metadataOpacity: 0.7,
   titleFontFamily: 'font-serif',
   titleAllCaps: false,
   titleFontSize: 'text-4xl',
@@ -138,18 +149,20 @@ export const DEFAULT_POST_LAB_ARTICLE_CONFIG = {
   titleFontWeight: 'font-medium',
   titleLeading: 'leading-none',
   titleMaxWidth: 'max-w-2xl',
-  excerptVisible: false,
-  excerptFontFamily: 'font-sans',
+  excerptVisible: true,
+  excerptFontFamily: 'font-serif',
   excerptFontSize: 'text-lg',
-  excerptFontSizeDesktop: 'md:text-xl',
+  excerptFontSizeDesktop: 'md:text-2xl',
   excerptLeading: 'leading-relaxed',
-  excerptMarginTop: 'mt-4',
+  excerptMarginTop: 'mt-5',
   bodyFontFamily: 'font-sans',
   bodyFontSize: 'text-sm',
   bodyFontSizeDesktop: 'md:text-base',
   bodyLeading: 'leading-relaxed',
-  bodyTracking: 'tracking-normal',
-  paragraphMarginBottom: 'mb-5',
+  bodyLeadingMd: 'md:leading-relaxed',
+  bodyLeadingLg: 'lg:leading-relaxed',
+  bodyTracking: 'tracking-tight',
+  paragraphMarginBottom: 'mb-3',
   // strongOpacity was 0.93 — nearly invisible against a static surface, but
   // over the scroll-gradient's saturated, multi-hue background even that
   // small an alpha gap lets a visibly different hue bleed through behind
@@ -164,7 +177,7 @@ export const DEFAULT_POST_LAB_ARTICLE_CONFIG = {
   strongColorMode: 'inherit',
   strongCustomColor: '#1f2937',
   strongOpacity: 1,
-  strongFontWeight: 'font-semibold',
+  strongFontWeight: 'font-medium',
   headingFontFamily: 'font-serif',
   headingFontWeight: 'font-medium',
   headingLeading: 'leading-tight',
@@ -172,31 +185,32 @@ export const DEFAULT_POST_LAB_ARTICLE_CONFIG = {
   h2FontSizeDesktop: 'md:text-4xl',
   h3FontSize: 'text-xl',
   h3FontSizeDesktop: 'md:text-2xl',
-  h2MarginTop: 'mt-14',
+  h2MarginTop: 'mt-11',
   h2MarginBottom: 'mb-3',
-  h3MarginTop: 'mt-14',
-  h3MarginBottom: 'mb-4',
+  h3MarginTop: 'mt-11',
+  h3MarginBottom: 'mb-0',
+  bodyInkOpacity: 0.9,
   bodyTextColorMode: 'column',
   bodyTextColor: '#1f2937',
-  bodyTextMinContrast: 3,
+  bodyTextMinContrast: 21,
   bodyTextOriginalHueRetention: 0.42,
   bodyTextHueShiftDegrees: 0,
-  bodyTextPigmentIntensity: 0.44,
-  mutedTextMinContrast: 5.2,
-  linkTextMinContrast: 8.9,
+  bodyTextPigmentIntensity: 1.23,
+  mutedTextMinContrast: 9.1,
+  linkTextMinContrast: 15.9,
   linkPigmentIntensity: 0.44,
-  richBlockMarginY: 'my-10',
+  richBlockMarginY: 'my-8',
   blockquotePaddingLeft: 'pl-5',
   blockquoteRuleWidth: 'border-l-8',
   figureRadius: 'rounded-lg',
-  figureBorderOpacity: 0.15,
+  figureBorderOpacity: 0.12,
   captionFontFamily: 'font-sans',
   captionFontSize: 'text-xs',
   tableFontFamily: 'font-sans',
   tableFontSize: 'text-sm',
   tableLeading: 'leading-relaxed',
   tableRowPaddingY: 'py-3',
-  tableDividerOpacity: 0.14,
+  tableDividerOpacity: 0.1,
   codeSurfaceMode: 'derived-dark',
   codeSurfaceColor: '#d8d9ea',
   codeTextMinContrast: 3,
@@ -227,6 +241,15 @@ const codeSurfaceMode = (value: string): MarkdownContentCodeSurfaceMode => value
 
 export function normalizePostLabArticleConfig(config: Partial<MarkdownContentConfig> | undefined): MarkdownContentConfig {
   const base = { ...DEFAULT_POST_LAB_ARTICLE_CONFIG, ...(config ?? {}) }
+  const bodyLeading = normalizeTailwindToken({ utility: 'lineHeight', breakpoint: 'base', value: base.bodyLeading, fallback: DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyLeading })
+  // Older saved scopes had one line-height field. Carry that choice through
+  // all widths unless a breakpoint value was explicitly saved.
+  const legacyMdLeading = config?.bodyLeading !== undefined && config.bodyLeadingMd === undefined
+    ? translateTailwindTokenBreakpoint('lineHeight', 'base', 'md', bodyLeading, DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyLeadingMd)
+    : DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyLeadingMd
+  const legacyLgLeading = config?.bodyLeading !== undefined && config.bodyLeadingLg === undefined
+    ? translateTailwindTokenBreakpoint('lineHeight', 'base', 'lg', bodyLeading, DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyLeadingLg)
+    : DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyLeadingLg
   return {
     contentMaxWidth: token(base.contentMaxWidth, values(MAX_WIDTH_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.contentMaxWidth),
     mastheadToProseMarginTop: token(base.mastheadToProseMarginTop, values(MARGIN_TOP_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.mastheadToProseMarginTop),
@@ -251,7 +274,9 @@ export function normalizePostLabArticleConfig(config: Partial<MarkdownContentCon
     bodyFontFamily: family(base.bodyFontFamily, DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyFontFamily),
     bodyFontSize: token(base.bodyFontSize, values(FONT_SIZE_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyFontSize),
     bodyFontSizeDesktop: token(base.bodyFontSizeDesktop, values(MD_FONT_SIZE_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyFontSizeDesktop),
-    bodyLeading: token(base.bodyLeading, values(LEADING_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyLeading),
+    bodyLeading,
+    bodyLeadingMd: normalizeTailwindToken({ utility: 'lineHeight', breakpoint: 'md', value: config?.bodyLeadingMd, fallback: legacyMdLeading }),
+    bodyLeadingLg: normalizeTailwindToken({ utility: 'lineHeight', breakpoint: 'lg', value: config?.bodyLeadingLg, fallback: legacyLgLeading }),
     bodyTracking: token(base.bodyTracking, values(TRACKING_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyTracking),
     paragraphMarginBottom: token(base.paragraphMarginBottom, values(MARGIN_BOTTOM_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.paragraphMarginBottom),
     strongColorMode: strongColorMode(base.strongColorMode),
@@ -269,6 +294,7 @@ export function normalizePostLabArticleConfig(config: Partial<MarkdownContentCon
     h2MarginBottom: token(base.h2MarginBottom, values(MARGIN_BOTTOM_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.h2MarginBottom),
     h3MarginTop: token(base.h3MarginTop, values(MARGIN_TOP_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.h3MarginTop),
     h3MarginBottom: token(base.h3MarginBottom, values(MARGIN_BOTTOM_OPTIONS), DEFAULT_POST_LAB_ARTICLE_CONFIG.h3MarginBottom),
+    bodyInkOpacity: clamp(base.bodyInkOpacity, 0.65, 1, DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyInkOpacity),
     bodyTextColorMode: textColorMode(base.bodyTextColorMode), bodyTextColor: color(base.bodyTextColor, DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyTextColor),
     bodyTextMinContrast: clamp(base.bodyTextMinContrast, 3, 21, DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyTextMinContrast),
     bodyTextOriginalHueRetention: clamp(base.bodyTextOriginalHueRetention, 0, 1, DEFAULT_POST_LAB_ARTICLE_CONFIG.bodyTextOriginalHueRetention),
