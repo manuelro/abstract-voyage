@@ -64,7 +64,11 @@ const TITLE_FONT_SIZE_REM: Record<string, number> = {
 // below always tracks whatever line-height an operator actually configures,
 // not a value that was only ever correct while line-height was hardcoded.
 const LINE_HEIGHT_MULTIPLIER: Record<string, number> = Object.fromEntries(
-  LINE_HEIGHT_OPTIONS.map(option => [option.value, Number.parseFloat(option.label)]),
+  // Production replaces panel-facing config exports with safe stand-ins.
+  // This lookup is only a rendering fallback, so accept the catalog when it
+  // is present and otherwise use the existing 1.3 fallback below.
+  (Array.isArray(LINE_HEIGHT_OPTIONS) ? LINE_HEIGHT_OPTIONS : [])
+    .map(option => [option.value, Number.parseFloat(option.label)]),
 );
 
 export interface AboutTimelineProps {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T01:45:02.289Z",
+  "generatedAt": "2026-10-06T05:00:43.453Z",
   "scopes": [
     {
       "real": "components/ArticleMetaRow/config/appearance.panel.ts",
@@ -8,23 +8,8 @@
         "ARTICLE_META_ROW_APPEARANCE_FIELDS",
         "ARTICLE_META_ROW_APPEARANCE_SCOPE_ID",
         "ARTICLE_META_ROW_APPEARANCE_PANEL"
-      ]
-    },
-    {
-      "real": "components/ArticleMetaRow/config/appearance.ts",
-      "stub": "components/ArticleMetaRow/config/appearance.stub.ts",
-      "exports": [
-        "DEFAULT_ARTICLE_META_ROW_APPEARANCE_CONFIG",
-        "normalizeArticleMetaRowAppearanceConfig"
-      ]
-    },
-    {
-      "real": "components/Chip/Chip.tsx",
-      "stub": "components/Chip/Chip.stub.ts",
-      "exports": [
-        "CHIP_DEFAULT_CLASS_NAME",
-        "Chip"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/Chip/config/appearance.panel.ts",
@@ -33,30 +18,16 @@
         "CHIP_APPEARANCE_FIELDS",
         "CHIP_APPEARANCE_SCOPE_ID",
         "CHIP_APPEARANCE_PANEL"
-      ]
-    },
-    {
-      "real": "components/Chip/config/appearance.ts",
-      "stub": "components/Chip/config/appearance.stub.ts",
-      "exports": [
-        "DEFAULT_CHIP_APPEARANCE_CONFIG",
-        "normalizeChipAppearanceConfig"
-      ]
-    },
-    {
-      "real": "components/ChronologyTimeline/ChronologyTimeline.config.ts",
-      "stub": "components/ChronologyTimeline/ChronologyTimeline.config.stub.ts",
-      "exports": [
-        "DEFAULT_CHRONOLOGY_TIMELINE_CONFIG",
-        "normalizeChronologyTimelineConfig"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/ChronologyTimeline/ChronologyTimeline.panel.ts",
       "stub": "components/ChronologyTimeline/ChronologyTimeline.panel.stub.ts",
       "exports": [
         "CHRONOLOGY_TIMELINE_FIELDS"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/CtaButton/config/colorOverride.panel.ts",
@@ -65,7 +36,8 @@
         "createCtaButtonColorOverridePanel",
         "ABSTRACT_CTA_BUTTON_COLOR_OVERRIDE_PANEL",
         "CONTACT_CTA_BUTTON_COLOR_OVERRIDE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/CtaButton/config/panel.ts",
@@ -73,7 +45,8 @@
       "exports": [
         "CTA_BUTTON_APPEARANCE_SCOPE_ID",
         "CTA_BUTTON_APPEARANCE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/FiberHeading.panel.ts",
@@ -81,7 +54,8 @@
       "exports": [
         "FIBER_HEADING_APPEARANCE_SCOPE_ID",
         "FIBER_HEADING_APPEARANCE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/GlobalTypography.panel.ts",
@@ -89,7 +63,8 @@
       "exports": [
         "GLOBAL_TYPOGRAPHY_APPEARANCE_SCOPE_ID",
         "GLOBAL_TYPOGRAPHY_APPEARANCE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/LayoutDebug.panel.ts",
@@ -98,7 +73,8 @@
         "LAYOUT_DEBUG_SCOPE_ID",
         "LAYOUT_DEBUG_FIELDS",
         "LAYOUT_DEBUG_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/PageSurface.panel.ts",
@@ -106,7 +82,8 @@
       "exports": [
         "PAGE_SURFACE_APPEARANCE_SCOPE_ID",
         "PAGE_SURFACE_APPEARANCE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "components/SectionHeading.panel.ts",
@@ -114,15 +91,8 @@
       "exports": [
         "SECTION_HEADING_APPEARANCE_SCOPE_ID",
         "SECTION_HEADING_APPEARANCE_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/about/components/AboutMobileAccordion.config.ts",
-      "stub": "experiences/about/components/AboutMobileAccordion.config.stub.ts",
-      "exports": [
-        "DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG",
-        "normalizeAboutMobileAccordionConfig"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/about/components/AboutMobileAccordion.panel.ts",
@@ -131,24 +101,8 @@
         "ABOUT_MOBILE_ACCORDION_SCOPE_ID",
         "ABOUT_MOBILE_ACCORDION_TYPOGRAPHY_FIELDS",
         "ABOUT_MOBILE_ACCORDION_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/about/components/AboutTimeline.config.ts",
-      "stub": "experiences/about/components/AboutTimeline.config.stub.ts",
-      "exports": [
-        "MARKER_SIZE_OPTIONS",
-        "RULE_WEIGHT_OPTIONS",
-        "LINE_HEIGHT_OPTIONS",
-        "LINE_HEIGHT_WIDE_OPTIONS",
-        "LINE_HEIGHT_LG_OPTIONS",
-        "FONT_WEIGHT_WIDE_OPTIONS",
-        "FONT_WEIGHT_LG_OPTIONS",
-        "APPENDIX_SEPARATOR_OPTIONS",
-        "CATEGORY_SEPARATOR_OPTIONS",
-        "DEFAULT_ABOUT_TIMELINE_CONFIG",
-        "normalizeAboutTimelineConfig"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/about/components/AboutTimeline.panel.ts",
@@ -158,7 +112,8 @@
         "MOTION_EASING_OPTIONS",
         "ABOUT_TIMELINE_PANEL_FIELDS",
         "ABOUT_TIMELINE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/about/components/EditorialAccordionItem.panel.ts",
@@ -166,7 +121,8 @@
       "exports": [
         "EDITORIAL_ACCORDION_ITEM_FIELDS",
         "EDITORIAL_ACCORDION_ITEM_HIDDEN_KEYS"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/LabSection.panel.ts",
@@ -174,14 +130,8 @@
       "exports": [
         "ABSTRACT_LAB_SECTION_APPEARANCE_SCOPE_ID",
         "ABSTRACT_LAB_SECTION_APPEARANCE_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/AbstractCoverFlowTimelineSlot.tsx",
-      "stub": "experiences/abstract/components/AbstractCoverFlowTimelineSlot.stub.ts",
-      "exports": [
-        "AbstractCoverFlowTimelineSlot"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/AbstractEditorialHero.panel.ts",
@@ -189,7 +139,8 @@
       "exports": [
         "ABSTRACT_EDITORIAL_HERO_LAYOUT_SCOPE_ID",
         "ABSTRACT_EDITORIAL_HERO_LAYOUT_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/AbstractHeroCtaComposer/config/panel.ts",
@@ -197,7 +148,8 @@
       "exports": [
         "ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_SCOPE_ID",
         "ABSTRACT_HERO_CTA_COMPOSER_ENTRANCE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/AbstractJournalLabCollection/config/presentation.panel.ts",
@@ -205,7 +157,8 @@
       "exports": [
         "ABSTRACT_JOURNAL_LAB_COLLECTION_SCOPE_ID",
         "ABSTRACT_JOURNAL_LAB_COLLECTION_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/AbstractJournalLabCollection/config/slider.panel.ts",
@@ -213,7 +166,8 @@
       "exports": [
         "ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_SCOPE_ID",
         "ABSTRACT_JOURNAL_LAB_COLLECTION_SLIDER_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/AbstractMetalLabList.panel.ts",
@@ -221,7 +175,8 @@
       "exports": [
         "ABSTRACT_METAL_LAB_CARD_SCOPE_ID",
         "ABSTRACT_METAL_LAB_CARD_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/AbstractPostDock/config/panel.ts",
@@ -241,7 +196,8 @@
         "ABSTRACT_POST_DOCK_LAYOUT_PANEL",
         "ABSTRACT_POST_DOCK_HOLOGRAM_SCOPE_ID",
         "ABSTRACT_POST_DOCK_HOLOGRAM_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/AbstractTimeline.panel.ts",
@@ -249,14 +205,8 @@
       "exports": [
         "ABSTRACT_TIMELINE_SCOPE_ID",
         "ABSTRACT_TIMELINE_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/Card/Card.tsx",
-      "stub": "experiences/abstract/components/Card/Card.stub.ts",
-      "exports": [
-        "Card"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/Card/config/appearance.panel.ts",
@@ -264,15 +214,8 @@
       "exports": [
         "CARD_APPEARANCE_SCOPE_ID",
         "CARD_APPEARANCE_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/Card/config/appearance.ts",
-      "stub": "experiences/abstract/components/Card/config/appearance.stub.ts",
-      "exports": [
-        "DEFAULT_CARD_APPEARANCE_CONFIG",
-        "normalizeCardAppearanceConfig"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/CoverFlow/CoverFlow.panel.ts",
@@ -280,7 +223,8 @@
       "exports": [
         "COVER_FLOW_SCOPE_ID",
         "COVER_FLOW_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/FaceETimeline.panel.ts",
@@ -288,7 +232,8 @@
       "exports": [
         "FACE_E_TIMELINE_SCOPE_ID",
         "FACE_E_TIMELINE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/GradientDesignerPanel.tsx",
@@ -298,7 +243,8 @@
         "DEFAULT_GRADIENT_DESIGNER_CONFIG",
         "selectAbstractPageGradientConfig",
         "GradientDesignerPanel"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/MarkdownContent/config/panel.ts",
@@ -306,15 +252,8 @@
       "exports": [
         "POST_LAB_ARTICLE_READING_SCOPE_ID",
         "POST_LAB_ARTICLE_READING_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/MarkdownContent/config/registered.ts",
-      "stub": "experiences/abstract/components/MarkdownContent/config/registered.stub.ts",
-      "exports": [
-        "DEFAULT_POST_LAB_ARTICLE_CONFIG",
-        "normalizePostLabArticleConfig"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/MobileNavCube.panel.ts",
@@ -322,7 +261,8 @@
       "exports": [
         "MOBILE_NAV_CUBE_SCOPE_ID",
         "MOBILE_NAV_CUBE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/MobilePinnedArticleSection/MobilePinnedArticleSection.panel.ts",
@@ -330,31 +270,8 @@
       "exports": [
         "MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID",
         "MOBILE_PINNED_ARTICLE_SECTION_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/PolymorphicLayout.config.ts",
-      "stub": "experiences/abstract/components/PolymorphicLayout.config.stub.ts",
-      "exports": [
-        "WIDE_COLUMN_CONTENT_MATCH_NARROW_CLASS_WIDE",
-        "WIDE_COLUMN_CONTENT_MATCH_NARROW_CLASS_LG",
-        "POLYMORPHIC_LAYOUT_ENHANCED_GRADIENT_COMPAT_DEFAULTS",
-        "CONTENT_ALIGN_MARGIN_CLASS_WIDE",
-        "CONTENT_ALIGN_MARGIN_CLASS",
-        "CONTENT_ALIGN_MARGIN_CLASS_LG",
-        "POLYMORPHIC_LAYOUT_HEADER_SEGMENT_DEFAULTS",
-        "DEFAULT_POLYMORPHIC_LAYOUT_CONFIG",
-        "normalizePolymorphicLayoutConfig"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/PolymorphicLayout.panel.ts",
-      "stub": "experiences/abstract/components/PolymorphicLayout.panel.stub.ts",
-      "exports": [
-        "RATIO_TIER_OPTIONS",
-        "POLYMORPHIC_LAYOUT_BASE_FIELDS",
-        "POLYMORPHIC_LAYOUT_FIELDS"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/SiteHeader/config/colorOverride.panel.ts",
@@ -365,7 +282,8 @@
         "CONTACT_SITE_HEADER_COLOR_OVERRIDE_PANEL",
         "ABSTRACT_SITE_HEADER_COLOR_OVERRIDE_PANEL",
         "POSTS_LAB_SITE_HEADER_COLOR_OVERRIDE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/SiteHeader/config/panel.ts",
@@ -374,17 +292,8 @@
         "SITE_HEADER_COLORS_SCOPE_ID",
         "SITE_HEADER_COLOR_FIELDS",
         "SITE_HEADER_COLORS_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/SiteHeader/config/registered.ts",
-      "stub": "experiences/abstract/components/SiteHeader/config/registered.stub.ts",
-      "exports": [
-        "SPLIT_ALIGNED_NAV_CONTENT_GAP_PX",
-        "DEFAULT_SITE_HEADER_CONFIG",
-        "normalizeSiteHeaderConfig",
-        "resolveSiteHeaderNavBandColorFilter"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/SiteHeader/config/wordmark.panel.ts",
@@ -393,14 +302,8 @@
         "WORDMARK_SCOPE_ID",
         "WORDMARK_FIELDS",
         "WORDMARK_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/SiteHeader.tsx",
-      "stub": "experiences/abstract/components/SiteHeader.stub.ts",
-      "exports": [
-        "SiteHeader"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/SplitColumnCardPreview/config/stack.panel.ts",
@@ -408,7 +311,8 @@
       "exports": [
         "SPLIT_COLUMN_CARD_STACK_SCOPE_ID",
         "SPLIT_COLUMN_CARD_STACK_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/SplitColumnCardPreview.panel.ts",
@@ -416,7 +320,8 @@
       "exports": [
         "SPLIT_COLUMN_CARD_PREVIEW_SCOPE_ID",
         "SPLIT_COLUMN_CARD_PREVIEW_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/TableOfContents/config/panel.ts",
@@ -424,20 +329,8 @@
       "exports": [
         "POST_LAB_ARTICLE_TOC_SCOPE_ID",
         "POST_LAB_ARTICLE_TOC_PANEL"
-      ]
-    },
-    {
-      "real": "experiences/abstract/components/TableOfContents/config/registered.ts",
-      "stub": "experiences/abstract/components/TableOfContents/config/registered.stub.ts",
-      "exports": [
-        "DEFAULT_POST_LAB_ARTICLE_TOC_CONFIG",
-        "normalizePostLabArticleTocConfig",
-        "resolvePostLabTocDisplayClasses",
-        "resolvePostLabTocReadingSpanClasses",
-        "resolvePostLabTocStickyGapPx",
-        "resolvePostLabTocActiveTrackingOffsetPx",
-        "resolvePostLabTocItemVisualGapCss"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/components/ThoughtCard/config/panel.ts",
@@ -445,21 +338,24 @@
       "exports": [
         "THOUGHT_CARD_SCOPE_ID",
         "THOUGHT_CARD_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/abstract/configPanels.ts",
       "stub": "experiences/abstract/configPanels.stub.ts",
       "exports": [
         "abstractConfigPanelRegistry"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/contact/ContactConfigPanel.tsx",
       "stub": "experiences/contact/ContactConfigPanel.stub.ts",
       "exports": [
         "ContactConfigPanel"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/contact/ContactDevMode.panel.ts",
@@ -467,7 +363,8 @@
       "exports": [
         "CONTACT_DEV_MODE_SCOPE_ID",
         "CONTACT_DEV_MODE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/contact/ContactExperience.panel.ts",
@@ -475,43 +372,40 @@
       "exports": [
         "CONTACT_EXPERIENCE_SCOPE_ID",
         "CONTACT_EXPERIENCE_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/contact/configPanels.ts",
       "stub": "experiences/contact/configPanels.stub.ts",
       "exports": [
         "contactConfigPanelRegistry"
-      ]
-    },
-    {
-      "real": "experiences/journal/components/ArticleFilter/ArticleFilter.config.ts",
-      "stub": "experiences/journal/components/ArticleFilter/ArticleFilter.config.stub.ts",
-      "exports": [
-        "DEFAULT_ARTICLE_FILTER_CONFIG",
-        "normalizeArticleFilterConfig"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/journal/components/ArticleFilter/ArticleFilter.panel.ts",
       "stub": "experiences/journal/components/ArticleFilter/ArticleFilter.panel.stub.ts",
       "exports": [
         "ARTICLE_FILTER_FIELDS"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/postsLab/PostsLabConfigPanel.tsx",
       "stub": "experiences/postsLab/PostsLabConfigPanel.stub.ts",
       "exports": [
         "PostsLabConfigPanel"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/postsLab/configPanels.ts",
       "stub": "experiences/postsLab/configPanels.stub.ts",
       "exports": [
         "postsLabConfigPanelRegistry"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/spacefield/SpacefieldBackground/config/panel.ts",
@@ -519,14 +413,16 @@
       "exports": [
         "SPACEFIELD_SCOPE_ID",
         "SPACEFIELD_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "experiences/spacefield/configPanels.ts",
       "stub": "experiences/spacefield/configPanels.stub.ts",
       "exports": [
         "spacefieldConfigPanelRegistry"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "pages/about.panel.ts",
@@ -543,44 +439,16 @@
         "ABOUT_TOP_SEGMENT_GRADIENT_PANEL",
         "ABOUT_DOCK_PALETTE_PANEL",
         "ABOUT_DOCK_LAYOUT_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "pages/aboutConfigPanels.ts",
       "stub": "pages/aboutConfigPanels.stub.ts",
       "exports": [
         "aboutConfigPanelRegistry"
-      ]
-    },
-    {
-      "real": "pages/abstract.config.ts",
-      "stub": "pages/abstract.config.stub.ts",
-      "exports": [
-        "DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG",
-        "DEFAULT_ABSTRACT_TIMELINE_CONTENT_CONFIG",
-        "DEFAULT_ABSTRACT_MOBILE_ARTICLE_LIST_INK_CONFIG",
-        "DEFAULT_ABSTRACT_FOOTER_CONFIG",
-        "DEFAULT_ABSTRACT_NARROW_COLUMN_STACK_CONFIG",
-        "normalizeAbstractPageLayoutConfig",
-        "normalizeAbstractNarrowColumnStackConfig",
-        "normalizeAbstractCoverFlowTimelineSlotConfig",
-        "normalizeAbstractTimelineLinkColorConfig",
-        "normalizeAbstractTimelineContentConfig",
-        "normalizeAbstractMobileArticleListInkConfig",
-        "normalizeAbstractFooterConfig",
-        "ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG",
-        "ABSTRACT_POLYMORPHIC_LAYOUT_LEGACY_DESKTOP_OVERRIDES",
-        "resolveAbstractPolymorphicLayoutConfigForDesktopMode",
-        "DEFAULT_ABSTRACT_TIMELINE_CONFIG",
-        "normalizeAbstractTimelineConfig",
-        "ABSTRACT_TIMELINE_LEGACY_DESKTOP_OVERRIDES",
-        "resolveAbstractTimelineConfigForDesktopMode",
-        "applyAbstractPolymorphicLayoutAllSizesUpdate",
-        "DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG",
-        "DEFAULT_ABSTRACT_HERO_ACCORDION_ITEM_CONFIG",
-        "DEFAULT_ABSTRACT_COVER_FLOW_TIMELINE_SLOT_CONFIG",
-        "DEFAULT_ABSTRACT_TIMELINE_LINK_COLOR_CONFIG"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "pages/abstract.panel.ts",
@@ -603,7 +471,8 @@
         "ABSTRACT_MOBILE_ARTICLE_LIST_INK_PANEL",
         "ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID",
         "ABSTRACT_HERO_ACCORDION_ITEM_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "pages/carousel-lab.panel.ts",
@@ -611,14 +480,16 @@
       "exports": [
         "CAROUSEL_LAB_SCOPE_ID",
         "CAROUSEL_LAB_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "pages/contact.panel.ts",
       "stub": "pages/contact.panel.stub.ts",
       "exports": [
         "CONTACT_POLYMORPHIC_LAYOUT_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "pages/cube-lab.panel.ts",
@@ -626,28 +497,8 @@
       "exports": [
         "CUBE_LAB_SCOPE_ID",
         "CUBE_LAB_PANEL"
-      ]
-    },
-    {
-      "real": "pages/journal.config.ts",
-      "stub": "pages/journal.config.stub.ts",
-      "exports": [
-        "JOURNAL_POLYMORPHIC_LAYOUT_CONFIG",
-        "DEFAULT_JOURNAL_ACCORDION_ITEM_CONFIG",
-        "normalizeJournalArticleAccordionItemConfig",
-        "DEFAULT_JOURNAL_INTRO_ACCORDION_ITEM_CONFIG",
-        "JOURNAL_INTRO_INK_OPACITY_MULTIPLIER",
-        "DEFAULT_JOURNAL_TIMELINE_CONFIG",
-        "DEFAULT_JOURNAL_CHRONOLOGY_CONFIG",
-        "normalizeJournalTimelineConfig",
-        "DEFAULT_JOURNAL_CARD_APPEARANCE_CONFIG",
-        "DEFAULT_JOURNAL_NARROW_COLUMN_CONTENT_CONFIG",
-        "normalizeJournalNarrowColumnContentConfig",
-        "normalizeJournalArticleFilterConfig",
-        "DEFAULT_JOURNAL_ARTICLE_FILTER_CONFIG",
-        "DEFAULT_JOURNAL_CHIP_APPEARANCE_CONFIG",
-        "normalizeJournalChipAppearanceConfig"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "pages/journal.panel.ts",
@@ -669,7 +520,8 @@
         "JOURNAL_CHIP_APPEARANCE_SCOPE_ID",
         "JOURNAL_CHIP_APPEARANCE_PANEL",
         "JOURNAL_POLYMORPHIC_LAYOUT_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     },
     {
       "real": "pages/posts/postLab.panel.ts",
@@ -677,7 +529,8 @@
       "exports": [
         "POST_LAB_PAGE_LAYOUT_SCOPE_ID",
         "POST_LAB_PAGE_LAYOUT_PANEL"
-      ]
+      ],
+      "hasDefaultExport": false
     }
   ]
 }

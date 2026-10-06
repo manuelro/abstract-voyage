@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Generates production-safe stand-ins for every source file OUTSIDE
-// components/Panel/ that imports a *value* (not just a type) from
+// Generates production-safe stand-ins for every panel-only source file
+// OUTSIDE components/Panel/ that imports a *value* (not just a type) from
 // components/Panel/* — see CONFIG-CHANGE-PROTOCOL.md's "Architecture path"
 // decision. components/Panel/* itself is the shared engine, already
 // covered wholesale by the single components/Panel -> components/Panel.stub
@@ -31,6 +31,12 @@ const ts = require('typescript')
 
 const ROOT = path.resolve(__dirname, '..')
 const PANEL_DIR = path.resolve(ROOT, 'components/Panel')
+// This generated token/normalization utility is used by production UI and
+// config defaults as well as by panel authors. It contains no panel surface,
+// so importing it must not cause a consumer file to be stubbed wholesale.
+const SAFE_RUNTIME_PANEL_IMPORTS = new Set([
+  path.resolve(PANEL_DIR, 'config/tailwindFields'),
+])
 const SKIP_DIRS = new Set(['node_modules', '.git'])
 
 // Whole-file stubbing is only safe when a file's SOLE purpose is
@@ -110,9 +116,9 @@ function isUnderPanelDir(resolvedPath) {
 }
 
 // True if this file has at least one VALUE import (not type-only) whose
-// specifier resolves under components/Panel/. Type-only imports are erased
-// by the compiler before webpack runs regardless of aliasing, so a
-// type-only-importing file never needs stubbing on that basis alone.
+// specifier resolves to panel UI under components/Panel/. Type-only imports
+// are erased by the compiler. The shared Tailwind token/normalization runtime
+// is explicitly safe to keep in production and is not panel UI.
 function importsPanelValue(filePath) {
   const source = fs.readFileSync(filePath, 'utf8')
   const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true)
@@ -121,7 +127,7 @@ function importsPanelValue(filePath) {
   sourceFile.forEachChild((node) => {
     if (found || !ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) return
     const target = resolveImportTarget(filePath, node.moduleSpecifier.text)
-    if (!target || !isUnderPanelDir(target)) return
+    if (!target || !isUnderPanelDir(target) || SAFE_RUNTIME_PANEL_IMPORTS.has(target)) return
 
     const clause = node.importClause
     if (!clause) return // side-effect-only import — no value/type distinction, ignore
@@ -143,6 +149,7 @@ function getValueExportNames(filePath) {
   const source = fs.readFileSync(filePath, 'utf8')
   const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true)
   const names = []
+  let hasDefaultExport = false
 
   sourceFile.forEachChild((node) => {
     const hasExportModifier = (n) =>
@@ -153,15 +160,23 @@ function getValueExportNames(filePath) {
         if (ts.isIdentifier(decl.name)) names.push(decl.name.text)
       }
     } else if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && hasExportModifier(node)) {
-      if (node.name) names.push(node.name.text)
+      const isDefault = ts.canHaveModifiers(node)
+        && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
+      if (isDefault) hasDefaultExport = true
+      else if (node.name) names.push(node.name.text)
     } else if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
       for (const el of node.exportClause.elements) {
-        if (!el.isTypeOnly) names.push(el.name.text)
+        if (!el.isTypeOnly) {
+          if (el.name.text === 'default') hasDefaultExport = true
+          else names.push(el.name.text)
+        }
       }
+    } else if (ts.isExportAssignment(node) && !node.isExportEquals) {
+      hasDefaultExport = true
     }
   })
 
-  return [...new Set(names)]
+  return { names: [...new Set(names)], hasDefaultExport }
 }
 
 function stubPathFor(realPath) {
@@ -171,7 +186,7 @@ function stubPathFor(realPath) {
   return realPath.replace(/\.tsx?$/, '.stub.ts')
 }
 
-function writeStub(realPath, stubPath, exportNames) {
+function writeStub(realPath, stubPath, exportNames, hasDefaultExport) {
   const rel = path.relative(ROOT, realPath)
   // No shared, separately-named helper function at all — each export gets
   // its own fully self-contained, anonymous IIFE below. Tried a shared
@@ -221,7 +236,19 @@ function writeStub(realPath, stubPath, exportNames) {
       '})()',
     ].join('\n'))
     .join('\n')
-  fs.writeFileSync(stubPath, header + body + '\n')
+  const defaultExport = hasDefaultExport
+    ? [
+      'const defaultStub: any = (() => {',
+      '  const p: any = new Proxy(() => undefined, {',
+      '    get(t, prop) { return prop in t ? (t as any)[prop] : p },',
+      '    apply() { return undefined },',
+      '  })',
+      '  return p',
+      '})()',
+      'export default defaultStub',
+    ].join('\n')
+    : ''
+  fs.writeFileSync(stubPath, `${header + body}${body && defaultExport ? '\n' : ''}${defaultExport}\n`)
 }
 
 function main() {
@@ -238,14 +265,15 @@ function main() {
   for (const realPath of panelTouching) {
     const rel = path.relative(ROOT, realPath).replace(/\\/g, '/')
     if (KNOWN_MIXED_FILES.has(rel)) continue // handled via surgical NODE_ENV branch, not whole-file stub
-    const exportNames = getValueExportNames(realPath)
-    if (!exportNames.length) continue // nothing to alias if it exports no values of its own
+    const { names: exportNames, hasDefaultExport } = getValueExportNames(realPath)
+    if (!exportNames.length && !hasDefaultExport) continue // nothing to alias if it exports no values of its own
     const stubPath = stubPathFor(realPath)
-    writeStub(realPath, stubPath, exportNames)
+    writeStub(realPath, stubPath, exportNames, hasDefaultExport)
     manifest.push({
       real: path.relative(ROOT, realPath).replace(/\\/g, '/'),
       stub: path.relative(ROOT, stubPath).replace(/\\/g, '/'),
       exports: exportNames,
+      hasDefaultExport,
     })
   }
 

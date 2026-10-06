@@ -89,7 +89,13 @@ const nextConfig = {
       if (fs.existsSync(manifestPath)) {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
         for (const { real, stub } of manifest.scopes) {
-          alias[path.resolve(__dirname, real.replace(/\.tsx?$/, ''))] =
+          // Manifest entries can describe a file whose basename is also a
+          // directory (for example SiteHeader.tsx beside SiteHeader/). A
+          // prefix alias for that file would redirect every child import in
+          // the directory to a nonexistent path under SiteHeader.stub/.
+          // Match only the extensionless module request, just like the
+          // explicit Panel stub aliases above.
+          alias[`${path.resolve(__dirname, real.replace(/\.tsx?$/, ''))}$`] =
             path.resolve(__dirname, stub.replace(/\.ts$/, ''))
         }
       }
