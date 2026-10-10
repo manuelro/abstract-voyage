@@ -1,5 +1,5 @@
 const mailer = require('../functions/lib/mailer')
-const intake = require('../functions/intake')
+const intake = require('../functions/lib/intake-handler')
 
 const originalEnv = { ...process.env }
 const originalFetch = globalThis.fetch

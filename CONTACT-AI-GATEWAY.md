@@ -15,13 +15,30 @@ requests; delivery remains SMTP-first and does not depend on AI success.
 4. Optionally set `LEAD_WEBHOOK_URL`, the rate-limit variables, and the model
    variables shown in `.env.example`.
 
-The `intake` function is a classic (non-edge) Netlify Function. Netlify AI
-Gateway injects `GEMINI_API_KEY` and `GOOGLE_GEMINI_BASE_URL` into supported
-Functions and into Netlify Dev for credit-based sites. The function uses those
-values with Gemini's REST contract (`x-goog-api-key` and
-`<base-url>/v1beta/models/<model>:generateContent`). No provider API key or
-Gateway base URL should be configured manually: Netlify supplies short-lived,
-site-scoped values.
+The `intake` function must be a **Netlify Functions v2 (ESM)** function.
+Netlify AI Gateway injects `GEMINI_API_KEY` and `GOOGLE_GEMINI_BASE_URL` into
+the runtime of v2 functions (and into Netlify Dev) for credit-based sites, but
+it injects **nothing** into v1 (lambda-compat, `exports.handler`) functions.
+When this function was a v1 function every call failed with
+`gateway_configuration_missing` before making any request, because both
+variables were empty at runtime. (Verified by deploying v1 and v2 probes side
+by side: v1 sees none of `GEMINI_API_KEY`, `GOOGLE_GEMINI_BASE_URL`,
+`NETLIFY_AI_GATEWAY_KEY`, `NETLIFY_AI_GATEWAY_URL`; v2 sees all of them.)
+
+The entry point is `netlify/functions/intake.mjs` (a thin v2 adapter: it must
+export only a default handler — a coexisting `handler` export forces Netlify to
+treat the file as v1). All logic lives in `netlify/functions/lib/intake-handler.js`
+(CommonJS, invoked directly by the test suite). Because esbuild bundles ESM
+`import`s but rewrites inlined CommonJS `require`s into runtime shims the file
+tracer never ships, `intake.mjs` statically imports `zod` and `nodemailer` so
+they are included in the bundle; the core's `require` calls then resolve to
+those bundled copies. Dropping either import reintroduces a `Cannot find module`
+cold-start crash.
+
+The function uses the injected values with Gemini's REST contract
+(`x-goog-api-key` and `<base-url>/v1beta/models/<model>:generateContent`). No
+provider API key or Gateway base URL should be configured manually: Netlify
+supplies short-lived, site-scoped values.
 
 The default contact path does not use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
 `GOOGLE_API_KEY`, or Google Vertex credentials. Legacy OpenAI and Anthropic

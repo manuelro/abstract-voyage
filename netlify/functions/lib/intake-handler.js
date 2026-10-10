@@ -1,11 +1,11 @@
 const crypto = require('crypto')
 const { z } = require('zod')
-const mailer = require('./lib/mailer')
+const mailer = require('./mailer')
 const {
   DEFAULT_MODEL,
   IntakeAiError,
   requestGeminiJson,
-} = require('./lib/intake-ai')
+} = require('./intake-ai')
 
 const { normalize } = mailer
 
@@ -564,6 +564,9 @@ const honeypotResponse = (stage) => {
   return json(200, { ok: true, needsFollowUp: false })
 }
 
+// Core request handler. Invoked by the v2 entry adapter (../intake.mjs) with a
+// normalized `{ httpMethod, headers, body }` event, and by the test suite
+// directly. Returns `{ statusCode, headers, body }`.
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {})
   if (event.httpMethod !== 'POST') return json(405, { ok: false, message: 'Method not allowed.' })
@@ -612,7 +615,8 @@ exports.handler = async (event) => {
   return handleDeliver(payload)
 }
 
-// Exported for tests only — exports.handler above is the real entry point.
+// Exported for tests. The deployed entry point is ../intake.mjs, which wraps
+// exports.handler above.
 exports.MAX_FOLLOW_UPS = MAX_FOLLOW_UPS
 exports.MAX_REQUEST_BODY_BYTES = MAX_REQUEST_BODY_BYTES
 exports.GAP_CHECK_SYSTEM_PROMPT = GAP_CHECK_SYSTEM_PROMPT
