@@ -67,6 +67,8 @@ const PRODUCTION_PAGE_FILES = new Set([
   'about.tsx',
   'contact.tsx',
   'wall.tsx',
+  'journal.tsx',
+  path.join('journal', '[slug].tsx'),
 ])
 
 function listTsxFiles(dir, baseDir = dir) {
@@ -145,6 +147,11 @@ try {
   moved = stageOut()
   console.log(`[build-production-routes] staged out ${moved.length} non-production page file(s):`)
   for (const rel of moved) console.log(`  - pages/${rel}`)
+  // Keep public/sitemap.xml and public/feed.xml in sync with posts/*.md on
+  // every production build, not just when someone remembers to run the
+  // generator by hand after adding a journal entry (PLAN-PRODUCTION-ROUTE-
+  // ALLOWLIST.md §12).
+  execSync('node scripts/generate-journal-static-files.js', { cwd: ROOT, stdio: 'inherit' })
   execSync('npm run build', { cwd: ROOT, stdio: 'inherit' })
   execSync('npx next export', { cwd: ROOT, stdio: 'inherit' })
   pruneLeakedNonRouteExports(path.join(ROOT, 'out'))

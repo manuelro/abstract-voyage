@@ -860,7 +860,7 @@ export default function PostLab({
               >{excerpt}</p>
             ) : null}
             {/* .article-content (styles/globals.css) is styled for the
-                production /posts/[slug] route's dark SynthLayout background —
+                production /journal/[slug] route's dark SynthLayout background —
                 a shared @layer base class, not something this page should
                 edit (would also re-theme the production route). This page's
                 wide column is a light custom color instead (see
@@ -918,12 +918,12 @@ export default function PostLab({
               <nav className="mt-10 border-t border-slate-900/10 pt-6 text-sm" aria-label="More articles">
                 <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   {nextPost ? (
-                    <a href={`/posts/${nextPost.slug}`} className="hover:underline">
+                    <a href={`/journal/${nextPost.slug}`} className="hover:underline">
                       Next: {nextPost.title}
                     </a>
                   ) : <span />}
                   {previousPost ? (
-                    <a href={`/posts/${previousPost.slug}`} className="text-right hover:underline">
+                    <a href={`/journal/${previousPost.slug}`} className="text-right hover:underline">
                       Previous: {previousPost.title}
                     </a>
                   ) : <span />}

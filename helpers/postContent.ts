@@ -108,7 +108,7 @@ export function normalizePostSummary(fileName: string, frontmatter: PostFrontmat
     title,
     excerpt,
     tags,
-    canonicalPath: `/posts/${slug}`,
+    canonicalPath: `/journal/${slug}`,
     externalUrl: frontmatter?.externalUrl ? String(frontmatter.externalUrl) : null,
     forceExternalNavigation: Boolean(frontmatter?.forceExternalNavigation),
     readingTimeMinutes: getReadingTimeMinutes(content),
@@ -143,7 +143,7 @@ export function toSliderSlides(posts: PostSummary[]): SliderContentSlide[] {
     const slideNumber = index + 1
     const href = post.forceExternalNavigation && post.externalUrl
       ? post.externalUrl
-      : `/posts/${post.slug}`
+      : `/journal/${post.slug}`
     const displayDate = post.formattedDate ?? (post.date.startsWith('20') ? post.date : '')
     const visualParameters = getSliderVisualParameters(index)
 

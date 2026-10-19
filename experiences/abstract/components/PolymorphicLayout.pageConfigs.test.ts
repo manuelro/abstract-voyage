@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ABSTRACT_POLYMORPHIC_LAYOUT_PANEL } from '../../../pages/abstract.panel';
 import { ABOUT_POLYMORPHIC_LAYOUT_PANEL } from '../../../pages/about.panel';
 import { JOURNAL_POLYMORPHIC_LAYOUT_PANEL } from '../../../pages/journal.panel';
-import { POST_LAB_PAGE_LAYOUT_PANEL } from '../../../pages/posts/postLab.panel';
+import { POST_LAB_PAGE_LAYOUT_PANEL } from '../../../pages/journal/postLab.panel';
 
 const PROJECT_ROOT = process.cwd();
 

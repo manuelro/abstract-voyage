@@ -121,10 +121,21 @@ function run() {
     .map((f) => (f === '' ? '/' : f))
     .filter((f) => f !== '/404')
     .sort()
-  const approvedRoutes = [...manifest.routes].sort()
+  // An entry ending in '/*' approves every actual route under that prefix
+  // by pattern, not by a hand-listed concrete path — see §12's own doc
+  // comment on this in release-manifest.json. Everything else is matched
+  // literally, exactly as before.
+  const approvedExact = manifest.routes.filter((r) => !r.endsWith('/*'))
+  const approvedPrefixes = manifest.routes
+    .filter((r) => r.endsWith('/*'))
+    .map((r) => r.slice(0, -1)) // '/journal/*' -> '/journal/'
+  const isApproved = (route) => (
+    approvedExact.includes(route) || approvedPrefixes.some((prefix) => route.startsWith(prefix))
+  )
 
-  const unapproved = actualRoutes.filter((r) => !approvedRoutes.includes(r))
-  const missing = approvedRoutes.filter((r) => !actualRoutes.includes(r))
+  const unapproved = actualRoutes.filter((r) => !isApproved(r))
+  const missing = approvedExact.filter((r) => !actualRoutes.includes(r))
+  const emptyPrefixes = approvedPrefixes.filter((prefix) => !actualRoutes.some((r) => r.startsWith(prefix)))
 
   if (unapproved.length) {
     failures.push(
@@ -138,8 +149,14 @@ function run() {
       `Either the build silently dropped a route, or release-manifest.json is stale.`,
     )
   }
-  if (!unapproved.length && !missing.length) {
-    console.log(`OK — ${actualRoutes.length} routes match release-manifest.json exactly.`)
+  if (emptyPrefixes.length) {
+    failures.push(
+      `Approved route prefix pattern(s) matched zero actual routes: ${emptyPrefixes.join(', ')}. ` +
+      `The content directory behind this prefix may be empty or the route generation broke.`,
+    )
+  }
+  if (!unapproved.length && !missing.length && !emptyPrefixes.length) {
+    console.log(`OK — ${actualRoutes.length} routes match release-manifest.json (${approvedExact.length} exact, ${approvedPrefixes.length} prefix pattern(s)).`)
   }
 
   section('5. Required static files (sitemap/robots/feed)')

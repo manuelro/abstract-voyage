@@ -61,7 +61,7 @@ export const POST_LAB_PAGE_LAYOUT_PANEL = definePageConfigScope<PostLabPageLayou
   // panel at the old shared pageConfigs.ts literal would both show stale
   // values (missing the gradient override) and, on Update diff, patch the
   // wrong file (the shared literal /journal also spreads from).
-  targetFile: 'pages/posts/postLab.config.ts',
+  targetFile: 'pages/journal/postLab.config.ts',
   targetSymbol: 'DEFAULT_POST_LAB_PAGE_LAYOUT_CONFIG',
   targetType: 'PostLabPageLayoutConfig',
 });

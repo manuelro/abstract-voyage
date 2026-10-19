@@ -1,5 +1,5 @@
 // GENERATED FILE — do not hand-edit.
-// Production stand-in for pages/posts/postLab.panel.ts, produced by scripts/generate-panel-stubs.js.
+// Production stand-in for pages/journal/postLab.panel.ts, produced by scripts/generate-panel-stubs.js.
 // Every real consumer only reads these values inside a showAuthoringTools-gated
 // render, which is always false in production — EXCEPT that some real code
 // constructs bindings/registries unconditionally (e.g. `registry.resolve(id)`

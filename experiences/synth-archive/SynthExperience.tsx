@@ -8,7 +8,7 @@ import {
 import PostCardDock from './dock/PostCardDock'
 import Home from './components/Home'
 import { buildSynthLogoStops } from './gradients/synthGradient'
-import { PostType } from '../../pages/posts/[slug]'
+import { PostType } from '../../pages/journal/[slug]'
 import SynthLayout from './components/SynthLayout'
 
 type PropsType = {

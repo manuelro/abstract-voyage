@@ -23,19 +23,26 @@ const nextConfig = {
   // page under pages/ stays in source and stays reachable under `next dev`
   // (for code tracking, same reasoning as components/Panel staying in the
   // tree below), but `next export`'s own static output is filtered to just
-  // the three routes the live site actually ships. exportPathMap is only
-  // ever invoked by `next export` itself, never by `next dev` (which has no
+  // the routes the live site actually ships. exportPathMap is only ever
+  // invoked by `next export` itself, never by `next dev` (which has no
   // export step to filter) — the `dev` check below is defensive/documenting
   // intent, not load-bearing, since this function won't run during `next
   // dev` regardless. defaultPathMap is Next's own fully-resolved route
   // list (every dynamic getStaticPaths entry already expanded), so this is
   // a filter over Next's own data, not a hand-maintained parallel list.
+  //
+  // `/journal/*` is matched by prefix, not a hand-listed slug array (§12):
+  // getStaticPaths for pages/journal/[slug].tsx already derives its own
+  // concrete routes straight from the posts/*.md files on disk, so a
+  // defaultPathMap key under '/journal/' is, by construction, always a real
+  // article someone actually added — there is no hand-authored list here
+  // left to drift out of sync when a new post is dropped into posts/.
   async exportPathMap(defaultPathMap, { dev }) {
     if (dev) return defaultPathMap
-    const PRODUCTION_ROUTES = ['/', '/about', '/contact']
+    const PRODUCTION_ROUTES = ['/', '/about', '/contact', '/journal']
     const filtered = {}
-    for (const route of PRODUCTION_ROUTES) {
-      if (defaultPathMap[route]) {
+    for (const route of Object.keys(defaultPathMap)) {
+      if (PRODUCTION_ROUTES.includes(route) || route.startsWith('/journal/')) {
         filtered[route] = defaultPathMap[route]
       }
     }

@@ -1,10 +1,12 @@
 {
-  "description": "Approved production route inventory for this release branch. verify-release.js diffs the actual next export output against this list — any route that appears in one but not the other fails the gate. Update this file deliberately, in the same change that adds/removes a route, per P1-404-INCIDENT-RCA-AND-RELEASE-PROTOCOL.md §H item 1-2. As of 2026-10-18 the route surface is deliberately pruned to 3 routes via next.config.js's exportPathMap (PLAN-PRODUCTION-ROUTE-ALLOWLIST.md) — every other page stays in pages/ for code tracking but is excluded from next export's own output; adding a page to PRODUCTION_ROUTES there must be paired with adding it here in the same change, per that plan's §9 (How to add a route).",
-  "updated": "2026-10-18",
+  "description": "Approved production route inventory for this release branch. verify-release.js diffs the actual next export output against this list — any route that appears in one but not the other fails the gate. Update this file deliberately, in the same change that adds/removes a route, per P1-404-INCIDENT-RCA-AND-RELEASE-PROTOCOL.md §H item 1-2. As of 2026-10-18 the route surface is deliberately pruned via next.config.js's exportPathMap (PLAN-PRODUCTION-ROUTE-ALLOWLIST.md); adding a page to PRODUCTION_ROUTES there must be paired with adding it here in the same change, per that plan's §9 (How to add a route). An entry ending in '/*' (see '/journal/*' below, added in §12) is matched by prefix against the actual export, not as a literal route — this is deliberately the one exception to 'list every concrete path' for pages/journal/[slug].tsx's own getStaticPaths-derived routes, which already come straight from the posts/*.md files on disk and need no hand-maintained duplicate list here.",
+  "updated": "2026-10-19",
   "routes": [
     "/",
     "/about",
-    "/contact"
+    "/contact",
+    "/journal",
+    "/journal/*"
   ],
   "requiredStaticFiles": [
     "/sitemap.xml",

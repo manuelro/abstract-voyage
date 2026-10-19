@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-19T04:41:38.062Z",
+  "generatedAt": "2026-10-19T11:01:20.205Z",
   "scopes": [
     {
       "real": "components/ArticleMetaRow/config/appearance.panel.ts",
@@ -560,6 +560,15 @@
       "hasDefaultExport": false
     },
     {
+      "real": "pages/journal/postLab.panel.ts",
+      "stub": "pages/journal/postLab.panel.stub.ts",
+      "exports": [
+        "POST_LAB_PAGE_LAYOUT_SCOPE_ID",
+        "POST_LAB_PAGE_LAYOUT_PANEL"
+      ],
+      "hasDefaultExport": false
+    },
+    {
       "real": "pages/journal.panel.ts",
       "stub": "pages/journal.panel.stub.ts",
       "exports": [
@@ -579,15 +588,6 @@
         "JOURNAL_CHIP_APPEARANCE_SCOPE_ID",
         "JOURNAL_CHIP_APPEARANCE_PANEL",
         "JOURNAL_POLYMORPHIC_LAYOUT_PANEL"
-      ],
-      "hasDefaultExport": false
-    },
-    {
-      "real": "pages/posts/postLab.panel.ts",
-      "stub": "pages/posts/postLab.panel.stub.ts",
-      "exports": [
-        "POST_LAB_PAGE_LAYOUT_SCOPE_ID",
-        "POST_LAB_PAGE_LAYOUT_PANEL"
       ],
       "hasDefaultExport": false
     }

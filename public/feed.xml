@@ -6,10 +6,75 @@
     <description>Manuel Cerdas is a creative engineer and consultant working across AI engineering, product strategy, systems thinking, and expressive web interfaces.</description>
     <language>en</language>
     <atom:link href="https://abstract.voyage/feed.xml" rel="self" type="application/rss+xml" />
-    <!-- Deliberately no <item> entries: every item previously here linked
-         to a /posts/* route, and the production build no longer ships
-         /posts/* (PLAN-PRODUCTION-ROUTE-ALLOWLIST.md). An empty channel is
-         valid RSS and advertises no dead links; repopulate here only if
-         /posts/* re-enters the production route allowlist. -->
+    <item>
+      <title>Infinity Labs, and why engineering education should be free</title>
+      <link>https://abstract.voyage/journal/2023-05-03_infinity-labs-open-education</link>
+      <guid>https://abstract.voyage/journal/2023-05-03_infinity-labs-open-education</guid>
+      <pubDate>Wed, 03 May 2023 00:00:00 GMT</pubDate>
+      <description>An open YouTube channel offering lessons on software architecture, design patterns, languages, and frameworks for engineers from junior to senior level.</description>
+    </item>
+    <item>
+      <title>A biomimetic framework for interfaces that feel human</title>
+      <link>https://abstract.voyage/journal/2023-01-27_medium-biomimetics</link>
+      <guid>https://abstract.voyage/journal/2023-01-27_medium-biomimetics</guid>
+      <pubDate>Fri, 27 Jan 2023 00:00:00 GMT</pubDate>
+      <description>An early, implementation-agnostic framework that maps five traits of effective human communication onto interface design, aiming to lower user rejection and improve adoption.</description>
+    </item>
+    <item>
+      <title>The Tech Lead is a dependency your team should outgrow</title>
+      <link>https://abstract.voyage/journal/2020-12-08_medium-resilient-team</link>
+      <guid>https://abstract.voyage/journal/2020-12-08_medium-resilient-team</guid>
+      <pubDate>Tue, 08 Dec 2020 00:00:00 GMT</pubDate>
+      <description>Coordination is a function, not a person. When every member can perform it, the team stops having a single point of failure at the top.</description>
+    </item>
+    <item>
+      <title>Five years as a tech lead: accountability and team ownership</title>
+      <link>https://abstract.voyage/journal/2020-12-01_medium-tech-leading</link>
+      <guid>https://abstract.voyage/journal/2020-12-01_medium-tech-leading</guid>
+      <pubDate>Tue, 01 Dec 2020 00:00:00 GMT</pubDate>
+      <description>A candid retrospective on the role's rewards (influence, exposure, recognition) and its costs (absorbing stakeholder pressure, taking the blame), with the recurring lesson being to distribute ownership across the team.</description>
+    </item>
+    <item>
+      <title>Four kinds of dependency, and which ones carry real risk</title>
+      <link>https://abstract.voyage/journal/2020-11-05_medium-taxonomy-dependencies</link>
+      <guid>https://abstract.voyage/journal/2020-11-05_medium-taxonomy-dependencies</guid>
+      <pubDate>Thu, 05 Nov 2020 00:00:00 GMT</pubDate>
+      <description>A two-axis way to examine software dependencies by origin and whether they are inherent or introduced, with examples of the risks each can create.</description>
+    </item>
+    <item>
+      <title>Real-time feature toggles with React and LaunchDarkly</title>
+      <link>https://abstract.voyage/journal/2019-09-15_medium-feature-toggles-react</link>
+      <guid>https://abstract.voyage/journal/2019-09-15_medium-feature-toggles-react</guid>
+      <pubDate>Sun, 15 Sep 2019 00:00:00 GMT</pubDate>
+      <description>A working implementation with higher-order components and streaming updates, so flags change in a running app without a redeploy.</description>
+    </item>
+    <item>
+      <title>Technical debt works like a credit card</title>
+      <link>https://abstract.voyage/journal/2017-11-03_medium-tech-debt</link>
+      <guid>https://abstract.voyage/journal/2017-11-03_medium-tech-debt</guid>
+      <pubDate>Fri, 03 Nov 2017 00:00:00 GMT</pubDate>
+      <description>Both extremes fail. Ship nothing until it is perfect and you never ship; borrow without repaying and the interest eventually takes the whole team.</description>
+    </item>
+    <item>
+      <title>The DOM, from nodes to events</title>
+      <link>https://abstract.voyage/journal/2017-02-11_medium-dom-basics</link>
+      <guid>https://abstract.voyage/journal/2017-02-11_medium-dom-basics</guid>
+      <pubDate>Sat, 11 Feb 2017 00:00:00 GMT</pubDate>
+      <description>How the browser turns markup into a tree, how nodes relate to each other, and where JavaScript actually attaches when you bind an event.</description>
+    </item>
+    <item>
+      <title>Gzipping and minification solve different problems</title>
+      <link>https://abstract.voyage/journal/2017-01-15_medium-gzipping</link>
+      <guid>https://abstract.voyage/journal/2017-01-15_medium-gzipping</guid>
+      <pubDate>Sun, 15 Jan 2017 00:00:00 GMT</pubDate>
+      <description>One removes characters from your source, the other compresses what travels over the wire. Using either alone leaves the other's savings on the table.</description>
+    </item>
+    <item>
+      <title>The five SOLID principles, one at a time</title>
+      <link>https://abstract.voyage/journal/2016-12-24_medium-mastering-solid</link>
+      <guid>https://abstract.voyage/journal/2016-12-24_medium-mastering-solid</guid>
+      <pubDate>Sat, 24 Dec 2016 00:00:00 GMT</pubDate>
+      <description>Single responsibility through dependency inversion, each with a short example of the problem it exists to prevent.</description>
+    </item>
   </channel>
 </rss>

@@ -30,10 +30,10 @@ timeline:
 I began more than a decade ago as a **contractor**, building software on long projects for large corporations. The **brief** usually arrived finished, and the job was to build it well. Years of doing that made me curious about what the brief did not ask: how people would understand and use what we built.
 
 <!-- section:question -->
-Two questions stayed with me. One was how **light and sound** relate; the gradient behind these words is generated from colors derived from sound. The other was what **biomimicry** might teach us about how an interface communicates with people. I explored the second question in [a biomimetic framework for interfaces](/posts/2023-01-27_medium-biomimetics). Following both questions changed what I paid attention to when building software.
+Two questions stayed with me. One was how **light and sound** relate; the gradient behind these words is generated from colors derived from sound. The other was what **biomimicry** might teach us about how an interface communicates with people. I explored the second question in [a biomimetic framework for interfaces](/journal/2023-01-27_medium-biomimetics). Following both questions changed what I paid attention to when building software.
 
 <!-- section:consulting -->
-That curiosity followed me into software engineering and interface development across industries, from consumer goods to real estate. I moved from building as a contractor to leading multiple squads and, later, whole **engagements**. I wrote about [what those years of tech leading taught me](/posts/2020-12-01_medium-tech-leading). Across different clients, a recurring question was whether the planned interaction matched how people actually used the product. That question shaped decisions about both the interface and the software behind it.
+That curiosity followed me into software engineering and interface development across industries, from consumer goods to real estate. I moved from building as a contractor to leading multiple squads and, later, whole **engagements**. I wrote about [what those years of tech leading taught me](/journal/2020-12-01_medium-tech-leading). Across different clients, a recurring question was whether the planned interaction matched how people actually used the product. That question shaped decisions about both the interface and the software behind it.
 
 <!-- section:mckinsey -->
 At **McKinsey**, I worked across several teams on firm-wide initiatives. The work involved deciding what should exist by weighing what people would use against what could be built well.

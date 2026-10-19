@@ -400,7 +400,7 @@ export function SiteHeader({
   // under /posts. Keep the parent navigation item current throughout the
   // reader journey, rather than dropping the user's location cue once they
   // leave the Journal index.
-  const isJournalCurrent = pathname === '/journal' || pathname.startsWith('/posts/');
+  const isJournalCurrent = pathname === '/journal' || pathname.startsWith('/journal/');
   const { introStartAt } = usePageCapabilityRuntime();
   const normalized = normalizeSiteHeaderConfig(config);
   // See SiteHeaderProps.wordmarkConfig's own doc comment — a caller that

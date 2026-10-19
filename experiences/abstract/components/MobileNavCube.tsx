@@ -82,7 +82,7 @@ const NAV_LINKS: ReadonlyArray<AboutTimelineRowData> = [
 
 function routeMatches(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/' || pathname === '/abstract';
-  if (href === '/journal') return pathname === '/journal' || pathname.startsWith('/posts/');
+  if (href === '/journal') return pathname === '/journal' || pathname.startsWith('/journal/');
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

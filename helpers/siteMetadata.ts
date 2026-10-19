@@ -30,7 +30,7 @@ export const getAbsoluteUrl = (pathOrUrl = '/') => {
 
 export const buildSiteTitle = (title: string) => `${title} | ${SITE_METADATA.siteName}`
 
-export const getPostCanonicalPath = (slug: string) => `/posts/${slug}`
+export const getPostCanonicalPath = (slug: string) => `/journal/${slug}`
 
 export const getPostCanonicalUrl = (slug: string) =>
   getAbsoluteUrl(getPostCanonicalPath(slug))

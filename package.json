@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "generate:tailwind-fields": "node scripts/generate-tailwind-config-fields.js",
+    "generate:journal-static": "node scripts/generate-journal-static-files.js",
     "verify:tailwind-fields": "node scripts/generate-tailwind-config-fields.js --check && node scripts/verify-tailwind-field-architecture.js",
     "predev": "npm run generate:tailwind-fields && node scripts/kill-stale-dev-servers.js",
     "dev": "next dev",

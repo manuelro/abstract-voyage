@@ -33,7 +33,7 @@ entries:
       interface responds to people in ways they can understand.
     date: '2023-01-27'
     keywords: [Interaction, UX Design, Biomimetics]
-    href: /posts/2023-01-27_medium-biomimetics
+    href: /journal/2023-01-27_medium-biomimetics
 
   - kind: quotation
     ref: independent-body
@@ -52,7 +52,7 @@ entries:
       availability. Shared coordination gives the team room to act.
     date: '2020-12-08'
     keywords: [Tech Leadership, Engineering]
-    href: /posts/2020-12-08_medium-resilient-team
+    href: /journal/2020-12-08_medium-resilient-team
 
   - kind: quotation
     ref: consulting-line
@@ -63,7 +63,7 @@ entries:
     text: >-
       Leading put me between business and engineering. I learned that the
       team’s voice belonged in the conversations shaping its work.
-    href: /posts/2020-12-01_medium-tech-leading
+    href: /journal/2020-12-01_medium-tech-leading
 
   - kind: quotation
     ref: question-line
@@ -85,7 +85,7 @@ entries:
       person becomes the team's bottleneck.
     date: '2020-12-01'
     keywords: [Tech Leadership, Engineering]
-    href: /posts/2020-12-01_medium-tech-leading
+    href: /journal/2020-12-01_medium-tech-leading
 
   - kind: quotation
     ref: question-body
@@ -107,7 +107,7 @@ entries:
       they are unavoidable, so teams can focus on the risks they can change.
     date: '2020-11-05'
     keywords: [Architecture, Engineering]
-    href: /posts/2020-11-05_medium-taxonomy-dependencies
+    href: /journal/2020-11-05_medium-taxonomy-dependencies
 
   - kind: quotation
     ref: consulting-body
@@ -129,7 +129,7 @@ entries:
       borrow without repaying and the interest eventually takes the whole team.
     date: '2017-11-03'
     keywords: [Technical Debt, Engineering]
-    href: /posts/2017-11-03_medium-tech-debt
+    href: /journal/2017-11-03_medium-tech-debt
 
   - kind: quotation
     ref: independent-line
@@ -170,7 +170,7 @@ entries:
       inversion, explained through the problem it helps prevent.
     date: '2016-12-24'
     keywords: [Architecture, Engineering]
-    href: /posts/2016-12-24_medium-mastering-solid
+    href: /journal/2016-12-24_medium-mastering-solid
 
   - kind: quotation
     ref: contractor-body
