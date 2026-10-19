@@ -92,6 +92,14 @@ import type { MotionValue } from 'motion/react';
 import articleCardStyles from '../components/ArticleCard.module.css';
 import { useLiquidSliderMotion } from '../experiences/abstract/components/AbstractPostDock/hooks/motion';
 import { buildDeckPaletteStates } from '../experiences/abstract/helpers/deckPalette';
+import { Quote } from '../experiences/abstract/components/Quote/Quote';
+import { buildCoverFlowQuoteGradients } from '../experiences/abstract/components/Quote/coverFlowPalette';
+import {
+  DEFAULT_QUOTE_CONFIG,
+  normalizeQuoteConfig,
+  type QuoteConfig,
+} from '../experiences/abstract/components/Quote/config';
+import { QUOTE_SCOPE_ID } from '../experiences/abstract/components/Quote/Quote.panel';
 import {
   type CardReveal,
 } from '../experiences/abstract/components/AbstractJournalLabCollection';
@@ -302,6 +310,7 @@ import { AboutTimeline, type AboutTimelineRowData } from '../experiences/about/c
 import { ABSTRACT_TIMELINE_SCOPE_ID } from '../experiences/abstract/components/AbstractTimeline.panel';
 import {
   normalizeCardAppearanceConfig,
+  resolveUnifiedGradientInkEnabled,
   type CardAppearanceConfig,
 } from '../experiences/abstract/components/Card/config/appearance';
 import { Card } from '../experiences/abstract/components/Card/Card';
@@ -689,6 +698,7 @@ const ABSTRACT_TIMELINE_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_TIMELINE_SCOPE_ID);
 const CARD_APPEARANCE_DEFINITION =
   abstractConfigPanelRegistry.resolve(CARD_APPEARANCE_SCOPE_ID);
+const QUOTE_DEFINITION = abstractConfigPanelRegistry.resolve(QUOTE_SCOPE_ID);
 const ABSTRACT_HERO_ACCORDION_ITEM_DEFINITION =
   abstractConfigPanelRegistry.resolve(ABSTRACT_HERO_ACCORDION_ITEM_SCOPE_ID);
 
@@ -1955,6 +1965,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
   // exceed CoverFlow's own gaussian settle ceiling.
   const [cardAppearanceConfig, setCardAppearanceConfig] =
     useState<CardAppearanceConfig>(() => normalizeCardAppearanceConfig(DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG));
+  const [quoteConfig, setQuoteConfig] =
+    useState<QuoteConfig>(() => normalizeQuoteConfig(DEFAULT_QUOTE_CONFIG));
   // CoverFlow and the narrow column's AboutTimeline remain independently
   // tunable through their own live scopes. abstractTimelineConfig is its
   // own independent instance from /about's own aboutTimelineConfig. The
@@ -3164,6 +3176,12 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
       defaultValue: normalizeCardAppearanceConfig(DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG),
     }),
     createConfigScopeBinding({
+      definition: QUOTE_DEFINITION,
+      value: quoteConfig,
+      onChange: setQuoteConfig,
+      defaultValue: normalizeQuoteConfig(DEFAULT_QUOTE_CONFIG),
+    }),
+    createConfigScopeBinding({
       definition: ABSTRACT_HERO_ACCORDION_ITEM_DEFINITION,
       value: heroAccordionItemConfig,
       onChange: setHeroAccordionItemConfig,
@@ -3205,6 +3223,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
     coverFlowConfig,
     mobilePinnedArticleSectionConfig,
     cardAppearanceConfig,
+    quoteConfig,
     abstractTimelineConfig,
     siteHeaderColorOverride,
     ctaButtonColorOverride,
@@ -3337,6 +3356,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
     setCardAppearanceConfig(
       normalizeCardAppearanceConfig(DEFAULT_ABSTRACT_CARD_APPEARANCE_CONFIG),
     );
+    setQuoteConfig(normalizeQuoteConfig(DEFAULT_QUOTE_CONFIG));
     setAbstractPageLayoutConfig(
       normalizeAbstractPageLayoutConfig(DEFAULT_ABSTRACT_PAGE_LAYOUT_CONFIG),
     );
@@ -4682,6 +4702,12 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
     }),
     [carouselAndListItems, dockPaletteConfig, dockHueInfluenceConfig, colors.breakpointTier],
   );
+  const quoteGradients = useMemo(
+    () => buildCoverFlowQuoteGradients(
+      carouselAndListItems.length, dockPaletteConfig, normalizedPageSurfaceConfig.color,
+    ),
+    [carouselAndListItems.length, dockPaletteConfig, normalizedPageSurfaceConfig.color],
+  );
   const [coverFlowGeometryStable, setCoverFlowGeometryStable] = useState(false);
   const coverFlowGeometryReleasedRef = useRef(false);
   useEffect(() => {
@@ -5040,7 +5066,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
     isActive: boolean,
     geometry: { width: number; height: number },
     reveal: CoverFlowCardReveal,
-    position: { distanceFromActive: number; distanceFromActiveLive: MotionValue<number> },
+    position: {
+      distanceFromActive: number;
+      distanceFromActiveLive: MotionValue<number>;
+      depthPassForegroundVisible?: boolean;
+    },
     // Opt-in, only ever supplied by the mobile branch's own renderItem
     // wrapper below (MobilePinnedCarouselControls.focusProgress) — CoverFlow
     // itself calls renderItem with exactly the six params above, so the
@@ -5055,7 +5085,11 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
       lab: null,
       position: { leftPx: 0, topPx: 0, rotationDeg: 0 },
     };
-    const isMeshLive = coverFlowLiveMeshIndices.has(index);
+    const depthPassEnabled = colors.breakpointTier === 'lg'
+      && coverFlowConfig.navigationPathLg !== 'classic';
+    const isMeshLive = depthPassEnabled
+      ? isActive || position.depthPassForegroundVisible === true
+      : coverFlowLiveMeshIndices.has(index);
     // reveal.hasSettled describes "the currently-active card has settled,"
     // not "this card is active" (see CoverFlow.tsx's own CoverFlowCardReveal
     // doc comment) — combined with isActive here so only the real active
@@ -5187,9 +5221,9 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
     const cardHologramConfig = coverFlowHasHoverPointer
       ? hoverAmplitudeTaperedHologramConfig
       : { ...hoverAmplitudeTaperedHologramConfig, enabled: false };
-    // The active card is the authored shader-scale baseline. The card turns
-    // this step into a live MotionValue from CoverFlow's fractional distance,
-    // rather than a discrete render-time index multiplier.
+    // The active card is the authored shader-scale baseline. The selected
+    // mode decides whether this step follows live distance or applies once
+    // to every inactive card.
     const inactiveScaleStepPercent = colors.breakpointTier === 'lg'
       ? dockPaletteConfig.inactiveGradientScaleDistancePercentLg
       : colors.breakpointTier === 'md'
@@ -5234,7 +5268,16 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
     // source is one-based in the panel; clamp against the currently-rendered
     // CoverFlow data so a selection beyond a short collection degrades to
     // its final available card rather than producing a blank canvas.
-    const unifiedGradientSourceIndex = cardAppearanceConfig.invertedGradientInkEnabled
+    const useInactiveSharedGradient = !isActive && cardAppearanceConfig.inactiveUnifiedGradientEnabled;
+    const unifiedGradientInkEnabled = resolveUnifiedGradientInkEnabled(
+      cardAppearanceConfig, colors.breakpointTier,
+    );
+    const unifiedGradientSourceIndex = useInactiveSharedGradient
+      ? Math.min(
+        carouselAndListItems.length - 1,
+        Math.max(0, Number(cardAppearanceConfig.inactiveUnifiedGradientSourceCard) - 1),
+      )
+      : unifiedGradientInkEnabled
       && cardAppearanceConfig.invertedGradientInkUnifiedBackgroundEnabled
       ? Math.min(
         carouselAndListItems.length - 1,
@@ -5262,6 +5305,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
           prefersReducedMotion={coverFlowPrefersReducedMotion}
           config={journalLabCollectionConfig}
           appearanceConfig={cardAppearanceConfig}
+          appearanceBreakpointTier={colors.breakpointTier}
           motion={coverFlowLiquidSliderMotion}
           gradientConfig={journalDockSliderConfig}
           basePalette={unifiedGradientPalette}
@@ -5291,12 +5335,13 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
           activationRampDurationMs={activationRampDurationMs}
           distanceFromActiveLive={position.distanceFromActiveLive}
           inactiveCardHoverAmplitudeStep={coverFlowConfig.inactiveCardHoverAmplitudeStep}
-          inactiveGradientScaleDistanceEnabled={dockPaletteConfig.inactiveGradientScaleDistanceEnabled}
+          inactiveGradientScaleMode={dockPaletteConfig.inactiveGradientScaleMode}
           inactiveGradientScaleDistancePercent={inactiveScaleStepPercent}
           stackPresentation={{
             ...coverFlowStackPresentationBase,
             surfaceColor: coverFlowCardSurfaceColor,
             state: isActive ? 'active' : 'inactive',
+            ...(depthPassEnabled ? { depthPassSurfaceEnabled: true } : null),
             ...(peekOutlineActive ? {
               textColor: shortArticleListBodyColor,
               topicBorderColor: shortArticleListBodyColor,
@@ -5317,6 +5362,7 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
     normalizedCtaButtonConfig, coverFlowStackPresentationBase, coverFlowContentInsetCqw,
     coverFlowColumnBackgroundColor, coverFlowConfig.inactiveCardColumnDarkeningStep,
     coverFlowConfig.inactiveCardHoverAmplitudeStep, coverFlowConfig.activationRampRate,
+    coverFlowConfig.navigationPathLg,
     cardAppearanceConfig, carouselAndListItems, mobilePinnedArticleSectionConfig.peekOutlineModeEnabled, shortArticleListBodyColor,
     coverFlowHasHoverPointer, colors.breakpointTier, dockPaletteConfig,
   ]);
@@ -6202,6 +6248,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
                   onActiveIndexChange={handleCoverFlowActiveIndexChange}
                   renderItem={renderCoverFlowItem}
                   config={coverFlowConfig}
+                  inactiveDepthIncrementPercent={dockPaletteConfig.inactiveCardDepthProgressionEnabled
+                    ? dockPaletteConfig.inactiveCardDepthIncrementPercent : 0}
                   cardWidthBasisPx={coverFlowSectionAnchorRect?.width}
                   requireCardWidthBasis
                   prefersReducedMotion={coverFlowPrefersReducedMotion}
@@ -6315,6 +6363,8 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
                         renderCoverFlowItem(item, index, isActive, geometry, reveal, position, controls.focusProgress)
                       )}
                       config={mobileCoverFlowConfig}
+                      inactiveDepthIncrementPercent={dockPaletteConfig.inactiveCardDepthProgressionEnabled
+                        ? dockPaletteConfig.inactiveCardDepthIncrementPercent : 0}
                       prefersReducedMotion={coverFlowPrefersReducedMotion}
                       suppressEntranceAnimation={!coverFlowEntranceRestored}
                       hoverMaxScale={normalizedCtaButtonConfig.proximityScale}
@@ -6539,6 +6589,30 @@ export default function AbstractPage({ dockItems, labs, footerConfigOverrides, p
         `}</style>
       </PolymorphicLayout>
     )}
+      {quoteConfig.enabled ? (
+        <section
+          aria-label="Editorial thought"
+          className="w-full py-16 md:py-24"
+          style={{
+            backgroundColor: normalizedPageSurfaceConfig.color,
+            color: shortArticleListLightSurfaceTypography.bodyColor,
+          }}
+        >
+          <div className="mx-auto w-full max-w-3xl px-4 md:px-8">
+            <Quote
+              config={quoteConfig}
+              gradients={quoteGradients}
+              coverFlowGradient={{
+                slides: carouselAndListItems,
+                palettes: coverFlowPalettes,
+                motion: coverFlowLiquidSliderMotion,
+                config: journalDockSliderConfig,
+              }}
+            />
+          </div>
+        </section>
+      ) : null}
+
       {/* Fades the footer out using the SAME duration/easing as the mobile
           article list's own panel-expand motion (and back in with the
           collapse motion) — operator ask: the footer sitting behind the

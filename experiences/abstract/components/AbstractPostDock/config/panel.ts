@@ -513,10 +513,28 @@ export const ABSTRACT_POST_DOCK_PALETTE_PANEL =
           },
         ],
       },
-      { kind: 'boolean', key: 'inactiveGradientScaleDistanceEnabled', label: 'Inactive gradient scale by distance' },
-      { kind: 'number', key: 'inactiveGradientScaleDistancePercent', label: 'Inactive scale increase (mobile)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleDistanceEnabled },
-      { kind: 'number', key: 'inactiveGradientScaleDistancePercentWide', label: 'Inactive scale increase (tablet)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleDistanceEnabled },
-      { kind: 'number', key: 'inactiveGradientScaleDistancePercentLg', label: 'Inactive scale increase (desktop)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleDistanceEnabled },
+      {
+        kind: 'enum', key: 'inactiveGradientScaleMode', label: 'Inactive gradient scale',
+        description: 'Off uses the authored scale. By distance increases scale with each card’s distance from active. Same for all gives every inactive card the same scale.',
+        options: [
+          { label: 'OFF', value: 'off' },
+          { label: 'BY DISTANCE', value: 'distance' },
+          { label: 'SAME FOR ALL', value: 'uniform' },
+        ],
+      },
+      { kind: 'number', key: 'inactiveGradientScaleDistancePercent', label: 'Inactive scale increase (mobile)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleMode !== 'off' },
+      { kind: 'number', key: 'inactiveGradientScaleDistancePercentWide', label: 'Inactive scale increase (tablet)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleMode !== 'off' },
+      { kind: 'number', key: 'inactiveGradientScaleDistancePercentLg', label: 'Inactive scale increase (desktop)', min: 0, max: 200, step: 1, unit: '%', visibleWhen: config => config.inactiveGradientScaleMode !== 'off' },
+      {
+        kind: 'boolean', key: 'inactiveCardDepthProgressionEnabled', label: 'Card depth by position',
+        description: 'Keep the active card at zero depth. Starting with the nearest inactive card, each position moves farther back by the configured percentage of Neighbour depth.',
+      },
+      {
+        kind: 'number', key: 'inactiveCardDepthIncrementPercent', label: 'Depth increase per card',
+        description: 'Added percentage of Neighbour depth at each inactive position, including the nearest card. 0 keeps all inactive cards at the same depth.',
+        min: 0, max: 200, step: 1, unit: '%', integer: true,
+        visibleWhen: config => config.inactiveCardDepthProgressionEnabled,
+      },
       {
         kind: 'number',
         key: 'gradientScaleX',

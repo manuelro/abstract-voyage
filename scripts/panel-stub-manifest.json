@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T05:00:43.453Z",
+  "generatedAt": "2026-10-19T04:41:38.062Z",
   "scopes": [
     {
       "real": "components/ArticleMetaRow/config/appearance.panel.ts",
@@ -270,6 +270,65 @@
       "exports": [
         "MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID",
         "MOBILE_PINNED_ARTICLE_SECTION_PANEL"
+      ],
+      "hasDefaultExport": false
+    },
+    {
+      "real": "experiences/abstract/components/PracticesSection.panel.ts",
+      "stub": "experiences/abstract/components/PracticesSection.panel.stub.ts",
+      "exports": [
+        "PRACTICES_SECTION_LAYOUT_PANEL"
+      ],
+      "hasDefaultExport": false
+    },
+    {
+      "real": "experiences/abstract/components/Quote/BottomBannerQuote.panel.ts",
+      "stub": "experiences/abstract/components/Quote/BottomBannerQuote.panel.stub.ts",
+      "exports": [
+        "BOTTOM_BANNER_QUOTE_PANEL"
+      ],
+      "hasDefaultExport": false
+    },
+    {
+      "real": "experiences/abstract/components/Quote/EditorialQuote.panel.ts",
+      "stub": "experiences/abstract/components/Quote/EditorialQuote.panel.stub.ts",
+      "exports": [
+        "createEditorialQuotePanel"
+      ],
+      "hasDefaultExport": false
+    },
+    {
+      "real": "experiences/abstract/components/Quote/FeaturedWallQuote.panel.ts",
+      "stub": "experiences/abstract/components/Quote/FeaturedWallQuote.panel.stub.ts",
+      "exports": [
+        "FEATURED_WALL_QUOTE_PANEL"
+      ],
+      "hasDefaultExport": false
+    },
+    {
+      "real": "experiences/abstract/components/Quote/Quote.panel.ts",
+      "stub": "experiences/abstract/components/Quote/Quote.panel.stub.ts",
+      "exports": [
+        "QUOTE_HEADING_TEXT_FIELD",
+        "QUOTE_SCOPE_ID",
+        "QUOTE_PANEL"
+      ],
+      "hasDefaultExport": false
+    },
+    {
+      "real": "experiences/abstract/components/Quote/QuoteParts.panel.ts",
+      "stub": "experiences/abstract/components/Quote/QuoteParts.panel.stub.ts",
+      "exports": [
+        "QUOTE_HEADING_PANEL",
+        "QUOTE_SOURCE_LINK_PANEL"
+      ],
+      "hasDefaultExport": false
+    },
+    {
+      "real": "experiences/abstract/components/Quote/VoiceQuote.panel.ts",
+      "stub": "experiences/abstract/components/Quote/VoiceQuote.panel.stub.ts",
+      "exports": [
+        "VOICE_QUOTE_PANEL"
       ],
       "hasDefaultExport": false
     },

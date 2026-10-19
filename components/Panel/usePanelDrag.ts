@@ -153,6 +153,7 @@ function clampOffset(
 export function usePanelDrag({
   enabled,
   isOpen,
+  positionStorageKey,
   settleStiffness,
   settleDamping,
   settleMaxDurationMs,
@@ -162,6 +163,8 @@ export function usePanelDrag({
   backdropBlurEnabled,
 }: {
   enabled: boolean;
+  /** Separate floating shells keep independent persisted offsets. */
+  positionStorageKey?: string;
   /** Selects the clamp strictness on drag release/restore — see
    * clampOffset's own doc comment. Read via a ref internally so this
    * doesn't need to be a dependency of the drag lifecycle callbacks
@@ -191,7 +194,7 @@ export function usePanelDrag({
   backdropBlurEnabled: boolean;
 }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
-  const [persisted, setPersisted] = usePanelPosition();
+  const [persisted, setPersisted] = usePanelPosition(positionStorageKey);
   // Starts at the default anchor, not a lazy read of `persisted` — `usePanel
   // Position` is itself a `useSyncExternalStore` hook that deliberately
   // returns `null` on the very first client render (matching SSR) and only

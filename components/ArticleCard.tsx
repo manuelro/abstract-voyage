@@ -6,6 +6,8 @@ import { useCardLiftPhysics } from './proximity/useCardLiftPhysics';
 import { DEFAULT_CTA_BUTTON_CONFIG, type CtaButtonConfig } from './CtaButton/config/registered';
 import { getArticleCardFallbackBackground } from '../helpers/articleCardFallback';
 import { ARTICLE_CARD_DETAIL_FADE_MS, ARTICLE_CARD_DETAIL_FADE_EASING_CSS } from './ArticleCard.detailFade';
+import { GradientInkSurface, type GradientInkTreatment } from './GradientInkSurface';
+import type { TailwindTokenValue } from './Panel/config/tailwindFields';
 import styles from './ArticleCard.module.css';
 
 /** 'fill': no CSS aspect-ratio is set -- the card takes whatever box its
@@ -41,6 +43,8 @@ export type ArticleCardProps = {
   excerpt?: string;
   label?: string;
   topic?: string;
+  /** Present the topic as plain metadata text instead of a chip. */
+  topicAsText?: boolean;
   date?: string;
   readingTime?: string;
   href?: string;
@@ -72,12 +76,33 @@ export type ArticleCardProps = {
    * component's own generically-tuned default. */
   contentInsetRem?: number;
   contentInsetWideRem?: number;
+  /** Optional generated Tailwind padding tokens for the card information layer. */
+  contentPaddingTokens?: {
+    top: TailwindTokenValue<'paddingTop'>;
+    right: TailwindTokenValue<'paddingRight'>;
+    bottom: TailwindTokenValue<'paddingBottom'>;
+    left: TailwindTokenValue<'paddingLeft'>;
+    topMd: TailwindTokenValue<'paddingTop', 'md'>;
+    rightMd: TailwindTokenValue<'paddingRight', 'md'>;
+    bottomMd: TailwindTokenValue<'paddingBottom', 'md'>;
+    leftMd: TailwindTokenValue<'paddingLeft', 'md'>;
+    topLg: TailwindTokenValue<'paddingTop', 'lg'>;
+    rightLg: TailwindTokenValue<'paddingRight', 'lg'>;
+    bottomLg: TailwindTokenValue<'paddingBottom', 'lg'>;
+    leftLg: TailwindTokenValue<'paddingLeft', 'lg'>;
+  };
   /** Card-width-relative inset used by the proportional typography mode.
    * Expressed directly in cqw so its ratio cannot be interrupted by rem
    * floors/ceilings as the card changes size. */
   proportionalContentInsetCqw?: number;
   /** See `ArticleCardTypographyScale`. Defaults to 'fluid'. */
   typographyScale?: ArticleCardTypographyScale;
+  /** Generated Tailwind sizes for the complete metadata row. */
+  metadataFontSizeTokens?: {
+    base: TailwindTokenValue<'fontSize'>;
+    md: TailwindTokenValue<'fontSize', 'md'>;
+    lg: TailwindTokenValue<'fontSize', 'lg'>;
+  };
   /** Caps the title+excerpt block to a fixed height, top-aligned within it
    * and the block itself vertically centered in the card -- rather than the
    * default of letting the block free-center across the card's full middle
@@ -96,11 +121,7 @@ export type ArticleCardProps = {
   appearance?: ArticleCardAppearance;
   /** Opt-in composition that retains the live background gradient while a
    * solid surface and multiply-blended black content reveal it as ink. */
-  invertedGradientInk?: {
-    backgroundColor: string;
-    backgroundOpacity: number;
-    foregroundColor: string;
-    blendMode: 'screen' | 'multiply';
+  invertedGradientInk?: GradientInkTreatment & {
     activeBorderWidth?: string;
     activeBorderVisible?: boolean;
   };
@@ -234,6 +255,7 @@ export function ArticleCard({
   excerpt,
   label,
   topic,
+  topicAsText = false,
   date,
   readingTime,
   href,
@@ -251,8 +273,10 @@ export function ArticleCard({
   detailsVisible = true,
   contentInsetRem,
   contentInsetWideRem,
+  contentPaddingTokens,
   proportionalContentInsetCqw = 10.6667,
   typographyScale = 'fluid',
+  metadataFontSizeTokens,
   contentBlockHeight,
   contentStyle,
   appearance = 'gradient',
@@ -327,16 +351,26 @@ export function ArticleCard({
     ...(aspectRatio === 'fill' ? {} : { aspectRatio: aspectRatio === '16:9' ? '16 / 9' : '3 / 4' }),
     isolation: 'isolate',
     ...(invertedGradientInk ? {
-      '--article-card-inverted-surface-color': invertedGradientInk.backgroundColor,
-      '--article-card-inverted-surface-opacity': invertedGradientInk.backgroundOpacity,
       '--article-card-inverted-foreground-color': invertedGradientInk.foregroundColor,
-      '--article-card-inverted-blend-mode': invertedGradientInk.blendMode,
       ...(invertedGradientInk.activeBorderWidth ? {
         '--article-card-inverted-border-width': invertedGradientInk.activeBorderWidth,
       } : {}),
     } : {}),
     ...style,
   };
+  const metadataFontSizeClasses = metadataFontSizeTokens
+    ? `${metadataFontSizeTokens.base} ${metadataFontSizeTokens.md} ${metadataFontSizeTokens.lg}`
+    : '';
+  const contentPaddingClasses = contentPaddingTokens
+    ? [
+        contentPaddingTokens.top, contentPaddingTokens.right,
+        contentPaddingTokens.bottom, contentPaddingTokens.left,
+        contentPaddingTokens.topMd, contentPaddingTokens.rightMd,
+        contentPaddingTokens.bottomMd, contentPaddingTokens.leftMd,
+        contentPaddingTokens.topLg, contentPaddingTokens.rightLg,
+        contentPaddingTokens.bottomLg, contentPaddingTokens.leftLg,
+      ].join(' ')
+    : '';
   // Font-size stays fluid (container-query cqmin, in the CSS module) since a
   // static Tailwind text-* step would reopen the overflow bug a fixed size
   // caused on small scattered cards. Line-height doesn't need that -- it's
@@ -375,13 +409,15 @@ export function ArticleCard({
   ) : null;
 
   const content = (
-    <>
-      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-        {background ?? <div style={{ position: 'absolute', inset: 0, background: cssGradient }} />}
-      </div>
-      <div aria-hidden="true" className={`${styles.scrim} pointer-events-none absolute inset-0 z-0`} />
-      <div
-        className={`${styles.content} relative z-10 grid h-full min-h-0 grid-rows-[auto_1fr_auto]`}
+    <GradientInkSurface
+      backdrop={background ?? <div style={{ position: 'absolute', inset: 0, background: cssGradient }} />}
+      scrim={<div aria-hidden="true" className={`${styles.scrim} pointer-events-none absolute inset-0 z-0`} />}
+      ink={invertedGradientInk}
+      contentClassName={`${styles.content} grid h-full min-h-0 grid-rows-[auto_1fr_auto] ${contentPaddingClasses}`}
+      contentAttributes={{
+        'data-details-visible': detailsVisible ? 'true' : 'false',
+        'data-content-padding-tokens': contentPaddingTokens ? 'true' : undefined,
+      } as React.HTMLAttributes<HTMLDivElement>}
         // willChange explicitly promotes this to its own compositor layer,
         // matching the background canvas's own willChange (GradientRenderer.tsx)
         // — without it, this text layer relies on the browser's implicit
@@ -390,9 +426,9 @@ export function ArticleCard({
         // two layers at the compositor level (a known mobile Chrome/Safari
         // quirk), even though DOM z-index already says text wins. Explicitly
         // promoting both sides removes the ambiguity structurally.
-        style={{
+      contentStyle={{
           willChange: 'transform, opacity',
-          ...(contentPadding ? { padding: contentPadding } : {}),
+          ...(!contentPaddingTokens && contentPadding ? { padding: contentPadding } : {}),
           ...contentStyle,
           '--article-card-detail-fade-duration':
             `${staggerRevealDurationMs ?? ARTICLE_CARD_DETAIL_FADE_MS}ms`,
@@ -405,7 +441,6 @@ export function ArticleCard({
           '--reveal-exit-duration': `${staggerRevealExitDurationMs ?? ARTICLE_CARD_DETAIL_FADE_MS}ms`,
           '--reveal-exit-easing': staggerRevealExitEasingCss ?? ARTICLE_CARD_DETAIL_FADE_EASING_CSS,
         } as CSSProperties}
-        data-details-visible={detailsVisible ? 'true' : 'false'}
       >
         <div className="flex min-h-0 flex-col">
           {contentMode === 'full' && label ? (
@@ -416,6 +451,7 @@ export function ArticleCard({
           {contentMode === 'full' ? (
             <PostMetaRow
               topic={topic}
+              topicAsText={topicAsText}
               date={date}
               readingTime={readingTime}
               // Reserves 2 lines' worth of height so the meta row's own size
@@ -423,7 +459,7 @@ export function ArticleCard({
               // title below it (row 2) starts at a different height per card
               // depending on each post's own topic/date/reading-time length.
               style={typographyScale !== 'fluid' ? { minHeight: '4.2em' } : undefined}
-              className="articleCardMeta flex flex-wrap items-center font-mono uppercase"
+              className={`articleCardMeta flex flex-wrap items-center font-mono uppercase ${metadataFontSizeClasses}`}
               // Topic joins the same detailFade/data-details-visible gate
               // date/reading-time/cta already use — previously always
               // opaque regardless of detailsVisible, which left it out of
@@ -448,7 +484,7 @@ export function ArticleCard({
               // opacity (and therefore data-details-visible) actually
               // govern the topic tag again, same as every other element in
               // this reveal gate.
-              topicClassName={`articleCardTopic rounded-full border uppercase ${styles.detailFade}`}
+              topicClassName={`articleCardTopic ${topicAsText ? styles.plainTopic : 'rounded-full border uppercase'} ${styles.detailFade} ${metadataFontSizeClasses}`}
               topicStyle={{
                 opacity: undefined,
                 '--reveal-enter-delay': `${staggerRevealDelaysMs?.topic ?? 0}ms`,
@@ -545,11 +581,11 @@ export function ArticleCard({
             {cta}
           </div>
         ) : <span />}
-      </div>
-    </>
+    </GradientInkSurface>
   );
 
   const appearanceProps = {
+    'data-metadata-font-token': metadataFontSizeTokens ? 'true' : undefined,
     'data-appearance': appearance,
     'data-typography-scale': typographyScale,
     'data-gradient-ink': invertedGradientInk ? 'multiply' : undefined,

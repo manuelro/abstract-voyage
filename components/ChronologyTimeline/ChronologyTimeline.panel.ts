@@ -19,6 +19,8 @@ const COLOR_MODE_OPTIONS = [
 export const CHRONOLOGY_TIMELINE_FIELDS = [
   { kind: 'boolean', key: 'enabled', label: 'Show chronology', description: 'Group articles on a dated vertical timeline.' },
   { kind: 'boolean', key: 'showMonths', label: 'Show months', visibleWhen: (config: ChronologyTimelineConfig) => config.enabled },
+  { kind: 'boolean', key: 'dotColorOverrideEnabled', label: 'Override chronology dots', description: 'Opt in to one authored color for both year and month dots. The rail and date labels keep their current colors.', visibleWhen: (config: ChronologyTimelineConfig) => config.enabled },
+  { kind: 'color', key: 'dotColorOverride', label: 'Chronology dot color', visibleWhen: (config: ChronologyTimelineConfig) => config.enabled && config.dotColorOverrideEnabled } as const,
   {
     kind: 'enum', key: 'yearColorMode', label: 'Year · Color source',
     description: 'Derive from background (default): resolve the track/dot color from the real background, same mechanism and modulation knobs as the chip\'s own "Derive from background" mode. Manual: a literal, authored color instead.',

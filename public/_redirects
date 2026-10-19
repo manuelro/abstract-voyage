@@ -1,0 +1,16 @@
+# /wall is now the site's canonical home (pages/index.tsx renders the same
+# component as pages/wall.tsx). This is a permanent redirect so the old URL
+# doesn't compete with / as duplicate content and old links/bookmarks land
+# on the real canonical address.
+/wall  /  301
+
+# PLAN-PRODUCTION-ROUTE-ALLOWLIST.md: the production export (next.config.js
+# exportPathMap) ships only /, /about, /contact. Netlify serves a real file
+# for those three (and this rule is only consulted when no matching file
+# exists), so this single catch-all sends every other route — /abstract,
+# /journal, /posts/*, /thoughts/*, /black-hole, /synth-archive, the
+# *-lab sandboxes, /admin, and any future page added to pages/ without also
+# being added to PRODUCTION_ROUTES — to the canonical home instead of a hard
+# 404. Covers new excluded pages automatically; nothing to maintain here
+# when a page is added to or removed from source.
+/*  /  301

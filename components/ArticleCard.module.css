@@ -18,24 +18,21 @@
      * class; explicit clipping here keeps every background/canvas layer
      * inside it even when a parent has a 3D transform on mobile Safari. */
   overflow: hidden;
-  /* Active (gradient-appearance) card only — multipliers on top of each
-     element's own already-tuned opacity below, not a flat replacement
-     value: 1 (default, set here so an operator who never touches the panel
-     sees byte-for-byte today's look) is a no-op; below 1 dims the whole
-     header row (label/meta/topic/separator) or title+excerpt together,
-     keeping their existing relative weighting. Set from
+  /* Active (gradient-appearance) card only — these values directly control
+     the text alpha for the whole header row (label/meta/topic/separator).
+     1 is fully opaque and 0 is transparent. Set from
      SplitColumnCardStackConfig.activeHeaderOpacity/-TextOpacity via
      AbstractJournalLabCollection.tsx's own stackAppearanceStyle — a settled
      neighbor's [data-appearance='neutral'] block below never references
      either variable, so both are inert there regardless of value. */
   --article-card-header-opacity: 1;
   --article-card-text-opacity: 1;
-  --article-card-label-color: rgba(255, 255, 255, calc(0.6 * var(--article-card-header-opacity)));
-  --article-card-meta-color: rgba(255, 255, 255, calc(0.6 * var(--article-card-header-opacity)));
-  --article-card-topic-color: rgba(255, 255, 255, calc(0.7 * var(--article-card-header-opacity)));
+  --article-card-label-color: rgba(255, 255, 255, var(--article-card-header-opacity));
+  --article-card-meta-color: rgba(255, 255, 255, var(--article-card-header-opacity));
+  --article-card-topic-color: rgba(255, 255, 255, var(--article-card-header-opacity));
   --article-card-title-color: rgba(255, 255, 255, calc(0.9 * var(--article-card-text-opacity)));
   --article-card-excerpt-color: rgba(255, 255, 255, calc(0.7 * var(--article-card-text-opacity)));
-  --article-card-separator-color: rgba(255, 255, 255, calc(0.4 * var(--article-card-header-opacity)));
+  --article-card-separator-color: rgba(255, 255, 255, var(--article-card-header-opacity));
   --article-card-graphic-border-color: rgba(255, 255, 255, 0.25);
   --article-card-cta-color: rgba(255, 255, 255, 0.8);
   --article-card-cta-border-color: rgba(255, 255, 255, 0.3);
@@ -69,15 +66,7 @@
    and borders screen to the untouched live canvas beneath, becoming true
    moving gradient ink without approximating the shader in CSS. */
 .card[data-gradient-ink='multiply'] .content {
-  background-color: color-mix(
-    in srgb,
-    var(--article-card-inverted-surface-color)
-      calc(var(--article-card-inverted-surface-opacity) * 100%),
-    transparent
-  );
-  border-radius: inherit;
   overflow: hidden;
-  mix-blend-mode: var(--article-card-inverted-blend-mode);
   text-shadow: none !important;
 }
 
@@ -122,8 +111,11 @@
   border-color: var(--article-card-inverted-foreground-color);
 }
 
-.content {
+.content:not([data-content-padding-tokens='true']) {
   padding: clamp(0.75rem, 6cqmin, 2rem);
+}
+
+.content {
   text-shadow: var(--article-card-text-shadow);
   transition: text-shadow var(--article-card-appearance-duration)
     var(--article-card-appearance-easing) var(--article-card-appearance-delay);
@@ -156,7 +148,6 @@
 .card :global(.articleCardMeta) {
   color: var(--article-card-meta-color);
   gap: clamp(0.25rem, 1cqmin, 0.5rem);
-  font-size: clamp(0.5rem, 2.2cqmin, 0.625rem);
   letter-spacing: 0.16em;
   flex-shrink: 0;
   transition: color var(--article-card-appearance-duration)
@@ -167,13 +158,17 @@
   color: var(--article-card-topic-color);
   border-color: var(--article-card-graphic-border-color);
   padding: 0.125rem clamp(0.4rem, 1.6cqmin, 0.5rem);
-  font-size: clamp(0.5rem, 2.2cqmin, 0.625rem);
   letter-spacing: 0.16em;
   transition:
     color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
       var(--article-card-appearance-delay),
     border-color var(--article-card-appearance-duration) var(--article-card-appearance-easing)
       var(--article-card-appearance-delay);
+}
+
+.card:not([data-metadata-font-token='true']) :global(.articleCardMeta),
+.card:not([data-metadata-font-token='true']) :global(.articleCardTopic) {
+  font-size: clamp(0.5rem, 2.2cqmin, 0.625rem);
 }
 
 .card :global(.articleCardDate),
@@ -291,12 +286,21 @@
 
 .card[data-typography-scale='proportional'] :global(.articleCardMeta) {
   gap: 1.0667cqw;
-  font-size: 2.2cqw;
 }
 
 .card[data-typography-scale='proportional'] :global(.articleCardTopic) {
   border-width: max(1px, 0.2667cqw);
   padding: 0.5333cqw 1.7067cqw;
+}
+
+.card :global(.articleCardTopic).plainTopic {
+  border: 0;
+  padding: 0;
+  text-transform: uppercase;
+}
+
+.card[data-typography-scale='proportional']:not([data-metadata-font-token='true']) :global(.articleCardMeta),
+.card[data-typography-scale='proportional']:not([data-metadata-font-token='true']) :global(.articleCardTopic) {
   font-size: 2.2cqw;
 }
 

@@ -3,6 +3,7 @@ import Chip from './Chip'
 
 type PostMetaRowProps = {
   topic?: string | null
+  topicAsText?: boolean
   date?: string | null
   readingTime?: string | null
   className?: string
@@ -22,6 +23,7 @@ type PostMetaRowProps = {
 
 export default function PostMetaRow({
   topic,
+  topicAsText = false,
   date,
   readingTime,
   className,
@@ -46,9 +48,9 @@ export default function PostMetaRow({
 
   return (
     <div className={className} style={style}>
-      {hasTopic ? (
-        <Chip label={topic} className={topicClassName} style={topicStyle} />
-      ) : null}
+      {hasTopic && (topicAsText
+        ? <span className={topicClassName} style={topicStyle}>{topic}</span>
+        : <Chip label={topic} className={topicClassName} style={topicStyle} />)}
       {hasTopic && hasDate ? (
         <span
           className={[dotClassName ?? 'opacity-50', topicDateSeparatorClassName].filter(Boolean).join(' ')}

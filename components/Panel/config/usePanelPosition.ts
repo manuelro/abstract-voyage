@@ -1,20 +1,20 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
 // Same module-level-cache + localStorage + useSyncExternalStore pattern as
-// useConfigScopeOpenState.ts's own STORAGE_KEY — a single global key since
-// the shell itself is a single, page-independent floating element, not a
-// per-scope value.
+// useConfigScopeOpenState.ts. The site settings shell retains its original
+// key; other PanelShell instances may supply a separate key so dragging one
+// does not move the other after a remount.
 const STORAGE_KEY = 'panel-shell-position';
 
 export type PanelPosition = { x: number; y: number };
 
-let cache: PanelPosition | null | undefined;
+const cache = new Map<string, PanelPosition | null>();
 const listeners = new Set<() => void>();
 
-function readStoredPosition(): PanelPosition | null {
+function readStoredPosition(storageKey: string): PanelPosition | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (
@@ -31,11 +31,11 @@ function readStoredPosition(): PanelPosition | null {
   }
 }
 
-// Lazy, module-level cache — read from localStorage at most once per page
-// load, same rationale as useConfigScopeOpenState.ts's own getCache.
-function getCache(): PanelPosition | null {
-  if (cache === undefined) cache = readStoredPosition();
-  return cache;
+// Lazy, per-key cache — read each shell's localStorage entry at most once per
+// page load, same rationale as useConfigScopeOpenState.ts's own getCache.
+function getCache(storageKey: string): PanelPosition | null {
+  if (!cache.has(storageKey)) cache.set(storageKey, readStoredPosition(storageKey));
+  return cache.get(storageKey) ?? null;
 }
 
 function notifyListeners() {
@@ -47,12 +47,12 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-function setPosition(position: PanelPosition | null) {
+function setPosition(storageKey: string, position: PanelPosition | null) {
   if (typeof window === 'undefined') return;
-  cache = position;
+  cache.set(storageKey, position);
   try {
-    if (position) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(position));
-    else window.localStorage.removeItem(STORAGE_KEY);
+    if (position) window.localStorage.setItem(storageKey, JSON.stringify(position));
+    else window.localStorage.removeItem(storageKey);
   } catch {
     // Storage can throw (quota, private mode) — the in-memory cache above
     // still applies for the rest of this session, same as
@@ -70,15 +70,15 @@ function setPosition(position: PanelPosition | null) {
  * dragged, use the default anchor" — distinct from `{ x: 0, y: 0 }`, which
  * is a real, explicit "dragged back to the default spot" position.
  */
-export function usePanelPosition(): [PanelPosition | null, (position: PanelPosition | null) => void] {
-  const getSnapshot = useCallback(() => getCache(), []);
+export function usePanelPosition(storageKey = STORAGE_KEY): [PanelPosition | null, (position: PanelPosition | null) => void] {
+  const getSnapshot = useCallback(() => getCache(storageKey), [storageKey]);
   const getServerSnapshot = useCallback(() => null, []);
 
   const position = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const set = useCallback((next: PanelPosition | null) => {
-    setPosition(next);
-  }, []);
+    setPosition(storageKey, next);
+  }, [storageKey]);
 
   return [position, set];
 }

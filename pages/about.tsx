@@ -564,6 +564,24 @@ function AboutPageContent({ pageContent }: { pageContent: AboutPageContent }) {
   // narrow column's own prev/next triggers) rather than a page-local
   // useState — see this file's own AboutSlidesProvider wrapper above.
   const { activeIndex: activeSlideIndex, setActiveIndex: setActiveSlideIndex } = useAboutSlides();
+  const [linkedSlideIndex, setLinkedSlideIndex] = useState<number | null>(null);
+  // Wall excerpts deep-link to their canonical timeline stage. Select the
+  // stage after the provider restores a saved selection, and repeat when the
+  // hash changes without a full navigation.
+  useEffect(() => {
+    const selectLinkedStage = () => {
+      const id = window.location.hash.startsWith('#about-')
+        ? window.location.hash.slice('#about-'.length) : '';
+      const index = pageContent.timeline.findIndex(entry => entry.id === id);
+      if (index >= 0) {
+        setActiveSlideIndex(index);
+        setLinkedSlideIndex(index);
+      }
+    };
+    selectLinkedStage();
+    window.addEventListener('hashchange', selectLinkedStage);
+    return () => window.removeEventListener('hashchange', selectLinkedStage);
+  }, [pageContent.timeline, setActiveSlideIndex]);
 
   // Only consulted when splitColumnLayoutConfig.colorSource === 'palette' —
   // see usePolymorphicLayoutColors's own doc comment. 'wide' is never
@@ -1512,6 +1530,9 @@ function AboutPageContent({ pageContent }: { pageContent: AboutPageContent }) {
         description={pageContent.meta.description}
         canonicalPath="/about"
       />
+      {pageContent.timeline.map(entry => (
+        <span key={entry.id} id={`about-${entry.id}`} aria-hidden="true" style={{ position: 'absolute', top: 0, width: 0, height: 0 }} />
+      ))}
       <PolymorphicLayout
         className={`${styles.main} flex flex-col`}
         style={{
@@ -1826,6 +1847,7 @@ function AboutPageContent({ pageContent }: { pageContent: AboutPageContent }) {
             dimOpacity={dockLayoutConfig.minimalModeTextDimOpacity}
             emphasisOpacity={dockLayoutConfig.minimalModeTextEmphasisOpacity}
             prefersReducedMotion={prefersReducedMotion}
+            linkedSlideIndex={linkedSlideIndex}
             onActiveIndexChange={setActiveSlideIndex}
             columnBackgroundColor={colors.wideColumnColor}
           />

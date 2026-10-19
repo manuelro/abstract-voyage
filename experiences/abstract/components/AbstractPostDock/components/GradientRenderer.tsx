@@ -55,6 +55,15 @@ export type LiquidGradientRenderController = {
   invalidate: () => void;
 };
 
+/** Final shader controls for an individual mesh, after its deck palette. */
+export type GradientMeshModulation = {
+  brightnessMultiplier: number;
+  saturationMultiplier: number;
+  scale: number;
+  scaleX?: number;
+  scaleY?: number;
+};
+
 const MESH_GEOMETRY_RESPONSE_RATE_PER_SECOND = 18;
 const MESH_GEOMETRY_SETTLE_EPSILON = 0.001;
 
@@ -64,6 +73,7 @@ export function LiquidGradientAdapter({
   config,
   activity = 'continuous',
   palette = null,
+  meshModulation,
   hologramConfig = DEFAULT_ABSTRACT_POST_DOCK_HOLOGRAM_CONFIG,
   hologramInteraction = null,
   hologramDampingAttackMs = DEFAULT_CTA_BUTTON_CONFIG.proximityAttackMs,
@@ -75,12 +85,15 @@ export function LiquidGradientAdapter({
   activationRampEasingCss = 'ease-out',
   scaleMultiplierLive,
   onFirstRender,
+  colorSampleUvs,
+  onColorSample,
 }: {
   slide: SliderSlide;
   motion: ReturnType<typeof useLiquidSliderMotion>;
   config: SliderGradientConfig;
   activity?: AbstractPostDockGradientActivity;
   palette?: DeckPaletteState | null;
+  meshModulation?: GradientMeshModulation;
   /** Hover-hologram tuning — see AbstractPostDockHologramConfig. Defaults to
    * the standard config (enabled) rather than off, so a caller that doesn't
    * pass `hologramInteraction` simply never triggers it (no ref, no signal)
@@ -143,6 +156,16 @@ export function LiquidGradientAdapter({
   scaleMultiplierLive?: MotionValue<number>;
   /** Called once after this instance has produced its first real WebGL frame. */
   onFirstRender?: () => void;
+  /** Opt-in: normalized sample points (u, v in 0-1, TOP-LEFT origin) at which
+   * to read back the rendered mesh's own pixels after each draw. The Quote's
+   * CSS-fallback mode uses this to extract the mesh's actual colors at the
+   * padded text positions and build a static CSS gradient that matches the
+   * live mesh. Omit it (the default) and no readback ever happens — zero cost
+   * for every other caller. */
+  colorSampleUvs?: ReadonlyArray<readonly [number, number]>;
+  /** Receives the sampled colors (sRGB 0-255, same order as colorSampleUvs)
+   * whenever they change. Paired with colorSampleUvs above. */
+  onColorSample?: (colors: ReadonlyArray<readonly [number, number, number]>) => void;
   /** CSS easing for the ramp above — pass the same token driving the
    * `useCardLiftPhysics` side (that hook's own `config.stateExitEasing`) so
    * both engines feel like one coordinated motion rather than two
@@ -152,12 +175,18 @@ export function LiquidGradientAdapter({
 }) {
   const onFirstRenderRef = useRef(onFirstRender);
   onFirstRenderRef.current = onFirstRender;
+  const colorSampleUvsRef = useRef(colorSampleUvs);
+  colorSampleUvsRef.current = colorSampleUvs;
+  const onColorSampleRef = useRef(onColorSample);
+  onColorSampleRef.current = onColorSample;
+  const lastColorSampleKeyRef = useRef<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const motionValuesRef = useRef<LiquidSliderMotionValues>(NEUTRAL_MOTION_VALUES);
   const configRef = useRef(config);
   const scaleMultiplierRef = useRef(scaleMultiplierLive?.get() ?? 1);
   const activityRef = useRef(activity);
   const paletteRef = useRef<DeckPaletteState | null>(palette);
+  const meshModulationRef = useRef(meshModulation);
   const initialHueUniformState = hueUniformStateFromPalette(palette);
   const hueTransitionRef = useRef<HueTransitionState>({
     from: initialHueUniformState,
@@ -256,6 +285,7 @@ export function LiquidGradientAdapter({
     // opt-in is meant to close.
     renderControllerRef.current?.invalidate();
     return scaleMultiplierLive?.on('change', (value) => {
+      if (scaleMultiplierRef.current === value) return;
       scaleMultiplierRef.current = value;
       renderControllerRef.current?.invalidate();
     });
@@ -282,6 +312,11 @@ export function LiquidGradientAdapter({
     renderControllerRef.current?.invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
+
+  useEffect(() => {
+    meshModulationRef.current = meshModulation;
+    renderControllerRef.current?.invalidate();
+  }, [meshModulation]);
 
   useEffect(() => {
     const previousPalette = paletteRef.current;
@@ -691,17 +726,22 @@ export function LiquidGradientAdapter({
         paletteSeed: paletteState ? paletteState.kinshipSeed : undefined,
         paletteHueOffset: paletteState ? paletteState.hueOffset : null,
         paletteOffsetX: liveGaussianProximityOffsetX ?? (paletteState ? paletteState.offsetX : null),
-        paletteSaturation: paletteState ? paletteState.masterSaturation : 1,
-        paletteBrightness: paletteState ? paletteState.masterBrightness : 1,
+        paletteSaturation: (paletteState ? paletteState.masterSaturation : 1)
+          * (meshModulationRef.current?.saturationMultiplier ?? 1),
+        paletteBrightness: (paletteState ? paletteState.masterBrightness : 1)
+          * (meshModulationRef.current?.brightnessMultiplier ?? 1),
         paletteContrast: paletteState ? paletteState.masterContrast : 1,
         paletteSoftness: paletteState ? paletteState.masterSoftness : 0,
         // Palette scale overrides config scale at the final WebGL consumer.
         // Resolve the base here, then apply the live multiplier so palette-
         // backed cards respond continuously during drag as well.
-        paletteScale: (paletteState?.paletteScale ?? currentConfig.shaderColorScale)
+        paletteScale: (meshModulationRef.current?.scale
+          ?? paletteState?.paletteScale ?? currentConfig.shaderColorScale)
           * scaleMultiplier,
-        paletteScaleX: paletteState ? paletteState.paletteScaleX : null,
-        paletteScaleY: paletteState ? paletteState.paletteScaleY : null,
+        paletteScaleX: (paletteState?.paletteScaleX ?? currentConfig.shaderColorScaleX)
+          * (meshModulationRef.current?.scaleX ?? 1),
+        paletteScaleY: (paletteState?.paletteScaleY ?? currentConfig.shaderColorScaleY)
+          * (meshModulationRef.current?.scaleY ?? 1),
         paletteNoise: paletteState ? paletteState.paletteNoise : null,
         hueInfluenceEnabled: hueUniforms.mix > 1e-5,
         hueInfluenceMix: hueUniforms.mix,
@@ -742,10 +782,37 @@ export function LiquidGradientAdapter({
         outputTreatmentInteractionStrength: hologramResponseStrength,
       });
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.flush();
+      // The browser presents the WebGL canvas at the frame boundary. An
+      // explicit flush on every draw can force extra driver work while the
+      // CoverFlow is already updating its composited card transforms.
       if (!hasRendered) onFirstRenderRef.current?.();
       hasRendered = true;
       needsRender = false;
+
+      // Opt-in pixel readback (Quote CSS-fallback color extraction). Done here,
+      // synchronously right after the draw, so it reads the freshly-rendered
+      // back buffer without needing preserveDrawingBuffer. WebGL's framebuffer
+      // origin is bottom-left, so v is flipped. Deduped by value so a
+      // continuous mesh doesn't fire the callback every frame.
+      const sampleUvs = colorSampleUvsRef.current;
+      const onSample = onColorSampleRef.current;
+      if (sampleUvs && sampleUvs.length > 0 && onSample) {
+        const bw = gl.drawingBufferWidth;
+        const bh = gl.drawingBufferHeight;
+        const pixel = new Uint8Array(4);
+        const colors: Array<readonly [number, number, number]> = [];
+        for (const [u, v] of sampleUvs) {
+          const sx = Math.min(bw - 1, Math.max(0, Math.round(u * bw)));
+          const sy = Math.min(bh - 1, Math.max(0, Math.round((1 - v) * bh)));
+          gl.readPixels(sx, sy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+          colors.push([pixel[0], pixel[1], pixel[2]]);
+        }
+        const key = colors.map(c => c.join(',')).join('|');
+        if (key !== lastColorSampleKeyRef.current) {
+          lastColorSampleKeyRef.current = key;
+          onSample(colors);
+        }
+      }
 
       if (activityRef.current === 'continuous') {
         scheduleRender();

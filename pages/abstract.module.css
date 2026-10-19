@@ -169,6 +169,12 @@
   }
 }
 
+/* EditorialQuote's standalone top and bottom insets add invisible space
+   around the painted surface. MasonryWall already owns item spacing. */
+.wallQuotes :global([data-wall-quote-index] > [data-editorial-variant]) {
+  padding-block: 0;
+}
+
 .refractorLayer {
   position: absolute;
   z-index: 1;

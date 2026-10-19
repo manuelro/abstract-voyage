@@ -28,6 +28,10 @@ export type ChronologyTimelineConfig = {
    * rendered along it (see ChronologyTimeline.tsx's own railInk). */
   yearManualColor: string
   monthManualColor: string
+  /** Optional shared pigment for year and month dots; the rail and labels
+   * keep their existing independently resolved colors. */
+  dotColorOverrideEnabled: boolean
+  dotColorOverride: string
   yearDarkInkSaturation: number
   monthDarkInkSaturation: number
   yearDarkInkOpacityMultiplier: number
@@ -130,6 +134,8 @@ export const DEFAULT_CHRONOLOGY_TIMELINE_CONFIG: ChronologyTimelineConfig = {
   monthColorMode: 'deriveFromBackground',
   yearManualColor: '#111827',
   monthManualColor: '#111827',
+  dotColorOverrideEnabled: false,
+  dotColorOverride: '#ffffff',
   yearDarkInkSaturation: 0,
   monthDarkInkSaturation: 0.55,
   yearDarkInkOpacityMultiplier: 1,
@@ -219,6 +225,9 @@ export function normalizeChronologyTimelineConfig(config: Partial<ChronologyTime
       ? config.yearManualColor : defaults.yearManualColor,
     monthManualColor: typeof config?.monthManualColor === 'string' && config.monthManualColor.trim()
       ? config.monthManualColor : defaults.monthManualColor,
+    dotColorOverrideEnabled: config?.dotColorOverrideEnabled === true,
+    dotColorOverride: typeof config?.dotColorOverride === 'string' && config.dotColorOverride.trim()
+      ? config.dotColorOverride : defaults.dotColorOverride,
     yearDarkInkSaturation: clamp(config?.yearDarkInkSaturation, 0, 2, defaults.yearDarkInkSaturation),
     monthDarkInkSaturation: clamp(config?.monthDarkInkSaturation, 0, 2, defaults.monthDarkInkSaturation),
     yearDarkInkOpacityMultiplier: clamp(config?.yearDarkInkOpacityMultiplier, 0.2, 1, defaults.yearDarkInkOpacityMultiplier),

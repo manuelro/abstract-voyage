@@ -12,7 +12,7 @@
     "dev:editor": "concurrently --kill-others --names site,editor --prefix-colors cyan,magenta \"npm run dev\" \"npm run editor\"",
     "prebuild": "npm run verify:tailwind-fields",
     "build": "next build",
-    "build:static": "npm run build && npm run export",
+    "build:static": "node scripts/build-production-routes.js",
     "start": "next start",
     "lint": "next lint",
     "pretest": "npm run verify:tailwind-fields",

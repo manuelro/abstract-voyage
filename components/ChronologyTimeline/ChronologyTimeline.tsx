@@ -186,7 +186,7 @@ export function ChronologyTimeline<T extends DatedItem>({
   // once. The rail is now drawn per year (`.yearRail`, one per `<section
   // className={styles.year}>`, first child so it paints behind that year's
   // own dot/content) and reads the exact same CSS variables that year's own
-  // dot reads (`--chronology-ink` at rest, `--chronology-year-fade-dot-color`
+  // dot reads (`--chronology-ink` at rest, `--chronology-year-fade-rail-color`
   // when `data-dimmed`) — the dot and the line behind it are now
   // *structurally* the same color, in every state, not just coincidentally
   // equal at rest.
@@ -387,12 +387,18 @@ export function ChronologyTimeline<T extends DatedItem>({
   // tint derivation uses) — same visual read as reduced opacity, no
   // compositing artifact. The year dot's faded blend now starts from railInk
   // (its own resting color, above) rather than yearInk, for the same reason.
-  const yearDotFadedColor = deriveOpaqueTint(railInk, backgroundColor, config.yearHoverFadeDotOpacity)
-  const monthDotFadedColor = deriveOpaqueTint(monthInk, backgroundColor, config.yearHoverFadeDotOpacity)
+  const dotOverride = config.dotColorOverrideEnabled ? config.dotColorOverride : undefined
+  const yearDotColor = dotOverride ?? railInk
+  const monthDotColor = dotOverride ?? monthInk
+  const yearRailFadedColor = deriveOpaqueTint(railInk, backgroundColor, config.yearHoverFadeDotOpacity)
+  const yearDotFadedColor = deriveOpaqueTint(yearDotColor, backgroundColor, config.yearHoverFadeDotOpacity)
+  const monthDotFadedColor = deriveOpaqueTint(monthDotColor, backgroundColor, config.yearHoverFadeDotOpacity)
   const customProperties = {
     '--chronology-ink': railInk,
     '--chronology-year-color': yearInk,
     '--chronology-month-color': monthInk,
+    '--chronology-year-dot-color': yearDotColor,
+    '--chronology-month-dot-color': monthDotColor,
     '--chronology-year-dot': `${config.yearDotSize}px`,
     '--chronology-month-dot': `${config.monthDotSize}px`,
     '--chronology-content-gap-base': `${config.contentGap}rem`,
@@ -405,7 +411,8 @@ export function ChronologyTimeline<T extends DatedItem>({
     '--chronology-track-opacity-md': config.trackOpacityMd,
     '--chronology-track-opacity-lg': config.trackOpacityLg,
     '--chronology-year-fade-opacity': config.yearHoverFadeOpacity,
-    '--chronology-year-fade-dot-color': yearDotFadedColor,
+    '--chronology-year-fade-rail-color': yearRailFadedColor,
+    '--chronology-year-marker-fade-dot-color': yearDotFadedColor,
     '--chronology-month-fade-dot-color': monthDotFadedColor,
     '--chronology-year-fade-duration': `${prefersReducedMotion ? 0 : config.yearHoverFadeDurationMs}ms`,
     '--chronology-year-fade-delay': `${prefersReducedMotion ? 0 : config.yearHoverFadeDelayMs}ms`,

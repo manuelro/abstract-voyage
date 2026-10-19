@@ -66,7 +66,7 @@ function compareBindings(a: ConfigScopeBinding, b: ConfigScopeBinding, sort: Con
  * sections before also rendering the full list through this component, and
  * that pre-existing double-render must keep working unchanged.
  */
-export function ConfigScopeList({ bindings }: { bindings: ReadonlyArray<ConfigScopeBinding> }) {
+export function ConfigScopeList({ bindings, lazyContent = false }: { bindings: ReadonlyArray<ConfigScopeBinding>; lazyContent?: boolean }) {
   const dragFrostActive = useContext(PanelDragFrostContext);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useConfigScopeSortPreference();
@@ -183,7 +183,7 @@ export function ConfigScopeList({ bindings }: { bindings: ReadonlyArray<ConfigSc
         <div className={styles.scopeListFrequentlyUsed}>
           <SubLabel>Frequently used</SubLabel>
           {frequentlyUsedBindings.map(binding => (
-            <ConfigScopeRenderer key={`frequently-used-${binding.definition.id}`} binding={binding} />
+            <ConfigScopeRenderer key={`frequently-used-${binding.definition.id}`} binding={binding} lazyContent={lazyContent} />
           ))}
         </div>
       ) : null}
@@ -197,7 +197,7 @@ export function ConfigScopeList({ bindings }: { bindings: ReadonlyArray<ConfigSc
       {visibleBindings.length > 0 ? (
         <div className={styles.scopeListStandard}>
           {visibleBindings.map(binding => (
-            <ConfigScopeRenderer key={binding.definition.id} binding={binding} />
+            <ConfigScopeRenderer key={binding.definition.id} binding={binding} lazyContent={lazyContent} />
           ))}
         </div>
       ) : null}

@@ -1,0 +1,54 @@
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.decoration {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.ink {
+  background-color: color-mix(in srgb, var(--gradient-ink-surface) calc(var(--gradient-ink-opacity) * 100%), transparent);
+  border-radius: inherit;
+}
+
+.ink[data-gradient-ink-layer='screen'],
+.ink[data-gradient-ink-layer='multiply'] {
+  mix-blend-mode: var(--gradient-ink-blend);
+}
+
+.ink [data-gradient-ink-color] {
+  color: var(--gradient-ink-foreground);
+}
+
+.ink [data-gradient-ink-border] {
+  border-color: var(--gradient-ink-foreground);
+}
+
+@media (forced-colors: active) {
+  .ink,
+  .ink[data-gradient-ink-layer='screen'],
+  .ink[data-gradient-ink-layer='multiply'] {
+    background-color: Canvas;
+    mix-blend-mode: normal;
+  }
+
+  .ink [data-gradient-ink-color] {
+    color: CanvasText;
+  }
+
+  .ink [data-gradient-ink-border] {
+    border-color: CanvasText;
+  }
+}

@@ -1,4 +1,4 @@
-import AbstractPage, { getStaticProps } from './abstract'
+import AbstractPage, { getStaticProps } from './wall'
 
 export { getStaticProps }
 export default AbstractPage

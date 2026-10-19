@@ -305,9 +305,10 @@ export function applySliderGradientUniforms({
    * shaderColorScale/shaderColorRandomness" doc comments. */
   paletteScale?: number | null;
   /** Tier-resolved AbstractPostDockPaletteConfig.gradientScaleX/gradientScaleY
-   * — independent horizontal/vertical stretch multipliers (1..5, default 1)
-   * layered on top of uScale above, same "?? " override idiom against
-   * config.shaderColorScaleX/shaderColorScaleY. */
+   * — independent horizontal/vertical stretch factors layered on top of
+   * uScale. A quote can multiply a source palette's 1..5 factor by its own
+   * 0.2..5 axis control. The fallback uses the same "??" override idiom
+   * against config.shaderColorScaleX/shaderColorScaleY. */
   paletteScaleX?: number | null;
   paletteScaleY?: number | null;
   paletteNoise?: number | null;
@@ -354,10 +355,10 @@ export function applySliderGradientUniforms({
   gl.uniform2f(gradientProgram.uResolution, width, height);
   gl.uniform1f(gradientProgram.uVariation, clamp(config.shaderColorVariation + slide.variationBias + intensity * 0.055, 0, 0.4));
   gl.uniform1f(gradientProgram.uSaturation, clamp((config.shaderColorSaturation + intensity * 0.18 + hologramSaturationBoost) * paletteSaturation, 0, 2.5));
-  gl.uniform1f(gradientProgram.uBrightness, clamp((config.shaderColorBrightness + motionValues.settlingIntensity * 0.08 + hologramBrightnessBoost) * paletteBrightness, 0.3, 1.8));
+  gl.uniform1f(gradientProgram.uBrightness, clamp((config.shaderColorBrightness + motionValues.settlingIntensity * 0.08 + hologramBrightnessBoost) * paletteBrightness, 0, 1.8));
   gl.uniform1f(gradientProgram.uScale, clamp((paletteScale ?? config.shaderColorScale) * (1 + (motionValues.gradientStretch - 1) * 1.8), 0.5, 4));
-  gl.uniform1f(gradientProgram.uScaleX, clamp(paletteScaleX ?? config.shaderColorScaleX, 1, 5));
-  gl.uniform1f(gradientProgram.uScaleY, clamp(paletteScaleY ?? config.shaderColorScaleY, 1, 5));
+  gl.uniform1f(gradientProgram.uScaleX, clamp(paletteScaleX ?? config.shaderColorScaleX, 0.2, 25));
+  gl.uniform1f(gradientProgram.uScaleY, clamp(paletteScaleY ?? config.shaderColorScaleY, 0.2, 25));
   gl.uniform1f(gradientProgram.uSeed, (config.seed + (paletteSeed ?? slide.seed)) * 1000);
   gl.uniform1f(gradientProgram.uRandomness, clamp((paletteNoise ?? config.shaderColorRandomness) + motionValues.gradientDistortion * 0.12, 0, 1));
   gl.uniform2f(

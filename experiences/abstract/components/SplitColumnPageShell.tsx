@@ -71,6 +71,10 @@ export type SplitColumnPageShellProps = {
    * still drive its own transition on this value if it needs to. */
   backgroundColor?: string;
   className?: string;
+  /** Opt-in for pages whose split columns are intentionally hidden: remove
+   * the shell's viewport floor and flex growth so the empty shell collapses
+   * to its in-flow content. */
+  contentSized?: boolean;
   /** Merged into <main>'s own style, after `background` — for a page's own
    * CSS custom properties (e.g. /about's --about-nav-h-mobile/-desktop). */
   style?: CSSProperties;
@@ -221,6 +225,8 @@ export type SplitColumnPageShellProps = {
    * wrong shape (two numbers that can silently drift). No effect when
    * autoAlignNavSplit is false/omitted. */
   onNavAlignmentChange?: (alignment: SplitColumnNavAlignment) => void;
+  /** Optional content in document flow immediately after the header. */
+  leadingContent?: ReactNode;
   /** Rendered after the SplitColumnLayout content, inside <main> — e.g. a
    * page's own dev-only settings panel. */
   children?: ReactNode;
@@ -253,6 +259,7 @@ export function SplitColumnPageShell({
   pageSurfaceConfig,
   backgroundColor,
   className,
+  contentSized = false,
   style,
   header,
   headerOverlay,
@@ -281,6 +288,7 @@ export function SplitColumnPageShell({
   edgeBackdropSeamPx,
   autoAlignNavSplit = false,
   onNavAlignmentChange,
+  leadingContent,
   children,
 }: SplitColumnPageShellProps) {
   const normalizedPageSurfaceConfig = normalizePageSurfaceConfig(pageSurfaceConfig);
@@ -449,7 +457,7 @@ export function SplitColumnPageShell({
       // after an in-flow header, while its intrinsic min-size still lets
       // content make the page taller. Because grid items stretch by
       // default, both column paint boxes then reach the same bottom edge.
-      className="flex-1"
+      className={contentSized ? '' : 'flex-1'}
       wideColumnClassName={wideColumnClassName}
       narrowColumnClassName={narrowColumnClassName}
       wideColumnStyle={effectiveWideColumnStyle}
@@ -464,7 +472,7 @@ export function SplitColumnPageShell({
 
   const centeredLayout = (
     <div
-      className="flex w-full flex-1 items-center justify-center"
+      className={`flex w-full ${contentSized ? '' : 'flex-1'} items-center justify-center`}
       style={{
         minHeight: measuredHeaderHeightPx !== undefined
           ? `calc(100dvh - ${measuredHeaderHeightPx}px)`
@@ -484,7 +492,7 @@ export function SplitColumnPageShell({
         // floor. Previously only centered mode was a flex column, leaving
         // split mode's grid at content height and exposing the page surface
         // beneath short columns.
-        'relative flex min-h-[100dvh] flex-col overflow-x-clip',
+        `relative flex ${contentSized ? '' : 'min-h-[100dvh]'} flex-col overflow-x-clip`,
         className,
       ].filter(Boolean).join(' ')}
       style={{ background: backgroundColor ?? normalizedPageSurfaceConfig.color, ...style }}
@@ -520,11 +528,12 @@ export function SplitColumnPageShell({
           splitBandStacked,
         })}
       </div>
+      {leadingContent}
       {layoutMode === 'centered' ? centeredLayout : contentContainer === 'bounded' ? (
         // Preserve the same flex-height chain through the bounded branch's
         // backdrop and PageContainer wrappers. Without each link, flex-1 on
         // the grid has no definite remaining space to absorb.
-        <div className="relative flex flex-1 flex-col">
+        <div className={`relative flex ${contentSized ? '' : 'flex-1'} flex-col`}>
           {edgeBackdropEnabled && typeof effectiveEdgeBackdropSeamPx === 'number' ? (
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 hidden md:block">
               <div
@@ -548,7 +557,7 @@ export function SplitColumnPageShell({
             </div>
           ) : null}
           <PageContainer
-            className={`relative z-[1] flex flex-1 flex-col ${bodyGutterClassName ?? ''}`}
+            className={`relative z-[1] flex ${contentSized ? '' : 'flex-1'} flex-col ${bodyGutterClassName ?? ''}`}
             config={normalizedPageSurfaceConfig}
           >
             {layout}

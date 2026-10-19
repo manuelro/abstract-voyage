@@ -22,10 +22,11 @@ export const CHIP_DEFAULT_CLASS_NAME: any = (() => {
   })
   return p
 })()
-export const Chip: any = (() => {
+const defaultStub: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
     apply() { return undefined },
   })
   return p
 })()
+export default defaultStub

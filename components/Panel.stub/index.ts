@@ -12,6 +12,16 @@
 // imported directly — see CONFIG-CHANGE-PROTOCOL.md.
 export { clamp, getStepPrecision, formatKnobValue } from '../mathUtils'
 
+// Same reasoning: the real components/Panel/index.tsx also re-exports
+// DEFAULT_PANEL_SHELL_CONFIG from ./config/shell, and
+// experiences/abstract/components/CoverFlow/OvalGeometryPreview.tsx reads
+// it from this bare Panel root unconditionally (a plain config default
+// object, not authoring-gated UI). Confirmed missing here the hard way —
+// PLAN-PRODUCTION-ROUTE-ALLOWLIST.md's first real `next build` of the wall
+// route crashed with this export undefined. Real value, matching
+// components/Panel.stub/config/shell.ts's own real (not stubbed) default.
+export { DEFAULT_PANEL_SHELL_CONFIG } from './config/shell'
+
 // One independently-named function per export, not a single shared `noop`
 // reference — a shared local name is exactly the collision webpack's
 // scope-hoisting had to disambiguate for generate-panel-stubs.js's own

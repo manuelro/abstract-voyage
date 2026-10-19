@@ -13,6 +13,7 @@ import { useElevationShadow } from '../proximity/useElevationShadow';
 import { resolveContrastAwareTextColor } from '../../helpers/surfaceColorDerivation';
 import { computeElevationShadow } from '../../helpers/elevationShadowEngine';
 import { resolvePanelSurface } from './surfaceColor';
+import { useScrollAnchoring } from './useScrollAnchoring';
 import {
   serializeConfigScopeBindings,
   serializeConfigScopeBindingsDiff,
@@ -789,6 +790,13 @@ export function PanelShell({
   backgroundColor,
   foregroundColor,
   config: configOverride,
+  launcherLabel = 'SETTINGS',
+  positionStorageKey,
+  expandedWidthPx,
+  collapsedWidthPx,
+  horizontalAnchor = 'right',
+  zIndex,
+  dismissible = true,
   children,
 }: {
   title: string;
@@ -805,10 +813,23 @@ export function PanelShell({
   /** Optional per-instance override. App-mounted shells otherwise consume
    * the shared PanelShell configuration from SharedDesignConfigProvider. */
   config?: PanelShellConfig;
+  /** Optional label for a shell used for tools other than settings. */
+  launcherLabel?: string;
+  /** Each draggable shell needs its own persisted position. */
+  positionStorageKey?: string;
+  /** Open and collapsed frame widths; the original defaults stay unchanged. */
+  expandedWidthPx?: number;
+  collapsedWidthPx?: number;
+  horizontalAnchor?: 'left' | 'right';
+  zIndex?: number;
+  /** A utility shell can always be reopened from its collapsed launcher. */
+  dismissible?: boolean;
   children?: ReactNode;
 }) {
   const contentId = useId();
   const [isDismissed, setIsDismissed] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  useScrollAnchoring(scrollAreaRef);
   const sharedDesignConfig = useOptionalSharedDesignConfig();
   const panelConfig = useMemo(
     () => normalizePanelShellConfig(
@@ -948,6 +969,7 @@ export function PanelShell({
   } = usePanelDrag({
       enabled: panelConfig.dragEnabled,
       isOpen,
+      positionStorageKey,
       settleStiffness: panelConfig.dragSettleStiffness,
       settleDamping: panelConfig.dragSettleDamping,
       settleMaxDurationMs: panelConfig.dragSettleMaxDurationMs,
@@ -1069,6 +1091,13 @@ export function PanelShell({
   const frameStyle = {
     ...shellStyle,
     ...dragFrameStyle,
+    ...(expandedWidthPx !== undefined || collapsedWidthPx !== undefined ? {
+      width: `min(${isOpen ? expandedWidthPx ?? 336 : collapsedWidthPx ?? 156}px, calc(100vw - 24px))`,
+    } : {}),
+    ...(horizontalAnchor === 'left' ? {
+      left: 'max(12px, env(safe-area-inset-left))', right: 'auto',
+    } : {}),
+    ...(zIndex !== undefined ? { zIndex } : {}),
     // usePanelVerticalAnchor's 'down' mode — only ever applied while open;
     // the collapsed launcher always keeps the default bottom/right anchor
     // regardless of which way the panel last expanded.
@@ -1103,17 +1132,18 @@ export function PanelShell({
           data-elevation="rest"
           data-icon={panelConfig.launcherIconVisible ? 'visible' : 'hidden'}
           data-drag-frost={dragFrostActive ? 'true' : undefined}
-          style={dragHandleCursor ? { ...shellStyle, cursor: dragHandleCursor } : shellStyle}
+          style={{ ...shellStyle, ...(!dismissible ? { width: '100%' } : {}),
+            ...(dragHandleCursor ? { cursor: dragHandleCursor } : {}) }}
           onClick={onToggle}
-          aria-label={`Open ${title} settings`}
+          aria-label={launcherLabel === 'SETTINGS' ? `Open ${title} settings` : `Open ${title}`}
           aria-expanded={false}
           aria-controls={contentId}
           {...dragHandleProps}
         >
-          <span className={styles.launcherLabel}>SETTINGS</span>
+          <span className={styles.launcherLabel}>{launcherLabel}</span>
           {panelConfig.launcherIconVisible ? <SettingsTuneIcon /> : null}
         </button>
-        <button
+        {dismissible && <button
           type="button"
           className={styles.panelLauncherClose}
           data-appearance={resolvedAppearance}
@@ -1123,7 +1153,7 @@ export function PanelShell({
           aria-label={`Hide ${title} settings panel`}
         >
           <LauncherCloseIcon />
-        </button>
+        </button>}
       </div>
     );
   }
@@ -1147,7 +1177,7 @@ export function PanelShell({
         data-elevation="expanded"
         data-anchor={verticalAnchor.mode}
         style={dragHandleCursor ? { ...shellStyle, cursor: dragHandleCursor } : shellStyle}
-        aria-label={`${title} settings`}
+        aria-label={launcherLabel === 'SETTINGS' ? `${title} settings` : title}
         {...dragBackgroundHandleProps}
       >
         {/* The surface blurs its own underlay; the optional halo remains a frame sibling. */}
@@ -1166,7 +1196,7 @@ export function PanelShell({
             type="button"
             className={styles.panelTitle}
             onClick={onToggle}
-            aria-label={`Close ${title} settings`}
+            aria-label={launcherLabel === 'SETTINGS' ? `Close ${title} settings` : `Collapse ${title}`}
             aria-expanded={true}
             aria-controls={contentId}
           >
@@ -1178,6 +1208,7 @@ export function PanelShell({
         </div>
         <div
           id={contentId}
+          ref={scrollAreaRef}
           className={styles.scrollArea}
           style={dragHandleCursor ? { cursor: dragHandleCursor } : undefined}
           {...dragBackgroundHandleProps}

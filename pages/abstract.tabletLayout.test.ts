@@ -15,7 +15,7 @@ describe('Abstract tablet composition', () => {
     expect(ABSTRACT_POLYMORPHIC_LAYOUT_PANEL.defaultValue).toBe(ABSTRACT_POLYMORPHIC_LAYOUT_CONFIG);
     expect(config.narrowColumnWidthTierMd).toBe('stacked');
     expect(config.splitBandWidthTierWide).toBe('stacked');
-    expect(config.headerScrollBehaviorWide).toBe('static');
+    expect(config.headerScrollBehaviorWide).toBe('fixed');
     expect(config.narrowColumnClearsFloatingHeaderWide).toBe(false);
     expect(config.wideColumnTransparentWide).toBe(true);
     expect(config.stackedColumnOrderWide).toBe('wideFirst');
@@ -28,7 +28,7 @@ describe('Abstract tablet composition', () => {
     // just at a wider canvas.
     expect(config.narrowColumnWidthTierLg).toBe('stacked');
     expect(config.splitBandWidthTierLg).toBe('stacked');
-    expect(config.headerScrollBehaviorLg).toBe('static');
+    expect(config.headerScrollBehaviorLg).toBe('fixed');
     expect(config.narrowColumnClearsFloatingHeaderLg).toBe(false);
     expect(config.stackedViewportPartitionEnabledLg).toBe(true);
     expect(config.stackedWideColumnViewportPercentLg).toBe(62);

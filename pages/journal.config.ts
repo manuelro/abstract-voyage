@@ -10,6 +10,7 @@ import {
 } from '../experiences/about/components/AboutMobileAccordion.config'
 import { DEFAULT_EDITORIAL_ACCORDION_ITEM_CONFIG } from '../experiences/about/components/EditorialAccordionItem.config'
 import { normalizeTailwindToken, type TailwindTokenValue } from '../components/Panel/config/tailwindFields'
+import type { ChipTransitionEasing } from '../components/Chip/Chip'
 import { DEFAULT_CHRONOLOGY_TIMELINE_CONFIG, type ChronologyTimelineConfig } from '../components/ChronologyTimeline/ChronologyTimeline.config'
 import {
   DEFAULT_ARTICLE_FILTER_CONFIG,
@@ -79,10 +80,10 @@ export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   // they are independent visual systems, not background-gradient inputs.
   scrollGradientBaseHue: 200,
   scrollGradientBaseHueWide: 202,
-  scrollGradientLightnessMin: 77,
-  scrollGradientLightnessMinWide: 72,
-  scrollGradientChromaMin: 70,
-  scrollGradientChromaMinWide: 40,
+  scrollGradientLightnessMin: 30,
+  scrollGradientLightnessMinWide: 30,
+  scrollGradientChromaMin: 55,
+  scrollGradientChromaMinWide: 55,
   scrollGradientMode: 'center-bright',
   scrollGradientModeWide: 'center-bright',
   scrollGradientCenterStretch: 0.8,
@@ -132,12 +133,12 @@ export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientMixSamplesWide: 25,
   scrollGradientDitherSeedWide: 100000,
   scrollGradientDarkenOnScrollEnabledWide: false,
-  scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 0.4,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceWide: 4,
 
   scrollGradientBaseHueLg: 202,
   scrollGradientHueSchemeLg: 'dual-complementary',
-  scrollGradientLightnessMinLg: 72,
-  scrollGradientChromaMinLg: 40,
+  scrollGradientLightnessMinLg: 30,
+  scrollGradientChromaMinLg: 55,
   scrollGradientModeLg: 'center-bright',
   scrollGradientStopsLg: 9,
   scrollGradientVarianceLg: 1,
@@ -159,12 +160,12 @@ export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   scrollGradientDitherSeedLg: 100000,
   scrollGradientInkColorLg: '#c68080',
   scrollGradientViewportRangeVhLg: 10,
-  scrollGradientMaxDarkenLg: 0,
+  scrollGradientMaxDarkenLg: 0.69,
   scrollGradientDarkenOnScrollEnabledLg: false,
   scrollGradientLegibilityTargetRatioLg: 5.5,
   scrollGradientDarkInkSaturationLg: 2,
   scrollGradientDarkInkOpacityMultiplierLg: 1,
-  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 0.5,
+  scrollGradientLightInkOnLightBackgroundContrastToleranceLg: 4,
   scrollGradientNarrowColumnVariantEnabledLg: true,
   scrollGradientNarrowColumnSaturationLg: 1,
   scrollGradientNarrowColumnDarknessLg: 0,
@@ -215,6 +216,8 @@ export const JOURNAL_POLYMORPHIC_LAYOUT_CONFIG: PolymorphicLayoutConfig = {
   wideColumnContentPaddingLeftWide: 'md:pl-3',
 
   headerScrollBehaviorWide: 'static',
+
+  scrollGradientLightInkOnLightBackgroundContrastTolerance: 4,
 }
 
 // Full parity with /about's own timeline (DEFAULT_ABOUT_PAGE_TIMELINE_CONFIG,
@@ -594,11 +597,11 @@ export const DEFAULT_JOURNAL_CHRONOLOGY_CONFIG: ChronologyTimelineConfig = {
 
   yearHoverFadeEnabled: false,
 
-  trackOpacityLg: 0.2,
+  trackOpacityLg: 0.32,
 
-  trackOpacityMd: 0.38,
+  trackOpacityMd: 0.32,
 
-  trackOpacity: 0.38,
+  trackOpacity: 0.32,
 
   trackWidth: 0.5,
   trackWidthLg: 0.75,
@@ -821,6 +824,8 @@ export const DEFAULT_JOURNAL_ARTICLE_FILTER_CONFIG: ArticleFilterConfig = {
 }
 
 export type JournalChipAppearanceConfig = {
+  transitionDurationMs: number
+  transitionEasing: ChipTransitionEasing
   tintColor: string
   backgroundOpacity: number
   textOpacity: number
@@ -835,6 +840,7 @@ export type JournalChipAppearanceConfig = {
   paddingX: TailwindTokenValue<'paddingX'>
   paddingY: TailwindTokenValue<'paddingY'>
   textTracking: TailwindTokenValue<'letterSpacing'>
+  fontWeight: TailwindTokenValue<'fontWeight'>
   articleTagTintColor: string
   articleTagBackgroundOpacity: number
   articleTagTextOpacity: number
@@ -845,25 +851,29 @@ export type JournalChipAppearanceConfig = {
   articleTagPaddingY: TailwindTokenValue<'paddingY'>
   articleTagTextTracking: TailwindTokenValue<'letterSpacing'>
   articleTagFontSize: TailwindTokenValue<'fontSize'>
+  articleTagFontWeight: TailwindTokenValue<'fontWeight'>
 }
 
 export const DEFAULT_JOURNAL_CHIP_APPEARANCE_CONFIG: JournalChipAppearanceConfig = {
-  tintColor: '#6192b8',
+  transitionDurationMs: 180,
+  transitionEasing: 'ease-in-out',
+  tintColor: '#f0f8ff',
   backgroundOpacity: 0,
   textOpacity: 1,
-  contrastSensitivity: 0.61,
-  borderOpacity: 0.15,
-  hoverTintColor: '#fffbeb',
+  contrastSensitivity: 0.12,
+  borderOpacity: 0.25,
+  hoverTintColor: '#fff3c2',
   hoverBackgroundOpacity: 0.9,
   hoverTextOpacity: 0.9,
   hoverContrastSensitivity: 0.8,
   hoverBorderOpacity: 0,
-  borderWidth: 'border-2',
+  borderWidth: 'border',
   paddingX: 'px-5',
   paddingY: 'py-2',
   textTracking: 'tracking-widest',
-  articleTagTintColor: '#fffbeb',
-  articleTagBackgroundOpacity: 1,
+  fontWeight: 'font-normal',
+  articleTagTintColor: '#fff3c2',
+  articleTagBackgroundOpacity: 0.9,
   articleTagTextOpacity: 0.9,
   articleTagContrastSensitivity: 0.8,
   articleTagBorderOpacity: 0,
@@ -872,6 +882,7 @@ export const DEFAULT_JOURNAL_CHIP_APPEARANCE_CONFIG: JournalChipAppearanceConfig
   articleTagPaddingY: 'py-1',
   articleTagTextTracking: 'tracking-widest',
   articleTagFontSize: 'text-3xs',
+  articleTagFontWeight: 'font-semibold',
 }
 
 export function normalizeJournalChipAppearanceConfig(
@@ -884,6 +895,13 @@ export function normalizeJournalChipAppearanceConfig(
       : fallback
   )
   return {
+    transitionDurationMs: typeof config?.transitionDurationMs === 'number' && Number.isFinite(config.transitionDurationMs)
+      ? Math.max(0, Math.min(2000, config.transitionDurationMs)) : D.transitionDurationMs,
+    transitionEasing: config?.transitionEasing === 'linear'
+      || config?.transitionEasing === 'ease-in'
+      || config?.transitionEasing === 'ease-out'
+      || config?.transitionEasing === 'ease-in-out'
+      ? config.transitionEasing : D.transitionEasing,
     tintColor: typeof config?.tintColor === 'string' && /^#[0-9a-f]{6}$/i.test(config.tintColor)
       ? config.tintColor : D.tintColor,
     backgroundOpacity: opacity(config?.backgroundOpacity, D.backgroundOpacity),
@@ -908,6 +926,9 @@ export function normalizeJournalChipAppearanceConfig(
     textTracking: normalizeTailwindToken({
       utility: 'letterSpacing', breakpoint: 'base', value: config?.textTracking, fallback: D.textTracking,
     }),
+    fontWeight: normalizeTailwindToken({
+      utility: 'fontWeight', breakpoint: 'base', value: config?.fontWeight, fallback: D.fontWeight,
+    }),
     articleTagTintColor: typeof config?.articleTagTintColor === 'string' && /^#[0-9a-f]{6}$/i.test(config.articleTagTintColor)
       ? config.articleTagTintColor : D.articleTagTintColor,
     articleTagBackgroundOpacity: opacity(config?.articleTagBackgroundOpacity, D.articleTagBackgroundOpacity),
@@ -928,6 +949,9 @@ export function normalizeJournalChipAppearanceConfig(
     }),
     articleTagFontSize: normalizeTailwindToken({
       utility: 'fontSize', breakpoint: 'base', value: config?.articleTagFontSize, fallback: D.articleTagFontSize,
+    }),
+    articleTagFontWeight: normalizeTailwindToken({
+      utility: 'fontWeight', breakpoint: 'base', value: config?.articleTagFontWeight, fallback: D.articleTagFontWeight,
     }),
   }
 }

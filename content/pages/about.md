@@ -12,7 +12,7 @@ timeline:
   - id: question
     title: The questions
     period: circa 2017
-    line: Light and sound, and what biomimicry teaches about products
+    line: It all stared with how light and sound interact, and what biomimicry teaches about products
   - id: consulting
     title: From builder to lead
     period: 2018 to 2023

@@ -247,4 +247,13 @@ describe('ConfigScopeList', () => {
 
     act(() => root.unmount());
   });
+  it('mounts controls only for open sections when lazy content is requested', () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    act(() => root.render(<ConfigScopeList bindings={bindings} lazyContent />));
+    expect(container.querySelectorAll('[data-config-field-key="amount"]')).toHaveLength(0);
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-label^="Alpha section, "]')!.click());
+    expect(container.querySelectorAll('[data-config-field-key="amount"]')).toHaveLength(1);
+    act(() => root.unmount());
+  });
 });

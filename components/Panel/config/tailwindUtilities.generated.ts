@@ -1928,6 +1928,35 @@ export const TAILWIND_UTILITY_SETS = {
       ],
     },
   },
+  "textTransform": {
+    "base": {
+      control: "enum",
+      options: [
+        { label: "NORMAL", value: "normal-case", cssValue: "none" },
+        { label: "UPPERCASE", value: "uppercase", cssValue: "uppercase" },
+        { label: "LOWERCASE", value: "lowercase", cssValue: "lowercase" },
+        { label: "CAPITALIZE", value: "capitalize", cssValue: "capitalize" },
+      ],
+    },
+    "md": {
+      control: "enum",
+      options: [
+        { label: "NORMAL", value: "md:normal-case", cssValue: "none" },
+        { label: "UPPERCASE", value: "md:uppercase", cssValue: "uppercase" },
+        { label: "LOWERCASE", value: "md:lowercase", cssValue: "lowercase" },
+        { label: "CAPITALIZE", value: "md:capitalize", cssValue: "capitalize" },
+      ],
+    },
+    "lg": {
+      control: "enum",
+      options: [
+        { label: "NORMAL", value: "lg:normal-case", cssValue: "none" },
+        { label: "UPPERCASE", value: "lg:uppercase", cssValue: "uppercase" },
+        { label: "LOWERCASE", value: "lg:lowercase", cssValue: "lowercase" },
+        { label: "CAPITALIZE", value: "lg:capitalize", cssValue: "capitalize" },
+      ],
+    },
+  },
   "borderTopWidth": {
     "base": {
       control: "enum",
@@ -2024,6 +2053,50 @@ export const TAILWIND_UTILITY_SETS = {
         { label: "lg:tracking-wide", value: "lg:tracking-wide", cssValue: "0.025em" },
         { label: "lg:tracking-wider", value: "lg:tracking-wider", cssValue: "0.05em" },
         { label: "lg:tracking-widest", value: "lg:tracking-widest", cssValue: "0.1em" },
+      ],
+    },
+  },
+  "borderRadius": {
+    "base": {
+      control: "select",
+      options: [
+        { label: "rounded-none", value: "rounded-none", cssValue: "0px" },
+        { label: "rounded-sm", value: "rounded-sm", cssValue: "0.125rem" },
+        { label: "rounded-DEFAULT", value: "rounded-DEFAULT", cssValue: "0.25rem" },
+        { label: "rounded-md", value: "rounded-md", cssValue: "0.375rem" },
+        { label: "rounded-lg", value: "rounded-lg", cssValue: "0.5rem" },
+        { label: "rounded-xl", value: "rounded-xl", cssValue: "0.75rem" },
+        { label: "rounded-2xl", value: "rounded-2xl", cssValue: "1rem" },
+        { label: "rounded-3xl", value: "rounded-3xl", cssValue: "1.5rem" },
+        { label: "rounded-full", value: "rounded-full", cssValue: "9999px" },
+      ],
+    },
+    "md": {
+      control: "select",
+      options: [
+        { label: "md:rounded-none", value: "md:rounded-none", cssValue: "0px" },
+        { label: "md:rounded-sm", value: "md:rounded-sm", cssValue: "0.125rem" },
+        { label: "md:rounded-DEFAULT", value: "md:rounded-DEFAULT", cssValue: "0.25rem" },
+        { label: "md:rounded-md", value: "md:rounded-md", cssValue: "0.375rem" },
+        { label: "md:rounded-lg", value: "md:rounded-lg", cssValue: "0.5rem" },
+        { label: "md:rounded-xl", value: "md:rounded-xl", cssValue: "0.75rem" },
+        { label: "md:rounded-2xl", value: "md:rounded-2xl", cssValue: "1rem" },
+        { label: "md:rounded-3xl", value: "md:rounded-3xl", cssValue: "1.5rem" },
+        { label: "md:rounded-full", value: "md:rounded-full", cssValue: "9999px" },
+      ],
+    },
+    "lg": {
+      control: "select",
+      options: [
+        { label: "lg:rounded-none", value: "lg:rounded-none", cssValue: "0px" },
+        { label: "lg:rounded-sm", value: "lg:rounded-sm", cssValue: "0.125rem" },
+        { label: "lg:rounded-DEFAULT", value: "lg:rounded-DEFAULT", cssValue: "0.25rem" },
+        { label: "lg:rounded-md", value: "lg:rounded-md", cssValue: "0.375rem" },
+        { label: "lg:rounded-lg", value: "lg:rounded-lg", cssValue: "0.5rem" },
+        { label: "lg:rounded-xl", value: "lg:rounded-xl", cssValue: "0.75rem" },
+        { label: "lg:rounded-2xl", value: "lg:rounded-2xl", cssValue: "1rem" },
+        { label: "lg:rounded-3xl", value: "lg:rounded-3xl", cssValue: "1.5rem" },
+        { label: "lg:rounded-full", value: "lg:rounded-full", cssValue: "9999px" },
       ],
     },
   },

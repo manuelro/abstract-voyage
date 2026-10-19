@@ -1083,11 +1083,16 @@ export type PolymorphicLayoutProps = {
   wideColumnContentViewportMinHeight?: CSSProperties['minHeight'];
   narrowColumnContentViewportMinHeight?: CSSProperties['minHeight'];
   className?: string;
+  /** Collapse the split shell to its contents when this page has hidden both
+   * split-column experiences. */
+  contentSized?: boolean;
   style?: CSSProperties;
   backgroundColor?: string;
   headerOverlay?: ReactNode;
   headerWrapperClassName?: string;
   headerWrapperRef?: Ref<HTMLDivElement>;
+  /** Optional content in document flow immediately after the header. */
+  leadingContent?: ReactNode;
   /** Explicit override for bounded split layouts' full-viewport column
    * backdrop. The shared default is enabled whenever the configured layout
    * is both `split` and `bounded`; pass false only when a page intentionally
@@ -1148,11 +1153,13 @@ export function PolymorphicLayout({
   wideColumnContentViewportMinHeight,
   narrowColumnContentViewportMinHeight,
   className,
+  contentSized = false,
   style,
   backgroundColor,
   headerOverlay,
   headerWrapperClassName,
   headerWrapperRef,
+  leadingContent,
   edgeBackdropEnabled,
   onNavAlignmentChange,
   mobileNavAlignEnabled = false,
@@ -1181,7 +1188,7 @@ export function PolymorphicLayout({
       ? normalizedConfig.narrowColumnWidthTierMd !== 'stacked'
       : false;
   const viewportContentBoxOptions: ColumnContentBoxViewportOptions = {
-    viewportHeightEnabled: columnsAreSideBySide,
+    viewportHeightEnabled: columnsAreSideBySide && !contentSized,
   };
 
   // *ColumnClearsFloatingHeader (base/Wide/Lg) — see
@@ -1496,6 +1503,7 @@ export function PolymorphicLayout({
       centeredContentMaxWidth={normalizedConfig.centeredContentMaxWidth}
       centeredContentPaddingX={normalizedConfig.centeredContentPaddingX}
       className={className}
+      contentSized={contentSized}
       style={style}
       // Transparent while the fixed <PolymorphicScrollGradientBackground>
       // is active — <main>'s own opaque background (this prop) paints
@@ -1510,6 +1518,7 @@ export function PolymorphicLayout({
       headerOverlay={headerOverlay}
       headerWrapperClassName={headerWrapperClassName}
       headerWrapperRef={headerWrapperRef}
+      leadingContent={leadingContent}
       headerPositionMode={headerScrollBehaviorForTier(
         normalizedConfig.headerScrollBehavior,
         normalizedConfig.headerScrollBehaviorWide,

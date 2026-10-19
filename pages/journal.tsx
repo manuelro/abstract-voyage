@@ -25,9 +25,9 @@ import {
 import {
   resolvePolymorphicColumnBackgroundReference,
   resolvePolymorphicNarrowColumnTypography,
-  resolvePolymorphicWideColumnTypography,
 } from '../experiences/abstract/components/PolymorphicLayout.narrowColumnTypography'
 import { usePolymorphicColumnAdaptiveInk } from '../experiences/abstract/components/usePolymorphicColumnAdaptiveInk'
+import { buildScrollAdaptiveInkStops } from '../experiences/abstract/components/useScrollAdaptiveInk'
 import {
   useAbstractDesignConfigBindings,
   ABSTRACT_DESIGN_CONFIG_BINDING_KEYS_BY_PAGE,
@@ -218,12 +218,20 @@ export default function JournalPage({ posts }: JournalProps) {
   const chronologyBackgroundReference = layoutColors.breakpointTier === 'mobile'
     ? resolvePolymorphicColumnBackgroundReference(tabletChronologyColors, 'wide')
     : wideColumnBackgroundReference
-  const wideColumnTypography = resolvePolymorphicWideColumnTypography(
-    layoutColors, globalTypographyConfig,
-  )
   const narrowColumnTypography = resolvePolymorphicNarrowColumnTypography(
     layoutColors, globalTypographyConfig,
   )
+  const headerInkGradientOrigin = layoutColors.breakpointTier === 'mobile'
+    ? layoutColors.scrollGradientOriginColor
+    : layoutColors.narrowColumnGradientReferenceColor ?? layoutColors.scrollGradientOriginColor
+  // The Journal header sits over the full viewport gradient at every tier,
+  // including the stacked tablet layout where the narrow column itself has
+  // no gradient reference color. Resolve its resting ink against that real
+  // gradient origin so the wordmark and nav start on the legible light side,
+  // then let the shared adaptive-ink hook track subsequent scroll changes.
+  const headerInkBaseColor = layoutColors.scrollGradientActive
+    ? '#ffffff'
+    : narrowColumnTypography.titleColor
   // <html>-rooted, not a page-local element — useScrollAdaptiveInk's own
   // progress computation is purely window.scrollY-driven (never relative to
   // the ref element's own position), so writing the live CSS custom
@@ -232,29 +240,53 @@ export default function JournalPage({ posts }: JournalProps) {
   // identical reason (that page's own doc comment on pageInkRootRef has the
   // full mechanism/root-cause writeup).
   const pageInkRootRef = useRef<HTMLElement | null>(null)
+  // Header and chronology resolve against different column backgrounds, so
+  // their adaptive color mixes need separate inherited progress variables.
+  const headerInkRootRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     pageInkRootRef.current = document.documentElement
   }, [])
   const timelineInkColorResolved = usePolymorphicColumnAdaptiveInk({
     ref: pageInkRootRef,
-    baseColor: wideColumnTypography.titleColor,
+    baseColor: headerInkBaseColor,
     config: layoutConfig,
     colors: layoutColors,
+    originColorOverride: headerInkGradientOrigin,
   })
-  const timelineInkColor = timelineInkColorResolved ?? wideColumnTypography.titleColor
+  const timelineInkColor = timelineInkColorResolved ?? headerInkBaseColor
   const headerInkColorResolved = usePolymorphicColumnAdaptiveInk({
-    ref: pageInkRootRef,
-    baseColor: narrowColumnTypography.titleColor,
+    ref: headerInkRootRef,
+    baseColor: headerInkBaseColor,
     config: layoutConfig,
     colors: layoutColors,
+    originColorOverride: headerInkGradientOrigin,
   })
-  const headerInkColor = headerInkColorResolved ?? narrowColumnTypography.titleColor
+  const headerInkColor = headerInkColorResolved ?? headerInkBaseColor
+  const headerGradientBacked = layoutColors.narrowColumnGradientReferenceColor !== undefined
+  const headerAdaptiveInkEnabled = layoutColors.scrollGradientActive
+    && layoutConfig.scrollGradientAdaptiveInkEnabled === true
+  // Match Abstract's header path: when the wordmark sits over the actual
+  // narrow-column gradient, use that surface's contrast-derived ink instead
+  // of the separately authored wordmark gradient stops.
+  const headerLogoSourceStops = headerGradientBacked
+    ? undefined
+    : layoutColors.wordmarkGradientStops
+  const headerLogoStops = headerLogoSourceStops
+    ? headerAdaptiveInkEnabled
+      ? buildScrollAdaptiveInkStops(
+        headerLogoSourceStops,
+        layoutConfig.scrollGradientAdaptiveInkMaxAmount,
+      )
+      : headerLogoSourceStops
+    : undefined
   const narrowColumnBackgroundReference = resolvePolymorphicColumnBackgroundReference(layoutColors, 'narrow')
   const introInkColor = resolveEditorialAccordionInk(
     introAccordionItemConfig,
     narrowColumnBackgroundReference,
   )
   const chipTintAppearance = useMemo(() => ({
+    transitionDurationMs: chipAppearanceConfig.transitionDurationMs,
+    transitionEasing: chipAppearanceConfig.transitionEasing,
     tint: chipAppearanceConfig.tintColor,
     surfaceColor: narrowColumnBackgroundReference,
     backgroundOpacity: chipAppearanceConfig.backgroundOpacity,
@@ -272,6 +304,8 @@ export default function JournalPage({ posts }: JournalProps) {
     textTrackingClassName: chipAppearanceConfig.textTracking,
   }), [chipAppearanceConfig, narrowColumnBackgroundReference])
   const articleTagAppearance = useMemo<ChipTintAppearance>(() => ({
+    transitionDurationMs: chipAppearanceConfig.transitionDurationMs,
+    transitionEasing: chipAppearanceConfig.transitionEasing,
     tint: chipAppearanceConfig.articleTagTintColor,
     surfaceColor: wideColumnBackgroundReference,
     backgroundOpacity: chipAppearanceConfig.articleTagBackgroundOpacity,
@@ -370,6 +404,7 @@ export default function JournalPage({ posts }: JournalProps) {
   const journalHeaderConfig = useMemo(() => ({
     ...buildSplitAlignedSiteHeaderConfig(normalizedSiteHeaderConfig),
     colorMode: 'custom' as const,
+    navTextUsesWordmarkGradient: false,
     navTextColor: headerInkColor,
   }), [normalizedSiteHeaderConfig, headerInkColor])
   const sharedConfigBindings = useAbstractDesignConfigBindings(
@@ -432,7 +467,7 @@ export default function JournalPage({ posts }: JournalProps) {
                   affordanceVisible={false}
                   dimOpacity={articleItemsFollowIntro ? introDescriptionOpacity : timelineConfig.accordionDescriptionOpacity}
                   emphasisOpacity={articleItemsFollowIntro ? introTitleOpacity : timelineConfig.accordionTitleOpacity}
-                  contentEmphasisOpacity={articleItemsFollowIntro ? undefined : timelineConfig.accordionDescriptionOpacity}
+                  contentEmphasisOpacity={articleItemsFollowIntro ? undefined : timelineConfig.accordionTitleOpacity}
                   contentEmphasisColorOverride={timelineConfig.accordionEmphasisColorMode === 'custom' ? timelineConfig.accordionEmphasisCustomColor : undefined}
                   prefersReducedMotion={prefersReducedMotion}
                   headerHref={post.canonicalPath}
@@ -474,7 +509,7 @@ export default function JournalPage({ posts }: JournalProps) {
                   <Chip
                     label={post.tags[0].trim()}
                     active={false}
-                    className={`inline-flex max-w-full break-all rounded-full border uppercase ${chipAppearanceConfig.articleTagFontSize}`}
+                    className={`inline-flex max-w-full break-all rounded-full border uppercase ${chipAppearanceConfig.articleTagFontSize} ${chipAppearanceConfig.articleTagFontWeight}`}
                     tintAppearance={articleTagAppearance}
                   />
                 </div>}
@@ -561,32 +596,40 @@ export default function JournalPage({ posts }: JournalProps) {
               config={articleFilterConfig}
               textColor={introInkColor}
               chipTintAppearance={chipTintAppearance}
+              chipFontWeightClassName={chipAppearanceConfig.fontWeight}
             />
           </div>
         )}
         header={(slotProps) => (
-          <SiteHeader
-            {...slotProps}
-            config={buildEffectiveSiteHeaderConfig(journalHeaderConfig, layoutConfig)}
-            // Same shared, cross-page Wordmark config /about, /abstract, and
-            // /posts/[slug] all bind (AbstractDesignConfigProvider) — see
-            // this page's own doc comment above (wideColumnBackgroundReference)
-            // for the wordmark half of the same bug. colors.wordmarkGradientStops
-            // (PolymorphicLayout.tsx's own usePolymorphicLayoutColors) is the
-            // real, live gradient-derived stops for the wordmark while the
-            // scroll gradient is active; colorMode is forced to 'adaptive'
-            // only then (SiteHeader only reads logoStops in that mode) — the
-            // exact pattern pages/posts/[slug].tsx and pages/about.tsx both
-            // already use. Spread first: this page's own overrides below
-            // (physicalLeftColumnColor in particular — slotProps carries its
-            // own default) stay authoritative over the generic slot values.
-            wordmarkConfig={layoutColors.wordmarkGradientStops
-              ? { ...wordmarkConfig, colorMode: 'adaptive' }
-              : wordmarkConfig}
-            logoStops={layoutColors.wordmarkGradientStops}
-            physicalLeftColumnColor={layoutColors.actualLeftSegmentColor}
-            pageSurfaceConfig={surface}
-          />
+          <div ref={headerInkRootRef} className="contents">
+            <SiteHeader
+              {...slotProps}
+              config={buildEffectiveSiteHeaderConfig(journalHeaderConfig, layoutConfig)}
+              // Same shared, cross-page Wordmark config /about, /abstract, and
+              // /posts/[slug] all bind (AbstractDesignConfigProvider) — see
+              // this page's own doc comment above (wideColumnBackgroundReference)
+              // for the wordmark half of the same bug. colors.wordmarkGradientStops
+              // (PolymorphicLayout.tsx's own usePolymorphicLayoutColors) is the
+              // real, live gradient-derived stops for the wordmark while the
+              // scroll gradient is active; colorMode is forced to 'adaptive'
+              // only then (SiteHeader only reads logoStops in that mode) — the
+              // exact pattern pages/posts/[slug].tsx and pages/about.tsx both
+              // already use. Spread first: this page's own overrides below
+              // (physicalLeftColumnColor in particular — slotProps carries its
+              // own default) stay authoritative over the generic slot values.
+              wordmarkConfig={headerLogoStops
+                ? { ...wordmarkConfig, colorMode: 'adaptive' }
+                : wordmarkConfig}
+              logoStops={headerLogoStops}
+              titleColorOverride={
+                !headerLogoStops && (headerAdaptiveInkEnabled || headerGradientBacked)
+                  ? headerInkColor
+                  : undefined
+              }
+              physicalLeftColumnColor={layoutColors.actualLeftSegmentColor}
+              pageSurfaceConfig={surface}
+            />
+          </div>
         )}
       >
         {showAuthoringTools ? (

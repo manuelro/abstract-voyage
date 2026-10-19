@@ -678,10 +678,16 @@ export type AbstractPostDockPaletteConfig = {
   /** Same two fields, ≥ desktop width (1024px). */
   gradientScaleLg: number;
   gradientNoiseLg: number;
-  inactiveGradientScaleDistanceEnabled: boolean;
+  /** CoverFlow treatment for the inactive cards' gradient scale. */
+  inactiveGradientScaleMode: 'off' | 'distance' | 'uniform';
   inactiveGradientScaleDistancePercent: number;
   inactiveGradientScaleDistancePercentWide: number;
   inactiveGradientScaleDistancePercentLg: number;
+  /** CoverFlow only: progressively deepen inactive card positions. */
+  inactiveCardDepthProgressionEnabled: boolean;
+  /** Added depth per position starting with the nearest inactive card, as a
+   * percentage of CoverFlow's configured neighbour depth. */
+  inactiveCardDepthIncrementPercent: number;
   /** Independent horizontal/vertical stretch multipliers layered on top of
    * `gradientScale` above (1..5, default 1 = no added stretch) — maps
    * straight through to `SliderGradientConfig`'s own `shaderColorScaleX`/
@@ -741,22 +747,22 @@ export const DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG = {
   enabled: true,
   mode: 'window',
   windowStep: 0,
-  hueSpread: 0.36,
+  hueSpread: 0.72,
   windowPanCurve: 'gaussian',
   gaussianPeakIndex: -4,
   gaussianSigma: 6,
   gaussianAmplitude: 1,
-  gaussianFloor: 0,
+  gaussianFloor: 0.06,
   gaussianVisualTestModeEnabled: false,
   gaussianProximityMorphEnabled: false,
   gaussianProximityResponseMs: 220,
   gaussianProximityStaggerMsPerBand: 60,
   gaussianProximityEasing: 'smootherstep',
-  fieldKinship: 0.4,
-  inactiveChromaDuck: 0,
-  valueRigAmount: 0.18,
+  fieldKinship: 0.26,
+  inactiveChromaDuck: 0.12,
+  valueRigAmount: 0,
   masterSaturation: 0.9,
-  masterBrightness: 1.3,
+  masterBrightness: 1.6,
   masterContrast: 1.11,
   masterSoftness: 1,
   gradientScale: 0.5,
@@ -765,10 +771,12 @@ export const DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG = {
   gradientNoiseWide: 0,
   gradientScaleLg: 0.5,
   gradientNoiseLg: 0,
-  inactiveGradientScaleDistanceEnabled: true,
-  inactiveGradientScaleDistancePercent: 38,
-  inactiveGradientScaleDistancePercentWide: 38,
-  inactiveGradientScaleDistancePercentLg: 62,
+  inactiveGradientScaleMode: 'uniform',
+  inactiveGradientScaleDistancePercent: 100,
+  inactiveGradientScaleDistancePercentWide: 100,
+  inactiveGradientScaleDistancePercentLg: 100,
+  inactiveCardDepthProgressionEnabled: true,
+  inactiveCardDepthIncrementPercent: 72,
   gradientScaleX: 1,
   gradientScaleY: 1,
   distanceDimmingEnabled: false,
@@ -801,7 +809,10 @@ const VALID_DIMMING_EASINGS: ReadonlyArray<MagnificationDockDimmingEasing> =
 
 /** Single normalization path for the palette config at the runtime boundary. */
 export function normalizeAbstractPostDockPaletteConfig(
-  config: Partial<AbstractPostDockPaletteConfig> | undefined,
+  config: (Partial<AbstractPostDockPaletteConfig> & {
+    /** Previous saved config shape; preserved for existing panel values. */
+    inactiveGradientScaleDistanceEnabled?: boolean;
+  }) | undefined,
 ): AbstractPostDockPaletteConfig {
   const base = { ...DEFAULT_ABSTRACT_POST_DOCK_PALETTE_CONFIG, ...(config ?? {}) };
   return {
@@ -842,10 +853,18 @@ export function normalizeAbstractPostDockPaletteConfig(
     gradientNoiseWide: clamp01(base.gradientNoiseWide),
     gradientScaleLg: clampRange(base.gradientScaleLg, 0.5, 4),
     gradientNoiseLg: clamp01(base.gradientNoiseLg),
-    inactiveGradientScaleDistanceEnabled: Boolean(base.inactiveGradientScaleDistanceEnabled),
+    inactiveGradientScaleMode: config?.inactiveGradientScaleMode === 'off'
+      || config?.inactiveGradientScaleMode === 'distance'
+      || config?.inactiveGradientScaleMode === 'uniform'
+      ? config.inactiveGradientScaleMode
+      : config?.inactiveGradientScaleDistanceEnabled
+        ? 'distance'
+        : 'off',
     inactiveGradientScaleDistancePercent: clampRange(base.inactiveGradientScaleDistancePercent, 0, 200),
     inactiveGradientScaleDistancePercentWide: clampRange(base.inactiveGradientScaleDistancePercentWide, 0, 200),
     inactiveGradientScaleDistancePercentLg: clampRange(base.inactiveGradientScaleDistancePercentLg, 0, 200),
+    inactiveCardDepthProgressionEnabled: Boolean(base.inactiveCardDepthProgressionEnabled),
+    inactiveCardDepthIncrementPercent: clampRange(base.inactiveCardDepthIncrementPercent, 0, 200),
     gradientScaleX: clampRange(base.gradientScaleX, 1, 5),
     gradientScaleY: clampRange(base.gradientScaleY, 1, 5),
     distanceDimmingEnabled: Boolean(base.distanceDimmingEnabled),

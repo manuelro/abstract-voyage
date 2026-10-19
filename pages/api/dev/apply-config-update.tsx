@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseComponentConfigUpdatePayloads } from '../../../components/Panel/config/componentConfigUpdateParser';
 import { applyComponentConfigUpdateToSource } from '../../../components/Panel/config/applyComponentConfigUpdate';
+import { applyWallColumnCapToYaml } from '../../../helpers/wallColumnCap';
 
 const PROJECT_ROOT = process.cwd();
 
@@ -117,18 +118,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
         continue;
       }
+      // The wall panel's TypeScript default is a fallback. The rendered
+      // page reloads this field from content/wall.md, so keep that authored
+      // source in sync with the panel's Update diff action as well.
+      const wallCap = parsed.component === 'MasonryWall'
+        && parsed.targetFile === 'pages/wall.tsx'
+        && parsed.targetSymbol === 'DEFAULT_WALL_CONFIG'
+        ? parsed.config.maxColumnWidthPx : undefined;
+      const wallManifestPath = path.join(PROJECT_ROOT, 'content/wall.md');
+      const wallManifestSource = wallCap === undefined
+        ? undefined : await fs.readFile(wallManifestPath, 'utf8');
+      const updatedWallManifest = wallCap === undefined
+        ? undefined : applyWallColumnCapToYaml(wallManifestSource!, wallCap as number);
       // A no-op update should not ask Next to rebuild at all. Besides being
       // unnecessary work, an avoidable rebuild is another opportunity for a
       // developer to refresh during a route's transient recompilation.
-      const wrote = applied.updatedSource !== sourceText;
-      if (wrote) {
+      const wroteSource = applied.updatedSource !== sourceText;
+      const wroteWallManifest = updatedWallManifest !== undefined
+        && updatedWallManifest !== wallManifestSource;
+      if (wroteWallManifest) {
+        await fs.writeFile(wallManifestPath, updatedWallManifest, 'utf8');
+      }
+      if (wroteSource) {
         await fs.writeFile(resolvedPath, applied.updatedSource, 'utf8');
       }
       results.push({
         targetSymbol: parsed.targetSymbol,
         targetFile: parsed.targetFile,
         ok: true,
-        wrote,
+        wrote: wroteSource || wroteWallManifest,
         changedKeys: applied.changedKeys,
         unmentionedExistingKeys: applied.unmentionedExistingKeys.length > 0
           ? applied.unmentionedExistingKeys

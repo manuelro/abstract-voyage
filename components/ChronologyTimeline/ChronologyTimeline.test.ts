@@ -21,7 +21,7 @@ describe('ChronologyTimeline', () => {
   })
 
   it('normalizes opt-in state and visual bounds', () => {
-    const config = normalizeChronologyTimelineConfig({ enabled: true, showMonths: true, monthNameFormat: 'short', monthNameFormatMd: 'invalid' as never, yearPlacement: 'inward', yearPlacementMd: 'invalid' as never, yearPlacementLg: 'inward', monthPlacementMd: 'inward', monthDarkInkSaturation: 3, monthDarkInkOpacityMultiplier: 0, monthLightInkTolerance: 30, yearPaddingX: 'invalid' as never, yearFontSize: 'invalid' as never, monthFontFamily: 'font-mono' as never, monthFontSizeMd: 'lg:text-xl' as never })
+    const config = normalizeChronologyTimelineConfig({ enabled: true, showMonths: true, monthNameFormat: 'short', monthNameFormatMd: 'invalid' as never, yearPlacement: 'inward', yearPlacementMd: 'invalid' as never, yearPlacementLg: 'inward', monthPlacementMd: 'inward', monthDarkInkSaturation: 3, monthDarkInkOpacityMultiplier: 0, monthLightInkTolerance: 30, dotColorOverrideEnabled: true, dotColorOverride: '#123456', yearPaddingX: 'invalid' as never, yearFontSize: 'invalid' as never, monthFontFamily: 'font-mono' as never, monthFontSizeMd: 'lg:text-xl' as never })
     expect(config.enabled).toBe(true)
     expect(config.showMonths).toBe(true)
     expect(config.monthNameFormat).toBe('short')
@@ -31,6 +31,8 @@ describe('ChronologyTimeline', () => {
     expect(config.monthDarkInkSaturation).toBe(2)
     expect(config.monthDarkInkOpacityMultiplier).toBe(0.2)
     expect(config.monthLightInkTolerance).toBe(20)
+    expect(config.dotColorOverrideEnabled).toBe(true)
+    expect(config.dotColorOverride).toBe('#123456')
     expect(config.yearPaddingX).toBe('px-0')
     expect(config.yearFontSize).toBe('text-lg')
     expect(config.monthFontFamily).toBe('font-serif')
@@ -45,7 +47,7 @@ describe('ChronologyTimeline', () => {
     }))
     expect(off).toBe('<p>one</p>')
     const on = renderToStaticMarkup(createElement(ChronologyTimeline<(typeof items)[number]>, {
-      items, config: normalizeChronologyTimelineConfig({ enabled: true, showMonths: true, yearPlacement: 'inward', yearPlacementMd: 'outward', yearPlacementLg: 'inward', monthPlacement: 'outward', monthPlacementMd: 'inward', monthPlacementLg: 'outward', yearFontFamily: 'font-sans', monthFontFamily: 'font-serif', yearPaddingX: 'px-4', monthPaddingTop: 'pt-2', monthPaddingBottom: 'pb-2', yearFontSizeMd: 'md:text-xl', monthPaddingRightLg: 'lg:pr-4' }), backgroundColor: '#dae1e2', renderItems,
+      items, config: normalizeChronologyTimelineConfig({ enabled: true, showMonths: true, dotColorOverrideEnabled: true, dotColorOverride: '#123456', yearPlacement: 'inward', yearPlacementMd: 'outward', yearPlacementLg: 'inward', monthPlacement: 'outward', monthPlacementMd: 'inward', monthPlacementLg: 'outward', yearFontFamily: 'font-sans', monthFontFamily: 'font-serif', yearPaddingX: 'px-4', monthPaddingTop: 'pt-2', monthPaddingBottom: 'pb-2', yearFontSizeMd: 'md:text-xl', monthPaddingRightLg: 'lg:pr-4' }), backgroundColor: '#dae1e2', renderItems,
     }))
     expect(on).toContain('data-chronology="true"')
     expect(on).toContain('data-year-placement="inward"')
@@ -69,6 +71,11 @@ describe('ChronologyTimeline', () => {
     expect(on).toContain('lg:pr-4')
     expect(on).toContain('--chronology-ink:#')
     expect(on).toContain('--chronology-year-color:#')
+    expect(on).toContain('--chronology-year-dot-color:#123456')
+    expect(on).toContain('--chronology-month-dot-color:#123456')
+    expect(on).not.toContain('--chronology-ink:#123456')
+    expect(on).not.toContain('--chronology-year-color:#123456')
+    expect(on).not.toContain('--chronology-month-color:#123456')
     expect(on).toContain('pt-2')
     expect(on).toContain('pb-2')
     expect(on).toContain('May')

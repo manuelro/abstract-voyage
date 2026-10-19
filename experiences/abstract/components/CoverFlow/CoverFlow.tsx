@@ -14,14 +14,15 @@ import { useBreakpointTier } from '../../../../components/useBreakpointTier';
 import { clamp } from '../../../../helpers/clamp';
 import { createGaussianEase } from '../../../../helpers/gaussianEasing';
 import { capCoverFlowCardSize, DEFAULT_COVER_FLOW_CONFIG, type CoverFlowConfig } from './CoverFlow.config';
+import { resolveDepthPassPose, resolveDepthPassWaitingShift, resolveDepthPassWebKitTransform, resolveGoldenOvalArchPath, resolveGoldenOvalVisibility, resolveOvalHorizontalStretch, resolveOvalSpacingPower, type DepthPassGeometry } from './CoverFlow.depthPass';
+import { OvalGeometryPreview } from './OvalGeometryPreview';
 
 /**
  * Promoted from experiences/abstract/components/CoverFlowLab/CoverFlowLab.tsx
  * (the spike — see that file's own history for the full "SPIKE-ONLY fork of
  * https://github.com/ashishgogula/coverflow" provenance note). Same internal
  * mechanics verbatim: per-card x/z/rotateY transform derivation, spring
- * config, drag handling (incl. velocity-projected release), wheel
- * accumulator/threshold/cooldown, and no zIndex paired with `z` (WebKit
+ * config, drag handling (incl. velocity-projected release), and no zIndex paired with `z` (WebKit
  * paint-order bug — see CoverFlowItemInner's own `z` doc comment).
  *
  * What changed in promotion: flat pixel props (itemWidth/centerGap/
@@ -138,6 +139,8 @@ export type CoverFlowRenderItem<T> = (
      * render dependency. Purely additive: every existing consumer of
      * `distanceFromActive` is unaffected. */
     distanceFromActiveLive: MotionValue<number>;
+    /** True while an opt-in depth-pass card is visibly departing in front. */
+    depthPassForegroundVisible?: boolean;
   },
 ) => ReactNode;
 
@@ -147,6 +150,10 @@ export interface CoverFlowProps<T> {
   onActiveIndexChange: (index: number) => void;
   renderItem: CoverFlowRenderItem<T>;
   config?: CoverFlowConfig;
+  /** Additional neighbour-depth percentage for each position away from the
+   * active card, including the first inactive card. Zero preserves the
+   * existing equal-depth arrangement. */
+  inactiveDepthIncrementPercent?: number;
   /** Optional width basis for card geometry when the CoverFlow interaction
    * plane is wider than the content measure cards should follow. CardStack
    * uses the same split: its clip viewport spans the whole page while its
@@ -313,6 +320,26 @@ const POSITION_SPRING_TRANSITION = {
   damping: 30,
   mass: 1,
 } as const;
+
+/** Join two card-position curves across the half-step with matching slopes.
+ * The surrounding curves and every integer resting position stay intact. */
+function smoothHalfStep(
+  distance: number,
+  startValue: number,
+  endValue: number,
+  startSlope: number,
+  endSlope: number,
+): number {
+  const start = 0.35;
+  const span = 0.3;
+  const t = clamp((distance - start) / span, 0, 1);
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * startValue
+    + (t3 - 2 * t2 + t) * span * startSlope
+    + (-2 * t3 + 3 * t2) * endValue
+    + (t3 - t2) * span * endSlope;
+}
 
 /** The tallest a flat, at-rest card of `containerHeightPx` worth of
  * available vertical room can be while still guaranteeing its *hovered*
@@ -533,6 +560,7 @@ export function CoverFlow<T>({
   onActiveIndexChange: onActiveIndexChangeProp,
   renderItem: renderItemProp,
   config = DEFAULT_COVER_FLOW_CONFIG,
+  inactiveDepthIncrementPercent = 0,
   cardWidthBasisPx,
   requireCardWidthBasis = false,
   prefersReducedMotion = false,
@@ -608,6 +636,14 @@ export function CoverFlow<T>({
     measureRef(element);
   }, [measureRef]);
   const { tier } = useBreakpointTier();
+  const depthPassEnabled = tier === 'lg' && config.navigationPathLg !== 'classic';
+  const [webkitDepthProjection, setWebkitDepthProjection] = useState(false);
+  useEffect(() => {
+    // Safari's compositor can paint a transformed card surface outside its
+    // correctly projected box. Detect after hydration so SSR stays stable.
+    const agent = navigator.userAgent;
+    setWebkitDepthProjection(/AppleWebKit/.test(agent) && !/Chrome|Chromium|CriOS|Edg|OPR/.test(agent));
+  }, []);
   const alignActiveCardRightToMainNav = tier === 'lg'
     ? config.alignActiveCardRightToMainNavLg
     : tier === 'md' && config.alignActiveCardRightToMainNavMd;
@@ -686,6 +722,115 @@ export function CoverFlow<T>({
     effectiveActiveCardLandingOffsetPx, items.length,
   ]);
 
+  const depthPassGeometry = useMemo<DepthPassGeometry | undefined>(() => {
+    if (!depthPassEnabled) return undefined;
+    const geometry: DepthPassGeometry = {
+      pathMode: config.navigationPathLg === 'oval-pass' ? 'oval-pass' : 'depth-pass',
+      containerWidth: containerRect?.width ?? 0,
+      containerHeight: containerRect?.height ?? 0,
+      cardWidth: itemWidth,
+      landingX: effectiveActiveCardLandingOffsetPx,
+      centerGap,
+      stackSpacing,
+      stackSpacingGrowthPercent,
+      includesFirstNeighbor: config.stackSpacingGrowthIncludesFirstNeighbor,
+      depthPx,
+      depthIncrementPercent: inactiveDepthIncrementPercent,
+      perspectivePx: config.perspectivePx,
+      perspectiveOriginXPercent: config.navigationPathLg === 'oval-pass'
+        ? config.ovalCameraOriginXPercentLg : config.perspectiveOriginXPercent,
+      perspectiveOriginYPercent: config.perspectiveOriginYPercent,
+      waitingSign: config.reverseItemOrder ? -1 : 1,
+      spacingPercent: config.depthPassStackSpacingPercentLg,
+      waitingShiftPx: 0,
+      ovalConvergencePercent: config.depthPassOvalConvergencePercentLg,
+      ovalHorizontalRadiusCards: config.ovalHorizontalRadiusCardsLg,
+      ovalDepthRadiusCards: config.ovalDepthRadiusCardsLg,
+      ovalViewAngleDeg: config.ovalViewAngleDegLg,
+      ovalFocusAngleDeg: config.ovalDistributionModeLg === 'full-arch'
+        ? 0 : config.ovalFocusAngleDegLg,
+      ovalBackAngleDeg: config.ovalDistributionModeLg === 'full-arch'
+        ? 180 : config.ovalBackAngleDegLg,
+      ovalExitAngleDeg: config.ovalExitAngleDegLg,
+      ovalReachCards: config.ovalDistributionModeLg === 'full-arch'
+        ? Math.min(config.ovalReachCardsLg, Math.max(1, items.length - 1))
+        : config.ovalReachCardsLg,
+      ovalDistributionMode: config.ovalDistributionModeLg,
+      ovalBackDepthCards: config.ovalBackDepthCardsLg,
+      ovalArchDepthCards: config.ovalArchDepthCardsLg,
+      ovalArchSkew: config.ovalArchSkewLg,
+      ovalDepthMinimumPositionPercent: config.ovalDepthMinimumPositionPercentLg,
+      ovalFirstNeighborGapPercent: config.ovalFirstNeighborGapPercentLg,
+      ovalArcSpacingBend: config.ovalArcSpacingBendLg,
+      ovalGoldenRhythmEnabled: config.ovalGoldenRhythmEnabledLg,
+      ovalGoldenSizeStep: config.ovalGoldenSizeStepLg,
+      ovalGoldenSpacingStep: config.ovalGoldenSpacingStepLg,
+      ovalMinWaitingGapPx: config.ovalMinWaitingGapPxLg,
+      ovalMinActiveGapPx: config.ovalMinActiveGapPxLg,
+      ovalHorizontalStretch: 1,
+      ovalFarEdgePercent: config.ovalFarEdgeXPercentLg,
+      ovalDepthEase: config.ovalDepthEaseLg,
+      ovalSpacingPower: 1,
+      yawDeg: config.depthPassStackYawDegLg,
+      yawMaxDeg: config.depthPassStackYawMaxDegLg,
+      yawSpreadDepth: config.rotationSpreadDepth,
+      maxProjectedWidthRatio: config.depthPassMaxProjectedWidthRatioLg,
+      arcBendPercent: config.depthPassArcBendPercentLg,
+      arcReachCards: config.depthPassArcReachCardsLg,
+      arcDropPx: config.depthPassArcDropPxLg,
+      // Bound the authored shift to spare room around the focused card.
+      // This cannot enlarge an undersized parent clip. Resolve once.
+      verticalOffsetPx: clamp(
+        config.depthPassVerticalOffsetPxLg,
+        -Math.max(0, ((containerRect?.height ?? 0) - itemHeight) / 2 - 12),
+        Math.max(0, ((containerRect?.height ?? 0) - itemHeight) / 2 - 12),
+      ),
+      exitScale: config.depthPassExitScaleLg,
+      exitClearancePercent: config.depthPassExitClearancePercentLg,
+    };
+    if (geometry.pathMode === 'oval-pass') {
+      geometry.ovalGoldenPath = resolveGoldenOvalArchPath(geometry);
+      geometry.ovalHorizontalStretch = resolveOvalHorizontalStretch(
+        geometry, config.ovalFarEdgeXPercentLg,
+      );
+      geometry.ovalSpacingPower = config.ovalDistributionModeLg === 'full-arch'
+        ? 0
+        : resolveOvalSpacingPower(geometry, -config.ovalFirstNeighborOverlapPercentLg);
+    } else {
+      geometry.waitingShiftPx = resolveDepthPassWaitingShift(
+        geometry, config.depthPassFirstNeighborGapPercentLg,
+      );
+    }
+    return geometry;
+  }, [
+    depthPassEnabled, config.navigationPathLg, containerRect?.width, containerRect?.height, itemWidth, itemHeight,
+    effectiveActiveCardLandingOffsetPx,
+    centerGap, stackSpacing, stackSpacingGrowthPercent, config.stackSpacingGrowthIncludesFirstNeighbor,
+    depthPx, inactiveDepthIncrementPercent, config.perspectivePx, config.perspectiveOriginXPercent,
+    config.perspectiveOriginYPercent,
+    config.reverseItemOrder, config.depthPassStackSpacingPercentLg,
+    config.depthPassFirstNeighborGapPercentLg, config.depthPassStackYawDegLg,
+    config.ovalFirstNeighborOverlapPercentLg,
+    config.ovalFirstNeighborGapPercentLg, config.ovalDistributionModeLg,
+    config.ovalArcSpacingBendLg,
+    config.ovalGoldenRhythmEnabledLg, config.ovalGoldenSizeStepLg, config.ovalGoldenSpacingStepLg,
+    config.ovalMinWaitingGapPxLg, config.ovalMinActiveGapPxLg,
+    config.ovalBackDepthCardsLg, config.ovalArchDepthCardsLg, config.ovalArchSkewLg,
+    config.ovalDepthMinimumPositionPercentLg,
+    config.depthPassOvalConvergencePercentLg,
+    config.ovalHorizontalRadiusCardsLg, config.ovalDepthRadiusCardsLg,
+    config.ovalViewAngleDegLg, config.ovalFocusAngleDegLg,
+    config.ovalBackAngleDegLg, config.ovalExitAngleDegLg, config.ovalReachCardsLg,
+    items.length,
+    config.ovalFarEdgeXPercentLg,
+    config.ovalCameraOriginXPercentLg, config.ovalDepthEaseLg,
+    config.depthPassStackYawMaxDegLg, config.rotationSpreadDepth,
+    config.depthPassMaxProjectedWidthRatioLg, config.depthPassExitScaleLg,
+    config.depthPassExitClearancePercentLg, config.depthPassArcBendPercentLg,
+    config.depthPassArcReachCardsLg, config.depthPassArcDropPxLg,
+    config.depthPassVerticalOffsetPxLg,
+  ]);
+
   const activeIndexRef = useRef(safeInitial);
   const enableScrollRef = useRef(config.enableScroll);
   const wheelReleaseGapRef = useRef(config.wheelReleaseGapMs);
@@ -728,6 +873,32 @@ export function CoverFlow<T>({
   // this component's. 0 makes every wrapDelta/wrapIndex call below a no-op, so
   // the whole feature is byte-identical when off.
   const loopCount = config.infiniteLoopEnabled && !externallyControlled ? items.length : 0;
+  // Depth mode needs both the departing copy and the upcoming copy near a
+  // loop seam. Render only the n+1 virtual slots surrounding the live index;
+  // the window shifts once per card, never once per animation frame.
+  const [depthVirtualAnchor, setDepthVirtualAnchor] = useState(Math.floor(safeInitial));
+  useEffect(() => {
+    if (!depthPassEnabled || loopCount <= 0) return undefined;
+    const update = (value: number) => {
+      const next = Math.floor(value);
+      setDepthVirtualAnchor(current => current === next ? current : next);
+    };
+    update(positionX.get());
+    return positionX.on('change', update);
+  }, [depthPassEnabled, loopCount, positionX]);
+  const renderedCards = useMemo(() => {
+    if (!depthPassEnabled || loopCount <= 0) {
+      return items.map((item, index) => ({ item, index, actualIndex: index }));
+    }
+    const start = config.reverseItemOrder
+      ? depthVirtualAnchor - (loopCount - 1)
+      : depthVirtualAnchor - 1;
+    return Array.from({ length: loopCount + 1 }, (_, offset) => {
+      const index = start + offset;
+      const actualIndex = wrapIndex(index, loopCount);
+      return { item: items[actualIndex], index, actualIndex };
+    });
+  }, [depthPassEnabled, loopCount, items, config.reverseItemOrder, depthVirtualAnchor]);
   const externalDriverRef = useRef(externalDriver);
   externalDriverRef.current = externalDriver;
   // Set by onDragEnd's external branch below, immediately before it calls
@@ -1018,20 +1189,36 @@ export function CoverFlow<T>({
     // rather than inventing a second, separately-tuned pair of constants
     // for what is conceptually the same "how hard did the gesture end"
     // question drag already answers.
-    const VELOCITY_WINDOW_MS = 100;
+    const VELOCITY_WINDOW_MS = 80;
     const VELOCITY_PROJECTION = 0.002;
+    const MAX_WHEEL_PROJECTION = 0.4;
+    const MAX_WHEEL_SPRING_VELOCITY = 4;
 
     let samples: Array<{ t: number; deltaX: number }> = [];
+    let releaseVelocityPxPerSec = 0;
     let releaseTimer: number | null = null;
+    let wheelFrame = 0;
+    let pendingDeltaX = 0;
+
+    const applyPendingWheel = () => {
+      wheelFrame = 0;
+      if (pendingDeltaX === 0) return;
+      const rawPosition = positionX.get() + pendingDeltaX / (centerGap * 0.8);
+      pendingDeltaX = 0;
+      positionX.set(loopCount > 0
+        ? rawPosition
+        : applyRubberBandOverscroll(rawPosition, items.length - 1, wheelOverscrollLimitRef.current));
+    };
 
     const settleWheelGesture = () => {
       releaseTimer = null;
-      const now = Date.now();
-      samples = samples.filter(sample => now - sample.t <= VELOCITY_WINDOW_MS);
-      const windowStart = samples.length > 0 ? samples[0].t : now;
-      const windowDurationMs = Math.max(1, now - windowStart);
-      const totalDeltaX = samples.reduce((sum, sample) => sum + sample.deltaX, 0);
-      const velocityPxPerSec = (totalDeltaX / windowDurationMs) * 1000;
+      if (wheelFrame) window.cancelAnimationFrame(wheelFrame);
+      applyPendingWheel();
+      // The last event is already wheelReleaseGapMs old here. Retain the
+      // rolling estimate captured during input instead of re-filtering the
+      // 80ms sample window after a longer idle timer (which always emptied it).
+      const velocityPxPerSec = releaseVelocityPxPerSec;
+      releaseVelocityPxPerSec = 0;
       samples = [];
 
       // Same overshoot-projection shape onDragEnd uses (positionX.get() +/-
@@ -1040,7 +1227,9 @@ export function CoverFlow<T>({
       // a pointer's own delta.x (positive = finger moved right, which
       // DECREASES positionX) — see the `+` in the continuous-tracking
       // .set() call below for the same reasoning.
-      const projected = positionX.get() + velocityPxPerSec * VELOCITY_PROJECTION;
+      const projected = positionX.get() + clamp(
+        velocityPxPerSec * VELOCITY_PROJECTION, -MAX_WHEEL_PROJECTION, MAX_WHEEL_PROJECTION,
+      );
       // Loop mode: settle to the raw rounded position (no clamp) so the wrap
       // is seamless; report the plain wrapped index. activeIndexRef holds the
       // loop-extended coordinate for positionX continuity.
@@ -1059,16 +1248,16 @@ export function CoverFlow<T>({
       }
       if (prefersReducedMotion) {
         positionX.jump(target);
-      } else if (config.settleMotionCurve === 'gaussian') {
-        animateGaussianToIndex(target);
       } else {
-        // Glides from wherever the gesture actually left positionX (no
-        // jump, no swap), seeded with the gesture's own estimated release
-        // velocity — the wheel-input equivalent of onDragEnd's identical
-        // branch below.
+        // Wheel is a continuously tracked gesture, like drag. A Gaussian
+        // tween starts nearly at rest and cannot carry this velocity across
+        // the release; keep it for discrete click/timeline jumps instead.
         animate(positionX, target, {
           ...POSITION_SPRING_TRANSITION,
-          velocity: velocityPxPerSec / (centerGap * 0.8),
+          velocity: clamp(
+            velocityPxPerSec / (centerGap * 0.8),
+            -MAX_WHEEL_SPRING_VELOCITY, MAX_WHEEL_SPRING_VELOCITY,
+          ),
         });
       }
     };
@@ -1101,18 +1290,27 @@ export function CoverFlow<T>({
       // fully off-screen before it slid back once released) — see
       // applyRubberBandOverscroll's own doc comment for why this is
       // wheel-only, not applied to onDrag.
-      const rawPosition = positionX.get() + e.deltaX / (centerGap * 0.8);
-      // Loop mode: no edge to rubber-band against — the position flows freely
-      // and the wrapped rendering keeps both sides populated.
-      positionX.set(
-        loopCount > 0
-          ? rawPosition
-          : applyRubberBandOverscroll(rawPosition, items.length - 1, wheelOverscrollLimitRef.current),
-      );
+      // WheelEvent deltas can be pixels, lines, or pages. Accumulate all
+      // events in this display frame so each card's transforms are derived
+      // once per frame, while preserving every subpixel of input.
+      const unitPx = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16
+        : e.deltaMode === WheelEvent.DOM_DELTA_PAGE ? container.clientWidth : 1;
+      const deltaX = e.deltaX * unitPx;
+      pendingDeltaX += deltaX;
+      if (!wheelFrame) wheelFrame = window.requestAnimationFrame(applyPendingWheel);
 
-      const now = Date.now();
-      samples.push({ t: now, deltaX: e.deltaX });
+      const now = performance.now();
+      samples.push({ t: now, deltaX });
       samples = samples.filter(sample => now - sample.t <= VELOCITY_WINDOW_MS);
+      if (samples.length >= 2) {
+        const durationMs = Math.max(16.7, now - samples[0].t + 16.7);
+        releaseVelocityPxPerSec = samples.reduce((sum, sample) => sum + sample.deltaX, 0)
+          * 1000 / durationMs;
+      } else {
+        // A single discrete wheel tick has no measured cadence; its
+        // position delta already expresses the complete input.
+        releaseVelocityPxPerSec = 0;
+      }
 
       releaseTimer = window.setTimeout(settleWheelGesture, wheelReleaseGapRef.current);
     };
@@ -1121,10 +1319,11 @@ export function CoverFlow<T>({
     return () => {
       container.removeEventListener('wheel', handleWheel);
       if (releaseTimer !== null) window.clearTimeout(releaseTimer);
+      if (wheelFrame) window.cancelAnimationFrame(wheelFrame);
     };
   }, [
     items.length, positionX, centerGap, prefersReducedMotion,
-    config.settleMotionCurve, animateGaussianToIndex, loopCount,
+    loopCount,
   ]);
 
   const handleCardClick = useCallback(
@@ -1249,8 +1448,11 @@ export function CoverFlow<T>({
       ref={setContainerRef}
       className={`relative w-full h-full flex flex-col justify-center items-center overflow-hidden ${className ?? ''}`}
       style={{
-        perspective: prefersReducedMotion && externallyControlled ? 'none' : config.perspectivePx,
-        perspectiveOrigin,
+        perspective: (prefersReducedMotion && externallyControlled) || (depthPassEnabled && webkitDepthProjection)
+          ? 'none' : config.perspectivePx,
+        perspectiveOrigin: depthPassGeometry?.pathMode === 'oval-pass'
+          ? `${config.ovalCameraOriginXPercentLg}% ${config.perspectiveOriginYPercent}%`
+          : perspectiveOrigin,
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: externallyControlled ? 'pan-y' : undefined,
       }}
@@ -1258,6 +1460,7 @@ export function CoverFlow<T>({
       aria-label={accessibilityHidden ? undefined : 'Cover Flow'}
       aria-hidden={accessibilityHidden || undefined}
       data-cover-flow-geometry={geometryReady ? 'ready' : 'pending'}
+      data-cover-flow-path={depthPassEnabled ? config.navigationPathLg : 'classic'}
       drag={geometryReady ? 'x' : false}
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0}
@@ -1269,14 +1472,16 @@ export function CoverFlow<T>({
       <div
         className="relative w-full h-full flex items-center justify-center"
         style={{
-          transformStyle: prefersReducedMotion && externallyControlled ? 'flat' : 'preserve-3d',
+          transformStyle: (prefersReducedMotion && externallyControlled) || (depthPassEnabled && webkitDepthProjection)
+            ? 'flat' : 'preserve-3d',
         }}
       >
-        {geometryReady && items.map((item, index) => (
+        {geometryReady && renderedCards.map(({ item, index, actualIndex }) => (
           <CoverFlowItem
             key={index}
             item={item}
             index={index}
+            actualIndex={actualIndex}
             scrollX={positionX}
             width={itemWidth}
             height={itemHeight}
@@ -1294,7 +1499,8 @@ export function CoverFlow<T>({
             rotationGrowthIncludesFirstNeighbor={config.rotationGrowthIncludesFirstNeighbor}
             showCardBackface={config.showCardBackface}
             depthPx={depthPx}
-            isActive={index === activeIndex}
+            inactiveDepthIncrementPercent={inactiveDepthIncrementPercent}
+            isActive={actualIndex === activeIndex}
             activeIndex={activeIndex}
             isDragging={isDragging}
             enableClickToSnap={config.enableClickToSnap}
@@ -1302,7 +1508,7 @@ export function CoverFlow<T>({
             renderItem={renderItem}
             onCardClick={handleCardClick}
             reveal={reveal}
-            dataActive={index === activeIndex}
+            dataActive={actualIndex === activeIndex}
             flattenPerspective={prefersReducedMotion && externallyControlled}
             activeCardLandingMode={effectiveActiveCardLandingMode}
             activeCardLandingOffsetPx={effectiveActiveCardLandingOffsetPx}
@@ -1310,10 +1516,26 @@ export function CoverFlow<T>({
             leftFadeMinOpacity={config.leftFadeMinOpacity}
             visibleLeftCardCount={visibleLeftCardCount}
             loopItemCount={loopCount}
+            depthPassGeometry={depthPassGeometry}
+            webkitDepthProjection={webkitDepthProjection}
+            depthPassHandoffPercent={config.depthPassFocusHandoffPercentLg}
+            depthPassSurfaceOpacity={config.depthPassInactiveSurfaceOpacityLg}
+            depthPassFarSurfaceOpacity={config.depthPassFarSurfaceOpacityLg}
+            depthPassEdgeOpacity={config.depthPassLeadingEdgeOpacityLg}
           />
         ))}
       </div>
       {overlayContent}
+      {geometryReady && config.ovalGeometryPreviewEnabledLg && depthPassGeometry?.pathMode === 'oval-pass'
+        ? <OvalGeometryPreview
+          geometry={depthPassGeometry}
+          farEdgePercent={config.ovalFarEdgeXPercentLg}
+          position={positionX}
+          cards={renderedCards.map(({ index, actualIndex }) => ({ index, actualIndex }))}
+          cardHeight={itemHeight}
+          reduceMotion={prefersReducedMotion}
+        />
+        : null}
     </motion.div>
   );
 }
@@ -1321,6 +1543,7 @@ export function CoverFlow<T>({
 interface CardProps<T> {
   item: T;
   index: number;
+  actualIndex: number;
   scrollX: MotionValue<number>;
   width: number;
   height: number;
@@ -1338,6 +1561,7 @@ interface CardProps<T> {
   rotationGrowthIncludesFirstNeighbor: boolean;
   showCardBackface: boolean;
   depthPx: number;
+  inactiveDepthIncrementPercent: number;
   isActive: boolean;
   activeIndex: number;
   isDragging: boolean;
@@ -1356,11 +1580,18 @@ interface CardProps<T> {
   /** >0 enables infinite-loop rendering (the item count to wrap around);
    * 0 renders the linear stack exactly as before. */
   loopItemCount: number;
+  depthPassGeometry?: DepthPassGeometry;
+  webkitDepthProjection: boolean;
+  depthPassHandoffPercent: number;
+  depthPassSurfaceOpacity: number;
+  depthPassFarSurfaceOpacity: number;
+  depthPassEdgeOpacity: number;
 }
 
 function CoverFlowItemInner<T>({
   item,
   index,
+  actualIndex,
   scrollX,
   width,
   height,
@@ -1378,6 +1609,7 @@ function CoverFlowItemInner<T>({
   rotationGrowthIncludesFirstNeighbor,
   showCardBackface,
   depthPx,
+  inactiveDepthIncrementPercent,
   isActive,
   activeIndex,
   isDragging,
@@ -1394,7 +1626,70 @@ function CoverFlowItemInner<T>({
   leftFadeMinOpacity,
   visibleLeftCardCount,
   loopItemCount,
+  depthPassGeometry,
+  webkitDepthProjection,
+  depthPassHandoffPercent,
+  depthPassSurfaceOpacity,
+  depthPassFarSurfaceOpacity,
+  depthPassEdgeOpacity,
 }: CardProps<T>) {
+  const depthQ = useTransform(scrollX, (value) => depthPassGeometry
+    ? depthPassGeometry.waitingSign * (index - value)
+    : 0);
+  const getVisualActive = useCallback((q: number) => {
+    const threshold = Math.max(0.001, Math.min(0.999, 1 - depthPassHandoffPercent / 100));
+    return q <= threshold && q > threshold - 1;
+  }, [depthPassHandoffPercent]);
+  const [visualActive, setVisualActive] = useState(() => getVisualActive(depthQ.get()));
+  const [foregroundVisible, setForegroundVisible] = useState(() => depthQ.get() < 0 && depthQ.get() > -1);
+  const isCulled = useCallback((q: number) => q <= -1 || Boolean(
+    depthPassGeometry?.ovalGoldenPath && q >= depthPassGeometry.ovalGoldenPath.visibleReach + 1,
+  ), [depthPassGeometry]);
+  const [culled, setCulled] = useState(() => isCulled(depthQ.get()));
+  useEffect(() => {
+    if (!depthPassGeometry) return undefined;
+    const update = (q: number) => {
+      setVisualActive(current => current === getVisualActive(q) ? current : getVisualActive(q));
+      const visible = q < 0 && q > -1;
+      setForegroundVisible(current => current === visible ? current : visible);
+      const exited = isCulled(q);
+      setCulled(current => current === exited ? current : exited);
+    };
+    update(depthQ.get());
+    return depthQ.on('change', update);
+  }, [depthPassGeometry, depthQ, getVisualActive, isCulled]);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!cardRef.current) return;
+    if (depthPassGeometry && culled) cardRef.current.setAttribute('inert', '');
+    else cardRef.current.removeAttribute('inert');
+  }, [depthPassGeometry, culled]);
+  const depthPose = useTransform(depthQ, (q) => depthPassGeometry
+    ? resolveDepthPassPose(q, depthPassGeometry)
+    : { x: 0, y: 0, z: 0, rotateY: 0 });
+  const depthX = useTransform(depthPose, pose => pose.x);
+  const depthY = useTransform(depthPose, pose => pose.y);
+  const depthZ = useTransform(depthPose, pose => reduceMotion ? 0 : pose.z);
+  const depthYaw = useTransform(depthPose, pose => reduceMotion ? 0 : pose.rotateY);
+  const depthVisibility = useTransform(depthQ, q => depthPassGeometry
+    ? resolveGoldenOvalVisibility(q, depthPassGeometry) : 1);
+  const depthWebKitTransform = useTransform(depthPose, pose => depthPassGeometry
+    ? resolveDepthPassWebKitTransform(
+      reduceMotion ? { ...pose, z: 0, rotateY: 0 } : pose,
+      depthPassGeometry,
+    ) : 'none');
+  const surfaceOpacity = useTransform(depthQ, q => {
+    const focus = Math.max(0, 1 - Math.abs(q) / 0.8);
+    const reach = depthPassGeometry?.pathMode === 'oval-pass'
+      ? depthPassGeometry.ovalReachCards : depthPassGeometry?.arcReachCards ?? 5;
+    const travel = reach <= 1 ? q : (q - 1) / (reach - 1);
+    const clamped = Math.max(0, Math.min(1, travel));
+    const farProgress = clamped * clamped * (3 - 2 * clamped);
+    const waitingOpacity = depthPassSurfaceOpacity
+      + (depthPassFarSurfaceOpacity - depthPassSurfaceOpacity) * farProgress;
+    return waitingOpacity + (1 - waitingOpacity) * focus;
+  });
+  const edgeOpacity = useTransform(depthQ, q => depthPassEdgeOpacity * Math.min(1, Math.abs(q) / 0.35));
   // PLAN-COVERFLOW-CONTINUOUS-LIFT-DAMPING.md — same computation x/rotateY/z
   // below already do inline every frame, surfaced as its own MotionValue so
   // a caller can react to this card's continuous closeness to the active
@@ -1406,6 +1701,11 @@ function CoverFlowItemInner<T>({
     if (reduceMotion) return 0;
     const pos = wrapDelta(index - value, loopItemCount);
     const absPos = Math.abs(pos);
+    const smoothFirstRotation = (nearest: number) => {
+      if (absPos < 0.35) return absPos * nearest * 2;
+      if (absPos < 0.65) return smoothHalfStep(absPos, nearest * 0.7, nearest, nearest * 2, 0);
+      return nearest;
+    };
     // `spread` distributes one bounded rotation budget across the depth of
     // the visible maze. Unlike compounding, it cannot burn through the
     // 90deg projection ceiling in the first few cards and leave every
@@ -1413,7 +1713,7 @@ function CoverFlowItemInner<T>({
     // existing compositions which explicitly select it.
     if (rotationDistributionMode === 'spread') {
       const cappedMax = Math.max(rotation, Math.min(90, rotationMaxDeg));
-      if (absPos < 0.5) return absPos * (rotation * 2);
+      if (absPos < 0.65) return smoothFirstRotation(rotation);
       const depthRange = Math.max(1, rotationSpreadDepth - 1);
       const progress = Math.min(1, Math.max(0, (absPos - 1) / depthRange));
       const magnitude = rotation + (cappedMax - rotation) * Math.pow(progress, rotationSpreadExponent);
@@ -1429,9 +1729,8 @@ function CoverFlowItemInner<T>({
     // beyond it shifts out by that same one extra power of growthRatio, so
     // the whole stack reads as one continuous rhythm instead of a flat
     // first neighbour followed by a differently-paced one. The active
-    // card's own approach through center (absPos < 0.5) eases toward
-    // whichever of the two is active, so there is no snap at the boundary
-    // either way.
+    // card's own approach through center eases toward whichever of the two
+    // is active, with a smooth velocity handoff around the half-step.
     const growthRatio = 1 + rotationDistanceGrowthPercent / 100;
     const invertedNearestRotation = rotationMaxDeg;
     const invertedFarRotation = Math.min(rotation, rotationMaxDeg);
@@ -1441,7 +1740,10 @@ function CoverFlowItemInner<T>({
     const nearestRotation = rotationProgressionMode === 'invert'
       ? invertedNearestRotation
       : firstNeighbourRotation;
-    if (absPos < 0.5) return absPos * (Math.min(90, nearestRotation) * 2);
+    if (absPos < 0.65) return smoothFirstRotation(Math.min(
+      rotationProgressionMode === 'invert' ? 90 : rotationMaxDeg,
+      nearestRotation,
+    ));
     const magnitude = rotationProgressionMode === 'invert'
       ? Math.max(
         invertedFarRotation,
@@ -1548,7 +1850,23 @@ function CoverFlowItemInner<T>({
   const z = useTransform(scrollX, (value) => {
     if (reduceMotion) return 0;
     const absPos = Math.abs(wrapDelta(index - value, loopItemCount));
-    return absPos > 0.5 ? -depthPx : absPos * -depthPx * 2;
+    const progression = inactiveDepthIncrementPercent / 100;
+    if (absPos > 0.35 && absPos < 0.65) {
+      const near = (distance: number) => -2 * depthPx * distance * (1 + distance * progression);
+      const far = (distance: number) => -depthPx * (1 + distance * progression);
+      return smoothHalfStep(
+        absPos,
+        near(0.35), far(0.65),
+        -2 * depthPx * (1 + 0.7 * progression),
+        -depthPx * progression,
+      );
+    }
+    const baseDepth = absPos >= 0.65 ? -depthPx : absPos * -depthPx * 2;
+    // Position 0 remains on the active plane. Position 1 receives the first
+    // percentage step, and every subsequent position receives another.
+    // The short Hermite join changes only the fractional half-step, so the
+    // old piecewise slope break no longer reads as a hitch in motion.
+    return baseDepth * (1 + absPos * progression);
   });
 
   // Opt-in left-side fade (CoverFlowConfig's own `leftFadeEnabled`). Live in
@@ -1572,35 +1890,50 @@ function CoverFlowItemInner<T>({
 
   return (
     <motion.div
-      className="absolute top-1/2 left-1/2 will-change-transform"
-      data-cover-flow-active={dataActive}
+      ref={cardRef}
+      className={`absolute top-1/2 left-1/2${depthPassGeometry && culled ? '' : ' will-change-transform'}`}
+      data-cover-flow-active={depthPassGeometry ? visualActive : dataActive}
+      data-cover-flow-depth-pass={depthPassGeometry ? 'true' : undefined}
+      data-cover-flow-index={depthPassGeometry ? index : undefined}
+      data-depth-waiting-side={depthPassGeometry ? depthPassGeometry.waitingSign === -1 ? 'left' : 'right' : undefined}
+      data-cover-flow-phase={depthPassGeometry ? culled ? 'culled' : visualActive ? 'focus' : foregroundVisible ? 'departing' : 'waiting' : undefined}
+      aria-hidden={depthPassGeometry && culled ? true : undefined}
       style={{
         width,
         height,
         marginTop: -height / 2,
         marginLeft: -width / 2,
-        x,
-        z,
-        rotateY,
-        // Only bind opacity when the fade is on, so the disabled path never
-        // sets an inline opacity (byte-identical to before this feature).
-        opacity: leftFadeEnabled ? opacity : undefined,
-        transformStyle: flattenPerspective ? 'flat' : 'preserve-3d',
+        x: depthPassGeometry && !webkitDepthProjection ? depthX : depthPassGeometry ? undefined : x,
+        y: depthPassGeometry && !webkitDepthProjection ? depthY : undefined,
+        z: depthPassGeometry && !webkitDepthProjection ? depthZ : depthPassGeometry ? undefined : z,
+        rotateY: depthPassGeometry && !webkitDepthProjection ? depthYaw : depthPassGeometry ? undefined : rotateY,
+        transform: depthPassGeometry && webkitDepthProjection ? depthWebKitTransform : undefined,
+        // Depth mode owns surface translucency and must clear any whole-card
+        // fade left by a prior classic/reverse-order render. Motion can retain
+        // the previous inline opacity when a MotionValue binding is removed.
+        opacity: depthPassGeometry ? depthVisibility : leftFadeEnabled ? opacity : undefined,
+        pointerEvents: depthPassGeometry && culled ? 'none' : undefined,
+        ...(depthPassGeometry ? {
+          '--cover-flow-depth-surface-opacity': surfaceOpacity,
+          '--cover-flow-depth-edge-opacity': edgeOpacity,
+        } : null),
+        transformStyle: flattenPerspective || (depthPassGeometry && webkitDepthProjection) ? 'flat' : 'preserve-3d',
         backfaceVisibility: showCardBackface ? 'visible' : 'hidden',
         WebkitBackfaceVisibility: showCardBackface ? 'visible' : 'hidden',
         cursor,
       }}
-      onClick={() => onCardClick(item, index)}
+      onClick={() => { if (!depthPassGeometry || !culled) onCardClick(item, actualIndex); }}
     >
       {renderItem(
         item,
-        index,
-        isActive,
+        actualIndex,
+        depthPassGeometry ? visualActive : isActive,
         { width, height },
         reveal,
         {
           distanceFromActive: Math.abs(wrapDelta(index - activeIndex, loopItemCount)),
           distanceFromActiveLive,
+          depthPassForegroundVisible: depthPassGeometry ? foregroundVisible : undefined,
         },
       )}
     </motion.div>

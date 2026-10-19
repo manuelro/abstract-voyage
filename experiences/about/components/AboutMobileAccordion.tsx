@@ -29,6 +29,7 @@ export function AboutMobileAccordion({
   dimOpacity,
   emphasisOpacity,
   prefersReducedMotion,
+  linkedSlideIndex,
   onActiveIndexChange,
   columnBackgroundColor,
 }: {
@@ -39,6 +40,9 @@ export function AboutMobileAccordion({
   dimOpacity: number;
   emphasisOpacity: number;
   prefersReducedMotion: boolean;
+  /** A /wall deep link opens its canonical About stage even on the mobile
+   * multi-expand path, which does not navigate from activeIndex. */
+  linkedSlideIndex?: number | null;
   /** The page's own resolved column-color reference (pages/about.tsx's own
    * `colors.wideColumnColor`) — config.borderSurfaceOffset/textSurfaceOffset
    * derive this component's own border/text colors from it. Not the same
@@ -71,6 +75,10 @@ export function AboutMobileAccordion({
   // Restore only when this accordion mounts; config edits should not undo taps.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    if (linkedSlideIndex == null || linkedSlideIndex < 0 || linkedSlideIndex >= slides.length) return;
+    setExpandedIndices(current => current.length === 1 && current[0] === linkedSlideIndex ? current : [linkedSlideIndex]);
+  }, [linkedSlideIndex, slides.length]);
   useLayoutEffect(() => {
     if (!selectionRestored) return;
     writeAboutAccordionSelection({ expandedSlideIds: expandedIndices.map(index => slides[index]?.id).filter((id): id is number => id !== undefined) });

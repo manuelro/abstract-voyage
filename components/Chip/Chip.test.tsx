@@ -29,6 +29,8 @@ describe('Chip', () => {
       paddingXClassName: 'px-2' as const,
       paddingYClassName: 'py-0.5' as const,
       textTrackingClassName: 'tracking-wide' as const,
+      transitionDurationMs: 350,
+      transitionEasing: 'ease-in-out' as const,
     }
 
     act(() => root.render(<Chip as="button" label="All" active tintAppearance={tintAppearance} />))
@@ -41,6 +43,8 @@ describe('Chip', () => {
     expect(chip.style.getPropertyValue('--chip-border-hover')).toContain('#ffffff 70%')
     expect(chip.style.getPropertyValue('--chip-text-press')).toBe(chip.style.getPropertyValue('--chip-text-hover'))
     expect(chip.style.getPropertyValue('--chip-border')).toContain('#ffffff 70%')
+    expect(chip.style.getPropertyValue('--chip-transition-duration')).toBe('350ms')
+    expect(chip.style.getPropertyValue('--chip-transition-easing')).toBe('ease-in-out')
 
     act(() => root.render(<Chip as="button" label="All" active tintAppearance={{
       ...tintAppearance, hoverContrastSensitivity: 0,

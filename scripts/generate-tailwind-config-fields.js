@@ -65,18 +65,27 @@ function generateSource() {
   ]
 
   for (const [utilityName, descriptor] of Object.entries(manifest.utilities)) {
-    const scale = tailwindConfig.theme[descriptor.scale]
-    if (!scale || typeof scale !== 'object' || Array.isArray(scale)) {
-      throw new Error(`Tailwind theme scale "${descriptor.scale}" for "${utilityName}" is not an object`)
+    let options
+    if (descriptor.staticOptions) {
+      options = descriptor.staticOptions
+    } else {
+      const scale = tailwindConfig.theme[descriptor.scale]
+      if (!scale || typeof scale !== 'object' || Array.isArray(scale)) {
+        throw new Error(`Tailwind theme scale "${descriptor.scale}" for "${utilityName}" is not an object`)
+      }
+      const tokens = orderedEntries(scale, descriptor.sort)
+        .filter(([token]) => !descriptor.tokens || descriptor.tokens.includes(token))
+      if (descriptor.tokens?.some(token => !(token in scale))) {
+        throw new Error(`Utility "${utilityName}" names a token missing from "${descriptor.scale}"`)
+      }
+      options = tokens.map(([token, scaleValue]) => ({
+        value: classNameFor(descriptor, token),
+        cssValue: scaleValue,
+        label: labelFor(descriptor, scaleValue, classNameFor(descriptor, token)),
+      }))
     }
-
-    const tokens = orderedEntries(scale, descriptor.sort)
-      .filter(([token]) => !descriptor.tokens || descriptor.tokens.includes(token))
-    if (descriptor.tokens?.some(token => !(token in scale))) {
-      throw new Error(`Utility "${utilityName}" names a token missing from "${descriptor.scale}"`)
-    }
-    if (descriptor.control === 'enum' && tokens.length > 8) {
-      throw new Error(`Utility "${utilityName}" has ${tokens.length} options and cannot use enum`)
+    if (descriptor.control === 'enum' && options.length + (descriptor.semanticOptions?.length ?? 0) > 8) {
+      throw new Error(`Utility "${utilityName}" has too many options and cannot use enum`)
     }
 
     lines.push(`  ${quote(utilityName)}: {`)
@@ -84,10 +93,10 @@ function generateSource() {
       lines.push(`    ${quote(breakpoint)}: {`)
       lines.push(`      control: ${quote(descriptor.control)},`)
       lines.push('      options: [')
-      for (const [token, scaleValue] of tokens) {
-        const value = `${variantPrefix}${classNameFor(descriptor, token)}`
-        const label = labelFor(descriptor, scaleValue, value)
-        lines.push(`        { label: ${quote(label)}, value: ${quote(value)}, cssValue: ${quote(scaleValue)} },`)
+      for (const option of options) {
+        const value = `${variantPrefix}${option.value}`
+        const label = descriptor.staticOptions ? option.label : labelFor(descriptor, option.cssValue, value)
+        lines.push(`        { label: ${quote(label)}, value: ${quote(value)}, cssValue: ${quote(option.cssValue)} },`)
       }
       for (const semantic of descriptor.semanticOptions ?? []) {
         lines.push(`        { label: ${quote(semantic.label)}, value: ${quote(semantic.value)}, cssValue: ${quote(semantic.cssValue)} },`)

@@ -10,7 +10,7 @@ import { useConfigScopeOpenState } from './useConfigScopeOpenState';
 import { useOptionalSharedDesignConfig } from '../../SharedDesignConfigProvider';
 import { DEFAULT_PANEL_SHELL_CONFIG, normalizePanelShellConfig } from './shell';
 
-export function ConfigScopeRenderer({ binding }: { binding: ConfigScopeBinding }) {
+export function ConfigScopeRenderer({ binding, lazyContent = false }: { binding: ConfigScopeBinding; lazyContent?: boolean }) {
   // Shared, persisted disclosure state (see useConfigScopeOpenState's own
   // doc comment) — not local useState. This is what lets the section stay
   // expanded across the whole settings panel closing and reopening, and
@@ -76,7 +76,7 @@ export function ConfigScopeRenderer({ binding }: { binding: ConfigScopeBinding }
       onHoverIntentStart={onHoverIntentStart}
       onHoverIntentCancel={clearHoverIntentTimer}
     >
-      <ConfigControlResolver binding={binding} />
+      {!lazyContent || open ? <ConfigControlResolver binding={binding} /> : null}
     </ComponentConfigSection>
   );
 }

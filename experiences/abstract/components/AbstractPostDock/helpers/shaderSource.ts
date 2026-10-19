@@ -10,7 +10,7 @@ export const SLIDER_PROCEDURAL_COLOR_FRAGMENT_SOURCE = PROCEDURAL_COLOR_FRAGMENT
   )
   // Asymmetric mesh scale: independent horizontal/vertical stretch on top of
   // the existing isotropic uScale zoom. uScale keeps authoring the overall
-  // zoom exactly as before; uScaleX/uScaleY (1..5, default 1) only pull the
+  // zoom exactly as before; uScaleX/uScaleY (1 by default) only pull the
   // two axes apart from each other, so 1/1 stays byte-identical to the
   // original single-scalar divide.
   .replace(

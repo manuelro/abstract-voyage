@@ -235,6 +235,34 @@
   border-width: 3px;
 }
 
+/* CoverFlow's opt-in depth path fades only the face paint, not the article
+   hierarchy. MotionValue-backed custom properties arrive from the card plane. */
+.depthPassSurface {
+  opacity: var(--cover-flow-depth-surface-opacity, 1);
+}
+
+[data-cover-flow-depth-pass='true'] .stackNeutralSurface[data-visible='true'] {
+  opacity: var(--cover-flow-depth-surface-opacity, 1);
+}
+
+.depthPassLeadingEdge {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  pointer-events: none;
+  opacity: var(--cover-flow-depth-edge-opacity, 0);
+  background: linear-gradient(180deg, rgba(72, 155, 213, .65), #f4ffff 48%, rgba(54, 164, 215, .8));
+  box-shadow: 0 0 0 1px rgba(67, 145, 202, .26), 0 0 9px rgba(71, 169, 221, .5);
+}
+
+[data-depth-waiting-side='right'] .depthPassLeadingEdge {
+  left: auto;
+  right: 0;
+}
+
 /* The flat-fill treatment intentionally owns the whole inactive face. Its
    color is already an opaque composite (deriveOpaqueTint), so retaining the
    perimeter would reintroduce the border treatment the mode replaces. */

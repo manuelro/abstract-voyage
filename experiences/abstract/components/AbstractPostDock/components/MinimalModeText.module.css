@@ -1,0 +1,3 @@
+.highlighted {
+  font-weight: var(--minimal-mode-highlight-weight, inherit);
+}

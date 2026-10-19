@@ -110,7 +110,7 @@ describe('progressive depth shading (PLAN-POSTS-LAB-PANEL-TABS.md §13, revised)
   it('also darkens the subgroup on a light source — always darker, never lighter, regardless of the root\'s own tone', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const root = renderNestedFixture(container, '#eeeeee', 0.05);
+    const root = renderNestedFixture(container, '#ffffff', 0.05);
 
     const rootSection = container.querySelector<HTMLElement>('section');
     const rootColor = rootSection?.style.getPropertyValue('--panel-bg-effective') ?? '';

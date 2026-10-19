@@ -60,6 +60,25 @@ const whenRotationCompounding = (config: Readonly<CoverFlowConfig>) => (
   config.rotationDistributionMode === 'compounding'
 );
 
+const whenDepthPass = (config: Readonly<CoverFlowConfig>) => (
+  config.navigationPathLg === 'depth-pass'
+);
+const whenOvalPass = (config: Readonly<CoverFlowConfig>) => (
+  config.navigationPathLg === 'oval-pass'
+);
+const whenFullOvalArch = (config: Readonly<CoverFlowConfig>) => (
+  whenOvalPass(config) && config.ovalDistributionModeLg === 'full-arch'
+);
+const whenGoldenOvalArch = (config: Readonly<CoverFlowConfig>) => (
+  whenFullOvalArch(config) && config.ovalGoldenRhythmEnabledLg
+);
+const whenQuarterOval = (config: Readonly<CoverFlowConfig>) => (
+  whenOvalPass(config) && config.ovalDistributionModeLg === 'quarter'
+);
+const whenSpatialPath = (config: Readonly<CoverFlowConfig>) => (
+  config.navigationPathLg === 'depth-pass' || config.navigationPathLg === 'oval-pass'
+);
+
 const ROTATION_PROGRESSION_OPTIONS = [
   { label: 'RECEDE', value: 'recede' },
   { label: 'INVERT', value: 'invert' },
@@ -319,6 +338,101 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
             },
           ],
         },
+      ],
+    },
+    {
+      kind: 'group',
+      label: 'Spatial navigation (desktop)',
+      fields: [
+        {
+          kind: 'enum', key: 'navigationPathLg', label: 'Navigation path',
+          description: 'Classic uses the two-sided CoverFlow. Depth pass retains the authored stack. Oval pass places camera-facing cards on a side-view ellipse and carries the focused card around its near side until it clears the viewport.',
+          options: [
+            { label: 'CLASSIC', value: 'classic' },
+            { label: 'DEPTH PASS', value: 'depth-pass' },
+            { label: 'OVAL PASS', value: 'oval-pass' },
+          ],
+        },
+        { kind: 'enum', key: 'ovalDistributionModeLg', label: 'Oval distribution', visibleWhen: whenOvalPass,
+          description: 'Full arch places waiting cards across A→B→C, with B farthest from the camera. Quarter preserves the earlier B→C arrangement.',
+          options: [{ label: 'FULL ARCH', value: 'full-arch' }, { label: 'QUARTER', value: 'quarter' }] },
+        { kind: 'number', key: 'ovalHorizontalRadiusCardsLg', label: 'Oval horizontal radius', min: 0.5, max: 6, step: 0.1, unit: 'cards', visibleWhen: whenQuarterOval,
+          description: 'Width of the ellipse in card widths. Changes the spacing curve without adding yaw to the cards.' },
+        { kind: 'number', key: 'ovalDepthRadiusCardsLg', label: 'Oval depth radius', min: 0.2, max: 4, step: 0.1, unit: 'cards', visibleWhen: whenQuarterOval,
+          description: 'Front-to-back radius of the ellipse in card widths.' },
+        { kind: 'number', key: 'ovalViewAngleDegLg', label: 'Oval view angle', min: 0, max: 75, step: 1, unit: 'deg', visibleWhen: whenQuarterOval,
+          description: 'Fixed camera angle from the side of the oval. Card faces remain parallel to the screen.' },
+        { kind: 'number', key: 'ovalCameraOriginXPercentLg', label: 'Oval camera X', min: 85, max: 140, step: 1, unit: '%', visibleWhen: whenOvalPass,
+          description: 'Perspective projection center across the viewport. Values above 100 place the camera axis beyond the right edge.' },
+        { kind: 'number', key: 'ovalFocusAngleDegLg', label: 'Oval focus point', min: 0, max: 85, step: 1, unit: 'deg', visibleWhen: whenQuarterOval,
+          description: 'Near end of the visible B-to-C oval arc, where a card becomes fully readable.' },
+        { kind: 'number', key: 'ovalBackAngleDegLg', label: 'Oval back point', min: 90, max: 180, step: 1, unit: 'deg', visibleWhen: whenQuarterOval,
+          description: 'Far end of the visible arc. Around 90 degrees places it at the top of the oval.' },
+        { kind: 'number', key: 'ovalDepthEaseLg', label: 'Oval depth arch', min: 0, max: 2, step: 0.1, visibleWhen: whenQuarterOval,
+          description: 'Strength of recession near the active card. Zero follows the ellipse depth directly; higher values make nearby waiting cards smaller while preserving the back depth.' },
+        { kind: 'number', key: 'ovalBackDepthCardsLg', label: 'A depth', min: 0, max: 5, step: 0.05, unit: 'cards', visibleWhen: whenFullOvalArch,
+          description: 'Base far-end recession. Smaller values make the leftmost card larger.' },
+        { kind: 'number', key: 'ovalArchDepthCardsLg', label: 'B depth arch', min: 0, max: 12, step: 0.1, unit: 'cards', visibleWhen: whenFullOvalArch,
+          description: 'Extra depth at the smallest point of the waiting-card arc.' },
+        { kind: 'number', key: 'ovalDepthMinimumPositionPercentLg', label: 'Smallest card position', min: 40, max: 100, step: 5, unit: '%', visibleWhen: whenGoldenOvalArch,
+          description: 'Where the smallest card falls from focus (0%) to the left tail (100%). At 100%, every waiting card gets smaller toward the left edge.' },
+        { kind: 'number', key: 'ovalArchSkewLg', label: 'Depth arch bias', min: -1.8, max: 1.8, step: 0.05, visibleWhen: whenFullOvalArch,
+          description: 'Bends the depth distribution along the waiting arc.' },
+        { kind: 'number', key: 'ovalExitAngleDegLg', label: 'Oval exit point', min: 0, max: 60, step: 1, unit: 'deg', visibleWhen: whenQuarterOval,
+          description: 'Near-side point reached by the departing card. Smaller angles move it farther right around the same oval.' },
+        { kind: 'number', key: 'ovalReachCardsLg', label: 'Oval reach', min: 1, max: 10, step: 1, unit: 'cards', visibleWhen: whenOvalPass,
+          description: 'Number of waiting-card steps between focus and the back point. Full arch uses the available card count when this value exceeds it.' },
+        { kind: 'number', key: 'ovalFarEdgeXPercentLg', label: 'Far card left edge', min: 0, max: 30, step: 1, unit: '%', visibleWhen: whenOvalPass,
+          description: 'Projected left edge of the farthest waiting card as a percent of the viewport. Lower values fill more of the left side while preserving card sizes.' },
+        { kind: 'boolean', key: 'ovalGeometryPreviewEnabledLg', label: 'Show motion path preview', visibleWhen: whenOvalPass,
+          description: 'Show the live A–B–C path, camera point of view, card vertices, and their projected viewport distribution.' },
+        { kind: 'number', key: 'ovalFirstNeighborGapPercentLg', label: 'First card edge gap', min: -80, max: 100, step: 1, unit: '%', visibleWhen: whenFullOvalArch,
+          description: 'Visible gap from the first waiting card to the active card, in active-card widths. Negative values overlap.' },
+        { kind: 'number', key: 'ovalArcSpacingBendLg', label: 'Arc spacing bend', min: -0.1, max: 0.1, step: 0.005, visibleWhen: whenFullOvalArch,
+          description: 'Redistributes intermediate card centers in the original arch. Golden card rhythm uses projected edge gaps instead.' },
+        { kind: 'boolean', key: 'ovalGoldenRhythmEnabledLg', label: 'Golden card rhythm', visibleWhen: whenFullOvalArch,
+          description: 'Use fractional powers of the golden ratio for camera-depth sizing and projected gaps between waiting-card edges. Turn off to restore the original arch.' },
+        { kind: 'number', key: 'ovalGoldenSizeStepLg', label: 'Golden size step', min: 0, max: 0.8, step: 0.01, visibleWhen: whenGoldenOvalArch,
+          description: 'Golden-ratio exponent per unit of authored depth. Cards shrink toward the configured smallest point; zero keeps all cards at the active size.' },
+        { kind: 'number', key: 'ovalGoldenSpacingStepLg', label: 'Golden spacing step', min: 0, max: 1, step: 0.01, visibleWhen: whenGoldenOvalArch,
+          description: 'Golden-ratio exponent between successive projected edge gaps. Zero shares extra space evenly; higher values open near gaps and tighten far gaps.' },
+        { kind: 'number', key: 'ovalMinWaitingGapPxLg', label: 'Minimum waiting gap', min: 0, max: 80, step: 1, unit: 'px', visibleWhen: whenGoldenOvalArch,
+          description: 'Minimum projected edge clearance between waiting cards. Distant cards fade from view when the runway cannot fit them.' },
+        { kind: 'number', key: 'ovalMinActiveGapPxLg', label: 'Minimum active gap', min: 0, max: 80, step: 1, unit: 'px', visibleWhen: whenGoldenOvalArch,
+          description: 'Minimum projected edge clearance between the focused card and its nearest waiting card.' },
+        { kind: 'number', key: 'ovalFirstNeighborOverlapPercentLg', label: 'First waiting card overlap', min: 0, max: 80, step: 1, unit: '%', visibleWhen: whenQuarterOval,
+          description: 'How much the nearest waiting card sits behind the focused card, as a percent of the focused card width. Angular spacing is solved on the oval.' },
+        { kind: 'number', key: 'depthPassStackSpacingPercentLg', label: 'Waiting plane spacing', min: 10, max: 150, step: 1, unit: '%', visibleWhen: whenDepthPass,
+          description: 'Scales existing waiting-side spacing. Lower values reveal more overlapping planes.' },
+        { kind: 'number', key: 'depthPassFirstNeighborGapPercentLg', label: 'Focus-to-stack edge gap', min: 0, max: 100, step: 1, unit: '%', visibleWhen: whenDepthPass,
+          description: 'Visible gap between focus and the nearest waiting card, as a percent of card width.' },
+        { kind: 'number', key: 'depthPassOvalConvergencePercentLg', label: 'Distant-plane convergence', min: 0, max: 100, step: 1, unit: '%', visibleWhen: whenDepthPass,
+          description: 'Progressively brings farther waiting planes closer together in the viewer’s projection, like the back of a long oval. Leaves the first edge gap and depth bend intact.' },
+        { kind: 'number', key: 'depthPassStackYawDegLg', label: 'Nearest waiting plane yaw', min: 0, max: 45, step: 1, unit: 'deg', visibleWhen: whenDepthPass,
+          description: 'A restrained Y rotation keeps the card faces broad like the reference.' },
+        { kind: 'number', key: 'depthPassStackYawMaxDegLg', label: 'Maximum waiting plane yaw', min: 0, max: 70, step: 1, unit: 'deg', visibleWhen: whenDepthPass },
+        { kind: 'number', key: 'depthPassMaxProjectedWidthRatioLg', label: 'Maximum apparent width', min: 1, max: 1.5, step: 0.01, visibleWhen: whenDepthPass,
+          description: 'Caps each waiting plane’s projected width relative to a front-facing card at the same depth. 1 preserves its natural depth-scaled width; 1.5 allows pronounced edge amplification.' },
+        { kind: 'number', key: 'depthPassArcBendPercentLg', label: 'Arc depth bend', min: 0, max: 400, step: 5, unit: '%', visibleWhen: whenDepthPass,
+          description: 'Adds progressively more recession to distant planes, curving the projected top and bottom edges. 0 restores the straight depth progression.' },
+        { kind: 'number', key: 'depthPassArcReachCardsLg', label: 'Arc reach', min: 1, max: 10, step: 1, unit: 'cards', visibleWhen: whenDepthPass,
+          description: 'Number of waiting-card steps over which the arc reaches its authored bend and vertical drop.' },
+        { kind: 'number', key: 'depthPassArcDropPxLg', label: 'Far plane drop', min: -160, max: 160, step: 1, unit: 'px', visibleWhen: whenSpatialPath,
+          description: 'Moves distant planes lower or higher along the arc while the focused card stays anchored.' },
+        { kind: 'number', key: 'depthPassVerticalOffsetPxLg', label: 'Depth composition vertical offset', min: -200, max: 200, step: 1, unit: 'px', visibleWhen: whenSpatialPath,
+          description: 'Moves the entire composition vertically, including focus. On the oval path the shift is equal on screen for every depth, preserving the arch. Limited by available room inside the CoverFlow clip.' },
+        { kind: 'number', key: 'depthPassExitScaleLg', label: 'Foreground exit scale', min: 1.1, max: 2.5, step: 0.05, visibleWhen: whenDepthPass,
+          description: 'Apparent whole-card growth produced by positive Z depth after the fully visible focus stop.' },
+        { kind: 'number', key: 'depthPassExitClearancePercentLg', label: 'Exit clearance', min: 0, max: 30, step: 1, unit: '%', visibleWhen: whenDepthPass,
+          description: 'Additional margin beyond the clipping edge, relative to the projected card width.' },
+        { kind: 'number', key: 'depthPassFocusHandoffPercentLg', label: 'Content handoff', min: 0, max: 100, step: 1, unit: '%', visibleWhen: whenSpatialPath,
+          description: 'Point in the movement between cards where the readable article changes.' },
+        { kind: 'number', key: 'depthPassInactiveSurfaceOpacityLg', label: 'Waiting surface opacity', min: 0, max: 1, step: 0.01, visibleWhen: whenSpatialPath,
+          description: 'Surface opacity of the nearest waiting plane; focused text stays opaque.' },
+        { kind: 'number', key: 'depthPassFarSurfaceOpacityLg', label: 'Far surface opacity', min: 0, max: 1, step: 0.01, visibleWhen: whenSpatialPath,
+          description: 'Surface opacity at the end of the selected path. Intermediate planes transition progressively between the near and far values.' },
+        { kind: 'number', key: 'depthPassLeadingEdgeOpacityLg', label: 'Leading edge brightness', min: 0, max: 1, step: 0.01, visibleWhen: whenSpatialPath,
+          description: 'Thin luminous edge on waiting planes, independent of their fill.' },
       ],
     },
     {
@@ -599,7 +713,7 @@ export const COVER_FLOW_PANEL = defineConfigScope<CoverFlowConfig>({
           kind: 'select',
           key: 'settleMotionCurve',
           label: 'Jump-to-index curve',
-          description: 'Governs every DISCRETE jump — click-to-snap, wheel, an externally-requested index change, and selecting a row in the expanded mobile list. Never the drag-release settle, which always keeps its own momentum-seeded spring. Gaussian: a real, named motion-design easing family — velocity itself traces a Gaussian bell curve, slow start, one smooth peak at the midpoint, slow finish, landing at zero velocity by construction, with no kink at any point through the peak.',
+          description: 'Governs discrete jumps — click-to-snap, an externally-requested index change, and selecting a row in the expanded mobile list. Drag and continuous wheel/trackpad release use a momentum-seeded spring. Gaussian: velocity traces a smooth bell curve, with a gentle start and finish.',
           options: SETTLE_MOTION_CURVE_OPTIONS,
         },
         {

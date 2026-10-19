@@ -19,6 +19,28 @@ const nextConfig = {
   // without a React Component as default export") unless those defaults
   // files are excluded here.
   pageExtensions: ['tsx'],
+  // Production route allowlist (PLAN-PRODUCTION-ROUTE-ALLOWLIST.md) — every
+  // page under pages/ stays in source and stays reachable under `next dev`
+  // (for code tracking, same reasoning as components/Panel staying in the
+  // tree below), but `next export`'s own static output is filtered to just
+  // the three routes the live site actually ships. exportPathMap is only
+  // ever invoked by `next export` itself, never by `next dev` (which has no
+  // export step to filter) — the `dev` check below is defensive/documenting
+  // intent, not load-bearing, since this function won't run during `next
+  // dev` regardless. defaultPathMap is Next's own fully-resolved route
+  // list (every dynamic getStaticPaths entry already expanded), so this is
+  // a filter over Next's own data, not a hand-maintained parallel list.
+  async exportPathMap(defaultPathMap, { dev }) {
+    if (dev) return defaultPathMap
+    const PRODUCTION_ROUTES = ['/', '/about', '/contact']
+    const filtered = {}
+    for (const route of PRODUCTION_ROUTES) {
+      if (defaultPathMap[route]) {
+        filtered[route] = defaultPathMap[route]
+      }
+    }
+    return filtered
+  },
   // SPIKE (components/Panel.stub) — proves panel code can live in this
   // branch's tree and still be provably absent from production output,
   // via build-time module substitution rather than physical file removal.

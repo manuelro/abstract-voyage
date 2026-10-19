@@ -20,7 +20,11 @@ import {
   DEFAULT_ABOUT_MOBILE_ACCORDION_CONFIG,
   normalizeAboutMobileAccordionConfig,
 } from '../experiences/about/components/AboutMobileAccordion.config';
-import { normalizeCardAppearanceConfig } from '../experiences/abstract/components/Card/config/appearance';
+import {
+  normalizeCardAppearanceConfig,
+  resolveUnifiedGradientInkEnabled,
+} from '../experiences/abstract/components/Card/config/appearance';
+import { CARD_APPEARANCE_PANEL } from '../experiences/abstract/components/Card/config/appearance.panel';
 
 type NestedEntry = {
   kind: string;
@@ -219,6 +223,8 @@ describe('Card Appearance inverted gradient ink', () => {
       invertedGradientInkBlendMode: 'multiply',
     });
     expect(normalized.invertedGradientInkEnabled).toBe(true);
+    expect(normalized.invertedGradientInkEnabledMd).toBe(true);
+    expect(normalized.invertedGradientInkEnabledLg).toBe(true);
     expect(normalized.invertedGradientInkBackgroundColor).toBe('#ffffff');
     expect(normalized.invertedGradientInkBackgroundOpacity).toBe(1);
     expect(normalized.invertedGradientInkActiveBorderEnabled).toBe(true);
@@ -226,5 +232,30 @@ describe('Card Appearance inverted gradient ink', () => {
     expect(normalized.invertedGradientInkForegroundColor).toBe('#2d2d2d');
     expect(normalized.invertedGradientInkBlendMode).toBe('multiply');
     expect(normalizeCardAppearanceConfig({}).invertedGradientInkEnabled).toBe(false);
+  });
+
+  it('resolves independent mobile, tablet, and desktop toggles and keeps shared controls available', () => {
+    const tabletOnly = normalizeCardAppearanceConfig({
+      invertedGradientInkEnabled: false,
+      invertedGradientInkEnabledMd: true,
+      invertedGradientInkEnabledLg: false,
+    });
+    expect(resolveUnifiedGradientInkEnabled(tabletOnly, 'mobile')).toBe(false);
+    expect(resolveUnifiedGradientInkEnabled(tabletOnly, 'md')).toBe(true);
+    expect(resolveUnifiedGradientInkEnabled(tabletOnly, 'lg')).toBe(false);
+
+    const fields = flattenFields(CARD_APPEARANCE_PANEL.fields as ReadonlyArray<NestedEntry>);
+    expect(fields.filter(field => field.label?.startsWith('Use gradient as unified ink')).map(field => field.key))
+      .toEqual(['invertedGradientInkEnabled', 'invertedGradientInkEnabledMd', 'invertedGradientInkEnabledLg']);
+    for (const key of [
+      'invertedGradientInkUnifiedBackgroundEnabled',
+      'invertedGradientInkBackgroundColor',
+      'invertedGradientInkBackgroundOpacity',
+      'invertedGradientInkForegroundColor',
+      'invertedGradientInkBlendMode',
+      'invertedGradientInkActiveBorderEnabled',
+    ]) {
+      expect(fields.find(field => field.key === key)?.visibleWhen?.(tabletOnly)).toBe(true);
+    }
   });
 });

@@ -1,0 +1,212 @@
+.root {
+  width: 100%;
+}
+
+/* The wall has a fixed, pointer-inert page gradient at z-index 0. A plain
+   quote's own solid tint needs its own stacking level above that backdrop;
+   otherwise the browser paints the tint behind the page gradient even though
+   getComputedStyle reports the correct background color. */
+.root[data-quote-palette]:not([data-quote-palette='off']) {
+  position: relative;
+  z-index: 1;
+}
+
+.blendRoot {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--quote-base-color);
+}
+
+.gradientBackdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.blendContent {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Text size, author size and box padding are all applied as literal
+   Tailwind utility classes straight from QuoteConfig (see Quote.tsx) --
+   responsive per breakpoint via Tailwind's own md:/lg: system, not a
+   cqw-based CSS custom property. Height is content-driven by default;
+   Quote.tsx can opt into a scrollable card-ratio figure. */
+.figure {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  margin: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* When the source heading is pinned to the figure's padded top edge, this
+   remaining area keeps the quotation and its other furniture centered below
+   it. Safe centering leaves the start reachable if a card-ratio quote scrolls. */
+.centeredBody {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+}
+
+/* Font size is applied as a literal Tailwind utility class straight from
+   QuoteConfig.sourceHeadingFontSize(Md/Lg) (see Quote.tsx) -- same
+   responsive-class approach as .figure above, not a hardcoded rule here. */
+.sourceHeading {
+  width: 100%;
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.mark {
+  display: block;
+  /* font-size/opacity/left/top/font-family come from QuoteConfig's own
+     openingMarkSizeEm/openingMarkOpacityPercent/openingMark*OffsetPercent/
+     markFontFamily (closingMark* for the closing glyph) as inline styles
+     set in Quote.tsx -- not here, so there is no hardcoded value for either
+     rule to drift out of sync with. This also replaced a now-removed
+     `.blendContent .mark { opacity: 1 }` rule that used to force full
+     opacity in gradient-ink/blend mode: FEATURE_QUOTE_CONFIG now sets
+     openingMarkOpacityPercent: 100 directly instead, so that forcing is
+     explicit per-preset rather than an opaque global CSS override. Both
+     marks are taken out of the flex flow (position: absolute, set inline)
+     and placed as a percentage of the figure's own box -- see Quote.tsx's
+     own comment -- so they can never compress or shift the quote's own
+     padding no matter how large/offset they get. Relative `em` sizing is
+     still keyed off the figure's own font-size (inherited from .text's
+     sibling cascade via the shared block), so the glyph stays proportional
+     to whichever text size a given breakpoint resolves to. */
+  line-height: 0.9;
+  font-weight: 400;
+  user-select: none;
+}
+
+.closingMark {
+  line-height: 0.8;
+}
+
+.blockquote {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  margin: 0;
+}
+
+.extraContent {
+  width: 100%;
+  min-width: 0;
+  margin-top: clamp(2rem, 6vw, 6rem);
+}
+
+/* PracticesSection owns the complete gap below the banner passage through
+   its per-breakpoint top-padding controls. The generic quote gap would add
+   an uneditable floor, especially noticeable at tablet width. */
+.extraContent:has(> [data-practices-section]) {
+  margin-top: 0;
+}
+
+.extraContent:has(> [data-featured-card]) {
+  margin-top: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.text {
+  margin: 0;
+  /* Role-dependent measure/leading/tracking/text-wrap/hyphens from
+     QuoteConfig (see Quote.tsx); the fallbacks preserve the former hardcoded
+     34ch / 1.26 / -0.025em / pretty / none. */
+  max-inline-size: var(--quote-measure, 34ch);
+  font-family: var(--quote-text-font);
+  font-weight: 400;
+  line-height: var(--quote-leading, 1.26);
+  letter-spacing: var(--quote-tracking, -0.025em);
+  overflow-wrap: break-word;
+  text-wrap: var(--quote-text-wrap, pretty);
+  -webkit-hyphens: var(--quote-hyphens, none);
+  hyphens: var(--quote-hyphens, none);
+}
+
+/* Per-breakpoint measure overrides. Quote.tsx sets --quote-measure-md/-lg to
+   the resolved value for each tier (a ch value or 100% full width); each
+   falls back to the smaller tier so quotes that only set the base measure are
+   unchanged. md = 768px, lg = 1024px (breakpoints.js). */
+@media (min-width: 768px) {
+  .text {
+    max-inline-size: var(--quote-measure-md, var(--quote-measure, 34ch));
+  }
+}
+@media (min-width: 1024px) {
+  .text {
+    max-inline-size: var(--quote-measure-lg, var(--quote-measure-md, var(--quote-measure, 34ch)));
+  }
+}
+
+/* The visible, clickable palette swatch row (see Quote.tsx's
+   onPaletteColorIndexChange) -- actual color chips, not a numeric field in a
+   side panel, so an operator can see and pick a swatch directly on the
+   quote itself. Centered under the figure, matching the figure's own
+   unconditional center/center placement. */
+.paletteSwatchRow {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5em;
+  margin-top: 1.25em;
+}
+
+.paletteSwatchButton {
+  display: block;
+  box-sizing: border-box;
+  width: 1.75em;
+  height: 1.75em;
+  padding: 0;
+  border-radius: 9999px;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  /* Swatch background is the one truly per-instance value here (a generated
+     hex, not a token) -- set inline in Quote.tsx via backgroundColor, same
+     as every other derived color on this component. */
+}
+
+.paletteSwatchButtonSelected {
+  border-color: currentColor;
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+.attribution {
+  margin-top: 1.5em;
+  font-family: var(--quote-author-font);
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  /* Metadata apparatus (sans), set quieter than the voice so a signed Passage
+     reads as prose with a muted byline, not a second headline. */
+  opacity: 0.68;
+  overflow-wrap: anywhere;
+}
+
+/* CSS-fallback gradient ink (QuoteConfig.gradientInkRenderMode === 'css').
+   The linear-gradient string and its zoom (background-size) are supplied by
+   Quote.tsx as the --quote-css-ink-gradient / --quote-css-ink-size custom
+   properties on the root; here they're clipped to each text element's own
+   glyphs so ONLY the text is painted -- no mesh canvas, no overlay surface.
+   -webkit-* prefixes included because background-clip: text still ships
+   prefixed in WebKit/Blink. */
+.cssInkText {
+  background-image: var(--quote-css-ink-gradient);
+  background-size: var(--quote-css-ink-size, 100%);
+  background-position: center;
+  background-repeat: repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}

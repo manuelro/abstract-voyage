@@ -15,10 +15,11 @@
 // Each export below is its own anonymous, self-contained IIFE, not a call
 // to a shared named helper — see this function's own doc comment in
 // generate-panel-stubs.js for why that distinction matters here.
-export const AbstractCoverFlowTimelineSlot: any = (() => {
+const defaultStub: any = (() => {
   const p: any = new Proxy(() => undefined, {
     get(t, prop) { return prop in t ? (t as any)[prop] : p },
     apply() { return undefined },
   })
   return p
 })()
+export default defaultStub

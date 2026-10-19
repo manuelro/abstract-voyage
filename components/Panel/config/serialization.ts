@@ -55,9 +55,11 @@ function scalarsEqual(a: ConfigScalar, b: ConfigScalar): boolean {
 function diffAgainstDefault(
   value: Readonly<Record<string, ConfigScalar>>,
   defaultValue: Readonly<Record<string, ConfigScalar>>,
+  editableKeys: ReadonlyArray<string>,
 ): Record<string, ConfigScalar> {
   const changed: Record<string, ConfigScalar> = {};
-  for (const [key, current] of Object.entries(value)) {
+  for (const key of editableKeys) {
+    const current = value[key];
     if (!scalarsEqual(current, defaultValue[key])) changed[key] = current;
   }
   return changed;
@@ -87,7 +89,12 @@ function diffAgainstDefault(
  */
 export function serializeConfigScopeBindingDiff(binding: ConfigScopeBinding): string | null {
   const { definition, value } = binding;
-  const changed = diffAgainstDefault(value, definition.defaultValue);
+  // Only authored controls can be applied as a panel diff. A normalized
+  // config may also contain hidden derived values (for example an editorial
+  // quote's gradientInkEnabled follows backgroundMode). Serializing those
+  // values can make the target preset reject the entire update.
+  const editableKeys = getConfigScopeFieldKeys(definition.fields);
+  const changed = diffAgainstDefault(value, definition.defaultValue, editableKeys);
   if (Object.keys(changed).length === 0) return null;
   return formatComponentConfigPayload({
     component: definition.component,
@@ -97,7 +104,7 @@ export function serializeConfigScopeBindingDiff(binding: ConfigScopeBinding): st
     targetType: definition.copy.targetType,
     updateStrategy: 'merge',
     completeScope: false,
-    knownKeys: getConfigScopeFieldKeys(definition.fields),
+    knownKeys: editableKeys,
     config: changed,
   });
 }

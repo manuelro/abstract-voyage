@@ -31,6 +31,10 @@ describe('Tailwind-backed config fields', () => {
     expect(TAILWIND_UTILITY_SETS.fontFamily.base.options.map(option => [option.label, option.value])).toEqual([
       ['SANS', 'font-sans'], ['SERIF', 'font-serif'],
     ]);
+    expect(TAILWIND_UTILITY_SETS.textTransform.base.control).toBe('enum');
+    expect(TAILWIND_UTILITY_SETS.textTransform.base.options.map(option => [option.value, option.cssValue])).toEqual([
+      ['normal-case', 'none'], ['uppercase', 'uppercase'], ['lowercase', 'lowercase'], ['capitalize', 'capitalize'],
+    ]);
     expect(TAILWIND_UTILITY_SETS.borderTopWidth.base.options).toHaveLength(5);
     expect(TAILWIND_UTILITY_SETS.paddingY.base.control).toBe('select');
     expect(TAILWIND_UTILITY_SETS.borderTopWidth.base.control).toBe('enum');

@@ -49,6 +49,26 @@ function createDemoDefinition(id = 'Demo/performance') {
 }
 
 describe('serializeConfigScopeBindingDiff', () => {
+  it('omits hidden derived values when an editable field changes', () => {
+    type DerivedConfig = { mode: 'plain' | 'gradient'; gradientEnabled: boolean };
+    const defaults: DerivedConfig = { mode: 'plain', gradientEnabled: false };
+    const definition = defineConfigScope<DerivedConfig>({
+      id: 'Demo/derived', component: 'Demo', scope: 'appearance',
+      title: 'Derived surface', createdAt: '2026-10-13', defaultValue: defaults,
+      fields: [{ kind: 'enum', key: 'mode', label: 'Mode', options: [
+        { label: 'PLAIN', value: 'plain' }, { label: 'GRADIENT', value: 'gradient' },
+      ] }],
+      hiddenKeys: ['gradientEnabled'],
+      copy: { targetFile: 'demo.config.ts', targetSymbol: 'DEFAULT_DEMO_CONFIG', targetType: 'DerivedConfig' },
+    });
+    const binding = createConfigScopeBinding<DerivedConfig>({ definition,
+      value: { mode: 'gradient', gradientEnabled: true }, onChange: vi.fn() });
+    const diff = serializeConfigScopeBindingDiff(binding);
+    expect(diff).toContain("mode: 'gradient'");
+    expect(diff).not.toContain('gradientEnabled');
+    expect(diff).toContain('known_keys: mode');
+  });
+
   it('returns null when the value equals defaultValue in every field', () => {
     const binding = createConfigScopeBinding({
       definition: createDemoDefinition(),

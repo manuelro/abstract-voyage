@@ -17,6 +17,68 @@ import { clamp } from '../../../../helpers/clamp';
  * live in the carousel-lab spike this was promoted from.
  */
 export type CoverFlowConfig = {
+  /** Desktop spatial path; Classic remains available with its original transforms. */
+  navigationPathLg: 'classic' | 'depth-pass' | 'oval-pass';
+  ovalDistributionModeLg: 'quarter' | 'full-arch';
+  /** Side-view ellipse, in units of card width and degrees around its rim. */
+  ovalHorizontalRadiusCardsLg: number;
+  ovalDepthRadiusCardsLg: number;
+  ovalViewAngleDegLg: number;
+  ovalFocusAngleDegLg: number;
+  ovalBackAngleDegLg: number;
+  ovalExitAngleDegLg: number;
+  ovalReachCardsLg: number;
+  /** Projected left edge of the farthest waiting card, as a viewport percentage. */
+  ovalFarEdgeXPercentLg: number;
+  /** Show the live 500px oval/viewport geometry preview on desktop. */
+  ovalGeometryPreviewEnabledLg: boolean;
+  /** Camera projection center for the desktop oval, as a container percentage. */
+  ovalCameraOriginXPercentLg: number;
+  /** How quickly the oval recedes near focus while retaining its back depth. */
+  ovalDepthEaseLg: number;
+  /** Camera distance at A and the extra recession around B, in card widths. */
+  ovalBackDepthCardsLg: number;
+  ovalArchDepthCardsLg: number;
+  /** Bends the approach to the deepest point without rotating card faces. */
+  ovalArchSkewLg: number;
+  /** Location of the smallest card along the waiting arc, from focus to far tail. */
+  ovalDepthMinimumPositionPercentLg: number;
+  ovalFirstNeighborGapPercentLg: number;
+  /** Bends spacing between the first and last waiting cards without changing endpoints. */
+  ovalArcSpacingBendLg: number;
+  /** Size and edge-gap rhythm based on fractional powers of the golden ratio. */
+  ovalGoldenRhythmEnabledLg: boolean;
+  ovalGoldenSizeStepLg: number;
+  ovalGoldenSpacingStepLg: number;
+  /** Hard projected edge clearances while golden rhythm fits the runway. */
+  ovalMinWaitingGapPxLg: number;
+  ovalMinActiveGapPxLg: number;
+  /** Visible overlap of the nearest oval card under the focused card. */
+  ovalFirstNeighborOverlapPercentLg: number;
+  /** Depth-pass stack silhouette; independent of classic rotation/spacing. */
+  depthPassStackSpacingPercentLg: number;
+  /** Visible focus-to-first-waiting edge gap, as a percent of card width. */
+  depthPassFirstNeighborGapPercentLg: number;
+  /** Compresses further waiting-plane spacing toward the back of the oval. */
+  depthPassOvalConvergencePercentLg: number;
+  depthPassStackYawDegLg: number;
+  depthPassStackYawMaxDegLg: number;
+  /** Maximum projected width relative to a front-facing card at the same Z. */
+  depthPassMaxProjectedWidthRatioLg: number;
+  /** Curved waiting-side silhouette. Zero bend/drop restores the straight path. */
+  depthPassArcBendPercentLg: number;
+  depthPassArcReachCardsLg: number;
+  depthPassArcDropPxLg: number;
+  depthPassVerticalOffsetPxLg: number;
+  /** Foreground apparent scale and margin beyond the clipping edge. */
+  depthPassExitScaleLg: number;
+  depthPassExitClearancePercentLg: number;
+  /** Point within a slot traversal where readable content changes owner. */
+  depthPassFocusHandoffPercentLg: number;
+  /** Surface-only translucency and bright leading edge on waiting planes. */
+  depthPassInactiveSurfaceOpacityLg: number;
+  depthPassFarSurfaceOpacityLg: number;
+  depthPassLeadingEdgeOpacityLg: number;
   /** Mobile — < 768px (unsuffixed = base/mobile-first tier). */
   cardDistanceRatio: number;
   /** Tablet — >= 768px. */
@@ -391,12 +453,12 @@ export type CoverFlowConfig = {
   cardRevealExitEasingCss: string;
   /** Opt-in (default 'spring' — today's exact behavior, byte-identical).
    * Governs the motion for every DISCRETE "jump to a specific index"
-   * transition — click-to-snap, wheel-jump, an externally-requested index
+   * transition — click-to-snap, an externally-requested index
    * change, and (CoverFlow's own most common trigger for this) selecting a
    * row in MobilePinnedArticleSection's expanded list. Deliberately does
-   * NOT apply to drag-release settling, which stays on 'spring' regardless
-   * of this field: that transition is seeded with the actual gesture's own
-   * release velocity (PanInfo.velocity), and a fixed-shape curve has no
+   * NOT apply to drag or continuously-tracked wheel release, which stay on
+   * 'spring' regardless of this field: those transitions carry gesture
+   * velocity, and a fixed-shape curve has no
    * principled way to absorb an arbitrary continuous input velocity the way
    * a spring naturally does.
    *
@@ -588,6 +650,47 @@ const DEFAULT_PERSPECTIVE_PX = 1000;
 export const ACTIVATION_RAMP_REFERENCE_DURATION_MS = 800;
 
 export const DEFAULT_COVER_FLOW_CONFIG = {
+  navigationPathLg: 'oval-pass',
+  ovalDistributionModeLg: 'full-arch',
+  ovalHorizontalRadiusCardsLg: 5.57,
+  ovalDepthRadiusCardsLg: 0.9,
+  ovalViewAngleDegLg: 66,
+  ovalFocusAngleDegLg: 61,
+  ovalBackAngleDegLg: 95,
+  ovalExitAngleDegLg: 42,
+  ovalReachCardsLg: 10,
+  ovalFarEdgeXPercentLg: 0,
+  ovalGeometryPreviewEnabledLg: true,
+  ovalCameraOriginXPercentLg: 85,
+  ovalDepthEaseLg: 1.12,
+  ovalBackDepthCardsLg: 2.9,
+  ovalArchDepthCardsLg: 3.5,
+  ovalArchSkewLg: 0.9,
+  ovalDepthMinimumPositionPercentLg: 100,
+  ovalFirstNeighborGapPercentLg: 22,
+  ovalArcSpacingBendLg: 0.045,
+  ovalGoldenRhythmEnabledLg: true,
+  ovalGoldenSizeStepLg: 0.55,
+  ovalGoldenSpacingStepLg: 0.35,
+  ovalMinWaitingGapPxLg: 8,
+  ovalMinActiveGapPxLg: 12,
+  ovalFirstNeighborOverlapPercentLg: 44,
+  depthPassStackSpacingPercentLg: 114,
+  depthPassFirstNeighborGapPercentLg: 2,
+  depthPassOvalConvergencePercentLg: 55,
+  depthPassStackYawDegLg: 0,
+  depthPassStackYawMaxDegLg: 70,
+  depthPassMaxProjectedWidthRatioLg: 1.05,
+  depthPassArcBendPercentLg: 400,
+  depthPassArcReachCardsLg: 1,
+  depthPassArcDropPxLg: 0,
+  depthPassVerticalOffsetPxLg: 35,
+  depthPassExitScaleLg: 1.85,
+  depthPassExitClearancePercentLg: 8,
+  depthPassFocusHandoffPercentLg: 50,
+  depthPassInactiveSurfaceOpacityLg: 0.66,
+  depthPassFarSurfaceOpacityLg: 0.45,
+  depthPassLeadingEdgeOpacityLg: 0.75,
   cardDistanceRatio: 1.5,
   cardDistanceRatioMd: 1.37,
   cardDistanceRatioLg: 0.64,
@@ -596,7 +699,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   cardWidthRatioLg: 0.4,
   maxCardHeightPx: 1560,
   maxCardHeightPxMd: 520,
-  maxCardHeightPxLg: 540,
+  maxCardHeightPxLg: 550,
   cardAspectRatio: 4 / 3,
   stackSpacingToCenterGapRatio: 2,
   stackSpacingToCenterGapRatioMd: 2,
@@ -646,9 +749,9 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   minCardWidthPx: 355,
   enableClickToSnap: true,
   enableScroll: true,
-  // Matches the prior accumulator model's own gap-reset constant exactly —
-  // zero behavior change for a gesture ending in a genuine pause.
-  wheelReleaseGapMs: 200,
+  // Release promptly after the native wheel/momentum tail stops; the prior
+  // 200ms gap left a visible pause between finger tracking and the settle.
+  wheelReleaseGapMs: 120,
   // Comfortably keeps a fully-centered edge card inside the viewport across
   // realistic card-width/spacing configs, while still giving a clearly
   // felt springy resistance rather than a dead hard stop.
@@ -695,7 +798,7 @@ export const DEFAULT_COVER_FLOW_CONFIG = {
   // successor cards disappear precisely when the final card is selected,
   // defeating the continuity cue the loop is meant to provide.
   leftFadeEnabled: true,
-  leftFadeMinOpacity: 0.5,
+  leftFadeMinOpacity: 0.1,
   // A CoverFlow has no meaningful terminal state: reaching the final story
   // must preserve the same populated left runway as every other position.
   infiniteLoopEnabled: false,
@@ -851,11 +954,57 @@ const landingMode = (
     : fallback
 );
 
+const depthPassNumber = (value: unknown, fallback: number, min: number, max: number) => (
+  typeof value === 'number' && Number.isFinite(value) ? clamp(value, min, max) : fallback
+);
+
 export function normalizeCoverFlowConfig(
   config: Partial<CoverFlowConfig> | undefined,
 ): CoverFlowConfig {
   const base = { ...DEFAULT_COVER_FLOW_CONFIG, ...(config ?? {}) };
   return {
+    navigationPathLg: base.navigationPathLg === 'depth-pass' || base.navigationPathLg === 'oval-pass'
+      ? base.navigationPathLg : 'classic',
+    ovalDistributionModeLg: base.ovalDistributionModeLg === 'quarter' ? 'quarter' : 'full-arch',
+    ovalHorizontalRadiusCardsLg: depthPassNumber(base.ovalHorizontalRadiusCardsLg, DEFAULT_COVER_FLOW_CONFIG.ovalHorizontalRadiusCardsLg, 0.5, 6),
+    ovalDepthRadiusCardsLg: depthPassNumber(base.ovalDepthRadiusCardsLg, DEFAULT_COVER_FLOW_CONFIG.ovalDepthRadiusCardsLg, 0.2, 4),
+    ovalViewAngleDegLg: depthPassNumber(base.ovalViewAngleDegLg, DEFAULT_COVER_FLOW_CONFIG.ovalViewAngleDegLg, 0, 75),
+    ovalFocusAngleDegLg: depthPassNumber(base.ovalFocusAngleDegLg, DEFAULT_COVER_FLOW_CONFIG.ovalFocusAngleDegLg, 0, 85),
+    ovalBackAngleDegLg: depthPassNumber(base.ovalBackAngleDegLg, DEFAULT_COVER_FLOW_CONFIG.ovalBackAngleDegLg, 90, 180),
+    ovalExitAngleDegLg: depthPassNumber(base.ovalExitAngleDegLg, DEFAULT_COVER_FLOW_CONFIG.ovalExitAngleDegLg, 0, 60),
+    ovalReachCardsLg: depthPassNumber(base.ovalReachCardsLg, DEFAULT_COVER_FLOW_CONFIG.ovalReachCardsLg, 1, 10),
+    ovalFarEdgeXPercentLg: depthPassNumber(base.ovalFarEdgeXPercentLg, DEFAULT_COVER_FLOW_CONFIG.ovalFarEdgeXPercentLg, 0, 30),
+    ovalGeometryPreviewEnabledLg: base.ovalGeometryPreviewEnabledLg === true,
+    ovalCameraOriginXPercentLg: depthPassNumber(base.ovalCameraOriginXPercentLg, DEFAULT_COVER_FLOW_CONFIG.ovalCameraOriginXPercentLg, 85, 140),
+    ovalDepthEaseLg: depthPassNumber(base.ovalDepthEaseLg, DEFAULT_COVER_FLOW_CONFIG.ovalDepthEaseLg, 0, 2),
+    ovalBackDepthCardsLg: depthPassNumber(base.ovalBackDepthCardsLg, DEFAULT_COVER_FLOW_CONFIG.ovalBackDepthCardsLg, 0, 5),
+    ovalArchDepthCardsLg: depthPassNumber(base.ovalArchDepthCardsLg, DEFAULT_COVER_FLOW_CONFIG.ovalArchDepthCardsLg, 0, 12),
+    ovalArchSkewLg: depthPassNumber(base.ovalArchSkewLg, DEFAULT_COVER_FLOW_CONFIG.ovalArchSkewLg, -1.8, 1.8),
+    ovalDepthMinimumPositionPercentLg: depthPassNumber(base.ovalDepthMinimumPositionPercentLg, DEFAULT_COVER_FLOW_CONFIG.ovalDepthMinimumPositionPercentLg, 40, 100),
+    ovalFirstNeighborGapPercentLg: depthPassNumber(base.ovalFirstNeighborGapPercentLg, DEFAULT_COVER_FLOW_CONFIG.ovalFirstNeighborGapPercentLg, -80, 100),
+    ovalArcSpacingBendLg: depthPassNumber(base.ovalArcSpacingBendLg, DEFAULT_COVER_FLOW_CONFIG.ovalArcSpacingBendLg, -0.1, 0.1),
+    ovalGoldenRhythmEnabledLg: base.ovalGoldenRhythmEnabledLg === true,
+    ovalGoldenSizeStepLg: depthPassNumber(base.ovalGoldenSizeStepLg, DEFAULT_COVER_FLOW_CONFIG.ovalGoldenSizeStepLg, 0, 0.8),
+    ovalGoldenSpacingStepLg: depthPassNumber(base.ovalGoldenSpacingStepLg, DEFAULT_COVER_FLOW_CONFIG.ovalGoldenSpacingStepLg, 0, 1),
+    ovalMinWaitingGapPxLg: depthPassNumber(base.ovalMinWaitingGapPxLg, DEFAULT_COVER_FLOW_CONFIG.ovalMinWaitingGapPxLg, 0, 80),
+    ovalMinActiveGapPxLg: depthPassNumber(base.ovalMinActiveGapPxLg, DEFAULT_COVER_FLOW_CONFIG.ovalMinActiveGapPxLg, 0, 80),
+    ovalFirstNeighborOverlapPercentLg: depthPassNumber(base.ovalFirstNeighborOverlapPercentLg, DEFAULT_COVER_FLOW_CONFIG.ovalFirstNeighborOverlapPercentLg, 0, 80),
+    depthPassStackSpacingPercentLg: depthPassNumber(base.depthPassStackSpacingPercentLg, DEFAULT_COVER_FLOW_CONFIG.depthPassStackSpacingPercentLg, 10, 150),
+    depthPassFirstNeighborGapPercentLg: depthPassNumber(base.depthPassFirstNeighborGapPercentLg, DEFAULT_COVER_FLOW_CONFIG.depthPassFirstNeighborGapPercentLg, 0, 100),
+    depthPassOvalConvergencePercentLg: depthPassNumber(base.depthPassOvalConvergencePercentLg, DEFAULT_COVER_FLOW_CONFIG.depthPassOvalConvergencePercentLg, 0, 100),
+    depthPassStackYawDegLg: depthPassNumber(base.depthPassStackYawDegLg, DEFAULT_COVER_FLOW_CONFIG.depthPassStackYawDegLg, 0, 45),
+    depthPassStackYawMaxDegLg: depthPassNumber(base.depthPassStackYawMaxDegLg, DEFAULT_COVER_FLOW_CONFIG.depthPassStackYawMaxDegLg, 0, 70),
+    depthPassMaxProjectedWidthRatioLg: depthPassNumber(base.depthPassMaxProjectedWidthRatioLg, DEFAULT_COVER_FLOW_CONFIG.depthPassMaxProjectedWidthRatioLg, 1, 1.5),
+    depthPassArcBendPercentLg: depthPassNumber(base.depthPassArcBendPercentLg, DEFAULT_COVER_FLOW_CONFIG.depthPassArcBendPercentLg, 0, 400),
+    depthPassArcReachCardsLg: depthPassNumber(base.depthPassArcReachCardsLg, DEFAULT_COVER_FLOW_CONFIG.depthPassArcReachCardsLg, 1, 10),
+    depthPassArcDropPxLg: depthPassNumber(base.depthPassArcDropPxLg, DEFAULT_COVER_FLOW_CONFIG.depthPassArcDropPxLg, -160, 160),
+    depthPassVerticalOffsetPxLg: depthPassNumber(base.depthPassVerticalOffsetPxLg, DEFAULT_COVER_FLOW_CONFIG.depthPassVerticalOffsetPxLg, -200, 200),
+    depthPassExitScaleLg: depthPassNumber(base.depthPassExitScaleLg, DEFAULT_COVER_FLOW_CONFIG.depthPassExitScaleLg, 1.1, 2.5),
+    depthPassExitClearancePercentLg: depthPassNumber(base.depthPassExitClearancePercentLg, DEFAULT_COVER_FLOW_CONFIG.depthPassExitClearancePercentLg, 0, 30),
+    depthPassFocusHandoffPercentLg: depthPassNumber(base.depthPassFocusHandoffPercentLg, DEFAULT_COVER_FLOW_CONFIG.depthPassFocusHandoffPercentLg, 0, 100),
+    depthPassInactiveSurfaceOpacityLg: depthPassNumber(base.depthPassInactiveSurfaceOpacityLg, DEFAULT_COVER_FLOW_CONFIG.depthPassInactiveSurfaceOpacityLg, 0, 1),
+    depthPassFarSurfaceOpacityLg: depthPassNumber(base.depthPassFarSurfaceOpacityLg, DEFAULT_COVER_FLOW_CONFIG.depthPassFarSurfaceOpacityLg, 0, 1),
+    depthPassLeadingEdgeOpacityLg: depthPassNumber(base.depthPassLeadingEdgeOpacityLg, DEFAULT_COVER_FLOW_CONFIG.depthPassLeadingEdgeOpacityLg, 0, 1),
     cardDistanceRatio: clamp(base.cardDistanceRatio, CARD_DISTANCE_RATIO_MIN, CARD_DISTANCE_RATIO_MAX),
     cardDistanceRatioMd: clamp(base.cardDistanceRatioMd, CARD_DISTANCE_RATIO_MIN, CARD_DISTANCE_RATIO_MAX),
     cardDistanceRatioLg: clamp(base.cardDistanceRatioLg, CARD_DISTANCE_RATIO_MIN, CARD_DISTANCE_RATIO_MAX),

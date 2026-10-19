@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type FocusEvent } from 'react'
 import Chip, { type ChipTintAppearance } from '../../../../components/Chip'
+import type { TailwindTokenValue } from '../../../../components/Panel/config/tailwindFields'
 import {
   computeTitleOpacity,
   computeTitleScale,
@@ -55,6 +56,7 @@ export type ArticleFilterProps = {
   config: ArticleFilterConfig
   textColor?: string
   chipTintAppearance?: ChipTintAppearance
+  chipFontWeightClassName?: TailwindTokenValue<'fontWeight'>
 }
 
 export function ArticleFilter({
@@ -64,6 +66,7 @@ export function ArticleFilter({
   config,
   textColor,
   chipTintAppearance,
+  chipFontWeightClassName,
 }: ArticleFilterProps) {
   const [interactionIndex, setInteractionIndex] = useState<number | null>(null)
   if (!config.enabled) return null
@@ -119,7 +122,7 @@ export function ArticleFilter({
             label={category ?? 'All'}
             active={selected}
             onClick={() => onSelectCategory(category)}
-            className={`rounded-full border border-current/30 uppercase transition-opacity ${config.fontSize} ${config.fontSizeWide} ${config.fontSizeLg}`}
+            className={`rounded-full border border-current/30 uppercase transition-opacity ${config.fontSize} ${config.fontSizeWide} ${config.fontSizeLg} ${chipFontWeightClassName ?? ''}`}
             style={chipStyle}
             tintAppearance={chipTintAppearance}
           />

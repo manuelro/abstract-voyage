@@ -47,7 +47,7 @@
    at once. The rail is now drawn per year, as this element (first child of
    `.year`, so it paints behind that year's own dot/content), reading the
    *exact same* variables that year's own dot reads: `--chronology-ink` at
-   rest, `--chronology-year-fade-dot-color` when dimmed (see .dot's own
+   rest, `--chronology-year-fade-rail-color` when dimmed (see .dot's own
    dimmed rule below).
    `top: 0; height: 100%` below are only the pre-measurement fallback.
    ChronologyTimeline.tsx's own effect immediately overrides both with
@@ -72,7 +72,7 @@
   transition: background-color var(--chronology-year-fade-duration, 0ms) var(--chronology-year-fade-easing, ease) 0ms;
 }
 .year[data-dimmed='true'] .yearRail {
-  background: var(--chronology-year-fade-dot-color, var(--chronology-ink));
+  background: var(--chronology-year-fade-rail-color, var(--chronology-ink));
   transition-delay: var(--chronology-year-fade-delay, 0ms);
 }
 /* Label/items have nothing solid behind them, so a real opacity fade is
@@ -143,17 +143,17 @@
   /* --chronology-ink (not --chronology-year-color) — the year dot must
      match the rail line it sits on; --chronology-year-color is reserved for
      the year label text, which is deliberately allowed its own ink. */
-  background: var(--chronology-ink);
+  background: var(--chronology-year-dot-color, var(--chronology-ink));
   transition: background-color var(--chronology-year-fade-duration, 0ms) var(--chronology-year-fade-easing, ease) 0ms;
 }
 .dot[data-kind='month'] {
   left: calc(var(--chronology-rail-x) - var(--chronology-month-dot) / 2);
   width: var(--chronology-month-dot);
   height: var(--chronology-month-dot);
-  background: var(--chronology-month-color);
+  background: var(--chronology-month-dot-color, var(--chronology-month-color));
 }
 .year[data-dimmed='true'] .dot[data-kind='year'] {
-  background: var(--chronology-year-fade-dot-color, var(--chronology-ink));
+  background: var(--chronology-year-marker-fade-dot-color, var(--chronology-ink));
   transition-delay: var(--chronology-year-fade-delay, 0ms);
 }
 .year[data-dimmed='true'] .dot[data-kind='month'] {

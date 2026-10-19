@@ -5,7 +5,8 @@ import { useRouter } from 'next/router'
 import dynamic from 'next/dynamic'
 import Head from 'next/head'
 import Script from 'next/script'
-import { Instrument_Sans, Instrument_Serif } from 'next/font/google'
+import { siteSans, siteSerif } from '../components/siteFonts'
+export { siteSans } from '../components/siteFonts'
 import type { ReactNode } from 'react'
 import { SharedDesignConfigProvider, useSharedDesignConfig } from '../components/SharedDesignConfigProvider'
 import { LayoutDebugHighlightProvider } from '../components/LayoutDebugHighlight'
@@ -16,8 +17,8 @@ import { PageCapabilityRuntimeProvider } from '../experiences/shared/PageCapabil
 
 const CopyTool = dynamic(() => import('../components/CopyTool'), { ssr: false })
 
-// Keep the next/font declarations at the Pages Router's app root. The
-// variable classes and font-sans class are deliberately applied together:
+// The shared next/font declarations are applied at the Pages Router's app
+// root. The variable classes and font-sans class are deliberately together:
 // Tailwind resolves the custom property on this exact element before every
 // page's typography inherits from it.
 // adjustFontFallback (default true, previously disabled here with no
@@ -34,18 +35,6 @@ const CopyTool = dynamic(() => import('../components/CopyTool'), { ssr: false })
 // var(--site-font-sans) reference alone resolves to nothing there, since
 // that custom property is scoped to the wrapper div, not document.body,
 // and a portaled node is body's sibling, not its descendant.
-export const siteSans = Instrument_Sans({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--site-font-sans',
-})
-const siteSerif = Instrument_Serif({
-  subsets: ['latin'],
-  weight: ['400'],
-  display: 'swap',
-  variable: '--site-font-serif',
-})
-
 /**
  * Next.js stopped auto-injecting a viewport meta tag in v9+ — without one,
  * iOS Safari renders every page at a virtual ~980px layout viewport and

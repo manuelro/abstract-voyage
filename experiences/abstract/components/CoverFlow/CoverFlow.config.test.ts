@@ -7,6 +7,11 @@ import {
 import { COVER_FLOW_PANEL } from './CoverFlow.panel';
 
 describe('CoverFlow breakpoint card height cap', () => {
+  it('normalizes the golden oval smallest-card position', () => {
+    expect(normalizeCoverFlowConfig({}).ovalDepthMinimumPositionPercentLg).toBe(100);
+    expect(normalizeCoverFlowConfig({ ovalDepthMinimumPositionPercentLg: 20 }).ovalDepthMinimumPositionPercentLg).toBe(40);
+    expect(normalizeCoverFlowConfig({ ovalDepthMinimumPositionPercentLg: 120 }).ovalDepthMinimumPositionPercentLg).toBe(100);
+  });
   it('exposes independent mobile, tablet, and desktop fields in the geometry panel', () => {
     const tabsField = COVER_FLOW_PANEL.fields.find(field => field.kind === 'tabs');
     expect(tabsField?.kind).toBe('tabs');

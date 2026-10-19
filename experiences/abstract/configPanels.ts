@@ -83,6 +83,7 @@ import {
   CARD_APPEARANCE_PANEL,
   CARD_APPEARANCE_SCOPE_ID,
 } from './components/Card/config/appearance.panel';
+import { QUOTE_PANEL, QUOTE_SCOPE_ID } from './components/Quote/Quote.panel';
 import {
   ABSTRACT_TIMELINE_PANEL,
   ABSTRACT_TIMELINE_SCOPE_ID,
@@ -183,6 +184,7 @@ export const abstractConfigPanelRegistry = defineConfigScopeRegistry({
     COVER_FLOW_PANEL,
   [CARD_APPEARANCE_SCOPE_ID]:
     CARD_APPEARANCE_PANEL,
+  [QUOTE_SCOPE_ID]: QUOTE_PANEL,
   [ABSTRACT_TIMELINE_SCOPE_ID]:
     ABSTRACT_TIMELINE_PANEL,
   [MOBILE_PINNED_ARTICLE_SECTION_SCOPE_ID]:

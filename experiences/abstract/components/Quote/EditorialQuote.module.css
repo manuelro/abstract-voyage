@@ -1,0 +1,6 @@
+.item { box-sizing: border-box; min-width: 0; padding-block: 0.5rem 1rem; }
+.heading { margin: 0; width: 100%; line-height: 1.5; letter-spacing: 0.13em; font-synthesis: weight; }
+.linkRow { min-width: 0; width: 100%; }
+.link { display: inline-flex; align-items: center; line-height: 1.4; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+.link:hover { filter: brightness(0.7); }
+.link:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }

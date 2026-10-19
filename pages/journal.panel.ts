@@ -406,6 +406,13 @@ export const JOURNAL_ARTICLE_FILTER_PANEL = defineConfigScope<ArticleFilterConfi
 })
 
 const journalChipTailwindField = createTailwindFieldFactory<JournalChipAppearanceConfig>()
+const CHIP_TRANSITION_EASING_OPTIONS = [
+  { label: 'LINEAR', value: 'linear' },
+  { label: 'EASE', value: 'ease' },
+  { label: 'EASE IN', value: 'ease-in' },
+  { label: 'EASE OUT', value: 'ease-out' },
+  { label: 'EASE IN OUT', value: 'ease-in-out' },
+] as const
 
 // One tint per state drives the fill and border of every article filter chip.
 // Text is chosen automatically against each state's fill and page surface.
@@ -452,8 +459,15 @@ export const JOURNAL_CHIP_APPEARANCE_PANEL = defineConfigScope<JournalChipAppear
             journalChipTailwindField('paddingY', { key: 'articleTagPaddingY', label: 'Padding · vertical' }),
             journalChipTailwindField('letterSpacing', { key: 'articleTagTextTracking', label: 'Text tracking' }),
             journalChipTailwindField('fontSize', { key: 'articleTagFontSize', label: 'Font size' }),
+            journalChipTailwindField('fontWeight', { key: 'articleTagFontWeight', label: 'Font weight' }),
           ],
         },
+      ],
+    },
+    {
+      kind: 'group', label: 'Transitions', fields: [
+        { kind: 'number', key: 'transitionDurationMs', label: 'Duration', min: 0, max: 2000, step: 10, unit: 'ms', description: 'One transition timing for chip text color, background color, border color, and opacity.' },
+        { kind: 'enum', key: 'transitionEasing', label: 'Easing', options: CHIP_TRANSITION_EASING_OPTIONS },
       ],
     },
     {
@@ -462,6 +476,7 @@ export const JOURNAL_CHIP_APPEARANCE_PANEL = defineConfigScope<JournalChipAppear
         journalChipTailwindField('paddingY', { key: 'paddingY', label: 'Padding · vertical' }),
         journalChipTailwindField('letterSpacing', { key: 'textTracking', label: 'Text tracking' }),
         journalChipTailwindField('borderWidth', { key: 'borderWidth', label: 'Border width' }),
+        journalChipTailwindField('fontWeight', { key: 'fontWeight', label: 'Font weight' }),
       ],
     },
   ],

@@ -21,9 +21,9 @@ import {
   buildDeckPaletteStates,
 } from '../../../helpers/deckPalette';
 import { resolveAbstractPostDockGradientActivity } from '../helpers/gradientActivity';
-import { abstractPostDockActiveOpacityStyle } from '../helpers/activeOpacityReveal';
 import { colorToRgba } from '../helpers/misc';
-import { renderEmphasisText, stripEmphasisMarkup } from '../../../../../helpers/textEmphasis';
+import { stripEmphasisMarkup } from '../../../../../helpers/textEmphasis';
+import { MinimalModeText } from './MinimalModeText';
 import { usePrefersReducedMotion, useDockGradientAvailability, useIsomorphicLayoutEffect } from '../hooks/browserState';
 import { useBreakpointTier } from '../../../../../components/useBreakpointTier';
 import { useSliderVisualMetrics } from '../hooks/viewport';
@@ -495,36 +495,20 @@ export function AbstractPostDockView({
               />
             </div>
           ) : null}
-          <p
+          <MinimalModeText
+            text={item.title}
+            dimOpacity={layoutConfig.minimalModeTextDimOpacity}
+            emphasisOpacity={layoutConfig.minimalModeTextEmphasisOpacity}
+            isActive={isActive}
+            transitionMs={transitionMs}
+            easingCss={transitionEasing}
             className={[
-              'relative z-10 m-0 text-white [text-wrap:balance] transition-opacity',
               layoutConfig.minimalModeFontSize,
               layoutConfig.minimalModeFontSizeWide,
               layoutConfig.minimalModeFontSizeLg,
               layoutConfig.minimalModeTextMaxWidth,
             ].join(' ')}
-            style={{
-              ...abstractPostDockActiveOpacityStyle({
-                isActive,
-                transitionMs,
-                easingCss: transitionEasing,
-              }),
-              // A11Y-05 (about-IA-timeline-copy-rework) — reads a page-local
-              // CSS custom property (pages/about.module.css's own
-              // --about-dock-text-shadow, declared on .splitRight) via
-              // ordinary inheritance; falls back to 'none' everywhere else
-              // this shared component is used, so no other consumer's
-              // rendering changes. No gradient/palette change — text-shadow
-              // only, per C-01.
-              textShadow: 'var(--about-dock-text-shadow, none)',
-            }}
-          >
-            {renderEmphasisText(
-              item.title,
-              layoutConfig.minimalModeTextDimOpacity,
-              layoutConfig.minimalModeTextEmphasisOpacity,
-            )}
-          </p>
+          />
           <div
             aria-hidden="true"
             className={`pointer-events-none absolute inset-0 z-[1] bg-black ${styles.dimmingOverlay}`}

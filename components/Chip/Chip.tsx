@@ -24,7 +24,11 @@ export type ChipTintAppearance = {
   paddingXClassName: TailwindTokenValue<'paddingX'>
   paddingYClassName: TailwindTokenValue<'paddingY'>
   textTrackingClassName: TailwindTokenValue<'letterSpacing'>
+  transitionDurationMs?: number
+  transitionEasing?: ChipTransitionEasing
 }
+
+export type ChipTransitionEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out'
 
 export type ChipProps = {
   label: ReactNode
@@ -125,6 +129,8 @@ export default function Chip({
         '--chip-bg-press': hover.fill,
         '--chip-text-press': hover.text,
         '--chip-border-press': hover.border,
+        '--chip-transition-duration': `${Math.max(0, Number.isFinite(tintAppearance.transitionDurationMs) ? tintAppearance.transitionDurationMs ?? 0 : 0)}ms`,
+        '--chip-transition-easing': tintAppearance.transitionEasing ?? 'ease',
       } as CSSProperties
     })()
     : appearance

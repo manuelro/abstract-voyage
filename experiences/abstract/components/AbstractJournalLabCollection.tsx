@@ -13,7 +13,8 @@ import React, {
   useState,
 } from 'react';
 import { useMotionValue, useTransform, type MotionValue } from 'motion/react';
-import ArticleCard, { type ArticleCardTypographyScale } from '../../../components/ArticleCard';
+import ArticleCard, { type ArticleCardProps, type ArticleCardTypographyScale } from '../../../components/ArticleCard';
+import { CardGradientMesh } from './CardGradientMesh';
 import type { SectionHeadingConfig } from '../../../components/SectionHeading.config';
 import {
   CTA_BUTTON_MOTION_EASINGS,
@@ -370,24 +371,23 @@ export function AbstractJournalLabFlipCard({
     isVisible && rendererView === 'articles' && Boolean(slot.article);
   const labRendererActive =
     isVisible && rendererView === 'labs' && Boolean(slot.lab && labSlide);
-  const articleCanvas = articleRendererActive && slot.article ? (
-    <LiquidGradientAdapter
-      slide={slot.article}
+  // The article card's live mesh background -- now THE shared CardGradientMesh
+  // the editorial Quote renders too, so a card and a quote show provably the
+  // same mesh (same component, same shader, same prop contract), not two
+  // parallel LiquidGradientAdapter call sites that could drift. The wrapper is
+  // always present (canvas gated on slide inside CardGradientMesh) to keep the
+  // renderer under one stable host across hue enable/disable changes -- adding
+  // the wrapper conditionally used to remount the adapter and snap the
+  // configured transition.
+  const articleBackground = (
+    <CardGradientMesh
+      slide={articleRendererActive ? slot.article : undefined}
       motion={motion}
       config={gradientConfig}
       palette={articlePalette}
       hologramConfig={journalHologramConfig}
       hologramInteraction={interactionRef}
     />
-  ) : undefined;
-  // Keep the renderer under one stable host across hue enable/disable changes.
-  // Conditionally adding this wrapper used to remount LiquidGradientAdapter,
-  // which initialized directly at the new hue state and made the configured
-  // transition appear to snap. The adapter owns its settled CSS fallback.
-  const articleBackground = (
-    <div className="absolute inset-0 overflow-hidden">
-      {articleCanvas}
-    </div>
   );
   const labBackground = slot.lab && labFallback ? (
     <div
@@ -563,6 +563,12 @@ export type HueFadeCardProps = {
   cardRadius: string;
   layoutConfig: AbstractPostDockLayoutConfig;
   reveal: CardReveal;
+  /** Omit the category while preserving date and reading-time metadata. */
+  hideTopic?: boolean;
+  /** Omit reading time and its separator while preserving other metadata. */
+  hideReadingTime?: boolean;
+  /** Render the category as ordinary text instead of a chip. */
+  topicAsText?: boolean;
   /** Optional ArticleCard information-scale override. CoverFlow uses the
    * fixed-aspect proportional mode; all established collection/dock callers
    * retain the existing dock mode by omission. */
@@ -651,9 +657,9 @@ export type HueFadeCardProps = {
    * own "disabled" convention): the ceiling always resolves to 1 — zero
    * behavior change for every caller that doesn't pass both fields. */
   inactiveCardHoverAmplitudeStep?: number;
-  /** Opt-in: each unit of live CoverFlow distance adds this percentage to
-   * the card's authored gradient scale. The active card remains at 100%. */
-  inactiveGradientScaleDistanceEnabled?: boolean;
+  /** CoverFlow gradient scaling: by live distance or one shared scale for
+   * every inactive card. The active card retains its authored scale. */
+  inactiveGradientScaleMode?: AbstractPostDockPaletteConfig['inactiveGradientScaleMode'];
   inactiveGradientScaleDistancePercent?: number;
   /** Opt-in, stack-only: this card is CardStack.tsx's own non-active
    * neighbor slot (`offset !== 0`) that has *settled* — no step is in
@@ -714,8 +720,13 @@ export type HueFadeCardProps = {
   /** Stack-only editorial lead treatment, supplied by CardStack for the
    * first Article card only. */
   titleAndSummaryOnly?: boolean;
+  /** Card Appearance's metadata size, forwarded to ArticleCard. */
+  metadataFontSizeTokens?: ArticleCardProps['metadataFontSizeTokens'];
+  contentPaddingTokens?: ArticleCardProps['contentPaddingTokens'];
   stackPresentation?: {
     state: 'active' | 'inactive';
+    /** CoverFlow-only: expose the inactive face's alpha independently of content. */
+    depthPassSurfaceEnabled?: boolean;
     surfaceColor: string;
     /** Inactive-card frame treatment from the shared stack config. */
     frameMode: 'border' | 'flat-fill' | 'gradient-mesh';
@@ -876,7 +887,7 @@ export function AbstractJournalLabHueFadeCard({
   activationRampDurationMs = 0,
   distanceFromActiveLive,
   inactiveCardHoverAmplitudeStep = 0,
-  inactiveGradientScaleDistanceEnabled = false,
+  inactiveGradientScaleMode = 'off',
   inactiveGradientScaleDistancePercent = 0,
   stackNeighborSettled = false,
   stackSlotAnimating = false,
@@ -884,6 +895,11 @@ export function AbstractJournalLabHueFadeCard({
   stackPresentation,
   hasHoverPointer = true,
   titleAndSummaryOnly = false,
+  hideTopic = false,
+  hideReadingTime = false,
+  topicAsText = false,
+  metadataFontSizeTokens,
+  contentPaddingTokens,
   detailsRevealSettled,
   staggerRevealDelaysMs,
   staggerRevealDurationMs,
@@ -926,17 +942,20 @@ export function AbstractJournalLabHueFadeCard({
         : 1
     ),
   );
-  // Unlike the old render-time index multiplier, this follows CoverFlow's
-  // fractional distance signal. It therefore updates through every drag
-  // frame and inherits CoverFlow's spring settle curve when the pointer is
-  // released; no discrete active-card boundary can make it jump.
-  const gradientScaleMultiplierLive = useTransform(
-    distanceFromActiveLive ?? distanceFromActiveNeutralMotionValue,
-    (distance) => (
-      inactiveGradientScaleDistanceEnabled
-        ? 1 + Math.max(0, distance) * (inactiveGradientScaleDistancePercent / 100)
-        : 1
-    ),
+  // Distance mode follows CoverFlow's fractional position through drags and
+  // spring settles. Uniform mode reads the discrete active/inactive role,
+  // so every inactive card has the same scale at any position.
+  const inactiveScaleRoleLive = useMotionValue(stackActiveSlide ? 0 : 1);
+  useLayoutEffect(() => {
+    inactiveScaleRoleLive.set(stackActiveSlide ? 0 : 1);
+  }, [inactiveScaleRoleLive, stackActiveSlide]);
+  const gradientScaleMultiplierLive = useTransform<number, number>(
+    [distanceFromActiveLive ?? distanceFromActiveNeutralMotionValue, inactiveScaleRoleLive],
+    ([distance, inactive]) => inactiveGradientScaleMode === 'distance'
+      ? 1 + Math.max(0, distance) * (inactiveGradientScaleDistancePercent / 100)
+      : inactiveGradientScaleMode === 'uniform'
+        ? 1 + inactive * (inactiveGradientScaleDistancePercent / 100)
+        : 1,
   );
   // PLAN-COVERFLOW-TIMELINE-CLICK-LIFT-JUMP.md — the distance-only ceiling
   // above assumes position and role change together (true for a drag: the
@@ -1597,7 +1616,7 @@ export function AbstractJournalLabHueFadeCard({
   const background = (
     <div className="absolute inset-0">
       <div
-        className="absolute inset-0"
+        className={`absolute inset-0${stackPresentation?.depthPassSurfaceEnabled ? ` ${styles.depthPassSurface}` : ''}`}
         style={{
           background: getArticleCardFallbackBackground(visualSlide.seed),
           // neutralSurfaceOpacityOverride's own opt-in continuous cross-fade
@@ -1691,6 +1710,9 @@ export function AbstractJournalLabHueFadeCard({
           }}
         />
       ) : null}
+      {stackPresentation?.depthPassSurfaceEnabled ? (
+        <div aria-hidden="true" className={styles.depthPassLeadingEdge} />
+      ) : null}
     </div>
   );
   const slotStyle = {
@@ -1727,17 +1749,18 @@ export function AbstractJournalLabHueFadeCard({
             <ArticleCard
               title={payloadArticle?.title ?? payloadLab?.title ?? ''}
               excerpt={payloadArticle?.excerpt ?? payloadLab?.excerpt}
-              topic={payloadArticle?.topic ?? payloadLab?.tech[0]}
+              topic={hideTopic ? undefined : payloadArticle?.topic ?? payloadLab?.tech[0]}
+              topicAsText={topicAsText}
               date={
                 payloadArticle?.date ??
                 payloadLab?.formattedDate ??
                 payloadLab?.date
               }
-              readingTime={
+              readingTime={hideReadingTime ? undefined : (
                 payloadArticle?.readingTime ??
                 payloadLab?.tech.slice(1, 3).join(' · ') ??
                 undefined
-              }
+              )}
               href={href}
               externalUrl={payloadArticle?.externalUrl}
               forceExternalNavigation={
@@ -1748,6 +1771,8 @@ export function AbstractJournalLabHueFadeCard({
               physics="none"
               aspectRatio="fill"
               typographyScale={cardTypographyScale}
+              metadataFontSizeTokens={metadataFontSizeTokens}
+              contentPaddingTokens={contentPaddingTokens}
               contentInsetRem={gradientConfig.dockContentInsetRem}
               contentInsetWideRem={gradientConfig.dockContentInsetWideRem}
               proportionalContentInsetCqw={cardProportionalContentInsetCqw}
@@ -1770,7 +1795,7 @@ export function AbstractJournalLabHueFadeCard({
               // (inactiveNeutralPresentation) keeps its established opaque
               // bg-black base, since stackNeutralSurface fills over it with
               // its own real surfaceColor there, not a transparent cover.
-              backgroundTransparent={neutralPresentationOverrideActive}
+              backgroundTransparent={neutralPresentationOverrideActive || stackPresentation?.depthPassSurfaceEnabled}
               excerptVisible={layoutConfig.descriptionVisible}
               excerptHoverOnly={stackActiveSlide ? false : layoutConfig.descriptionHoverReveal}
               // staggerRevealDelaysMs (opt-in) switches the CTA away from
@@ -1804,7 +1829,7 @@ export function AbstractJournalLabHueFadeCard({
     <Link
       ref={setInteractionRef}
       href={href}
-      aria-disabled={transitioning || !renderedHasFace}
+      aria-disabled={transitioning || !renderedHasFace || (stackPresentation?.depthPassSurfaceEnabled && inactiveStackPresentation)}
       aria-hidden={!renderedHasFace || inactiveStackPresentation}
       aria-label={title || undefined}
       className={`${styles.slot} ${styles.fadeSlot} group`}
@@ -1813,10 +1838,12 @@ export function AbstractJournalLabHueFadeCard({
       data-introductory={titleAndSummaryOnly ? 'true' : undefined}
       rel={activeIsExternal ? 'noreferrer' : undefined}
       style={slotStyle}
-      tabIndex={titleAndSummaryOnly || !renderedHasFace || transitioning ? -1 : undefined}
+      tabIndex={titleAndSummaryOnly || !renderedHasFace || transitioning
+        || (stackPresentation?.depthPassSurfaceEnabled && inactiveStackPresentation) ? -1 : undefined}
       target={activeIsExternal ? '_blank' : undefined}
       onClick={event => {
-        if (titleAndSummaryOnly || transitioning || !renderedHasFace) event.preventDefault();
+        if (titleAndSummaryOnly || transitioning || !renderedHasFace
+          || (stackPresentation?.depthPassSurfaceEnabled && inactiveStackPresentation)) event.preventDefault();
       }}
       onFocus={handleFocus}
       onBlur={handleBlur}
@@ -1843,9 +1870,24 @@ export function AbstractJournalLabHueFadeCard({
   );
 }
 
+/** The exact (slide, resolved palette) pair this collection feeds each of its
+ * OWN article cards' live mesh (CardGradientMesh/LiquidGradientAdapter). Emitted
+ * via onArticleMeshInputsChange so another surface -- the editorial Quote --
+ * can reference the identical inputs and therefore render the very same mesh a
+ * given card does, instead of re-deriving a parallel (and divergent) palette. */
+export type ArticleMeshInput = {
+  slide: SliderContentSlide;
+  palette: DeckPaletteState | null;
+};
+
 export type AbstractJournalLabCollectionProps = {
   articles: SliderContentSlide[];
   labs: LabSummary[];
+  /** Optional: receive the per-article mesh inputs (slide + the exact resolved
+   * palette) this collection feeds its own cards, so a host can hand the SAME
+   * inputs to another live-mesh surface (the Quote) for a provably identical
+   * mesh. Fires whenever those inputs change. */
+  onArticleMeshInputsChange?: (inputs: ReadonlyArray<ArticleMeshInput>) => void;
   config: AbstractJournalLabCollectionConfig;
   /** Opt-in physics slider mode — see AbstractJournalLabCollectionSliderConfig.
    * Omitted/absent defaults to 'grid', the original, untouched behavior. */
@@ -1866,6 +1908,7 @@ export type AbstractJournalLabCollectionProps = {
 export function AbstractJournalLabCollection({
   articles,
   labs,
+  onArticleMeshInputsChange,
   config: suppliedConfig,
   sliderConfig: suppliedSliderConfig,
   introductionConfig,
@@ -2005,6 +2048,20 @@ export function AbstractJournalLabCollection({
     )),
     [labOutputTreatment, labSlides],
   );
+  // The exact (slide, palette) pair each ARTICLE card's own mesh uses -- the
+  // hue-fade article face reads `basePalette` (hueFadeArticleBasePalettes), the
+  // flip face reads `articlePalettes`; both key into `articles` by the same
+  // index. Emitted so a host can hand the SAME pair to the Quote, making its
+  // mesh provably identical to a given card's rather than a parallel palette.
+  const articleMeshInputs = useMemo<ReadonlyArray<ArticleMeshInput>>(() => {
+    const palettes = config.presentationMode === 'hue-fade-through'
+      ? hueFadeArticleBasePalettes
+      : articlePalettes;
+    return articles.map((slide, index) => ({ slide, palette: palettes?.[index] ?? null }));
+  }, [articles, config.presentationMode, hueFadeArticleBasePalettes, articlePalettes]);
+  useEffect(() => {
+    onArticleMeshInputsChange?.(articleMeshInputs);
+  }, [articleMeshInputs, onArticleMeshInputsChange]);
   const collectionLayout = useMemo(
     () => buildAbstractJournalLabFlipLayout({
       articles,
